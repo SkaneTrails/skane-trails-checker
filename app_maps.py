@@ -19,8 +19,8 @@ with col1:
     st.title("📍 GPX Trail Explorer")
 
 # Define the path to the GPX file and CSV file
-gpx_file_path = "experiments/services_scrape/all-skane-trails.gpx"  # Replace with your actual file path
-csv_file_path = "experiments/services_scrape/track_status.csv"  # Path for saving track statuses
+gpx_file_path = "gps_tracks/skane/all-skane-trails.gpx"  # Replace with your actual file path
+csv_file_path = "tracks_status/track_status.csv"  # Path for saving track statuses
 
 # Load track statuses from CSV file if it exists
 def load_track_statuses():
