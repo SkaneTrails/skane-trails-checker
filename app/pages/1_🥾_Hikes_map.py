@@ -66,21 +66,7 @@ with tab1:
     os.makedirs(skane_other_files_path, exist_ok=True)
     os.makedirs(world_wide_hikes_path, exist_ok=True)
 
-
-# Cache the GPX parsing function (often the slowest part)
-@st.cache_data
-def load_gpx_file(file_path):
-    """Load and parse a GPX file with caching"""
-    if not os.path.exists(file_path):
-        return None
-        
-    try:
-        with open(file_path, "r", encoding="utf-8") as gpx_file:
-            gpx_string = gpx_file.read()
-            return gpxpy.parse(gpx_string)
-    except Exception as e:
-        st.warning(f"Error loading GPX file {file_path}: {e}")
-        return None
+    
 
 def simplify_track_coordinates(coordinates, tolerance=0.0001):
     """
@@ -159,6 +145,7 @@ def load_additional_gpx_files(directory):
     for file_path in gpx_files:
         try:
             with open(file_path, "r", encoding="utf-8") as gpx_file:
+                print(f"Loading {gpx_file}")
                 gpx_string = gpx_file.read()
                 gpx_data = gpxpy.parse(gpx_string)
                 file_name = os.path.basename(file_path)
@@ -200,6 +187,7 @@ def handle_uploaded_gpx(uploaded_file, is_world_wide=False):
         
         # Try to parse the GPX file to validate it
         with open(tmp_file_path, "r", encoding="utf-8") as test_file:
+            print(f"Validating {test_file}")
             gpx_string = test_file.read()
             gpxpy.parse(gpx_string)  # This will raise an exception if the file is invalid
             
@@ -208,7 +196,7 @@ def handle_uploaded_gpx(uploaded_file, is_world_wide=False):
         os.unlink(tmp_file_path)  # Remove the temporary file
         
         # Reload additional tracks
-        st.session_state.additional_tracks = load_additional_gpx_files(skane_other_files_path)
+        # st.session_state.additional_tracks = load_additional_gpx_files(skane_other_files_path)
         
         return True, f"Successfully uploaded {uploaded_file.name}"
     except Exception as e:
@@ -251,6 +239,7 @@ with tab1:
         # Load main GPX file if it exists (not applicable for world-wide hikes)
         if gpx_file_path and os.path.exists(gpx_file_path) and not use_world_wide_hikes:
             with open(gpx_file_path, "r", encoding="utf-8") as gpx_file:
+                print(f"Loading toggle {gpx_file}")
                 gpx_string = gpx_file.read()  # Read file as string
                 st.session_state.gpx_data = gpxpy.parse(gpx_string)
                 st.session_state.file_loaded = True
@@ -343,9 +332,11 @@ with tab1:
 
                         # Simplify coordinates before storing
                         if coordinates:
-                            simplified_coords = simplify_track_coordinates(coordinates)
-                            track_coordinates[track_index] = simplified_coords
-                            all_coords.extend(simplified_coords)
+                            # simplified_coords = simplify_track_coordinates(coordinates)
+                            print("Process main GPX tracks")
+                            # track_coordinates[track_index] = simplified_coords
+                            track_coordinates[track_index] = coordinates
+                            all_coords.extend(coordinates)
 
                             track_index += 1
             
@@ -357,7 +348,6 @@ with tab1:
             # Store track coordinates in session state for the stats panel
             st.session_state.track_coordinates = track_coordinates
 
-            # Compute map center & zoom
             # Compute map center & zoom
             if all_coords:
                 avg_lat = sum(lat for lat, lon in all_coords) / len(all_coords)
