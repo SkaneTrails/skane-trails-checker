@@ -1,7 +1,0 @@
-pandas
-streamlit
-folium
-gpxpy
-streamlit_folium
-geopy
-rdp
