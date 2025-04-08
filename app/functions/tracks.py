@@ -1,6 +1,5 @@
 import os
 from datetime import UTC, datetime
-from pathlib import Path
 
 import pandas as pd
 import streamlit as st
@@ -37,7 +36,7 @@ def simplify_track_coordinates(coordinates, tolerance=0.0001):
 
 # Load track statuses from CSV file if it exists
 def load_track_statuses(skaneleden_status):
-    if Path.exists(skaneleden_status):
+    if os.path.exists(skaneleden_status):
         try:
             status_df = pd.read_csv(skaneleden_status)
             track_status = {}
@@ -64,7 +63,7 @@ def save_track_statuses(track_status, skaneleden_status) -> bool:
             )
 
         # Create directory if it doesn't exist
-        Path.mkdir(os.path.dirname(skaneleden_status), exist_ok=True)
+        os.makedirs(os.path.dirname(skaneleden_status), exist_ok=True)
 
         status_df = pd.DataFrame(data)
         status_df.to_csv(skaneleden_status, index=False)

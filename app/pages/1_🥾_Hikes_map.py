@@ -1,4 +1,5 @@
-from pathlib import Path
+import os
+import pathlib
 
 import folium
 import geopy.distance
@@ -43,21 +44,25 @@ with tab1:
         st.title("Skåne map and trails 🌍")
 
     # Define file paths (use relative paths for better portability)
-    cur_dir = Path(__file__).parent.parent.absolute()
+    cur_dir = pathlib.Path(__file__).parent.parent.absolute()
     data_directory = cur_dir
     # Create data directory if it doesn't exist
-    Path.mkdir(data_directory, exist_ok=True)
+    os.makedirs(data_directory, exist_ok=True)
 
     # Define the path to the GPX file and CSV file
-    world_wide_hikes_path = data_directory / "tracks_gpx/world_wide_hikes/"
-    skaneleden_gpx_file_path = data_directory / "tracks_gpx/skaneleden/all-skane-trails.gpx"  # Main GPX file
-    skane_other_files_path = data_directory / "tracks_gpx/other_trails/"  # Directory with other trails
-    skaneleden_status = data_directory / "tracks_status/track_skaneleden_status.csv"  # Path for saving track statuses
-
+    world_wide_hikes_path = os.path.join(data_directory, "tracks_gpx/world_wide_hikes/")
+    skaneleden_gpx_file_path = os.path.join(
+        data_directory, "tracks_gpx/skaneleden/all-skane-trails.gpx"
+    )  # Main GPX file
+    skane_other_files_path = os.path.join(data_directory, "tracks_gpx/other_trails/")  # Directory with other trails
+    skaneleden_status = os.path.join(
+        data_directory, "tracks_status/track_skaneleden_status.csv"
+    )  # Path for saving track statuses
     # Create directories if they don't exist
-    Path.mkdir(skaneleden_status.parent, exist_ok=True)
-    Path.mkdir(skane_other_files_path, exist_ok=True)
-    Path.mkdir(world_wide_hikes_path, exist_ok=True)
+
+    os.makedirs(os.path.dirname(skaneleden_status), exist_ok=True)
+    os.makedirs(skane_other_files_path, exist_ok=True)
+    os.makedirs(world_wide_hikes_path, exist_ok=True)
 
 
 # Initialize session state for trail source toggle if not already set
@@ -93,8 +98,8 @@ with tab1:
         st.session_state.last_trail_source = use_world_wide_hikes
 
         # Load main GPX file if it exists (not applicable for world-wide hikes)
-        if gpx_file_path and Path.exists(gpx_file_path) and not use_world_wide_hikes:
-            with Path.open(gpx_file_path, encoding="utf-8") as gpx_file:
+        if gpx_file_path and os.path.exists(gpx_file_path) and not use_world_wide_hikes:
+            with open(gpx_file_path, encoding="utf-8") as gpx_file:
                 print(f"Loading toggle {gpx_file}")
                 gpx_string = gpx_file.read()  # Read file as string
                 st.session_state.gpx_data = gpxpy.parse(gpx_string)
