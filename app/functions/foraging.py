@@ -1,6 +1,5 @@
 import json
 import os
-from pathlib import Path
 
 import pandas as pd
 import streamlit as st
@@ -22,7 +21,7 @@ class Foraging:
     def load_foraging_types(self):
         if os.path.exists(self.foraging_types_path):
             try:
-                with Path.open(self.foraging_types_path) as f:
+                with open(self.foraging_types_path) as f:
                     return json.load(f)
             except Exception as e:
                 st.warning(f"Could not load foraging types: {e}")
@@ -33,7 +32,7 @@ class Foraging:
     # Save foraging types to JSON file
     def save_foraging_types(self, foraging_types) -> bool:
         try:
-            with Path.open(self.foraging_types_path, "w") as f:
+            with open(self.foraging_types_path, "w") as f:
                 json.dump(foraging_types, f)
             return True
         except Exception as e:
