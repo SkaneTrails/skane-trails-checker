@@ -1,6 +1,5 @@
 import os
 from datetime import UTC, datetime
-from pathlib import Path
 
 import folium
 import pandas as pd
@@ -196,8 +195,8 @@ with tab2:
     st.dataframe(df_calendar, height=480)
 
     # Add a download button for the foraging data
-    if Path.exists(csv_data_path):
-        with Path.open(csv_data_path) as f:
+    if os.path.exists(csv_data_path):
+        with open(csv_data_path) as f:
             st.download_button(
                 label="Download Foraging Data CSV",
                 data=f,
