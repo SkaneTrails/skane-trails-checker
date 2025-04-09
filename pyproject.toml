@@ -1,0 +1,16 @@
+[project]
+name = "sampleproject"
+version = "0.1.0"
+description = "A sample Python project"
+readme = "README.md"
+requires-python = ">=3.13"
+license = "MIT"
+
+
+[tool.ruff]
+line-length = 120
+target-version = "py313"
+lint.select = [
+    "ALL", # include all the rules, including new ones
+]
+lint.ignore = ["COM812", "D", "E501", "T201"]

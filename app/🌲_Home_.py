@@ -1,9 +1,8 @@
-
-import streamlit as st
-import requests
-from datetime import datetime, timedelta
 import random
 from datetime import datetime
+
+import requests
+import streamlit as st
 
 # Set page config (shared across pages)
 # etrhdgjf
@@ -11,7 +10,7 @@ from datetime import datetime
 st.set_page_config(
     page_title="Our Skåne app",
     layout="wide",
-    page_icon="🇸🇪"
+    page_icon="🇸🇪",
 )
 
 
@@ -23,6 +22,7 @@ def get_weather():
     if response.status_code == 200:
         return response.json()
     return None
+
 
 # Title
 st.title("🌿 Skåne Outdoor Hub 🌲")
@@ -53,18 +53,17 @@ if weather_data:
                     <p>🌡️ {min_temp}°C - {max_temp}°C</p>
                     <p>🌧️ {rain} mm rain</p>
                 </div>
-                """, 
-                unsafe_allow_html=True
+                """,
+                unsafe_allow_html=True,
             )
 
 else:
     st.warning("Could not fetch weather data. Please check the API.")
 
 
-st.markdown("<br>", unsafe_allow_html=True) 
-st.markdown("<br>", unsafe_allow_html=True) 
-st.markdown("<br>", unsafe_allow_html=True) 
-
+st.markdown("<br>", unsafe_allow_html=True)
+st.markdown("<br>", unsafe_allow_html=True)
+st.markdown("<br>", unsafe_allow_html=True)
 
 
 # Expanded list of hiking tips
@@ -72,8 +71,8 @@ hiking_tips = [
     "Always carry a map or GPS when hiking in unfamiliar areas.",
     "Dress in layers to stay comfortable in changing weather.",
     "Check the weather before heading out on your hike.",
-    "Stay hydrated – bring plenty of water on your adventure!",
-    "Respect nature – leave no trace and take only memories.",
+    "Stay hydrated - bring plenty of water on your adventure!",
+    "Respect nature - leave no trace and take only memories.",
     "Pack high-energy snacks for long hikes.",
     "Wear comfortable and weather-appropriate hiking shoes.",
     "Know your route before you start your hike.",
@@ -84,44 +83,44 @@ hiking_tips = [
     "Learn to identify edible wild plants and berries.",
     "Bring a whistle and flashlight for safety.",
     "Use trekking poles for extra stability on rough trails.",
-    "Enjoy the journey – stop and take in the scenery!"
+    "Enjoy the journey - stop and take in the scenery!",
 ]
 
 # Expanded list of outdoor inspiration quotes
 outdoor_quotes = [
-    "'In every walk with nature, one receives far more than he seeks.' – John Muir",
-    "'The best view comes after the hardest climb.' – Unknown",
-    "'Take only memories, leave only footprints.' – Chief Seattle",
-    "'The mountains are calling, and I must go.' – John Muir",
-    "'Nature does not hurry, yet everything is accomplished.' – Lao Tzu",
-    "'Look deep into nature, and then you will understand everything better.' – Albert Einstein",
-    "'Adventure is worthwhile in itself.' – Amelia Earhart",
-    "'Over every mountain, there is a path, although it may not be seen from the valley.' – Theodore Roethke",
-    "'Not all those who wander are lost.' – J.R.R. Tolkien",
-    "'He who climbs upon the highest mountains laughs at all tragedies, real or imaginary.' – Friedrich Nietzsche",
-    "'Go where you feel most alive.' – Unknown",
-    "'Nature is not a place to visit. It is home.' – Gary Snyder",
-    "'A walk in nature walks the soul back home.' – Mary Davis",
-    "'To walk in nature is to witness a thousand miracles.' – Mary Davis"
+    "'In every walk with nature, one receives far more than he seeks.' - John Muir",
+    "'The best view comes after the hardest climb.' - Unknown",
+    "'Take only memories, leave only footprints.' - Chief Seattle",
+    "'The mountains are calling, and I must go.' - John Muir",
+    "'Nature does not hurry, yet everything is accomplished.' - Lao Tzu",
+    "'Look deep into nature, and then you will understand everything better.' - Albert Einstein",
+    "'Adventure is worthwhile in itself.' - Amelia Earhart",
+    "'Over every mountain, there is a path, although it may not be seen from the valley.' - Theodore Roethke",
+    "'Not all those who wander are lost.' - J.R.R. Tolkien",
+    "'He who climbs upon the highest mountains laughs at all tragedies, real or imaginary.' - Friedrich Nietzsche",
+    "'Go where you feel most alive.' - Unknown",
+    "'Nature is not a place to visit. It is home.' - Gary Snyder",
+    "'A walk in nature walks the soul back home.' - Mary Davis",
+    "'To walk in nature is to witness a thousand miracles.' - Mary Davis",
 ]
 
 # Expanded list of foraging tips
 foraging_tips = [
     "Always carry a foraging knife to safely harvest plants and mushrooms.",
-    "Be 100% sure of what you're foraging – never eat something you're unsure of.",
+    "Be 100% sure of what you're foraging - never eat something you're unsure of.",
     "Respect the environment and only take what you need.",
     "Harvest in the morning when plants and mushrooms are at their freshest.",
-    "Take note of where you find foraged items – it will help in the future.",
+    "Take note of where you find foraged items - it will help in the future.",
     "Avoid foraging near busy roads or polluted areas.",
     "Check the seasons and ensure you’re foraging at the right time for each item.",
     "Bring a basket or breathable bag to store foraged food.",
     "Learn about local laws regarding foraging to stay legal.",
-    "Forage sustainably – don’t overharvest from any one spot.",
+    "Forage sustainably - don’t overharvest from any one spot.",
     "Use a field guide or an app to help identify safe and edible species.",
     "Check the weather before foraging; mushrooms grow best in moist, cool conditions.",
     "Be aware of poisonous look-alikes, especially in mushrooms and berries.",
     "Try foraging with a local expert to learn more about edible plants and fungi.",
-    "Leave some plants behind to ensure their population continues to thrive."
+    "Leave some plants behind to ensure their population continues to thrive.",
 ]
 
 # Expanded list of preserving foraged food tips
@@ -131,7 +130,7 @@ preservation_tips = [
     "Ferment wild vegetables for a unique flavor and longer shelf life.",
     "Make jams and jellies with foraged fruits to enjoy later in the year.",
     "Pickle wild vegetables for a crunchy, tangy snack all year long.",
-    "Dehydrate mushrooms to preserve their flavor – perfect for soups and stews.",
+    "Dehydrate mushrooms to preserve their flavor - perfect for soups and stews.",
     "Store dried herbs in airtight containers to keep them fresh and potent.",
     "Forage early in the season and preserve excess for later use.",
     "Use natural wax wraps or jars to preserve wild nuts.",
@@ -140,7 +139,7 @@ preservation_tips = [
     "Forage and freeze mushrooms with butter to preserve their flavor and texture.",
     "Make wild herb oils by infusing olive oil with foraged herbs.",
     "Use salt to preserve foraged mushrooms by drying and salting them.",
-    "Make tinctures with wild herbs to keep their medicinal properties throughout the year."
+    "Make tinctures with wild herbs to keep their medicinal properties throughout the year.",
 ]
 
 # Select random tips
