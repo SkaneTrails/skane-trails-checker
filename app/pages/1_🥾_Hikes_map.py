@@ -1,4 +1,3 @@
-import os
 import pathlib
 
 import folium
@@ -8,6 +7,10 @@ import streamlit as st
 from functions.gpx import handle_uploaded_gpx, load_additional_gpx_files
 from functions.tracks import load_track_statuses, save_track_statuses
 from streamlit_folium import st_folium
+
+# Constants
+CLICK_RANGE_METERS = 50  # Distance threshold for track click detection
+TITLE_DESCRIPTION_PARTS = 2  # Expected parts when splitting improvement text
 
 # Set page config to wide mode for full-width layout
 st.set_page_config(layout="wide")
@@ -47,22 +50,18 @@ with tab1:
     cur_dir = pathlib.Path(__file__).parent.parent.absolute()
     data_directory = cur_dir
     # Create data directory if it doesn't exist
-    os.makedirs(data_directory, exist_ok=True)
+    data_directory.mkdir(parents=True, exist_ok=True)
 
     # Define the path to the GPX file and CSV file
-    world_wide_hikes_path = os.path.join(data_directory, "tracks_gpx/world_wide_hikes/")
-    skaneleden_gpx_file_path = os.path.join(
-        data_directory, "tracks_gpx/skaneleden/all-skane-trails.gpx"
-    )  # Main GPX file
-    skane_other_files_path = os.path.join(data_directory, "tracks_gpx/other_trails/")  # Directory with other trails
-    skaneleden_status = os.path.join(
-        data_directory, "tracks_status/track_skaneleden_status.csv"
-    )  # Path for saving track statuses
+    world_wide_hikes_path = data_directory / "tracks_gpx/world_wide_hikes/"
+    skaneleden_gpx_file_path = data_directory / "tracks_gpx/skaneleden/all-skane-trails.gpx"  # Main GPX file
+    skane_other_files_path = data_directory / "tracks_gpx/other_trails/"  # Directory with other trails
+    skaneleden_status = data_directory / "tracks_status/track_skaneleden_status.csv"  # Path for saving track statuses
     # Create directories if they don't exist
 
-    os.makedirs(os.path.dirname(skaneleden_status), exist_ok=True)
-    os.makedirs(skane_other_files_path, exist_ok=True)
-    os.makedirs(world_wide_hikes_path, exist_ok=True)
+    skaneleden_status.parent.mkdir(parents=True, exist_ok=True)
+    skane_other_files_path.mkdir(parents=True, exist_ok=True)
+    world_wide_hikes_path.mkdir(parents=True, exist_ok=True)
 
 
 # Initialize session state for trail source toggle if not already set
@@ -98,8 +97,8 @@ with tab1:
         st.session_state.last_trail_source = use_world_wide_hikes
 
         # Load main GPX file if it exists (not applicable for world-wide hikes)
-        if gpx_file_path and os.path.exists(gpx_file_path) and not use_world_wide_hikes:
-            with open(gpx_file_path, encoding="utf-8") as gpx_file:
+        if gpx_file_path and gpx_file_path.exists() and not use_world_wide_hikes:
+            with gpx_file_path.open(encoding="utf-8") as gpx_file:
                 print(f"Loading toggle {gpx_file}")
                 gpx_string = gpx_file.read()  # Read file as string
                 st.session_state.gpx_data = gpxpy.parse(gpx_string)
@@ -152,9 +151,10 @@ with tab1:
             )
 
             # Display a button to manually save status
-            if st.button("Save Track Status"):
-                if save_track_statuses(st.session_state.track_status, skaneleden_status):
-                    st.success("Track statuses saved successfully!")
+            if st.button("Save Track Status") and save_track_statuses(
+                st.session_state.track_status, skaneleden_status
+            ):
+                st.success("Track statuses saved successfully!")
 
             # Add GPX upload section
             st.subheader("Upload Additional Trails")
@@ -200,8 +200,6 @@ with tab1:
 
                     # Store all segments of this track under one track_index
                     if all_track_coords:
-                        # simplified_coords = simplify_track_coordinates(all_track_coords)
-                        # track_coordinates[track_index] = simplified_coords
                         track_coordinates[track_index] = all_track_coords
                         all_coords.extend(all_track_coords)
                         track_index += 1
@@ -260,7 +258,7 @@ with tab1:
                         ).add_to(m)
 
             # Plot additional tracks
-            for i, track in enumerate(st.session_state.additional_tracks):
+            for _i, track in enumerate(st.session_state.additional_tracks):
                 for segment in track["segments"]:
                     # Create a dashed line for additional tracks
                     folium.PolyLine(
@@ -309,7 +307,7 @@ with tab1:
                             closest_track = track_idx
 
                 # Toggle track status if within 50 meters
-                if closest_track is not None and min_distance < 50:  # Click range set to 50m
+                if closest_track is not None and min_distance < CLICK_RANGE_METERS:
                     current_status = st.session_state.track_status.get(closest_track, "To Explore")
 
                     # ✅ Toggle between "To Explore" and "Explored!"
@@ -348,7 +346,7 @@ with tab2:
     ]
     for improvement in improvements:
         parts = improvement.split(":", 1)  # Split into two parts at the first colon
-        if len(parts) == 2:
+        if len(parts) == TITLE_DESCRIPTION_PARTS:
             title, description = parts
             st.markdown(f"<p style='font-size:18px;'><b>{title}:</b>{description}</p>", unsafe_allow_html=True)
         else:

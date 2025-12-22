@@ -1,11 +1,14 @@
-import os
 from datetime import UTC, datetime
+from pathlib import Path
 
 import pandas as pd
 import streamlit as st
 
+# Constants
+MIN_POINTS_FOR_SIMPLIFICATION = 2  # Minimum points needed for RDP algorithm
 
-def simplify_track_coordinates(coordinates, tolerance=0.0001):
+
+def simplify_track_coordinates(coordinates: list, tolerance: float = 0.0001) -> list:
     """Simplify track coordinates using the Ramer-Douglas-Peucker algorithm.
 
     Args:
@@ -20,7 +23,7 @@ def simplify_track_coordinates(coordinates, tolerance=0.0001):
         import numpy as np
         from rdp import rdp
 
-        if len(coordinates) <= 2:
+        if len(coordinates) <= MIN_POINTS_FOR_SIMPLIFICATION:
             return coordinates
 
         # Convert to numpy array for rdp algorithm
@@ -35,10 +38,11 @@ def simplify_track_coordinates(coordinates, tolerance=0.0001):
 
 
 # Load track statuses from CSV file if it exists
-def load_track_statuses(skaneleden_status):
-    if os.path.exists(skaneleden_status):
+def load_track_statuses(skaneleden_status: Path | str) -> dict[int, str]:
+    status_path = Path(skaneleden_status)
+    if status_path.exists():
         try:
-            status_df = pd.read_csv(skaneleden_status)
+            status_df = pd.read_csv(status_path)
             track_status = {}
             for _, row in status_df.iterrows():
                 track_status[int(row["track_id"])] = row["status"]
@@ -50,7 +54,8 @@ def load_track_statuses(skaneleden_status):
 
 
 # Save track statuses to CSV file
-def save_track_statuses(track_status, skaneleden_status) -> bool:
+def save_track_statuses(track_status: dict[int, str], skaneleden_status: Path | str) -> bool:
+    status_path = Path(skaneleden_status)
     try:
         data = []
         for track_id, status in track_status.items():
@@ -63,10 +68,10 @@ def save_track_statuses(track_status, skaneleden_status) -> bool:
             )
 
         # Create directory if it doesn't exist
-        os.makedirs(os.path.dirname(skaneleden_status), exist_ok=True)
+        status_path.parent.mkdir(parents=True, exist_ok=True)
 
         status_df = pd.DataFrame(data)
-        status_df.to_csv(skaneleden_status, index=False)
+        status_df.to_csv(status_path, index=False)
         return True
 
     except Exception as e:

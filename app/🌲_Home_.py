@@ -4,6 +4,9 @@ from datetime import datetime
 import requests
 import streamlit as st
 
+# Constants
+HTTP_OK = 200  # HTTP success status code
+
 # Set page config (shared across pages)
 # etrhdgjf
 
@@ -15,11 +18,11 @@ st.set_page_config(
 
 
 # Function to get weather data
-def get_weather():
+def get_weather() -> dict | None:
     lat, lon = 56.0, 13.5  # Default location (Southern Sweden)
-    weather_url = f"https://api.open-meteo.com/v1/forecast?latitude={lat}&longitude={lon}&daily=temperature_2m_max,temperature_2m_min,precipitation_sum&timezone=auto"
+    weather_url = f"https://api.open-meteo.com/v1/forecast?latitude={lat}&longitude={lon}&daily=temperature_2m_max,temperature_2m_min,weathercode&timezone=Europe/Stockholm&forecast_days=4"
     response = requests.get(weather_url)
-    if response.status_code == 200:
+    if response.status_code == HTTP_OK:
         return response.json()
     return None
 
@@ -112,10 +115,10 @@ foraging_tips = [
     "Harvest in the morning when plants and mushrooms are at their freshest.",
     "Take note of where you find foraged items - it will help in the future.",
     "Avoid foraging near busy roads or polluted areas.",
-    "Check the seasons and ensure you’re foraging at the right time for each item.",
+    "Check the seasons and ensure you're foraging at the right time for each item.",
     "Bring a basket or breathable bag to store foraged food.",
     "Learn about local laws regarding foraging to stay legal.",
-    "Forage sustainably - don’t overharvest from any one spot.",
+    "Forage sustainably - don't overharvest from any one spot.",
     "Use a field guide or an app to help identify safe and edible species.",
     "Check the weather before foraging; mushrooms grow best in moist, cool conditions.",
     "Be aware of poisonous look-alikes, especially in mushrooms and berries.",

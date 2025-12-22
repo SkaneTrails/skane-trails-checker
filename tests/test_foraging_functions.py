@@ -78,9 +78,11 @@ def test_load_foraging_types_default(foraging_instance):
 
 def test_save_and_load_foraging_types(foraging_instance, temp_data_dir):
     """Test saving and loading custom foraging types."""
+    from pathlib import Path
+    
     # Temporarily change the foraging_types_path
     original_path = foraging_instance.foraging_types_path
-    foraging_instance.foraging_types_path = str(temp_data_dir / "foraging_types.json")
+    foraging_instance.foraging_types_path = Path(temp_data_dir / "foraging_types.json")
 
     try:
         custom_types = {

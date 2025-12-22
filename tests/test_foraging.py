@@ -96,9 +96,11 @@ class TestForaging:
 
     def test_save_foraging_types(self, temp_dir):
         """Save foraging types to JSON file."""
+        from pathlib import Path
+        
         foraging = Foraging()
         # Temporarily override the path for testing
-        foraging.foraging_types_path = str(temp_dir / "types.json")
+        foraging.foraging_types_path = Path(temp_dir / "types.json")
 
         types = {"Mushroom": {"icon": "🍄"}, "Berries": {"icon": "🫐"}}
 
