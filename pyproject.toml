@@ -55,7 +55,6 @@ lint.ignore = [
     "S311",      # Random for non-crypto (not used for security purposes)
     "DTZ007",    # Datetime without timezone (not critical for this use case)
     "ANN401",    # Any type (acceptable for Streamlit UploadedFile and similar dynamic types)
-    "PD901",     # Generic DataFrame name 'df' (pandas convention, widely accepted)
 ]
 
 [tool.ruff.lint.per-file-ignores]
