@@ -26,12 +26,15 @@ def simplify_track_coordinates(coordinates: list, tolerance: float = 0.0001) -> 
         if len(coordinates) <= MIN_POINTS_FOR_SIMPLIFICATION:
             return coordinates
 
-        # Convert to numpy array for rdp algorithm
-        points = np.array(coordinates)
-        # Apply simplification
-        simplified = rdp(points, epsilon=tolerance)
+        # Convert 2D coordinates to 3D (add z=0) for NumPy 2.0 compatibility
+        # NumPy 2.0 deprecated 2D vectors in cross-product calculations
+        points_3d = np.array([(lat, lon, 0.0) for lat, lon in coordinates])
 
-        return simplified.tolist()
+        # Apply RDP simplification
+        simplified_3d = rdp(points_3d, epsilon=tolerance)
+
+        # Convert back to 2D by removing the z coordinate
+        return [(lat, lon) for lat, lon, _ in simplified_3d.tolist()]
     except ImportError:
         st.warning("To enable track simplification, install rdp: uv add rdp")
         return coordinates

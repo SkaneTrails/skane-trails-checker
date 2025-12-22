@@ -3,7 +3,7 @@ name = "skane-trails-checker"
 version = "0.1.0"
 description = "A Streamlit app for tracking hiking trails and foraging spots in Skåne, Sweden"
 readme = "README.md"
-requires-python = ">=3.11"
+requires-python = ">=3.14"
 license = {text = "MIT"}
 dependencies = [
     "folium>=0.15.0",
@@ -31,14 +31,14 @@ dev = [
     "ty>=0.0.5",
 ]
 
-[tool.uv]
-dev-dependencies = [
+[dependency-groups]
+dev = [
     "skane-trails-checker[dev]",
 ]
 
 [tool.ruff]
 line-length = 120
-target-version = "py313"
+target-version = "py313"  # Ruff doesn't support py314 yet, py313 is compatible
 lint.select = [
     "ALL", # include all the rules, including new ones
 ]
@@ -55,6 +55,7 @@ lint.ignore = [
     "S311",      # Random for non-crypto (not used for security purposes)
     "DTZ007",    # Datetime without timezone (not critical for this use case)
     "ANN401",    # Any type (acceptable for Streamlit UploadedFile and similar dynamic types)
+    "PD901",     # Generic DataFrame name 'df' (pandas convention, widely accepted)
 ]
 
 [tool.ruff.lint.per-file-ignores]
@@ -83,7 +84,16 @@ addopts = [
     "--cov=app",
     "--cov-report=term-missing",
     "--cov-report=html",
+    "-W", "error",  # Treat warnings as errors
 ]
 
 # Test paths
 testpaths = ["tests"]
+
+# Filter specific warnings from external libraries
+filterwarnings = [
+    # Ignore NumPy 2.0 deprecation warning triggered by rdp library
+    # The rdp library uses 2D vectors with numpy.cross which is deprecated in NumPy 2.0
+    # This needs to be fixed in the rdp library upstream
+    "ignore:Arrays of 2-dimensional vectors are deprecated.*:DeprecationWarning",
+]

@@ -176,3 +176,22 @@ Note: Must run from project root. Streamlit auto-discovers pages in `app/pages/`
 - Follow existing patterns until refactoring is complete
 - Keep cloud deployment constraints in mind (memory, startup time)
 - Test with real Garmin GPX files when modifying track parsing
+
+## Code Quality Principles
+
+### Warnings and Errors
+- **NEVER suppress or filter warnings** - Always fix the root cause
+- Warnings exist to prevent bugs and compatibility issues
+- If a test emits a warning, investigate and fix the underlying problem
+- Examples of proper fixes:
+  - Deprecation warnings: Update code to use the new API
+  - Compatibility warnings: Adapt code to work with new library versions
+  - Type warnings: Add proper type annotations or fix type mismatches
+- Only acceptable exception: External library bugs that cannot be fixed locally (document why)
+- Pytest is configured with `-W error` to treat all warnings as test failures
+
+### Testing Philosophy
+- Warnings treated as errors ensure code quality
+- Fix issues at their source, not with configuration bandaids
+- Test coverage targets 70%+ for business logic
+- Exception paths must be tested

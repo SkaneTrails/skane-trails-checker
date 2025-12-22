@@ -17,8 +17,8 @@ class TestSimplifyTrackCoordinates:
         coords = [(0.0, 0.0), (0.1, 0.1), (0.2, 0.2), (0.3, 0.3)]
         simplified = simplify_track_coordinates(coords, tolerance=0.01)
         assert len(simplified) == 2  # Only start and end
-        assert simplified[0] == [0.0, 0.0]
-        assert simplified[-1] == [0.3, 0.3]
+        assert simplified[0] == (0.0, 0.0)
+        assert simplified[-1] == (0.3, 0.3)
 
     def test_simplify_preserves_significant_points(self):
         """Points that deviate significantly should be preserved."""
