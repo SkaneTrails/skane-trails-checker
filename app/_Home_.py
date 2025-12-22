@@ -8,15 +8,6 @@ import streamlit as st
 # Constants
 HTTP_OK = 200  # HTTP success status code
 
-# Set page config (shared across pages)
-# etrhdgjf
-
-st.set_page_config(  # pragma: no cover - Streamlit UI configuration
-    page_title="Our Skåne app",
-    layout="wide",
-    page_icon="🇸🇪",
-)
-
 
 # Function to get weather data
 def get_weather() -> dict | None:
@@ -30,6 +21,13 @@ def get_weather() -> dict | None:
 
 # Only run Streamlit UI code if not being imported by pytest
 if "pytest" not in sys.modules:  # pragma: no cover - Streamlit UI code
+    # Set page config (must be first Streamlit command)
+    st.set_page_config(  # pragma: no cover - Streamlit UI configuration
+        page_title="Our Skåne app",
+        layout="wide",
+        page_icon="🇸🇪",
+    )
+
     # Title
     st.title("🌿 Skåne Outdoor Hub 🌲")  # pragma: no cover
 
