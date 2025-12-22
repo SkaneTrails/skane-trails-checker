@@ -64,10 +64,10 @@ class TestTrackStatuses:
         assert csv_file.exists()
 
         # Verify the saved content
-        df = pd.read_csv(csv_file)
-        assert len(df) == 3
-        assert set(df["track_id"].tolist()) == {0, 1, 2}
-        assert set(df["status"].tolist()) == {"To Explore", "Explored!"}
+        saved_data = pd.read_csv(csv_file)
+        assert len(saved_data) == 3
+        assert set(saved_data["track_id"].tolist()) == {0, 1, 2}
+        assert set(saved_data["status"].tolist()) == {"To Explore", "Explored!"}
 
     def test_save_track_statuses_creates_directory(self, temp_dir):
         """Save should create directory if it doesn't exist."""

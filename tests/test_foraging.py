@@ -69,9 +69,9 @@ class TestForaging:
         assert csv_file.exists()
 
         # Verify saved content
-        df = pd.read_csv(csv_file)
-        assert len(df) == 3  # 1 in Jan + 2 in Jul
-        assert set(df["month"].unique()) == {"Jan", "Jul"}
+        saved_data = pd.read_csv(csv_file)
+        assert len(saved_data) == 3  # 1 in Jan + 2 in Jul
+        assert set(saved_data["month"].unique()) == {"Jan", "Jul"}
 
     def test_save_and_load_roundtrip(self, temp_dir):
         """Save and load should preserve data."""
@@ -99,15 +99,20 @@ class TestForaging:
         from pathlib import Path
 
         foraging = Foraging()
-        # Temporarily override the path for testing
-        foraging.foraging_types_path = Path(temp_dir / "types.json")
+        # Temporarily override the class variable for testing
+        original_path = Foraging.foraging_types_path
+        Foraging.foraging_types_path = Path(temp_dir / "types.json")
 
-        types = {"Mushroom": {"icon": "🍄"}, "Berries": {"icon": "🫐"}}
+        try:
+            types = {"Mushroom": {"icon": "🍄"}, "Berries": {"icon": "🫐"}}
 
-        result = foraging.save_foraging_types(types)
-        assert result is True
+            result = foraging.save_foraging_types(types)
+            assert result is True
 
-        # Verify saved content
-        with open(foraging.foraging_types_path) as f:
-            saved = json.load(f)
-        assert saved == types
+            # Verify saved content
+            with open(Foraging.foraging_types_path) as f:
+                saved = json.load(f)
+            assert saved == types
+        finally:
+            # Restore original path
+            Foraging.foraging_types_path = original_path

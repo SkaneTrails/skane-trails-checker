@@ -1,10 +1,18 @@
 import shutil
 import tempfile
 from pathlib import Path
-from typing import Any
+from typing import Any, TypedDict
 
 import gpxpy
 import streamlit as st
+
+
+class TrackData(TypedDict):
+    """Structure for track data."""
+
+    name: str
+    file: str
+    segments: list[list[tuple[float, float]]]
 
 
 def load_additional_gpx_files(directory: Path | str) -> list[dict]:
@@ -29,7 +37,7 @@ def load_additional_gpx_files(directory: Path | str) -> list[dict]:
 
                 # Extract all tracks from this file
                 for track in gpx_data.tracks:
-                    track_data = {
+                    track_data: TrackData = {
                         "name": track.name or file_name,
                         "file": file_name,
                         "segments": [],

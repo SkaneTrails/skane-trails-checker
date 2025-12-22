@@ -361,12 +361,12 @@ with tab4:
     )
 
     # Create filter for types of forageable items
-    item_types = ["All", *sorted({item.get("name").split(" ")[0] for item in foraging_items})]
+    item_types = ["All", *sorted({item.get("name", "").split(" ")[0] for item in foraging_items if item.get("name")})]
     selected_type = st.selectbox("Filter by type:", item_types)
 
     # Apply filter
     if selected_type != "All":
-        filtered_items = [item for item in foraging_items if item.get("name").startswith(selected_type)]
+        filtered_items = [item for item in foraging_items if item.get("name", "").startswith(selected_type)]
     else:
         filtered_items = foraging_items
 

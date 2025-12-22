@@ -39,11 +39,11 @@ def test_save_track_statuses(temp_data_dir):
     assert csv_file.exists()
 
     # Verify the content
-    df = pd.read_csv(csv_file)
-    assert len(df) == 3
-    assert list(df.columns) == ["track_id", "status", "last_updated"]
-    assert df.iloc[0]["track_id"] == 0
-    assert df.iloc[0]["status"] == "To Explore"
+    saved_data = pd.read_csv(csv_file)
+    assert len(saved_data) == 3
+    assert list(saved_data.columns) == ["track_id", "status", "last_updated"]
+    assert saved_data.iloc[0]["track_id"] == 0
+    assert saved_data.iloc[0]["status"] == "To Explore"
 
 
 def test_simplify_track_coordinates_basic():

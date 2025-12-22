@@ -135,8 +135,9 @@ with tab1:
 
             # Calculate total tracks
             total_tracks = 0
-            if st.session_state.get("gpx_data"):
-                total_tracks += len(st.session_state.gpx_data.tracks)
+            gpx_data = st.session_state.get("gpx_data")
+            if gpx_data:
+                total_tracks += len(gpx_data.tracks)
             total_tracks += len(st.session_state.additional_tracks)
 
             # Calculate explored tracks
@@ -176,9 +177,8 @@ with tab1:
     # Display Map in the right column if file is loaded or additional tracks exist
     with col2:
         # Check if there are tracks to display (main tracks or additional tracks)
-        tracks_to_display = (st.session_state.get("gpx_data") and len(st.session_state.gpx_data.tracks) > 0) or len(
-            st.session_state.additional_tracks
-        ) > 0
+        gpx_data = st.session_state.get("gpx_data")
+        tracks_to_display = (gpx_data and len(gpx_data.tracks) > 0) or len(st.session_state.additional_tracks) > 0
 
         if tracks_to_display:
             # 🗺️ Get all track coordinates to center map
@@ -186,9 +186,10 @@ with tab1:
             track_coordinates = {}  # Store track coordinates
 
             # Process main GPX tracks if they exist
-            if st.session_state.get("gpx_data"):
+            gpx_data = st.session_state.get("gpx_data")
+            if gpx_data:
                 track_index = 0  # Ensuring unique track index
-                for track in st.session_state.gpx_data.tracks:
+                for track in gpx_data.tracks:
                     # Collect all segments for this track
                     all_track_coords = []
                     for segment in track.segments:

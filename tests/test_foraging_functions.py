@@ -61,9 +61,9 @@ def test_save_foraging_data(foraging_instance, temp_data_dir):
     assert csv_file.exists()
 
     # Verify the content
-    df = pd.read_csv(csv_file)
-    assert len(df) == 2
-    assert list(df.columns) == ["month", "type", "lat", "lng", "notes", "date"]
+    saved_data = pd.read_csv(csv_file)
+    assert len(saved_data) == 2
+    assert list(saved_data.columns) == ["month", "type", "lat", "lng", "notes", "date"]
 
 
 def test_load_foraging_types_default(foraging_instance):
