@@ -47,6 +47,12 @@ lint.ignore = [
     "E501",      # Line too long (handled by formatter)
     "T201",      # Print statements (used for logging/debugging in Streamlit)
     "INP001",    # Implicit namespace package (Streamlit pages pattern)
+    "BLE001",    # Blind exception (acceptable with st.warning/st.error for user-facing messages)
+    "TRY300",    # Consider else block (style preference)
+    "PLC0415",   # Import not at top-level (needed for optional dependencies like rdp/numpy)
+    "S113",      # Request without timeout (not critical for weather API)
+    "S311",      # Random for non-crypto (not used for security purposes)
+    "DTZ007",    # Datetime without timezone (not critical for this use case)
 ]
 
 [tool.ruff.lint.per-file-ignores]

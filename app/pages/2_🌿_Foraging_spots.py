@@ -235,7 +235,7 @@ with tab2:
 
         # Count by type
         type_counts = {}
-        for month, spots in st.session_state.foraging_data.items():
+        for spots in st.session_state.foraging_data.values():
             for spot in spots:
                 if spot["type"] not in type_counts:
                     type_counts[spot["type"]] = 0
@@ -338,7 +338,7 @@ with tab3:
     st.write("⚠️ Warning: Removing a type will not delete existing spots but they will use the 'Other' icon.")
 
     # Don't allow deleting the "Other" type
-    delete_options = [t for t in st.session_state.foraging_types.keys() if t != "Other"]
+    delete_options = [t for t in st.session_state.foraging_types if t != "Other"]
     if delete_options:
         type_to_delete = st.selectbox("Select type to remove:", options=delete_options)
 
@@ -363,7 +363,7 @@ with tab4:
     )
 
     # Create filter for types of forageable items
-    item_types = ["All"] + sorted(list(set([item.get("name").split(" ")[0] for item in foraging_items])))
+    item_types = ["All", *sorted({item.get("name").split(" ")[0] for item in foraging_items})]
     selected_type = st.selectbox("Filter by type:", item_types)
 
     # Apply filter
