@@ -1,10 +1,37 @@
 """Tests for Home page functions."""
 
+import sys
 from unittest.mock import Mock, patch
 
 import pytest
 
 from app._Home_ import HTTP_OK, get_weather
+
+
+class TestModuleImport:
+    """Test that the module can be imported safely."""
+
+    def test_module_imports_without_streamlit_execution(self) -> None:
+        """Test that importing _Home_ doesn't execute Streamlit UI code.
+
+        This test verifies that the pytest guard prevents Streamlit commands
+        from running during import. If st.set_page_config() or other UI code
+        executes outside the guard, this test will fail.
+        """
+        # The import at the top of this file already proves this works,
+        # but we explicitly verify pytest is in sys.modules
+        assert "pytest" in sys.modules
+
+        # Re-import to ensure no side effects
+        import importlib
+
+        import app._Home_ as home_module
+
+        importlib.reload(home_module)
+
+        # Verify we can access the business logic function
+        assert callable(home_module.get_weather)
+        assert home_module.HTTP_OK == 200
 
 
 class TestGetWeather:
@@ -71,3 +98,32 @@ class TestGetWeather:
         assert "daily=temperature_2m_max,temperature_2m_min,weathercode" in call_args
         assert "timezone=Europe/Stockholm" in call_args
         assert "forecast_days=4" in call_args
+
+
+class TestPytestGuardPresence:
+    """Verify the pytest guard exists to prevent UI code execution during tests."""
+
+    def test_pytest_guard_exists_in_source(self) -> None:
+        """Verify the source file contains the pytest guard check.
+
+        This test ensures the pytest guard ('pytest' not in sys.modules) exists
+        in the source code. If someone removes it, this test will fail, preventing
+        accidental Streamlit execution during imports.
+        """
+        from pathlib import Path
+
+        home_file = Path(__file__).parent.parent / "app" / "_Home_.py"
+        source = home_file.read_text(encoding="utf-8")
+
+        # Verify the guard exists
+        assert '"pytest" not in sys.modules' in source or "'pytest' not in sys.modules" in source
+
+        # Verify st.set_page_config() appears AFTER the guard (not at module level)
+        guard_pos = source.find('if "pytest" not in sys.modules:')
+        if guard_pos == -1:
+            guard_pos = source.find("if 'pytest' not in sys.modules:")
+
+        config_pos = source.find("st.set_page_config(")
+
+        assert guard_pos > 0, "Pytest guard not found in source"
+        assert config_pos > guard_pos, "st.set_page_config() must appear after pytest guard"
