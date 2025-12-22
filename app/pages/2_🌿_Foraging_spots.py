@@ -97,7 +97,7 @@ with tab1:
             ).add_to(m)
 
         # Display the map
-        map_data = st_folium(m, height=600, width="100%", key=f"foraging_map_{selected_month}")
+        map_data = st_folium(m, height=600, width=None, key=f"foraging_map_{selected_month}")
 
         # Show a legend for the icons
         st.write("### Legend:")
@@ -149,7 +149,7 @@ with tab1:
                 }
 
                 st.session_state.foraging_data[selected_month].append(new_spot)
-                success = Foraging().save_foraging_data(st.session_state.foraging_data)
+                success = Foraging().save_foraging_data(st.session_state.foraging_data, csv_data_path)
                 if success:
                     st.success(f"✅ Added {forage_type} to {selected_month} map!")
                     # Clear the cache to ensure fresh data is loaded
@@ -170,7 +170,7 @@ with tab1:
 
             if st.button("Clear All Spots for This Month"):
                 st.session_state.foraging_data[selected_month] = []
-                Foraging().save_foraging_data(st.session_state.foraging_data)
+                Foraging().save_foraging_data(st.session_state.foraging_data, csv_data_path)
                 # Clear the cache to ensure fresh data is loaded
                 st.cache_data.clear()
                 st.success(f"Cleared all spots for {selected_month}")
