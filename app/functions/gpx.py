@@ -59,6 +59,7 @@ def handle_uploaded_gpx(
     world_wide_path = Path(world_wide_hikes_path)
     skane_other_path = Path(skane_other_files_path)
 
+    tmp_file_path = None  # Initialize to None for cleanup in except block
     try:
         file_path = world_wide_path / uploaded_file.name if is_world_wide else skane_other_path / uploaded_file.name
 
@@ -81,6 +82,6 @@ def handle_uploaded_gpx(
         return True, f"Successfully uploaded {uploaded_file.name}"
 
     except Exception as e:
-        if tmp_file_path.exists():
+        if tmp_file_path and tmp_file_path.exists():
             tmp_file_path.unlink()  # Clean up temp file if it exists
         return False, f"Error uploading file: {e}"
