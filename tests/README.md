@@ -76,7 +76,7 @@ def test_save_data(temp_data_dir):
     """Test saving data to a file."""
     csv_file = temp_data_dir / "data.csv"
     result = save_function(data, str(csv_file))
-    
+
     assert result is True
     assert csv_file.exists()
     # Verify content
@@ -93,7 +93,7 @@ def test_streamlit_page():
     """Test a Streamlit page."""
     at = AppTest.from_file("app/pages/1_🥾_Hikes_map.py")
     at.run()
-    
+
     # Check for elements
     assert not at.exception
     assert len(at.button) > 0
@@ -103,7 +103,7 @@ def test_streamlit_page():
 
 Current coverage focus:
 - ✅ `app/functions/gpx.py` - GPX file handling
-- ✅ `app/functions/tracks.py` - Track status management  
+- ✅ `app/functions/tracks.py` - Track status management
 - ✅ `app/functions/foraging.py` - Foraging data management
 - ⏳ `app/pages/*.py` - Streamlit pages (integration tests)
 - ⏳ Full workflow tests (E2E)

@@ -15,7 +15,7 @@ This application processes GPX files and manages track statuses for various trai
     ```sh
     # Windows (PowerShell)
     powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"
-    
+
     # Linux/macOS
     curl -LsSf https://astral.sh/uv/install.sh | sh
     ```
@@ -37,7 +37,7 @@ This application processes GPX files and manages track statuses for various trai
     ```sh
     # Using UV (recommended)
     uv run streamlit run app/🌲_Home_.py
-    
+
     # Or activate venv first
     source .venv/bin/activate  # Linux/macOS
     .venv\Scripts\activate     # Windows
