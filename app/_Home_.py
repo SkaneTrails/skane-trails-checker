@@ -1,9 +1,23 @@
+import logging
 import random
 import sys
 from datetime import datetime
+from pathlib import Path
 
 import requests
 import streamlit as st
+
+# Configure logging for debugging (only when not in test mode)
+if "pytest" not in sys.modules:
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+        handlers=[
+            logging.StreamHandler(),
+            logging.FileHandler("app_debug.log"),
+        ],
+    )
+logger = logging.getLogger(__name__)
 
 # Constants
 HTTP_OK = 200  # HTTP success status code
@@ -21,12 +35,24 @@ def get_weather() -> dict | None:
 
 # Only run Streamlit UI code if not being imported by pytest
 if "pytest" not in sys.modules:  # pragma: no cover - Streamlit UI code
-    # Set page config (must be first Streamlit command)
-    st.set_page_config(  # pragma: no cover - Streamlit UI configuration
-        page_title="Our Skåne app",
-        layout="wide",
-        page_icon="🇸🇪",
-    )
+    try:
+        logger.info("=== Starting Streamlit app initialization ===")
+        logger.info("Python version: %s", sys.version)
+        logger.info("Current working directory: %s", Path.cwd())
+        logger.info("App file location: %s", Path(__file__).absolute())
+        logger.info("Streamlit version: %s", st.__version__)
+
+        # Set page config (must be first Streamlit command)
+        st.set_page_config(  # pragma: no cover - Streamlit UI configuration
+            page_title="Our Skåne app",
+            layout="wide",
+            page_icon="🇸🇪",
+        )
+        logger.info("Page config set successfully")
+    except Exception:
+        logger.exception("FATAL: Failed during app initialization")
+        st.error("⚠️ Application Initialization Error - Check app_debug.log for details")
+        st.stop()
 
     # Title
     st.title("🌿 Skåne Outdoor Hub 🌲")  # pragma: no cover

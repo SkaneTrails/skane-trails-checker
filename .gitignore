@@ -24,3 +24,6 @@ coverage.xml
 
 # Streamlit
 .streamlit/secrets.toml
+
+# Debugging logs
+app_debug.log
