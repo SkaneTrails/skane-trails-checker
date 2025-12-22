@@ -6,7 +6,7 @@ A Streamlit multi-page application for tracking hiking trails and foraging spots
 ## Architecture
 
 ### Streamlit Multi-Page App Structure
-- **Entry point**: `app/🌲_Home_.py` - Weather dashboard and outdoor tips
+- **Entry point**: `app/_Home_.py` - Weather dashboard and outdoor tips (renamed from 🌲_Home_.py for testability)
 - **Pages**: `app/pages/` with numbered emoji prefixes (e.g., `1_🥾_Hikes_map.py`)
   - Pages are auto-discovered by Streamlit via filename convention
   - Emoji prefixes in filenames control navigation order and display
@@ -36,12 +36,12 @@ A Streamlit multi-page application for tracking hiking trails and foraging spots
 ```bash
 # Using UV (recommended - faster, modern)
 uv sync                          # Install dependencies
-uv run streamlit run app/🌲_Home_.py
+uv run streamlit run app/_Home_.py
 
 # Or activate venv first
 source .venv/bin/activate        # Linux/macOS
 .venv\Scripts\activate          # Windows
-streamlit run app/🌲_Home_.py
+streamlit run app/_Home_.py
 ```
 Note: Must run from project root. Streamlit auto-discovers pages in `app/pages/`.
 
