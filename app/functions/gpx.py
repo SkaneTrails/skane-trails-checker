@@ -73,7 +73,7 @@ def handle_uploaded_gpx(world_wide_hikes_path, skane_other_files_path, uploaded_
         os.unlink(tmp_file_path)  # Remove the temporary file
 
         # Reload additional tracks
-        # st.session_state.additional_tracks = load_additional_gpx_files(skane_other_files_path)  # noqa: ERA001
+        # st.session_state.additional_tracks = load_additional_gpx_files(skane_other_files_path)
 
         return True, f"Successfully uploaded {uploaded_file.name}"
 

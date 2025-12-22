@@ -1,11 +1,39 @@
 [project]
-name = "sampleproject"
+name = "skane-trails-checker"
 version = "0.1.0"
-description = "A sample Python project"
+description = "A Streamlit app for tracking hiking trails and foraging spots in Skåne, Sweden"
 readme = "README.md"
-requires-python = ">=3.13"
-license = "MIT"
+requires-python = ">=3.11"
+license = {text = "MIT"}
+dependencies = [
+    "folium>=0.15.0",
+    "geopy>=2.4.0",
+    "gpxpy>=1.6.0",
+    "pandas>=2.1.0",
+    "plotly>=5.18.0",
+    "rdp>=0.8",
+    "requests>=2.31.0",
+    "streamlit>=1.28.0",
+    "streamlit-folium>=0.15.0",
+]
 
+[project.optional-dependencies]
+test = [
+    "pytest>=8.0.0",
+    "pytest-cov>=4.1.0",
+    "pytest-mock>=3.12.0",
+    "pytest-xdist>=3.5.0",
+]
+dev = [
+    "skane-trails-checker[test]",
+    "ruff>=0.11.0",
+    "pre-commit>=3.6.0",
+]
+
+[tool.uv]
+dev-dependencies = [
+    "skane-trails-checker[dev]",
+]
 
 [tool.ruff]
 line-length = 120
@@ -13,4 +41,41 @@ target-version = "py313"
 lint.select = [
     "ALL", # include all the rules, including new ones
 ]
-lint.ignore = ["COM812", "D", "E501", "T201"]
+lint.ignore = [
+    "COM812",    # Trailing comma conflicts with formatter
+    "D",         # Docstring rules (too verbose for now)
+    "E501",      # Line too long (handled by formatter)
+    "T201",      # Print statements (used for logging/debugging in Streamlit)
+    "INP001",    # Implicit namespace package (Streamlit pages pattern)
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**/*.py" = [
+    "S101",      # Allow assert in tests
+    "PLR2004",   # Allow magic values in tests
+    "ANN001",    # Missing type annotation for function argument
+    "ANN201",    # Missing return type annotation
+    "ARG001",    # Unused function argument (fixtures)
+    "ARG002",    # Unused method argument (fixtures)
+    "PLC0415",   # Import not at top-level (acceptable in tests)
+    "PTH123",    # open() instead of Path.open() (acceptable in tests)
+]
+
+[tool.pytest.ini_options]
+# Test discovery patterns
+python_files = "test_*.py"
+python_classes = "Test*"
+python_functions = "test_*"
+
+# Output options
+addopts = [
+    "-v",
+    "--strict-markers",
+    "--tb=short",
+    "--cov=app",
+    "--cov-report=term-missing",
+    "--cov-report=html",
+]
+
+# Test paths
+testpaths = ["tests"]

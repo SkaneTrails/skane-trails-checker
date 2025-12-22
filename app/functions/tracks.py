@@ -30,7 +30,7 @@ def simplify_track_coordinates(coordinates, tolerance=0.0001):
 
         return simplified.tolist()
     except ImportError:
-        st.warning("To enable track simplification, install rdp: pip install rdp")
+        st.warning("To enable track simplification, install rdp: uv add rdp")
         return coordinates
 
 

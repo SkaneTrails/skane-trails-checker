@@ -1,4 +1,29 @@
+# Python
 .DS_Store
 .ruff_cache
 .venv
 __pycache__
+*.pyc
+*.pyo
+*.pyd
+.Python
+
+# UV
+uv.lock
+
+# Testing
+.pytest_cache
+.coverage
+htmlcov/
+coverage.xml
+*.cover
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Streamlit
+.streamlit/secrets.toml

@@ -1,21 +1,36 @@
 import json
 import os
+from typing import ClassVar
 
 import pandas as pd
 import streamlit as st
-from resources.foraging_resources import default_foraging_types
+
+from app.resources.foraging_resources import default_foraging_types
 
 
 class Foraging:
-    short_months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
+    short_months: ClassVar[list[str]] = [
+        "Jan",
+        "Feb",
+        "Mar",
+        "Apr",
+        "May",
+        "Jun",
+        "Jul",
+        "Aug",
+        "Sep",
+        "Oct",
+        "Nov",
+        "Dec",
+    ]
 
     # Define file paths (use relative paths for better portability)
-    data_directory = "app/foraging_data"
+    data_directory: ClassVar[str] = "app/foraging_data"
 
     # Create data directory if it doesn't exist
     os.makedirs(data_directory, exist_ok=True)
 
-    foraging_types_path = os.path.join(data_directory, "foraging_types.json")
+    foraging_types_path: ClassVar[str] = os.path.join(data_directory, "foraging_types.json")
 
     # @st.cache_data(show_spinner=False)
     def load_foraging_types(self):

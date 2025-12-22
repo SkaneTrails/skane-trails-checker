@@ -191,18 +191,20 @@ with tab1:
             if st.session_state.get("gpx_data"):
                 track_index = 0  # Ensuring unique track index
                 for track in st.session_state.gpx_data.tracks:
+                    # Collect all segments for this track
+                    all_track_coords = []
                     for segment in track.segments:
                         coordinates = [(point.latitude, point.longitude) for point in segment.points]
-
-                        # Simplify coordinates before storing
                         if coordinates:
-                            # simplified_coords = simplify_track_coordinates(coordinates)
-                            print("Process main GPX tracks")
-                            # track_coordinates[track_index] = simplified_coords
-                            track_coordinates[track_index] = coordinates
-                            all_coords.extend(coordinates)
+                            all_track_coords.extend(coordinates)
 
-                            track_index += 1
+                    # Store all segments of this track under one track_index
+                    if all_track_coords:
+                        # simplified_coords = simplify_track_coordinates(all_track_coords)
+                        # track_coordinates[track_index] = simplified_coords
+                        track_coordinates[track_index] = all_track_coords
+                        all_coords.extend(all_track_coords)
+                        track_index += 1
 
             # Add coordinates from additional tracks for map centering
             for track in st.session_state.additional_tracks:
