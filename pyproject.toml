@@ -59,14 +59,11 @@ lint.ignore = [
 
 [tool.ruff.lint.per-file-ignores]
 "tests/**/*.py" = [
-    "S101",      # Allow assert in tests
-    "PLR2004",   # Allow magic values in tests
-    "ANN001",    # Missing type annotation for function argument
-    "ANN201",    # Missing return type annotation
-    "ARG001",    # Unused function argument (fixtures)
-    "ARG002",    # Unused method argument (fixtures)
-    "PLC0415",   # Import not at top-level (acceptable in tests)
-    "PTH123",    # open() instead of Path.open() (acceptable in tests)
+    "S101",      # Allow assert in tests (required for pytest)
+    "PLR2004",   # Allow magic values in tests (self-documenting with comments)
+    "ANN001",    # Missing type annotation for function argument (pytest fixtures have dynamic types)
+    "ARG001",    # Unused function argument (fixtures used for side effects)
+    "ARG002",    # Unused method argument (fixtures used for side effects)
 ]
 
 [tool.pytest.ini_options]

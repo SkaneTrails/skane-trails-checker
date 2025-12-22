@@ -11,7 +11,7 @@ class TestGetWeather:
     """Test weather fetching functionality."""
 
     @patch("requests.get")
-    def test_get_weather_success(self, mock_get):
+    def test_get_weather_success(self, mock_get) -> None:
         """Test successful weather data fetch."""
         mock_response = Mock()
         mock_response.status_code = HTTP_OK
@@ -34,7 +34,7 @@ class TestGetWeather:
         mock_get.assert_called_once()
 
     @patch("requests.get")
-    def test_get_weather_api_failure(self, mock_get):
+    def test_get_weather_api_failure(self, mock_get) -> None:
         """Test weather fetch when API returns error status."""
         mock_response = Mock()
         mock_response.status_code = 500
@@ -45,7 +45,7 @@ class TestGetWeather:
         assert result is None
 
     @patch("requests.get")
-    def test_get_weather_request_exception(self, mock_get):
+    def test_get_weather_request_exception(self, mock_get) -> None:
         """Test weather fetch when request raises exception."""
         mock_get.side_effect = Exception("Network error")
 
@@ -54,7 +54,7 @@ class TestGetWeather:
             get_weather()
 
     @patch("requests.get")
-    def test_get_weather_uses_correct_url(self, mock_get):
+    def test_get_weather_uses_correct_url(self, mock_get) -> None:
         """Test that weather fetch uses correct API URL."""
         mock_response = Mock()
         mock_response.status_code = HTTP_OK

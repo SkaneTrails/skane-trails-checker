@@ -7,12 +7,12 @@ from app.functions.foraging import Foraging
 
 
 @pytest.fixture
-def foraging_instance():
+def foraging_instance() -> Foraging:
     """Create a Foraging instance for testing."""
     return Foraging()
 
 
-def test_load_foraging_data_nonexistent_file(foraging_instance):
+def test_load_foraging_data_nonexistent_file(foraging_instance) -> None:
     """Test loading foraging data from a non-existent file."""
     result = foraging_instance.load_foraging_data("/path/that/does/not/exist.csv")
 
@@ -22,7 +22,7 @@ def test_load_foraging_data_nonexistent_file(foraging_instance):
     assert all(result[month] == [] for month in Foraging.short_months)
 
 
-def test_load_foraging_data_valid_file(foraging_instance, sample_foraging_csv):
+def test_load_foraging_data_valid_file(foraging_instance, sample_foraging_csv) -> None:
     """Test loading foraging data from a valid CSV file."""
     result = foraging_instance.load_foraging_data(str(sample_foraging_csv))
 
@@ -37,7 +37,7 @@ def test_load_foraging_data_valid_file(foraging_instance, sample_foraging_csv):
     assert jan_item["notes"] == "Test mushroom spot"
 
 
-def test_save_foraging_data(foraging_instance, temp_data_dir):
+def test_save_foraging_data(foraging_instance, temp_data_dir) -> None:
     """Test saving foraging data to CSV."""
     data_dict = {
         "Jan": [{"type": "Mushroom", "lat": 56.0, "lng": 13.0, "notes": "Test", "date": "2025-01-15"}],
@@ -66,7 +66,7 @@ def test_save_foraging_data(foraging_instance, temp_data_dir):
     assert list(saved_data.columns) == ["month", "type", "lat", "lng", "notes", "date"]
 
 
-def test_load_foraging_types_default(foraging_instance):
+def test_load_foraging_types_default(foraging_instance) -> None:
     """Test that default foraging types are loaded when file doesn't exist."""
     result = foraging_instance.load_foraging_types()
 
@@ -76,7 +76,7 @@ def test_load_foraging_types_default(foraging_instance):
     assert all("icon" in value for value in result.values())
 
 
-def test_save_and_load_foraging_types(foraging_instance, temp_data_dir):
+def test_save_and_load_foraging_types(foraging_instance, temp_data_dir) -> None:
     """Test saving and loading custom foraging types."""
     from pathlib import Path
 

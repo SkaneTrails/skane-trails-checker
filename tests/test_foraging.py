@@ -10,7 +10,7 @@ from app.functions.foraging import Foraging
 class TestForaging:
     """Test foraging data loading and saving."""
 
-    def test_load_foraging_types_existing_file(self, sample_foraging_types_json):
+    def test_load_foraging_types_existing_file(self, sample_foraging_types_json) -> None:
         """Load foraging types from existing JSON file."""
         foraging = Foraging()
         types = foraging.load_foraging_types()
@@ -21,7 +21,7 @@ class TestForaging:
         assert isinstance(types, dict)
         assert "Mushroom" in types or "Other" in types
 
-    def test_load_foraging_data_existing_file(self, sample_foraging_csv):
+    def test_load_foraging_data_existing_file(self, sample_foraging_csv) -> None:
         """Load foraging data from existing CSV file."""
         foraging = Foraging()
         data = foraging.load_foraging_data(str(sample_foraging_csv))
@@ -33,7 +33,7 @@ class TestForaging:
         assert data["Jan"][0]["type"] == "Mushroom"
         assert data["Jul"][0]["type"] == "Berries"
 
-    def test_load_foraging_data_nonexistent_file(self, temp_dir):
+    def test_load_foraging_data_nonexistent_file(self, temp_dir) -> None:
         """Loading from non-existent file should return empty month dict."""
         foraging = Foraging()
         fake_file = temp_dir / "nonexistent.csv"
@@ -45,7 +45,7 @@ class TestForaging:
             assert month in data
             assert data[month] == []
 
-    def test_save_foraging_data(self, temp_dir):
+    def test_save_foraging_data(self, temp_dir) -> None:
         """Save foraging data to CSV file."""
         foraging = Foraging()
         csv_file = temp_dir / "new_foraging.csv"
@@ -73,7 +73,7 @@ class TestForaging:
         assert len(saved_data) == 3  # 1 in Jan + 2 in Jul
         assert set(saved_data["month"].unique()) == {"Jan", "Jul"}
 
-    def test_save_and_load_roundtrip(self, temp_dir):
+    def test_save_and_load_roundtrip(self, temp_dir) -> None:
         """Save and load should preserve data."""
         foraging = Foraging()
         csv_file = temp_dir / "roundtrip.csv"
@@ -94,7 +94,7 @@ class TestForaging:
         assert loaded["Sep"] == original["Sep"]
         assert loaded["Jan"] == []
 
-    def test_save_foraging_types(self, temp_dir):
+    def test_save_foraging_types(self, temp_dir) -> None:
         """Save foraging types to JSON file."""
         from pathlib import Path
 
@@ -110,7 +110,7 @@ class TestForaging:
             assert result is True
 
             # Verify saved content
-            with open(Foraging.foraging_types_path) as f:
+            with Foraging.foraging_types_path.open() as f:
                 saved = json.load(f)
             assert saved == types
         finally:

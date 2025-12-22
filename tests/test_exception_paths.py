@@ -13,7 +13,7 @@ from app.functions.tracks import load_track_statuses, save_track_statuses
 class TestForagingExceptions:
     """Test exception handling in foraging functions."""
 
-    def test_load_foraging_types_with_corrupted_json(self, temp_dir):
+    def test_load_foraging_types_with_corrupted_json(self, temp_dir) -> None:
         """Test loading foraging types from corrupted JSON file."""
         foraging = Foraging()
         # Create a corrupted JSON file
@@ -30,7 +30,7 @@ class TestForagingExceptions:
         assert isinstance(result, dict)
         assert len(result) > 0  # Should have default types
 
-    def test_save_foraging_types_with_permission_error(self, temp_dir):
+    def test_save_foraging_types_with_permission_error(self, temp_dir) -> None:
         """Test saving foraging types when write permission is denied."""
         foraging = Foraging()
         test_path = temp_dir / "readonly" / "types.json"
@@ -45,7 +45,7 @@ class TestForagingExceptions:
 
         assert result is False
 
-    def test_load_foraging_data_with_corrupted_csv(self, temp_dir):
+    def test_load_foraging_data_with_corrupted_csv(self, temp_dir) -> None:
         """Test loading foraging data from corrupted CSV file."""
         csv_file = temp_dir / "corrupted.csv"
         csv_file.write_text("month,type,lat\nJan,Mushroom,invalid_lat")  # Invalid data
@@ -58,7 +58,7 @@ class TestForagingExceptions:
         assert isinstance(result, dict)
         assert all(result[month] == [] for month in foraging.short_months)
 
-    def test_save_foraging_data_with_io_error(self, temp_dir):
+    def test_save_foraging_data_with_io_error(self, temp_dir) -> None:
         """Test saving foraging data when IO error occurs."""
         foraging = Foraging()
         csv_file = temp_dir / "test.csv"
@@ -78,7 +78,7 @@ class TestForagingExceptions:
 class TestTrackExceptions:
     """Test exception handling in track functions."""
 
-    def test_load_track_statuses_with_corrupted_csv(self, temp_dir):
+    def test_load_track_statuses_with_corrupted_csv(self, temp_dir) -> None:
         """Test loading track statuses from corrupted CSV."""
         csv_file = temp_dir / "corrupted.csv"
         csv_file.write_text("track_id,status,last_updated\ninvalid,data,here")
@@ -89,7 +89,7 @@ class TestTrackExceptions:
         # Should return empty dict when CSV is corrupted
         assert result == {}
 
-    def test_save_track_statuses_with_io_error(self, temp_dir):
+    def test_save_track_statuses_with_io_error(self, temp_dir) -> None:
         """Test saving track statuses when IO error occurs."""
         csv_file = temp_dir / "test.csv"
         track_status = {0: "To Explore", 1: "Explored!"}
@@ -106,7 +106,7 @@ class TestTrackExceptions:
 class TestGPXUpload:
     """Test GPX file upload handling."""
 
-    def test_handle_uploaded_gpx_successful_upload(self, temp_dir):
+    def test_handle_uploaded_gpx_successful_upload(self, temp_dir) -> None:
         """Test successful GPX file upload."""
         world_wide_path = temp_dir / "world_wide"
         skane_path = temp_dir / "skane"
@@ -133,7 +133,7 @@ class TestGPXUpload:
         assert "Successfully uploaded" in message
         assert (skane_path / "test_track.gpx").exists()
 
-    def test_handle_uploaded_gpx_world_wide(self, temp_dir):
+    def test_handle_uploaded_gpx_world_wide(self, temp_dir) -> None:
         """Test uploading to world-wide hikes directory."""
         world_wide_path = temp_dir / "world_wide"
         skane_path = temp_dir / "skane"
@@ -158,7 +158,7 @@ class TestGPXUpload:
         assert (world_wide_path / "world_track.gpx").exists()
         assert not (skane_path / "world_track.gpx").exists()
 
-    def test_handle_uploaded_gpx_invalid_gpx(self, temp_dir):
+    def test_handle_uploaded_gpx_invalid_gpx(self, temp_dir) -> None:
         """Test uploading invalid GPX file."""
         world_wide_path = temp_dir / "world_wide"
         skane_path = temp_dir / "skane"
@@ -176,7 +176,7 @@ class TestGPXUpload:
         # Verify temp file was cleaned up
         assert not (skane_path / "invalid.gpx").exists()
 
-    def test_handle_uploaded_gpx_cleanup_on_error(self, temp_dir):
+    def test_handle_uploaded_gpx_cleanup_on_error(self, temp_dir) -> None:
         """Test that temporary files are cleaned up on error."""
         world_wide_path = temp_dir / "world_wide"
         skane_path = temp_dir / "skane"
@@ -198,14 +198,14 @@ class TestGPXUpload:
 class TestSimplifyCoordinatesEdgeCases:
     """Test edge cases for coordinate simplification."""
 
-    def test_simplify_with_empty_list(self):
+    def test_simplify_with_empty_list(self) -> None:
         """Test coordinate simplification with empty list."""
         from app.functions.tracks import simplify_track_coordinates
 
         result = simplify_track_coordinates([])
         assert result == []
 
-    def test_simplify_with_single_coordinate(self):
+    def test_simplify_with_single_coordinate(self) -> None:
         """Test coordinate simplification with single coordinate."""
         from app.functions.tracks import simplify_track_coordinates
 

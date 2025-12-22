@@ -3,19 +3,19 @@
 from app.functions.gpx import load_additional_gpx_files
 
 
-def test_load_additional_gpx_files_nonexistent_directory():
+def test_load_additional_gpx_files_nonexistent_directory() -> None:
     """Test that loading from a non-existent directory returns empty list."""
     result = load_additional_gpx_files("/path/that/does/not/exist")
     assert result == []
 
 
-def test_load_additional_gpx_files_empty_directory(temp_data_dir):
+def test_load_additional_gpx_files_empty_directory(temp_data_dir) -> None:
     """Test that loading from an empty directory returns empty list."""
     result = load_additional_gpx_files(str(temp_data_dir))
     assert result == []
 
 
-def test_load_additional_gpx_files_with_valid_gpx(temp_data_dir, sample_gpx_file):
+def test_load_additional_gpx_files_with_valid_gpx(temp_data_dir, sample_gpx_file) -> None:
     """Test loading a valid GPX file."""
     result = load_additional_gpx_files(str(temp_data_dir))
 
@@ -32,7 +32,7 @@ def test_load_additional_gpx_files_with_valid_gpx(temp_data_dir, sample_gpx_file
     assert coords[2] == (56.2, 13.2)
 
 
-def test_load_additional_gpx_files_with_multiple_segments(temp_data_dir):
+def test_load_additional_gpx_files_with_multiple_segments(temp_data_dir) -> None:
     """Test loading a GPX file with multiple segments."""
     gpx_content = """<?xml version="1.0" encoding="UTF-8"?>
 <gpx version="1.1" creator="Garmin Connect">
@@ -60,7 +60,7 @@ def test_load_additional_gpx_files_with_multiple_segments(temp_data_dir):
     assert len(result[0]["segments"][1]) == 2
 
 
-def test_load_additional_gpx_files_with_invalid_gpx(temp_data_dir):
+def test_load_additional_gpx_files_with_invalid_gpx(temp_data_dir) -> None:
     """Test that invalid GPX files are skipped with warning."""
     invalid_file = temp_data_dir / "invalid.gpx"
     invalid_file.write_text("This is not valid GPX content")

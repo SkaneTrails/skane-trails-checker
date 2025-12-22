@@ -9,13 +9,13 @@ from app.functions.tracks import (
 )
 
 
-def test_load_track_statuses_nonexistent_file():
+def test_load_track_statuses_nonexistent_file() -> None:
     """Test loading track statuses from a non-existent file."""
     result = load_track_statuses("/path/that/does/not/exist.csv")
     assert result == {}
 
 
-def test_load_track_statuses_valid_file(sample_track_status_csv):
+def test_load_track_statuses_valid_file(sample_track_status_csv) -> None:
     """Test loading track statuses from a valid CSV file."""
     result = load_track_statuses(str(sample_track_status_csv))
 
@@ -24,7 +24,7 @@ def test_load_track_statuses_valid_file(sample_track_status_csv):
     assert result[1] == "Explored!"
 
 
-def test_save_track_statuses(temp_data_dir):
+def test_save_track_statuses(temp_data_dir) -> None:
     """Test saving track statuses to CSV."""
     track_status = {
         0: "To Explore",
@@ -46,7 +46,7 @@ def test_save_track_statuses(temp_data_dir):
     assert saved_data.iloc[0]["status"] == "To Explore"
 
 
-def test_simplify_track_coordinates_basic():
+def test_simplify_track_coordinates_basic() -> None:
     """Test coordinate simplification with RDP algorithm."""
     coordinates = [
         (56.0, 13.0),
@@ -65,14 +65,14 @@ def test_simplify_track_coordinates_basic():
     assert tuple(result[-1]) == coordinates[-1]
 
 
-def test_simplify_track_coordinates_two_points():
+def test_simplify_track_coordinates_two_points() -> None:
     """Test that tracks with 2 or fewer points are not simplified."""
     coordinates = [(56.0, 13.0), (56.1, 13.1)]
     result = simplify_track_coordinates(coordinates)
     assert result == coordinates
 
 
-def test_simplify_track_coordinates_single_point():
+def test_simplify_track_coordinates_single_point() -> None:
     """Test that tracks with a single point are not simplified."""
     coordinates = [(56.0, 13.0)]
     result = simplify_track_coordinates(coordinates)
