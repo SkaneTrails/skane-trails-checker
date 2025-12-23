@@ -148,6 +148,12 @@ Note: Must run from project root. Streamlit auto-discovers pages in `app/pages/`
   - Run: `uv run ruff check --fix` or via pre-commit hooks
 - **Pre-commit hooks**: `.pre-commit-config.yaml` enforces Ruff formatting on commit
   - Install: `uv run pre-commit install`
+- **Security scanning**: `.github/workflows/security-checks.yml` runs on PRs, pushes, and weekly schedule
+  - **SBOM generation**: Generates Software Bill of Materials for all dependencies
+  - **License compliance**: Fails on GPL/LGPL/AGPL/SSPL licenses (copyleft)
+  - **Vulnerability scanning**: Trivy scans for CVEs in dependencies
+  - **Dependency review**: GitHub's dependency review on PRs
+  - Suppress false positives in `.trivyignore`
 - **Conventional commits**: `feat:`, `fix:`, `chore:`, `ci:`, `docs:`, `refactor:`, `test:`, `deps:`, `perf:`, `revert:`, `bump:`
 - **Git operations**: Use native `git` commands or GitHub CLI only
   - **NEVER use GitKraken MCP tools** - they are disabled for this project
