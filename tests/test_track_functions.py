@@ -3,10 +3,81 @@
 import pandas as pd
 
 from app.functions.tracks import (
+    calculate_track_distance,
     load_track_statuses,
     save_track_statuses,
     simplify_track_coordinates,
 )
+
+
+class TestCalculateTrackDistance:
+    """Tests for track distance calculation."""
+
+    def test_single_segment_simple_distance(self) -> None:
+        """Test distance calculation for a simple single-segment track."""
+        # Two points roughly 1km apart in Skåne
+        segments = [[(56.0, 13.0), (56.009, 13.0)]]  # ~1km north
+
+        result = calculate_track_distance(segments)
+
+        assert result["segment_count"] == 1
+        assert result["point_count"] == 2
+        # Distance should be approximately 1km (allowing some tolerance)
+        assert 0.9 <= result["distance_km"] <= 1.1
+
+    def test_multiple_segments(self) -> None:
+        """Test distance calculation with multiple segments."""
+        segments = [
+            [(56.0, 13.0), (56.009, 13.0)],  # ~1km
+            [(56.1, 13.0), (56.109, 13.0)],  # ~1km
+        ]
+
+        result = calculate_track_distance(segments)
+
+        assert result["segment_count"] == 2
+        assert result["point_count"] == 4
+        # Total should be approximately 2km
+        assert 1.8 <= result["distance_km"] <= 2.2
+
+    def test_empty_segments(self) -> None:
+        """Test distance calculation with no segments."""
+        segments: list[list[tuple[float, float]]] = []
+
+        result = calculate_track_distance(segments)
+
+        assert result["distance_km"] == 0.0
+        assert result["segment_count"] == 0
+        assert result["point_count"] == 0
+
+    def test_single_point_segment(self) -> None:
+        """Test distance calculation with a segment containing only one point."""
+        segments = [[(56.0, 13.0)]]
+
+        result = calculate_track_distance(segments)
+
+        assert result["distance_km"] == 0.0
+        assert result["segment_count"] == 1
+        assert result["point_count"] == 1
+
+    def test_longer_track(self) -> None:
+        """Test distance calculation for a longer track with multiple points."""
+        # A track with 5 points, each roughly 500m apart
+        segments = [
+            [
+                (56.0, 13.0),
+                (56.0045, 13.0),  # ~500m
+                (56.009, 13.0),  # ~500m
+                (56.0135, 13.0),  # ~500m
+                (56.018, 13.0),  # ~500m
+            ]
+        ]
+
+        result = calculate_track_distance(segments)
+
+        assert result["segment_count"] == 1
+        assert result["point_count"] == 5
+        # Total should be approximately 2km
+        assert 1.8 <= result["distance_km"] <= 2.2
 
 
 def test_load_track_statuses_nonexistent_file() -> None:

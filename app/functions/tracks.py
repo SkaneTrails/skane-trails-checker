@@ -1,11 +1,51 @@
 from datetime import UTC, datetime
 from pathlib import Path
+from typing import TypedDict
 
+import geopy.distance
 import pandas as pd
 import streamlit as st
 
 # Constants
 MIN_POINTS_FOR_SIMPLIFICATION = 2  # Minimum points needed for RDP algorithm
+METERS_PER_KM = 1000  # Conversion factor
+
+
+class TrackMetadata(TypedDict):
+    """Metadata computed for a track."""
+
+    distance_km: float
+    segment_count: int
+    point_count: int
+
+
+def calculate_track_distance(segments: list[list[tuple[float, float]]]) -> TrackMetadata:
+    """Calculate total distance of a track from its segments.
+
+    Args:
+        segments: List of segments, where each segment is a list of (lat, lng) tuples
+
+    Returns:
+        TrackMetadata with distance in km, segment count, and total point count
+
+    """
+    total_distance_meters = 0.0
+    total_points = 0
+
+    for segment in segments:
+        total_points += len(segment)
+        # Calculate distance between consecutive points in the segment
+        for i in range(len(segment) - 1):
+            point1 = segment[i]
+            point2 = segment[i + 1]
+            distance = geopy.distance.geodesic(point1, point2).meters
+            total_distance_meters += distance
+
+    return {
+        "distance_km": round(total_distance_meters / METERS_PER_KM, 2),
+        "segment_count": len(segments),
+        "point_count": total_points,
+    }
 
 
 def simplify_track_coordinates(coordinates: list, tolerance: float = 0.0001) -> list:

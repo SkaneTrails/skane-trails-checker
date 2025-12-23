@@ -5,7 +5,7 @@ import geopy.distance
 import gpxpy
 import streamlit as st
 from functions.gpx import handle_uploaded_gpx, load_additional_gpx_files
-from functions.tracks import load_track_statuses, save_track_statuses
+from functions.tracks import calculate_track_distance, load_track_statuses, save_track_statuses
 from streamlit_folium import st_folium
 
 # Constants
@@ -150,6 +150,18 @@ with tab1:
                 "Completion Rate", f"{int((explored_tracks / total_tracks) * 100)}%" if total_tracks > 0 else "0%"
             )
 
+            # Display total distance if track distances are calculated
+            track_distances = st.session_state.get("track_distances", {})
+            if track_distances:
+                total_distance = sum(d["distance_km"] for d in track_distances.values())
+                explored_distance = sum(
+                    d["distance_km"]
+                    for track_id, d in track_distances.items()
+                    if st.session_state.track_status.get(track_id) == "Explored!"
+                )
+                st.metric("Total Distance", f"{total_distance:.1f} km")
+                st.metric("Explored Distance", f"{explored_distance:.1f} km")
+
             # Display a button to manually save status
             if st.button("Save Track Status") and save_track_statuses(st.session_state.track_status, skaneleden_status):
                 st.success("Track statuses saved successfully!")
@@ -209,10 +221,20 @@ with tab1:
                     # Store all segments of this track under one track_index
                     if segments:
                         track_segments[track_index] = segments
+                        # Calculate distance for this track
+                        if "track_distances" not in st.session_state:
+                            st.session_state.track_distances = {}
+                        st.session_state.track_distances[track_index] = calculate_track_distance(segments)
                         track_index += 1
 
             # Add coordinates from additional tracks for map centering
-            for track in st.session_state.additional_tracks:
+            # Also calculate distances for additional tracks
+            additional_track_start_idx = len(track_segments)
+            for i, track in enumerate(st.session_state.additional_tracks):
+                track_idx = additional_track_start_idx + i
+                if "track_distances" not in st.session_state:
+                    st.session_state.track_distances = {}
+                st.session_state.track_distances[track_idx] = calculate_track_distance(track["segments"])
                 for segment in track["segments"]:
                     all_coords.extend(segment)
 
@@ -244,6 +266,11 @@ with tab1:
                     # Orange for to explore, dark green for explored
                     track_color = "#FF8C00" if track_status == "To Explore" else "#006400"  # Orange → Dark Green
 
+                    # Get distance for this track
+                    track_metadata = st.session_state.get("track_distances", {}).get(track_index, {})
+                    distance_km = track_metadata.get("distance_km", 0)
+                    distance_text = f" | {distance_km:.1f} km" if distance_km > 0 else ""
+
                     # Plot each segment separately to avoid connecting disconnected segments
                     for segment in segments:
                         folium.PolyLine(
@@ -251,8 +278,8 @@ with tab1:
                             color=track_color,
                             weight=5,
                             opacity=0.7,
-                            popup=f"Track {track_index}: {track_status}",
-                            tooltip="Click near this track!",
+                            popup=f"Track {track_index}: {track_status}{distance_text}",
+                            tooltip=f"Track {track_index}{distance_text} - Click to toggle!",
                         ).add_to(m)
 
                     # Start and End Points with matching colors (use first and last segments)
@@ -270,7 +297,14 @@ with tab1:
                             ).add_to(m)
 
             # Plot additional tracks
-            for _i, track in enumerate(st.session_state.additional_tracks):
+            additional_track_start_idx = len(track_segments)
+            for i, track in enumerate(st.session_state.additional_tracks):
+                track_idx = additional_track_start_idx + i
+                # Get distance for this additional track
+                track_metadata = st.session_state.get("track_distances", {}).get(track_idx, {})
+                distance_km = track_metadata.get("distance_km", 0)
+                distance_text = f" | {distance_km:.1f} km" if distance_km > 0 else ""
+
                 for segment in track["segments"]:
                     # Create a dashed line for additional tracks
                     folium.PolyLine(
@@ -278,8 +312,8 @@ with tab1:
                         color="#2683b5",  # Blue color
                         weight=4,
                         opacity=0.8,
-                        popup=f"Additional Trail: {track['name']}",
-                        tooltip=f"Trail: {track['name']}",
+                        popup=f"Trail: {track['name']}{distance_text}",
+                        tooltip=f"Trail: {track['name']}{distance_text}",
                     ).add_to(m)
 
                     # Add circle markers for start and end
@@ -291,7 +325,7 @@ with tab1:
                             fill=True,
                             fill_color="#2683b5",
                             fill_opacity=0.8,
-                            popup=f"Additional Trail: {track['name']}",
+                            popup=f"Trail: {track['name']}{distance_text}",
                         ).add_to(m)
 
             # Enable ClickForMarker (lets us detect clicks on the map)
