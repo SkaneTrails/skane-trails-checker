@@ -1,0 +1,33 @@
+"📝 type: documentation":
+  - changed-files:
+      - any-glob-to-any-file:
+          ["docs/**", "README.md", "CONTRIBUTING.md", "*.md"]
+
+"⚙️ type: github-actions":
+  - changed-files:
+      - any-glob-to-any-file: [".github/workflows/**", ".github/actions/**"]
+
+"📦 type: dependencies":
+  - changed-files:
+      - all-globs-to-any-file: ["pyproject.toml", "uv.lock"]
+
+"🐍 type: python-tooling":
+  - changed-files:
+      - any-glob-to-any-file:
+          ["pyproject.toml", ".python-version", ".pre-commit-config.yaml"]
+
+"🌑 type: terraform":
+  - changed-files:
+      - any-glob-to-any-file: [".terraform-version", "infra/**"]
+
+"🔧 type: maintenance":
+  - changed-files:
+      - any-glob-to-any-file:
+          - .github/*
+          - .editorconfig
+          - .gitignore
+          - .pre-commit-config.yaml
+          - CHANGELOG.md
+          - LICENSE
+          - README.md
+          - renovate.json

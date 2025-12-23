@@ -1,7 +1,9 @@
 # Testing Guide
 
 ## Overview
+
 This project uses **pytest** for testing. Tests are organized to cover three layers:
+
 1. **Unit tests** - Pure business logic functions (GPX parsing, data management)
 2. **Integration tests** - Streamlit components (planned)
 3. **End-to-end tests** - Full page workflows (planned)
@@ -9,26 +11,31 @@ This project uses **pytest** for testing. Tests are organized to cover three lay
 ## Running Tests
 
 ### Install Test Dependencies
+
 ```bash
 uv sync
 ```
 
 ### Run All Tests
+
 ```bash
 pytest
 ```
 
 ### Run with Coverage Report
+
 ```bash
 pytest --cov=app --cov-report=html
 ```
 
 ### Run Specific Test File
+
 ```bash
 pytest tests/test_gpx_functions.py -v
 ```
 
 ### Run Tests in VS Code
+
 - Use the Test Explorer in the sidebar (flask icon)
 - Tests should auto-discover after installing `pytest-xdist`
 - Click the play button to run individual tests or entire suites
@@ -54,6 +61,7 @@ tests/
 ## Writing New Tests
 
 ### Testing Pure Functions
+
 ```python
 def test_my_function():
     """Test description."""
@@ -62,6 +70,7 @@ def test_my_function():
 ```
 
 ### Using Fixtures
+
 ```python
 def test_with_temp_file(temp_data_dir):
     """Test that uses a temporary directory."""
@@ -71,6 +80,7 @@ def test_with_temp_file(temp_data_dir):
 ```
 
 ### Testing File Operations
+
 ```python
 def test_save_data(temp_data_dir):
     """Test saving data to a file."""
@@ -102,6 +112,7 @@ def test_streamlit_page():
 ## Coverage Goals
 
 Current coverage focus:
+
 - ✅ `app/functions/gpx.py` - GPX file handling
 - ✅ `app/functions/tracks.py` - Track status management
 - ✅ `app/functions/foraging.py` - Foraging data management
@@ -127,14 +138,17 @@ Tests can be run in CI/CD pipelines:
 ## Troubleshooting
 
 ### Tests not discovered in VS Code
+
 1. Ensure `pytest-xdist` is installed: `uv sync`
 2. Check Python interpreter is correct (bottom right of VS Code)
 3. Reload VS Code window
 
 ### Import errors in tests
+
 - Make sure you're in the project root when running pytest
 - Check that `app/` is in the Python path (pytest handles this automatically)
 
 ### Coverage report location
+
 - HTML report: `htmlcov/index.html` (open in browser)
 - Terminal report: Shown after running `pytest --cov`

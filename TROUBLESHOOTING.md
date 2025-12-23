@@ -9,11 +9,13 @@ If the Streamlit app crashes on your computer, follow these steps to help diagno
 The app now creates a detailed debug log file: `app_debug.log`
 
 **How to find it:**
+
 - The file is created in the same directory where you run the `streamlit run` command
 - On Windows: Usually `C:\git\skane-trails-checker\app_debug.log`
 - On Linux/Mac: Usually in the project root directory
 
 **What it contains:**
+
 - Python version
 - Current working directory
 - App file location
@@ -31,6 +33,7 @@ streamlit run app/_Home_.py 2>&1 | tee streamlit_output.txt
 ```
 
 This will:
+
 - Show output in the terminal
 - Save everything to `streamlit_output.txt`
 
@@ -55,20 +58,26 @@ pip list | grep streamlit
 ### 4. Common Issues
 
 #### Issue: "ModuleNotFoundError: No module named 'streamlit'"
+
 **Solution:**
+
 ```bash
 uv sync
 # Or: pip install -r requirements.txt
 ```
 
 #### Issue: "st.set_page_config() can only be called once"
+
 **Solution:** This is a bug that was fixed. Make sure you have the latest code:
+
 ```bash
 git pull origin main
 ```
 
 #### Issue: GPX files not loading
+
 **Solution:** Check that the paths in `app/tracks_gpx/` are correct for your OS
+
 - Windows uses backslashes: `C:\path\to\file`
 - Linux/Mac use forward slashes: `/path/to/file`
 
@@ -119,6 +128,7 @@ uv run streamlit run app/_Home_.py
 ## Still Having Issues?
 
 Open a GitHub issue with:
+
 - Contents of `app_debug.log`
 - Output of `uv run pytest -v`
 - Your Python version and OS

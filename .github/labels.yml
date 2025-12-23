@@ -1,0 +1,96 @@
+# Priorities
+- name: "priority: critical"
+  color: "#FB6579"
+  description: Must be fixed ASAP
+
+- name: "priority: high"
+  color: "#EC773E"
+  description: Stalls work on the project or its dependents
+
+- name: "priority: medium"
+  color: "#FFDB00"
+  description: Not blocking but should be fixed soon
+
+- name: "priority: low"
+  color: "#489CE3"
+  description: Low priority and doesn't need to be rushed
+
+# Status
+- name: "⛔️ status: discarded"
+  color: "#929292"
+  description: Rejected and will not be worked on
+
+- name: "🚧 status: blocked"
+  color: "#EC773E"
+  description: Waiting for more details or external party
+
+# Type
+- name: "🪲 type: bug"
+  color: "#FB6579"
+  description: Unexpected problem or unintended behavior
+
+- name: "📝 type: documentation"
+  color: "#489CE3"
+  description: Need for improvements or additions to documentation
+
+- name: "✨ type: enhancement"
+  color: "#FFDB00"
+  description: New feature or request
+
+- name: "⚡️ type: performance"
+  color: "#7EC76D"
+  description: Improves performance or efficiency
+
+- name: "🔧 type: maintenance"
+  color: "#7EC76D"
+  description: Requiring upkeep to ensure the health of the project
+
+- name: "♻️ type: refactor"
+  color: "#7EC76D"
+  description: Code cleanup or restructuring without changing functionality
+
+- name: "📦 type: dependencies"
+  color: "#489CE3"
+  description: Dependency file(s) update
+
+- name: "⚙️ type: github-actions"
+  color: "#000000"
+  description: GitHub Actions workflow file update
+
+- name: "🐍 type: python-tooling"
+  color: "#3776ab"
+  description: Python version, environment, or dependency management changes
+
+- name: "🌑 type: terraform"
+  color: "#7B42BC"
+  description: Infrastructure as Code (IaC) file update
+
+- name: "💬 type: question or discussion"
+  color: "#489CE3"
+  description: Information or discussion is requested
+
+- name: "🔄 type: duplicate"
+  color: "#929292"
+  description: This issue or pull request already exists
+
+# Semantics
+- name: "⚠️ BREAKING"
+  color: "#FB6579"
+  description: Requires downstream users or systems to change behaviour
+
+# Hints
+- name: "❌ do not merge"
+  color: "#242424"
+  description: Do not merge pull request, even if approved and all checks pass
+
+- name: "🥇 good first issue"
+  color: "#7EC76D"
+  description: New-contributor friendly
+
+- name: "👋 help wanted"
+  color: "#7EC76D"
+  description: Open to participation from the community
+
+- name: "🧹 renovate"
+  color: "#1e90ff"
+  description: Renovate dependency update
