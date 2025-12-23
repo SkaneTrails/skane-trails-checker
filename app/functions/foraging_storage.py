@@ -12,7 +12,7 @@ def get_foraging_spots(month: str | None = None) -> list[dict]:
         month: Optional month filter (e.g., "Jan", "Feb"). If None, returns all spots.
 
     Returns:
-        List of foraging spot dictionaries
+        List of foraging spot dictionaries with 'id' field included
     """
     collection = get_collection("foraging_spots")
 
@@ -23,6 +23,7 @@ def get_foraging_spots(month: str | None = None) -> list[dict]:
     for doc in docs:
         data = doc.to_dict()
         if data:
+            data["id"] = doc.id  # Include document ID for updates/deletes
             spots.append(data)
 
     return spots
