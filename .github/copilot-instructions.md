@@ -13,6 +13,7 @@ You are collaborating with a human who may make changes between your edits:
 - **Plan before large changes** - for complex changes (3+ files, new infrastructure, architectural changes), propose a high-level plan first and wait for approval before implementing
 - **Prefer standard git tools** - use `git` commands and `gh` CLI over GitKraken MCP tools. GitKraken tools should only be used when explicitly requested or when they provide functionality not available through standard tools
 - **Solve the actual problem** - when hitting obstacles (permissions, cross-repo dependencies, missing APIs), do not suggest workarounds that avoid the problem instead of solving it. If the goal is "validate X" and validation requires extra permissions, the answer is "add the permissions" not "skip validation." Never present a workaround as equivalent to a real solution.
+- **Never work directly on main** - Always create a feature branch for changes. Use conventional commit prefixes (feat:, fix:, chore:, etc.) in branch names (e.g., `feat/add-feature`, `fix/bug-name`, `chore/update-deps`)
 
 ## Keeping Instructions Current
 
@@ -31,13 +32,34 @@ If any of these change, suggest updating `.github/copilot-instructions.md` in yo
 
 A Streamlit multi-page application for tracking hiking trails and foraging spots in Skåne, Sweden. The app processes GPX files, manages trail completion statuses, and provides interactive maps for both hiking trails and seasonal foraging locations.
 
-**Deployment target**: Google Cloud Platform under **FREE TIER** constraints.
+**ZERO-COST REQUIREMENT**: This project operates entirely on free tiers - GitHub Free + GCP Free Tier. ALL suggestions must work within these constraints.
 
-## Critical Constraints
+## Critical Constraints: Free Tier Only
 
-### Google Cloud Free Tier Requirements
+**This project is designed to run at zero cost using free tiers only. This is a hard requirement, not a preference.**
+
+### GitHub Free Tier (Public Repository)
+
+**All GitHub features must work on the free tier:**
+
+- **No branch protection rules** - Cannot enforce required reviews, status checks, or restrict who can push
+- **No GitHub Advanced Security** - Code scanning SARIF uploads may fail, dependency review not available
+- **Public repository** - All code, issues, and PRs are publicly visible
+- **Actions minutes** - Unlimited for public repos, 2,000 minutes/month for private repos
+- **Artifacts storage** - 500 MB storage, 1 GB bandwidth/month
+
+**Implications for workflows:**
+
+- SARIF uploads should use `continue-on-error: true` (may not have code scanning enabled)
+- Dependency review action not supported (requires Advanced Security)
+- Rely on Trivy scans and artifact uploads instead of GitHub Security tab
+- No auto-merge via branch protection (use Renovate's `platformAutomerge` instead)
+
+### Google Cloud Free Tier
 
 **ALL infrastructure and code changes MUST stay within GCP free tier limits. This is NON-NEGOTIABLE.**
+
+**Monthly limits:**
 
 - **Cloud Run**: 2 million requests/month, 360,000 GB-seconds/month, 180,000 vCPU-seconds/month
 - **Cloud Storage**: 5 GB storage, 5,000 Class A operations/month, 50,000 Class B operations/month
@@ -147,6 +169,12 @@ Note: Must run from project root. Streamlit auto-discovers pages in `app/pages/`
   - Run: `uv run ruff check --fix` or via pre-commit hooks
 - **Pre-commit hooks**: `.pre-commit-config.yaml` enforces Ruff formatting on commit
   - Install: `uv run pre-commit install`
+- **Security scanning**: `.github/workflows/security-checks.yml` runs on PRs, pushes, and weekly schedule
+  - **SBOM generation**: Generates Software Bill of Materials for all dependencies
+  - **License compliance**: Fails on GPL/LGPL/AGPL/SSPL licenses (copyleft)
+  - **Vulnerability scanning**: Trivy scans for CVEs in dependencies
+  - **Dependency review**: GitHub's dependency review on PRs
+  - Suppress false positives in `.trivyignore`
 - **Conventional commits**: `feat:`, `fix:`, `chore:`, `ci:`, `docs:`, `refactor:`, `test:`, `deps:`, `perf:`, `revert:`, `bump:`
 - **Git operations**: Use native `git` commands or GitHub CLI only
   - **NEVER use GitKraken MCP tools** - they are disabled for this project
