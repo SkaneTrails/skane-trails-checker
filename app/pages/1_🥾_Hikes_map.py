@@ -170,6 +170,9 @@ with tab1:
                     )
                 if success:
                     st.success(message)
+                    # Force reload of additional tracks by clearing the cache
+                    if "gpx_data" in st.session_state:
+                        del st.session_state["gpx_data"]
                     # Force refresh to show new track
                     st.rerun()
                 else:
