@@ -7,7 +7,10 @@
   ],
   "rebaseWhen": "behind-base-branch",
   "branchPrefix": "renovate/",
-  "labels": ["🧹 renovate", "📦 type: dependencies"],
+  "labels": [
+    "🧹 renovate",
+    "📦 type: dependencies"
+  ],
   "dependencyDashboard": true,
   "dependencyDashboardTitle": "🤖 Renovate Dependency Dashboard",
   "minimumReleaseAge": "3 days",
@@ -19,19 +22,36 @@
       "automerge": true,
       "platformAutomerge": true,
       "automergeStrategy": "squash",
-      "matchUpdateTypes": ["minor", "patch", "pin", "digest"]
+      "matchUpdateTypes": [
+        "minor",
+        "patch",
+        "pin",
+        "digest"
+      ]
     },
     {
-      "matchDatasources": ["pypi"],
-      "registryUrls": ["https://pypi.org/simple"]
+      "matchDatasources": [
+        "pypi"
+      ],
+      "registryUrls": [
+        "https://pypi.org/simple"
+      ]
     },
     {
-      "matchManagers": ["terraform"],
-      "matchDepTypes": ["required_provider"],
-      "addLabels": ["🌑 type: terraform"]
+      "matchManagers": [
+        "terraform"
+      ],
+      "matchDepTypes": [
+        "required_provider"
+      ],
+      "addLabels": [
+        "🌑 type: terraform"
+      ]
     },
     {
-      "matchDatasources": ["docker"],
+      "matchDatasources": [
+        "docker"
+      ],
       "versioning": "loose",
       "rangeStrategy": "pin",
       "allowedVersions": "!/-(alpha|beta|rc|dev|snapshot|preview|experimental|unstable)/i"
@@ -39,21 +59,29 @@
     {
       "groupName": "GitHub Actions",
       "groupSlug": "github-actions",
-      "matchManagers": ["github-actions"],
+      "matchManagers": [
+        "github-actions"
+      ],
       "automerge": true
     },
     {
       "groupName": "pre-commit hooks",
       "groupSlug": "pre-commit-hooks",
-      "matchManagers": ["pre-commit"],
+      "matchManagers": [
+        "pre-commit"
+      ],
       "automerge": true
     },
     {
       "groupName": "Python dependencies",
       "groupSlug": "python-deps",
-      "matchManagers": ["pep621"],
-      "excludePackageNames": ["python"],
-      "automerge": true
+      "matchManagers": [
+        "pep621"
+      ],
+      "automerge": true,
+      "matchPackageNames": [
+        "!python"
+      ]
     },
     {
       "groupName": "pytest",
@@ -64,24 +92,36 @@
         "pytest-mock",
         "pytest-xdist"
       ],
-      "matchManagers": ["pep621"]
+      "matchManagers": [
+        "pep621"
+      ]
     },
     {
-      "matchPackageNames": ["python"],
-      "matchUpdateTypes": ["minor"],
+      "matchPackageNames": [
+        "python"
+      ],
+      "matchUpdateTypes": [
+        "minor"
+      ],
       "enabled": false,
       "description": "Only allow Python patch updates"
     },
     {
       "rangeStrategy": "bump",
-      "matchPackageNames": ["python"],
-      "matchManagers": ["pep621"]
+      "matchPackageNames": [
+        "python"
+      ],
+      "matchManagers": [
+        "pep621"
+      ]
     }
   ],
   "lockFileMaintenance": {
     "enabled": true,
     "automerge": true,
-    "schedule": ["before 4am on monday"]
+    "schedule": [
+      "before 4am on monday"
+    ]
   },
   "pre-commit": {
     "enabled": true
