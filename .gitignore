@@ -39,7 +39,6 @@ coverage.xml
 *.tfstate.*
 *.tfvars
 .terraform/
-.terraform.lock.hcl
 terraform.tfplan
 terraform.tfplan.json
 crash.log
