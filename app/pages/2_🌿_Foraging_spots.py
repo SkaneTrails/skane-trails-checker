@@ -5,6 +5,7 @@ import folium
 import pandas as pd
 import plotly.express as px
 import streamlit as st
+from functions.env_loader import load_env_if_needed
 from functions.foraging_storage import (
     delete_foraging_spot,
     delete_foraging_type,
@@ -21,6 +22,9 @@ from resources.foraging_resources import (
     nature_emojis,
 )
 from streamlit_folium import st_folium
+
+# Load environment variables (with platform precedence)
+load_env_if_needed()
 
 st.set_page_config(page_title="Seasonal Foraging Tracker", layout="wide")
 
