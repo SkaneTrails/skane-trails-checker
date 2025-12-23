@@ -11,7 +11,16 @@ Creates the GCS bucket for storing Terraform remote state. This is a one-time se
 1. **GCP Project**: Create a GCP project (free tier)
 2. **gcloud CLI**: Installed and authenticated (`gcloud auth application-default login`)
 3. **Terraform**: Version >= 1.12
-4. **Permissions**: Project Owner or Editor role in GCP project
+4. **Permissions**: The following IAM roles are required to run this bootstrap:
+   - **Storage Admin** (`roles/storage.admin`) - Create and manage GCS buckets
+   - **Storage Object Admin** (`roles/storage.objectAdmin`) - Manage bucket objects and versioning
+   - Alternatively, **Project Editor** (`roles/editor`) or **Project Owner** (`roles/owner`) includes these permissions
+
+   These permissions are needed to:
+   - Create the GCS bucket for Terraform state
+   - Enable versioning on the bucket
+   - Configure bucket lifecycle policies
+   - Set IAM policies on the bucket
 
 ## Setup Steps
 
@@ -21,7 +30,6 @@ Copy the example tfvars file and update with your project ID:
 
 ```bash
 cd infra/environments/dev/init
-cp terraform.tfvars.example terraform.tfvars
 ```
 
 Edit `terraform.tfvars` and replace `your-project-id-here` with your actual GCP project ID.
