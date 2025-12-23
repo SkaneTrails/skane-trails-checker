@@ -26,11 +26,11 @@ rule "terraform_naming_convention" {
 }
 
 rule "terraform_required_providers" {
-  enabled = true
+  enabled = false  # Modules inherit from root environment
 }
 
 rule "terraform_required_version" {
-  enabled = true
+  enabled = false  # Modules inherit from root environment
 }
 
 rule "terraform_unused_declarations" {
