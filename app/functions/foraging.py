@@ -5,7 +5,7 @@ from typing import ClassVar
 import pandas as pd
 import streamlit as st
 
-from app.resources.foraging_resources import default_foraging_types
+from resources.foraging_resources import default_foraging_types
 
 
 class Foraging:
