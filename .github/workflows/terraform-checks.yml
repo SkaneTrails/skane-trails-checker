@@ -84,10 +84,10 @@ jobs:
           GITHUB_TOKEN: ${{ github.token }}
 
       - name: Run TFLint
-        working-directory: infra/
         run: |
           echo "Running TFLint..."
-          tflint --recursive --config ../.tflint.hcl --format compact
+          cd infra
+          tflint --recursive --config="${GITHUB_WORKSPACE}/.tflint.hcl" --format compact
 
   trivy-iac:
     name: Trivy IaC Scan
