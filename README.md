@@ -1,89 +1,149 @@
-# Skåne Trails Tracking app
+# Skåne Trails Checker
 
-This application processes GPX files and manages track statuses for various trails.
+A Streamlit multi-page application for tracking hiking trails and foraging spots in Skåne, Sweden.
 
-## Prerequisites
+## What It Does
 
-- Python 3.11 or higher
-- `uv` package manager (recommended) or `pip`
+**Skåne Trails Checker** helps you plan and track outdoor adventures in southern Sweden:
 
-## Installation
+- 🥾 **Interactive Trail Maps** - Visualize Skåneleden trails and regional hikes with color-coded completion status
+- 📊 **Progress Tracking** - Mark trails as "To Explore" or "Explored!" and save your hiking history
+- 🌿 **Foraging Guide** - Track seasonal foraging locations (mushrooms, berries, herbs) on an interactive map
+- 🌤️ **Weather Integration** - 4-day weather forecast for planning your next hike
+- 📁 **GPX File Support** - Upload your own Garmin/GPS tracks to add custom trails
 
-### Using UV (Recommended - Fast & Modern)
+## Features
 
-1. Install UV:
+### 1. Trail Visualization
 
-   ```sh
-   # Windows (PowerShell)
-   powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"
+- Official Skåneleden trails (5 routes totaling ~1,000 km)
+- Regional trails in Skåne (Hovdala, Fulltofta, Romele, etc.)
+- Toggle to worldwide hikes view (user-uploaded GPX files)
+- Interactive Folium maps with segment-by-segment tracking
 
-   # Linux/macOS
-   curl -LsSf https://astral.sh/uv/install.sh | sh
-   ```
+### 2. Data Management
 
-2. Clone the repository
+- Track completion status saved to CSV
+- Foraging spots organized by month with custom type definitions
+- GPX file parsing with coordinate simplification for performance
 
-3. Install dependencies (creates `.venv` automatically):
-   ```sh
-   uv sync
-   ```
+### 3. Multi-Page Navigation
 
-## Usage
+- **Home**: Weather dashboard and outdoor tips
+- **Hikes Map**: Trail visualization and status management
+- **Foraging Spots**: Seasonal foraging location guide
 
-1. Ensure you have the necessary GPX files and directories:
-   - `tracks_gpx/skaneleden/all-skane-trails.gpx`
-   - `tracks_gpx/other_trails/`
-   - `tracks_status/track_skaneleden_status.csv` (optional, will be created if not present)
+## Quick Start
 
-2. Run the application:
+### Prerequisites
 
-   ```sh
-   # Using UV (recommended)
-   uv run streamlit run app/🌲_Home_.py
+- Python 3.14+
+- [UV package manager](https://github.com/astral-sh/uv)
 
-   # Or activate venv first
-   source .venv/bin/activate  # Linux/macOS
-   .venv\Scripts\activate     # Windows
-   streamlit run app/🌲_Home_.py
-   ```
+### Installation
 
-3. Follow the prompts or instructions provided by the application.
+```bash
+# Install UV (if not already installed)
+# Windows (PowerShell)
+powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"
+
+# Linux/macOS
+curl -LsSf https://astral.sh/uv/install.sh | sh
+
+# Clone and set up
+git clone https://github.com/SkaneTrails/skane-trails-checker.git
+cd skane-trails-checker
+uv sync  # Creates .venv and installs dependencies
+```
+
+### Running the App
+
+```bash
+# Using UV (recommended)
+uv run streamlit run app/_Home_.py
+
+# Or activate venv first
+source .venv/bin/activate  # Linux/macOS
+.venv\Scripts\activate     # Windows
+streamlit run app/_Home_.py
+```
+
+The app will open in your browser at `http://localhost:8501`
+
+## Project Structure
+
+```plaintext
+skane-trails-checker/
+├── app/
+│   ├── _Home_.py              # Entry point - weather dashboard
+│   ├── pages/                 # Streamlit pages (auto-discovered)
+│   │   ├── 1_🥾_Hikes_map.py
+│   │   └── 2_🌿_Foraging_spots.py
+│   ├── functions/             # Core business logic
+│   │   ├── gpx.py            # GPX parsing and file handling
+│   │   ├── tracks.py         # Track management and status
+│   │   └── foraging.py       # Foraging data operations
+│   ├── resources/            # Static data and configs
+│   └── foraging_data/        # Foraging spots and types (CSV/JSON)
+├── tracks_gpx/               # GPX trail files
+│   ├── skaneleden/          # Official Skåneleden trails
+│   ├── other_trails/        # Regional trails in Skåne
+│   └── world_wide_hikes/    # Worldwide hikes (user uploads)
+├── tracks_status/           # Track completion CSV files
+├── tests/                   # Test suite (97% coverage)
+└── docs/                    # Additional documentation
+```
 
 ## Development
 
 ### Running Tests
 
-```sh
-# Using UV
-uv run pytest
-
-# With coverage
-uv run pytest --cov=app --cov-report=html
-
-# Using pip
-pytest
+```bash
+uv run pytest                          # Run all tests
+uv run pytest --cov=app --cov-report=html  # With coverage report
 ```
 
-### Code Formatting
+### Code Quality
 
-```sh
-# Using UV
-uv run ruff check --fix
-uv run ruff format
-
-# Using pip
-ruff check --fix
-ruff format
+```bash
+uv run ruff check --fix    # Lint and auto-fix
+uv run ruff format         # Format code
+uv run pre-commit install  # Set up pre-commit hooks
 ```
 
-### Pre-commit Hooks
+### Adding Your Own Trails
 
-```sh
-uv run pre-commit install
-uv run pre-commit run --all-files
-```
+1. Export GPX file from Garmin Connect or similar service
+2. Use the file uploader in the "Hikes Map" page
+3. Toggle between Skåne trails (default) or worldwide hikes view
+4. Uploaded trails are saved to the worldwide hikes collection
 
-## Notes
+## Technology Stack
 
-- The application will create necessary directories if they do not exist.
-- Track statuses will be loaded from and saved to `tracks_status/track_skaneleden_status.csv`.
+- **Framework**: Streamlit (interactive web app)
+- **Maps**: Folium + OpenStreetMap
+- **GPX Parsing**: gpxpy
+- **Data**: Pandas (CSV/JSON), RDP algorithm (coordinate simplification)
+- **Weather**: Open-Meteo API (free, no key required)
+- **Package Manager**: UV (modern pip replacement)
+
+## Future Plans
+
+See [GitHub Issues](https://github.com/SkaneTrails/skane-trails-checker/issues) for the roadmap:
+
+## Contributing
+
+Contributions welcome! Please:
+
+1. Read [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines
+2. Fork the repository
+3. Create a feature branch (`git checkout -b feat/amazing-feature`)
+4. Follow conventional commit format (`feat:`, `fix:`, `chore:`, etc.)
+5. Ensure tests pass (`uv run pytest`)
+6. Submit a pull request
+
+See [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) for technical architecture and patterns.
+
+## Troubleshooting
+
+See [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md) for common issues and solutions.
