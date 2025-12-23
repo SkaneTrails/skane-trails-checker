@@ -37,5 +37,3 @@ After bootstrap, deploy infrastructure changes locally:
 - **Never commit** `terraform.tfvars` or `backend.tf` to git (gitignored)
 - **All infrastructure** (including WIF, service accounts) is managed via Terraform
 - **Deployments** are currently done locally; automated GitHub Actions deployments will be added later
-
-
