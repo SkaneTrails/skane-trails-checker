@@ -44,9 +44,11 @@ dev/
 
    Edit `terraform.tfvars` and set your GCP project ID.
 
-4. **Add users** (optional):
+4. **Add users**:
 
-   Add user emails to `access/users.txt`, one per line.
+   Add your email address to `access/users.txt`, one per line. Lines starting with `#` are comments and will be ignored.
+
+   **Important**: This file is gitignored and must be created locally. Terraform will read it directly at plan/apply time to grant IAM permissions.
 
 5. **Initialize and apply**:
 
@@ -56,46 +58,89 @@ dev/
    terraform apply
    ```
 
+## User Management
+
+User access is managed through the `access/users.txt` file (gitignored). Terraform reads this file directly at plan/apply time.
+
+**Format**: One email per line, comments start with `#`
+
+```plaintext
+# access/users.txt
+alice@example.com
+bob@example.com
+```
+
+**Granted roles**:
+
+- `roles/viewer` - Read-only access to all resources
+- `roles/run.invoker` - Invoke Cloud Run services
+- `roles/datastore.user` - Read/write Firestore data
+- `roles/storage.objectViewer` - View Cloud Storage objects
+- `roles/secretmanager.secretAccessor` - Access secrets for local debugging
+
+**No tfvars needed** - Users are read directly from the file, no manual copying required.
+
 ## Modules Used
 
+- **apis**: Enables required GCP APIs (Firestore, Secret Manager, IAM, Cloud Resource Manager)
 - **iam**: Manages user permissions and access control
+- **firestore**: Firestore Native database for track statuses and foraging data
 
 ## Resources Created
 
+- GCP API enablements (Firestore, Secret Manager, IAM, Cloud Resource Manager)
 - IAM bindings for user access (if users are specified)
+- Firestore database in Europe multi-region (eur3)
+- Secret Manager secrets for Firestore connection details (database name, project ID, location ID)
 
 ## Free Tier Compliance
 
 All resources in this environment stay within GCP free tier limits:
 
-- IAM operations: No cost
-- Terraform state: Stored in GCS bucket (< 5 GB free tier)
+- **API Enablement**: No cost
+- **IAM operations**: No cost
+- **Terraform state**: Stored in GCS bucket (< 5 GB free tier)
+- **Firestore**: 1 GB storage, 50K reads/day, 20K writes/day free
+- **Secret Manager**: 6 active secret versions free (we use 3)
+
+## Firestore Database
+
+The Firestore database stores hiking trail statuses and foraging spots, replacing local CSV/JSON files.
+
+### Collections
+
+- **`track_statuses`**: Track completion statuses ("To Explore" or "Explored!")
+- **`foraging_spots`**: Foraging location data with coordinates, month, type, notes
+- **`foraging_types`**: Custom foraging types with emoji icons
+
+### Local Debugging
+
+Connection details are stored in Secret Manager for secure access:
+
+```bash
+# View database name
+gcloud secrets versions access latest --secret=firestore-database-name --project=YOUR_PROJECT_ID
+
+# View project ID
+gcloud secrets versions access latest --secret=firestore-project-id --project=YOUR_PROJECT_ID
+
+# View location ID
+gcloud secrets versions access latest --secret=firestore-location-id --project=YOUR_PROJECT_ID
+```
+
+### Required Permissions
+
+Users in `access/users.txt` are granted:
+
+- `roles/datastore.user` - Read/write Firestore data
+- `roles/secretmanager.secretAccessor` - Access Secret Manager secrets for debugging
 
 ## Variables
 
-| Name     | Description                     | Default           | Required |
-| -------- | ------------------------------- | ----------------- | -------- |
-| project  | GCP project ID                  | -                 | Yes      |
-| region   | GCP region for resources        | `europe-west1`    | No       |
-| location | GCP location for multi-regional | `EU`              | No       |
-| users    | List of user emails for access  | `[]` (empty list) | No       |
+| Name               | Description                          | Default        | Required |
+| ------------------ | ------------------------------------ | -------------- | -------- |
+| project            | GCP project ID                       | -              | Yes      |
+| region             | GCP region for resources             | `europe-west1` | No       |
+| firestore_location | Firestore location ID (multi-region) | `eur3`         | No       |
 
-## User Management
-
-Personal users are managed through `access/users.txt`. Add one email per line:
-
-```text
-alice@example.com
-bob@example.com
-```
-
-Then load them in `terraform.tfvars`:
-
-```terraform
-users = [
-  "alice@example.com",
-  "bob@example.com",
-]
-```
-
-Or automate loading from the file using a script.
+**Note**: User emails are NOT in variables - they're read directly from `access/users.txt` at plan/apply time.

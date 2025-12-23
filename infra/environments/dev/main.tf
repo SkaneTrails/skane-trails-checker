@@ -7,10 +7,45 @@ provider "google" {
   region  = var.region
 }
 
+# Read user emails from access/users.txt (gitignored)
+# Expected format: one email per line, lines starting with # are comments
+locals {
+  users_file_content = fileexists("${path.module}/access/users.txt") ? file("${path.module}/access/users.txt") : ""
+  users_lines        = split("\n", trimspace(local.users_file_content))
+  users = compact([
+    for line in local.users_lines :
+    trimspace(line)
+    if trimspace(line) != "" && !startswith(trimspace(line), "#")
+  ])
+}
+
+# Enable required APIs first
+module "apis" {
+  source = "../../modules/apis"
+
+  project = var.project
+}
+
 # IAM module - Grant permissions to users and service accounts
 module "iam" {
   source = "../../modules/iam"
 
   project = var.project
-  users   = var.users
+  users   = local.users
+
+  depends_on = [module.apis]
+}
+
+# Firestore database - Store track statuses and foraging data
+module "firestore" {
+  source = "../../modules/firestore"
+
+  project     = var.project
+  location_id = var.firestore_location
+
+  # Pass API service dependencies
+  firestore_api_service     = module.apis.firestore_service
+  secretmanager_api_service = module.apis.secretmanager_service
+
+  depends_on = [module.apis]
 }

@@ -96,16 +96,16 @@ repos:
       - id: terraform_fmt
         name: terraform fmt
         description: Format Terraform files
-      - id: terraform_validate
-        name: terraform validate
-        description: Validate Terraform files
-        args:
-          - --hook-config=--retry-once-with-cleanup=true
-      - id: terraform_tflint
-        name: tflint
-        description: Lint Terraform files
-        args:
-          - --args=--config=__GIT_WORKING_DIR__/.tflint.hcl
+      # - id: terraform_validate # This check is slow and is covered in CI
+      #   name: terraform validate
+      #   description: Validate Terraform files
+      #   args:
+      #     - --hook-config=--retry-once-with-cleanup=true
+      # - id: terraform_tflint # Requires local tflint installation, covered in CI
+      #   name: tflint
+      #   description: Lint Terraform files
+      #   args:
+      #     - --args=--config=__GIT_WORKING_DIR__/.tflint.hcl
       - id: terraform_trivy
         name: terraform trivy
         description: Security scan Terraform files
