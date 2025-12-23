@@ -3,10 +3,11 @@ variable "project" {
   type        = string
 }
 
-variable "region" {
-  description = "GCP region for regional resources"
-  type        = string
-}
+# Commented out: unused variable flagged by TFLint
+# variable "region" {
+#   description = "GCP region for regional resources"
+#   type        = string
+# }
 
 variable "location" {
   description = "GCS bucket location (regional or multi-regional)"
