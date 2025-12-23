@@ -87,3 +87,27 @@ repos:
         types: [python]
         pass_filenames: false
         args: [app/]
+
+  # Terraform hooks
+  - repo: https://github.com/antonbabenko/pre-commit-terraform
+    rev: v2.0.6
+    hooks:
+      - id: terraform_fmt
+        name: terraform fmt
+        description: Format Terraform files
+      - id: terraform_validate
+        name: terraform validate
+        description: Validate Terraform files
+        args:
+          - --hook-config=--retry-once-with-cleanup=true
+      - id: terraform_tflint
+        name: tflint
+        description: Lint Terraform files
+        args:
+          - --args=--config=__GIT_WORKING_DIR__/.tflint.hcl
+      - id: terraform_trivy
+        name: terraform trivy
+        description: Security scan Terraform files
+        args:
+          - --args=--severity=CRITICAL,HIGH
+          - --args=--exit-code=0
