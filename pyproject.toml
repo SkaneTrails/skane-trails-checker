@@ -1,16 +1,95 @@
 [project]
-name = "sampleproject"
+name = "skane-trails-checker"
 version = "0.1.0"
-description = "A sample Python project"
+description = "A Streamlit app for tracking hiking trails and foraging spots in Skåne, Sweden"
 readme = "README.md"
-requires-python = ">=3.13"
-license = "MIT"
+requires-python = ">=3.14"
+license = {text = "MIT"}
+dependencies = [
+    "folium>=0.15.0",
+    "geopy>=2.4.0",
+    "gpxpy>=1.6.0",
+    "pandas>=2.1.0",
+    "plotly>=5.18.0",
+    "rdp>=0.8",
+    "requests>=2.31.0",
+    "streamlit>=1.28.0",
+    "streamlit-folium>=0.15.0",
+]
 
+[project.optional-dependencies]
+test = [
+    "pytest>=8.0.0",
+    "pytest-cov>=4.1.0",
+    "pytest-mock>=3.12.0",
+    "pytest-xdist>=3.5.0",
+]
+dev = [
+    "skane-trails-checker[test]",
+    "ruff>=0.11.0",
+    "pre-commit>=3.6.0",
+    "ty>=0.0.5",
+]
+
+[dependency-groups]
+dev = [
+    "skane-trails-checker[dev]",
+]
 
 [tool.ruff]
 line-length = 120
-target-version = "py313"
+target-version = "py313"  # Ruff doesn't support py314 yet, py313 is compatible
 lint.select = [
     "ALL", # include all the rules, including new ones
 ]
-lint.ignore = ["COM812", "D", "E501", "T201"]
+lint.ignore = [
+    "COM812",    # Trailing comma conflicts with formatter
+    "D",         # Docstring rules (too verbose for now)
+    "E501",      # Line too long (handled by formatter)
+    "T201",      # Print statements (used for logging/debugging in Streamlit)
+    "INP001",    # Implicit namespace package (Streamlit pages pattern)
+    "BLE001",    # Blind exception (acceptable with st.warning/st.error for user-facing messages)
+    "TRY300",    # Consider else block (style preference)
+    "PLC0415",   # Import not at top-level (needed for optional dependencies like rdp/numpy)
+    "S113",      # Request without timeout (not critical for weather API)
+    "S311",      # Random for non-crypto (not used for security purposes)
+    "DTZ007",    # Datetime without timezone (not critical for this use case)
+    "ANN401",    # Any type (acceptable for Streamlit UploadedFile and similar dynamic types)
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**/*.py" = [
+    "S101",      # Allow assert in tests (required for pytest)
+    "PLR2004",   # Allow magic values in tests (self-documenting with comments)
+    "ANN001",    # Missing type annotation for function argument (pytest fixtures have dynamic types)
+    "ARG001",    # Unused function argument (fixtures used for side effects)
+    "ARG002",    # Unused method argument (fixtures used for side effects)
+]
+
+[tool.pytest.ini_options]
+# Test discovery patterns
+python_files = "test_*.py"
+python_classes = "Test*"
+python_functions = "test_*"
+
+# Output options
+addopts = [
+    "-v",
+    "--strict-markers",
+    "--tb=short",
+    "--cov=app",
+    "--cov-report=term-missing",
+    "--cov-report=html",
+    "-W", "error",  # Treat warnings as errors
+]
+
+# Test paths
+testpaths = ["tests"]
+
+# Filter specific warnings from external libraries
+filterwarnings = [
+    # Ignore NumPy 2.0 deprecation warning triggered by rdp library
+    # The rdp library uses 2D vectors with numpy.cross which is deprecated in NumPy 2.0
+    # This needs to be fixed in the rdp library upstream
+    "ignore:Arrays of 2-dimensional vectors are deprecated.*:DeprecationWarning",
+]

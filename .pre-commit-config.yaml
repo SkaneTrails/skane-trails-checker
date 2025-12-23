@@ -1,16 +1,35 @@
+default_install_hook_types:
+  - pre-commit
+  - post-checkout
+  - post-merge
+  - post-rewrite
+
 default_language_version:
-  python: python3.13
+  python: python3.14
 
 repos:
+  - repo: https://github.com/abravalheri/validate-pyproject
+    rev: v0.22
+    hooks:
+      - id: validate-pyproject
+
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v5.0.0
     hooks:
       - id: trailing-whitespace
       - id: end-of-file-fixer
+      - id: mixed-line-ending
+        args: [--fix=lf]
       - id: check-yaml
-        args: [--allow-multiple-docs]
+      - id: check-toml
       - id: check-added-large-files
-        args: [--maxkb=100]
+        args: [--maxkb=150]
+
+  # Validate GitHub Actions workflows
+  - repo: https://github.com/rhysd/actionlint
+    rev: v1.7.4
+    hooks:
+      - id: actionlint
 
   - repo: https://github.com/astral-sh/ruff-pre-commit
     rev: v0.11.3
@@ -18,3 +37,20 @@ repos:
       - id: ruff
         args: [--fix]
       - id: ruff-format
+
+  - repo: https://github.com/astral-sh/uv-pre-commit
+    rev: 0.9.18
+    hooks:
+      - id: uv-sync
+      - id: uv-lock
+
+  # Ty type checker (run as local command since no pre-commit repo yet)
+  - repo: local
+    hooks:
+      - id: ty
+        name: ty type check
+        entry: uv run ty check
+        language: system
+        types: [python]
+        pass_filenames: false
+        args: [app/]

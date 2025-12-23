@@ -1,4 +1,37 @@
+# Python
 .DS_Store
 .ruff_cache
 .venv
 __pycache__
+*.pyc
+*.pyo
+*.pyd
+.Python
+
+# Testing
+.pytest_cache
+.coverage
+htmlcov/
+coverage.xml
+*.cover
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Streamlit
+.streamlit/secrets.toml
+
+# Personal Tracks - Block all files but allow README.md
+app/tracks_gpx/other_trails/*
+!app/tracks_gpx/other_trails/README.md
+app/tracks_gpx/world_wide_hikes/*
+!app/tracks_gpx/world_wide_hikes/README.md
+app/tracks_status/*
+!app/tracks_status/README.md
+
+# Debugging logs
+app_debug.log
