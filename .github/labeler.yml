@@ -31,3 +31,24 @@
           - LICENSE
           - README.md
           - renovate.json
+
+"🔧 type: refactor":
+  - changed-files:
+      - any-glob-to-any-file: ["app/**/*.py", "tests/**/*.py"]
+
+"🏗️ type: infrastructure":
+  - changed-files:
+      - any-glob-to-any-file: ["infra/**", "Dockerfile", "*.yaml", "*.yml"]
+
+"✨ type: feature":
+  - changed-files:
+      - any-glob-to-any-file: ["app/**/*.py"]
+
+"🔄 type: migration":
+  - changed-files:
+      - any-glob-to-any-file: ["migrations/**", "scripts/**"]
+
+"🚀 type: deployment":
+  - changed-files:
+      - any-glob-to-any-file:
+          ["infra/**", "Dockerfile", ".github/workflows/deploy*"]
