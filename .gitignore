@@ -55,6 +55,7 @@ import_tfstate_bucket.ps1
 
 # Terraform access control (contains personal emails)
 infra/environments/*/access/users.txt
+infra/environments/dev/access/users.txt
 
 # GCP
 gcloud-config/
