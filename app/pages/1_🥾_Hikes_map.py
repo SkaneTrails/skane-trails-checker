@@ -293,7 +293,8 @@ with tab1:
             map_height = 800  # Larger default height
 
             # Display the interactive map with full width and calculated height
-            map_data = st_folium(m, height=map_height, width=None, key="map")
+            # returned_objects=["last_clicked"] prevents reruns on zoom/pan, only on clicks
+            map_data = st_folium(m, height=map_height, width=None, key="map", returned_objects=["last_clicked"])
 
             # Existing click handling code remains the same
             if map_data and "last_clicked" in map_data and map_data["last_clicked"] is not None:
