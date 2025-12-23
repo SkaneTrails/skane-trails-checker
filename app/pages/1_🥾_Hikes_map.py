@@ -161,12 +161,13 @@ with tab1:
 
             # Handle file upload
             if uploaded_file is not None:
-                success, message = handle_uploaded_gpx(
-                    world_wide_hikes_path,
-                    skane_other_files_path,
-                    uploaded_file,
-                    is_world_wide=st.session_state.use_world_wide_hikes,
-                )
+                with st.spinner(f"Validating and uploading {uploaded_file.name}..."):
+                    success, message = handle_uploaded_gpx(
+                        world_wide_hikes_path,
+                        skane_other_files_path,
+                        uploaded_file,
+                        is_world_wide=st.session_state.use_world_wide_hikes,
+                    )
                 if success:
                     st.success(message)
                     # Force refresh to show new track

@@ -30,7 +30,6 @@ def load_additional_gpx_files(directory: Path | str) -> list[dict]:
     for file_path in gpx_files:
         try:
             with file_path.open(encoding="utf-8") as gpx_file:
-                print(f"Loading {gpx_file}")
                 gpx_string = gpx_file.read()
                 gpx_data = gpxpy.parse(gpx_string)
                 file_name = file_path.name
@@ -79,7 +78,6 @@ def handle_uploaded_gpx(
 
         # Try to parse the GPX file to validate it
         with tmp_file_path.open(encoding="utf-8") as test_file:
-            print(f"Validating {test_file}")
             gpx_string = test_file.read()
             gpxpy.parse(gpx_string)  # This will raise an exception if the file is invalid
 
