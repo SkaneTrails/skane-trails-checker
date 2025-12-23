@@ -30,7 +30,17 @@ dev/
 
    This creates the GCS bucket for remote state storage.
 
-2. **Import the state bucket**:
+2. **Enable Service Usage API** (required before Terraform can manage other APIs):
+
+   ```bash
+   gcloud services enable serviceusage.googleapis.com --project=YOUR_PROJECT_ID
+   ```
+
+   **Why**: Terraform needs the Service Usage API enabled to list and enable other APIs programmatically. This is a one-time manual step due to the chicken-and-egg problem of enabling the API that enables APIs.
+
+   **Required permissions**: You need `roles/serviceusage.serviceUsageAdmin` or `roles/owner` to enable this API.
+
+3. **Import the state bucket**:
 
    ```bash
    # Windows PowerShell
@@ -40,17 +50,17 @@ dev/
    ./import_tfstate_bucket.sh
    ```
 
-3. **Configure variables**:
+4. **Configure variables**:
 
    Edit `terraform.tfvars` and set your GCP project ID.
 
-4. **Add users**:
+5. **Add users**:
 
    Add your email address to `access/users.txt`, one per line. Lines starting with `#` are comments and will be ignored.
 
    **Important**: This file is gitignored and must be created locally. Terraform will read it directly at plan/apply time to grant IAM permissions.
 
-5. **Initialize and apply**:
+6. **Initialize and apply**:
 
    ```bash
    terraform init
@@ -72,18 +82,40 @@ bob@example.com
 
 **Granted roles**:
 
-- `roles/viewer` - Read-only access to all resources
-- `roles/run.invoker` - Invoke Cloud Run services
-- `roles/datastore.user` - Read/write Firestore data
-- `roles/storage.objectViewer` - View Cloud Storage objects
-- `roles/secretmanager.secretAccessor` - Access secrets for local debugging
+**Custom roles** (defined in `custom_roles` module):
+
+- `skaneTrailsInfraManager` - **Infrastructure Manager** (temporary during setup)
+  - Create/update/delete Firestore, Secret Manager, Cloud Run, IAM
+  - Used for Terraform apply operations
+  - **Should be revoked after infrastructure is deployed**
+- `skaneTrailsAppUser` - **App User** (permanent)
+  - Read/write Firestore entities (track statuses, foraging data)
+  - Access Secret Manager secrets (read-only)
+  - Read Cloud Storage objects (GPX files)
+  - Invoke Cloud Run services
+
+**Predefined roles**:
+
+- `roles/viewer` - Read-only access to all GCP resources
+
+**Revoking Infrastructure Manager after setup**:
+
+```bash
+# After successful terraform apply, revoke infra role from users
+gcloud projects remove-iam-policy-binding hikes-482104 \
+  --member="user:YOUR_EMAIL" \
+  --role="projects/hikes-482104/roles/skaneTrailsInfraManager"
+```
+
+Keep this role only for CI/CD service accounts that need to deploy infrastructure.
 
 **No tfvars needed** - Users are read directly from the file, no manual copying required.
 
 ## Modules Used
 
 - **apis**: Enables required GCP APIs (Firestore, Secret Manager, IAM, Cloud Resource Manager)
-- **iam**: Manages user permissions and access control
+- **iam**: Manages user permissions, access control, and defines custom IAM roles
+  - Custom roles: Infrastructure Manager, App User (defined in `custom_roles.tf`)
 - **firestore**: Firestore Native database for track statuses and foraging data
 
 ## Resources Created

@@ -27,25 +27,29 @@ module "apis" {
 }
 
 # IAM module - Grant permissions to users and service accounts
+# Custom roles are defined within this module (custom_roles.tf)
 module "iam" {
   source = "../../modules/iam"
 
   project = var.project
   users   = local.users
 
-  depends_on = [module.apis]
+  # Implicit dependency on APIs module through output reference
+  iam_api_service = module.apis.iam_service
 }
 
 # Firestore database - Store track statuses and foraging data
+# Implicit dependencies: references module.apis outputs and module.iam
 module "firestore" {
   source = "../../modules/firestore"
 
   project     = var.project
   location_id = var.firestore_location
 
-  # Pass API service dependencies
+  # Implicit dependencies through API service references
   firestore_api_service     = module.apis.firestore_service
   secretmanager_api_service = module.apis.secretmanager_service
 
-  depends_on = [module.apis]
+  # Ensure IAM permissions are in place before creating Firestore resources
+  iam_bindings_complete = module.iam.iam_bindings_complete
 }

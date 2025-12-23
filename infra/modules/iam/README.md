@@ -1,19 +1,57 @@
 # IAM Module
 
-This module manages Identity and Access Management (IAM) permissions for the Skåne Trails Checker project.
+This module manages Identity and Access Management (IAM) permissions for the Skåne Trails Checker project, including custom role definitions and user access bindings.
 
 ## Purpose
 
-Grants necessary permissions to users who need access to the project resources. All personal user emails should be managed through the `users.txt` file in each environment's `access/` directory.
+- Defines custom IAM roles tailored to project needs
+- Grants necessary permissions to users who need access to project resources
+- All personal user emails should be managed through the `users.txt` file in each environment's `access/` directory
 
-## Roles Granted
+## Custom Roles (defined in custom_roles.tf)
 
-Users listed in `users.txt` receive the following roles:
+### 1. Infrastructure Manager (`skaneTrailsInfraManager`)
+
+**Purpose**: Create and manage infrastructure via Terraform
+
+**Permissions**:
+
+- Create/update/delete Firestore databases and indexes
+- Create/update/delete Secret Manager secrets
+- Manage Cloud Storage buckets and objects
+- Create/update/delete Cloud Run services
+- Manage IAM bindings
+- Enable GCP services
+
+**Who needs this**:
+
+- Developers during initial setup (temporary)
+- CI/CD service accounts (permanent)
+
+**Revocation**: Should be revoked from individual developers after infrastructure is deployed
+
+### 2. App User (`skaneTrailsAppUser`)
+
+**Purpose**: Runtime access to read/write data and invoke services
+
+**Permissions**:
+
+- Read/write Firestore entities (track statuses, foraging spots)
+- Access Secret Manager secrets (read-only)
+- Read Cloud Storage objects (GPX files)
+- Invoke Cloud Run services
+- View basic project information
+
+**Who needs this**:
+
+- All app developers and users (permanent)
+- Cloud Run service account (permanent)
+
+## Predefined Roles Granted
+
+Users listed in `users.txt` also receive:
 
 - **Viewer** (`roles/viewer`) - Read-only access to all project resources
-- **Cloud Run Invoker** (`roles/run.invoker`) - Ability to access deployed Cloud Run services
-- **Firestore User** (`roles/datastore.user`) - Read and write access to Firestore database
-- **Storage Object Viewer** (`roles/storage.objectViewer`) - View GPX files in Cloud Storage buckets
 
 ## Usage
 

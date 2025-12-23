@@ -15,7 +15,7 @@ resource "google_firestore_database" "database" {
   # Prevent accidental deletion of production data
   deletion_policy = "DELETE"
 
-  depends_on = [var.firestore_api_service]
+  depends_on = [var.firestore_api_service, var.iam_bindings_complete]
 }
 
 # Secret Manager secrets for local debugging

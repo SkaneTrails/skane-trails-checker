@@ -1,21 +1,43 @@
 # IAM Module - Grant permissions to users
 #
-# This module assigns IAM roles to users for accessing the Skåne Trails Checker project.
+# This module assigns custom IAM roles to users for accessing the Skåne Trails Checker project.
 # All personal user emails should be defined in environments/dev/access/users.txt
+#
+# Custom roles defined in custom_roles.tf:
+# 1. Infrastructure Manager - Create/manage infrastructure (can be revoked after setup)
+# 2. App User - Runtime data access (permanent)
 
 # Project-level IAM bindings for users
 locals {
   # Transform user list into member format
   user_members = [for email in var.users : "user:${email}"]
 
-  # Define roles to grant to all users
-  user_roles = [
-    "roles/viewer",                       # Read-only access to all resources
-    "roles/run.invoker",                  # Invoke Cloud Run services
-    "roles/datastore.user",               # Read/write Firestore data
-    "roles/storage.objectViewer",         # View Cloud Storage objects
-    "roles/secretmanager.secretAccessor", # Access Secret Manager secrets for local debugging
+  # Built-in roles needed to create custom roles
+  # These must be granted BEFORE custom roles can be created
+  prerequisite_roles = [
+    "roles/iam.roleAdmin",                   # Required to create custom IAM roles
+    "roles/resourcemanager.projectIamAdmin", # Required to grant IAM bindings
   ]
+
+  # Custom roles to grant to all users
+  # NOTE: Infrastructure Manager role should be revoked after initial setup
+  # Role names are hardcoded to avoid dependency on resource creation
+  user_roles = [
+    "projects/${var.project}/roles/skaneTrailsInfraManager", # Temporary: Create/manage infrastructure
+    "projects/${var.project}/roles/skaneTrailsAppUser",      # Permanent: Runtime data access
+    "roles/viewer",                                          # Read-only access to all resources
+  ]
+}
+
+# Grant prerequisite roles needed to create custom roles
+resource "google_project_iam_binding" "prerequisite_roles" {
+  for_each = length(var.users) > 0 ? toset(local.prerequisite_roles) : toset([])
+
+  project = var.project
+  role    = each.value
+  members = local.user_members
+
+  depends_on = [var.iam_api_service]
 }
 
 # Grant each role to all users
@@ -25,4 +47,24 @@ resource "google_project_iam_binding" "user_access" {
   project = var.project
   role    = each.value
   members = local.user_members
+
+  # Explicit dependencies: ensure IAM API is enabled and custom roles exist
+  depends_on = [
+    var.iam_api_service,
+    google_project_iam_custom_role.infrastructure_manager,
+    google_project_iam_custom_role.app_user,
+  ]
+}
+
+# Wait for IAM propagation (GCP takes 60-80 seconds to propagate IAM globally)
+# Without this, Firestore resources will fail with permission denied
+resource "time_sleep" "wait_for_iam_propagation" {
+  create_duration = "90s"
+
+  depends_on = [
+    google_project_iam_binding.prerequisite_roles,
+    google_project_iam_custom_role.infrastructure_manager,
+    google_project_iam_custom_role.app_user,
+    google_project_iam_binding.user_access,
+  ]
 }
