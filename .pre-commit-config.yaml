@@ -45,7 +45,7 @@ repos:
 
   # Validate GitHub Actions workflows
   - repo: https://github.com/rhysd/actionlint
-    rev: v1.7.4
+    rev: v1.7.9
     hooks:
       - id: actionlint
 
