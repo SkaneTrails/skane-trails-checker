@@ -15,10 +15,11 @@
   "prConcurrentLimit": 5,
   "packageRules": [
     {
+      "description": "Auto-merge minor, patch, pin, and digest updates",
       "automerge": true,
-      "automergeStrategy": "rebase",
-      "matchUpdateTypes": ["minor", "patch", "pin", "digest"],
-      "platformAutomerge": true
+      "platformAutomerge": true,
+      "automergeStrategy": "squash",
+      "matchUpdateTypes": ["minor", "patch", "pin", "digest"]
     },
     {
       "matchDatasources": ["pypi"],
@@ -36,34 +37,17 @@
       "allowedVersions": "!/-(alpha|beta|rc|dev|snapshot|preview|experimental|unstable)/i"
     },
     {
-      "groupName": "ruff",
-      "groupSlug": "ruff",
-      "matchPackageNames": ["ruff", "astral-sh/ruff-pre-commit"],
-      "matchManagers": ["pre-commit", "pep621"]
+      "groupName": "pre-commit hooks",
+      "groupSlug": "pre-commit-hooks",
+      "matchManagers": ["pre-commit"],
+      "automerge": true
     },
     {
-      "groupName": "deptry",
-      "groupSlug": "deptry",
-      "matchPackageNames": ["deptry", "fpgmaas/deptry"],
-      "matchManagers": ["pre-commit", "pep621"]
-    },
-    {
-      "groupName": "pyproject-fmt",
-      "groupSlug": "pyproject-fmt",
-      "matchPackageNames": ["pyproject-fmt", "tox-dev/pyproject-fmt"],
-      "matchManagers": ["pre-commit", "pep621"]
-    },
-    {
-      "groupName": "actionlint",
-      "groupSlug": "actionlint",
-      "matchPackageNames": ["actionlint", "rhysd/actionlint"],
-      "matchManagers": ["pre-commit", "github-actions"]
-    },
-    {
-      "groupName": "uv",
-      "groupSlug": "uv",
-      "matchPackageNames": ["uv", "astral-sh/uv-pre-commit"],
-      "matchManagers": ["pre-commit", "pep621", "github-actions"]
+      "groupName": "Python dependencies",
+      "groupSlug": "python-deps",
+      "matchManagers": ["pep621"],
+      "excludePackageNames": ["python"],
+      "automerge": true
     },
     {
       "groupName": "pytest",
