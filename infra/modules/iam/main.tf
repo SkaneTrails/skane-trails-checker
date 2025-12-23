@@ -10,10 +10,10 @@ locals {
 
   # Define roles to grant to all users
   user_roles = [
-    "roles/viewer",                    # Read-only access to all resources
-    "roles/run.invoker",               # Invoke Cloud Run services
-    "roles/datastore.user",            # Read/write Firestore data
-    "roles/storage.objectViewer",      # View Cloud Storage objects
+    "roles/viewer",               # Read-only access to all resources
+    "roles/run.invoker",          # Invoke Cloud Run services
+    "roles/datastore.user",       # Read/write Firestore data
+    "roles/storage.objectViewer", # View Cloud Storage objects
   ]
 }
 
