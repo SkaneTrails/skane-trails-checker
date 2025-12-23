@@ -28,6 +28,7 @@ coverage.xml
 # Personal Tracks
 app/tracks_gpx/other_trails/
 app/tracks_gpx/world_wide_hikes/
+app/tracks_status/
 
 # Debugging logs
 app_debug.log
