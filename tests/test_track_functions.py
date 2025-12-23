@@ -213,11 +213,7 @@ def test_load_track_statuses_valid_file(sample_track_status_csv) -> None:
 
 def test_save_track_statuses(temp_data_dir) -> None:
     """Test saving track statuses to CSV."""
-    track_status = {
-        0: "To Explore",
-        1: "Explored!",
-        2: "To Explore",
-    }
+    track_status = {0: "To Explore", 1: "Explored!", 2: "To Explore"}
 
     csv_file = temp_data_dir / "test_status.csv"
     result = save_track_statuses(track_status, str(csv_file))
@@ -235,13 +231,7 @@ def test_save_track_statuses(temp_data_dir) -> None:
 
 def test_simplify_track_coordinates_basic() -> None:
     """Test coordinate simplification with RDP algorithm."""
-    coordinates = [
-        (56.0, 13.0),
-        (56.01, 13.01),
-        (56.02, 13.02),
-        (56.03, 13.03),
-        (56.1, 13.1),
-    ]
+    coordinates = [(56.0, 13.0), (56.01, 13.01), (56.02, 13.02), (56.03, 13.03), (56.1, 13.1)]
 
     result = simplify_track_coordinates(coordinates, tolerance=0.001)
 

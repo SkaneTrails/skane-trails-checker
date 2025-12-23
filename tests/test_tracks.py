@@ -2,11 +2,7 @@
 
 import pandas as pd
 
-from app.functions.tracks import (
-    load_track_statuses,
-    save_track_statuses,
-    simplify_track_coordinates,
-)
+from app.functions.tracks import load_track_statuses, save_track_statuses, simplify_track_coordinates
 
 
 class TestSimplifyTrackCoordinates:

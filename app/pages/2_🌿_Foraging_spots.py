@@ -182,10 +182,7 @@ with tab1:
 with tab2:
     # Create a dataframe for visualization
     df_calendar = pd.DataFrame(
-        {
-            "Month": list(foraging_calendar.keys()),
-            "Items": [", ".join(items) for items in foraging_calendar.values()],
-        }
+        {"Month": list(foraging_calendar.keys()), "Items": [", ".join(items) for items in foraging_calendar.values()]}
     )
 
     # Display as table
@@ -196,10 +193,7 @@ with tab2:
     if csv_data_path.exists():
         with csv_data_path.open() as f:
             st.download_button(
-                label="Download Foraging Data CSV",
-                data=f,
-                file_name="foraging_data.csv",
-                mime="text/csv",
+                label="Download Foraging Data CSV", data=f, file_name="foraging_data.csv", mime="text/csv"
             )
 
     # Add a section to visualize current foraging data
@@ -209,12 +203,7 @@ with tab2:
     spot_counts = {month: len(spots) for month, spots in st.session_state.foraging_data.items()}
 
     if any(spot_counts.values()):  # Only show if there's data
-        counts_df = pd.DataFrame(
-            {
-                "Month": list(spot_counts.keys()),
-                "Spots": list(spot_counts.values()),
-            }
-        )
+        counts_df = pd.DataFrame({"Month": list(spot_counts.keys()), "Spots": list(spot_counts.values())})
 
         # Create a bar chart
         fig = px.bar(
@@ -240,12 +229,7 @@ with tab2:
                 type_counts[spot["type"]] += 1
 
         if type_counts:
-            types_df = pd.DataFrame(
-                {
-                    "Type": list(type_counts.keys()),
-                    "Count": list(type_counts.values()),
-                }
-            )
+            types_df = pd.DataFrame({"Type": list(type_counts.keys()), "Count": list(type_counts.values())})
 
             # Create a pie chart with colors from foraging_types when available
             color_map = {}
@@ -313,10 +297,7 @@ with tab3:
     # Add button
     if st.button("Add New Foraging Type"):
         if new_type_name and new_type_name not in st.session_state.foraging_types:
-            st.session_state.foraging_types[new_type_name] = {
-                "icon": selected_emoji,
-                "color": selected_color,
-            }
+            st.session_state.foraging_types[new_type_name] = {"icon": selected_emoji, "color": selected_color}
 
             # Save updated foraging types
             success = Foraging().save_foraging_types(st.session_state.foraging_types)
