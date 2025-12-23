@@ -1,4 +1,3 @@
-import os
 import pathlib
 
 import folium
@@ -8,6 +7,10 @@ import streamlit as st
 from functions.gpx import handle_uploaded_gpx, load_additional_gpx_files
 from functions.tracks import load_track_statuses, save_track_statuses
 from streamlit_folium import st_folium
+
+# Constants
+CLICK_RANGE_METERS = 50  # Distance threshold for track click detection
+TITLE_DESCRIPTION_PARTS = 2  # Expected parts when splitting improvement text
 
 # Set page config to wide mode for full-width layout
 st.set_page_config(layout="wide")
@@ -47,22 +50,18 @@ with tab1:
     cur_dir = pathlib.Path(__file__).parent.parent.absolute()
     data_directory = cur_dir
     # Create data directory if it doesn't exist
-    os.makedirs(data_directory, exist_ok=True)
+    data_directory.mkdir(parents=True, exist_ok=True)
 
     # Define the path to the GPX file and CSV file
-    world_wide_hikes_path = os.path.join(data_directory, "tracks_gpx/world_wide_hikes/")
-    skaneleden_gpx_file_path = os.path.join(
-        data_directory, "tracks_gpx/skaneleden/all-skane-trails.gpx"
-    )  # Main GPX file
-    skane_other_files_path = os.path.join(data_directory, "tracks_gpx/other_trails/")  # Directory with other trails
-    skaneleden_status = os.path.join(
-        data_directory, "tracks_status/track_skaneleden_status.csv"
-    )  # Path for saving track statuses
+    world_wide_hikes_path = data_directory / "tracks_gpx/world_wide_hikes/"
+    skaneleden_gpx_file_path = data_directory / "tracks_gpx/skaneleden/all-skane-trails.gpx"  # Main GPX file
+    skane_other_files_path = data_directory / "tracks_gpx/other_trails/"  # Directory with other trails
+    skaneleden_status = data_directory / "tracks_status/track_skaneleden_status.csv"  # Path for saving track statuses
     # Create directories if they don't exist
 
-    os.makedirs(os.path.dirname(skaneleden_status), exist_ok=True)
-    os.makedirs(skane_other_files_path, exist_ok=True)
-    os.makedirs(world_wide_hikes_path, exist_ok=True)
+    skaneleden_status.parent.mkdir(parents=True, exist_ok=True)
+    skane_other_files_path.mkdir(parents=True, exist_ok=True)
+    world_wide_hikes_path.mkdir(parents=True, exist_ok=True)
 
 
 # Initialize session state for trail source toggle if not already set
@@ -98,9 +97,8 @@ with tab1:
         st.session_state.last_trail_source = use_world_wide_hikes
 
         # Load main GPX file if it exists (not applicable for world-wide hikes)
-        if gpx_file_path and os.path.exists(gpx_file_path) and not use_world_wide_hikes:
-            with open(gpx_file_path, encoding="utf-8") as gpx_file:
-                print(f"Loading toggle {gpx_file}")
+        if gpx_file_path and gpx_file_path.exists() and not use_world_wide_hikes:
+            with gpx_file_path.open(encoding="utf-8") as gpx_file:
                 gpx_string = gpx_file.read()  # Read file as string
                 st.session_state.gpx_data = gpxpy.parse(gpx_string)
                 st.session_state.file_loaded = True
@@ -136,8 +134,9 @@ with tab1:
 
             # Calculate total tracks
             total_tracks = 0
-            if st.session_state.get("gpx_data"):
-                total_tracks += len(st.session_state.gpx_data.tracks)
+            gpx_data = st.session_state.get("gpx_data")
+            if gpx_data:
+                total_tracks += len(gpx_data.tracks)
             total_tracks += len(st.session_state.additional_tracks)
 
             # Calculate explored tracks
@@ -152,65 +151,73 @@ with tab1:
             )
 
             # Display a button to manually save status
-            if st.button("Save Track Status"):
-                if save_track_statuses(st.session_state.track_status, skaneleden_status):
-                    st.success("Track statuses saved successfully!")
+            if st.button("Save Track Status") and save_track_statuses(st.session_state.track_status, skaneleden_status):
+                st.success("Track statuses saved successfully!")
 
             # Add GPX upload section
             st.subheader("Upload Additional Trails")
-            uploaded_file = st.file_uploader("Upload GPX file", type=["gpx"])
+            uploaded_file = st.file_uploader("Upload GPX file", type=["gpx"], key="gpx_uploader")
 
-            # Handle file upload
+            # Handle file upload - check if we haven't already processed this file
             if uploaded_file is not None:
-                success, message = handle_uploaded_gpx(
-                    world_wide_hikes_path,
-                    skane_other_files_path,
-                    uploaded_file,
-                    is_world_wide=st.session_state.use_world_wide_hikes,
-                )
-                if success:
-                    st.success(message)
-                    # Force refresh to show new track
-                    st.rerun()
-                else:
-                    st.error(message)
+                # Use a session state flag to track if we've processed this upload
+                uploaded_file_id = f"{uploaded_file.name}_{uploaded_file.size}"
+                if st.session_state.get("last_uploaded_file_id") != uploaded_file_id:
+                    with st.spinner(f"Validating and uploading {uploaded_file.name}..."):
+                        success, message = handle_uploaded_gpx(
+                            world_wide_hikes_path,
+                            skane_other_files_path,
+                            uploaded_file,
+                            is_world_wide=st.session_state.use_world_wide_hikes,
+                        )
+                    if success:
+                        st.success(message)
+                        # Mark this file as processed
+                        st.session_state.last_uploaded_file_id = uploaded_file_id
+                        # Force reload of additional tracks by clearing the cache
+                        if "gpx_data" in st.session_state:
+                            del st.session_state["gpx_data"]
+                        # Force refresh to show new track
+                        st.rerun()
+                    else:
+                        st.error(message)
 
     # Display Map in the right column if file is loaded or additional tracks exist
     with col2:
         # Check if there are tracks to display (main tracks or additional tracks)
-        tracks_to_display = (st.session_state.get("gpx_data") and len(st.session_state.gpx_data.tracks) > 0) or len(
-            st.session_state.additional_tracks
-        ) > 0
+        gpx_data = st.session_state.get("gpx_data")
+        tracks_to_display = (gpx_data and len(gpx_data.tracks) > 0) or len(st.session_state.additional_tracks) > 0
 
         if tracks_to_display:
             # 🗺️ Get all track coordinates to center map
             all_coords = []
-            track_coordinates = {}  # Store track coordinates
+            track_segments = {}  # Store track segments separately {track_index: [segment1, segment2, ...]}
 
             # Process main GPX tracks if they exist
-            if st.session_state.get("gpx_data"):
+            gpx_data = st.session_state.get("gpx_data")
+            if gpx_data:
                 track_index = 0  # Ensuring unique track index
-                for track in st.session_state.gpx_data.tracks:
+                for track in gpx_data.tracks:
+                    # Collect all segments for this track as separate lists
+                    segments = []
                     for segment in track.segments:
                         coordinates = [(point.latitude, point.longitude) for point in segment.points]
-
-                        # Simplify coordinates before storing
                         if coordinates:
-                            # simplified_coords = simplify_track_coordinates(coordinates)
-                            print("Process main GPX tracks")
-                            # track_coordinates[track_index] = simplified_coords
-                            track_coordinates[track_index] = coordinates
+                            segments.append(coordinates)
                             all_coords.extend(coordinates)
 
-                            track_index += 1
+                    # Store all segments of this track under one track_index
+                    if segments:
+                        track_segments[track_index] = segments
+                        track_index += 1
 
             # Add coordinates from additional tracks for map centering
             for track in st.session_state.additional_tracks:
                 for segment in track["segments"]:
                     all_coords.extend(segment)
 
-            # Store track coordinates in session state for the stats panel
-            st.session_state.track_coordinates = track_coordinates
+            # Store track segments in session state for the stats panel
+            st.session_state.track_segments = track_segments
 
             # Compute map center & zoom
             if all_coords:
@@ -232,33 +239,38 @@ with tab1:
 
             # Plot main tracks with color scheme
             if st.session_state.get("gpx_data"):
-                for track_index, coordinates in track_coordinates.items():
+                for track_index, segments in track_segments.items():
                     track_status = st.session_state.track_status.get(track_index, "To Explore")
                     # Orange for to explore, dark green for explored
                     track_color = "#FF8C00" if track_status == "To Explore" else "#006400"  # Orange → Dark Green
 
-                    folium.PolyLine(
-                        coordinates,
-                        color=track_color,
-                        weight=5,
-                        opacity=0.7,
-                        popup=f"Track {track_index}: {track_status}",
-                        tooltip="Click near this track!",
-                    ).add_to(m)
-
-                    # Start and End Points with matching colors
-                    for point in [coordinates[0], coordinates[-1]]:
-                        folium.CircleMarker(
-                            location=point,
-                            radius=6,
+                    # Plot each segment separately to avoid connecting disconnected segments
+                    for segment in segments:
+                        folium.PolyLine(
+                            segment,
                             color=track_color,
-                            fill=True,
-                            fill_color=track_color,
-                            fill_opacity=0.9,
+                            weight=5,
+                            opacity=0.7,
+                            popup=f"Track {track_index}: {track_status}",
+                            tooltip="Click near this track!",
                         ).add_to(m)
 
+                    # Start and End Points with matching colors (use first and last segments)
+                    if segments:
+                        first_segment = segments[0]
+                        last_segment = segments[-1]
+                        for point in [first_segment[0], last_segment[-1]]:
+                            folium.CircleMarker(
+                                location=point,
+                                radius=6,
+                                color=track_color,
+                                fill=True,
+                                fill_color=track_color,
+                                fill_opacity=0.9,
+                            ).add_to(m)
+
             # Plot additional tracks
-            for i, track in enumerate(st.session_state.additional_tracks):
+            for _i, track in enumerate(st.session_state.additional_tracks):
                 for segment in track["segments"]:
                     # Create a dashed line for additional tracks
                     folium.PolyLine(
@@ -289,7 +301,8 @@ with tab1:
             map_height = 800  # Larger default height
 
             # Display the interactive map with full width and calculated height
-            map_data = st_folium(m, height=map_height, width="100%", key="map")
+            # returned_objects=["last_clicked"] prevents reruns on zoom/pan, only on clicks
+            map_data = st_folium(m, height=map_height, width=None, key="map", returned_objects=["last_clicked"])
 
             # Existing click handling code remains the same
             if map_data and "last_clicked" in map_data and map_data["last_clicked"] is not None:
@@ -299,15 +312,16 @@ with tab1:
                 closest_track = None
                 min_distance = float("inf")
 
-                for track_idx, coordinates in track_coordinates.items():
-                    for point in coordinates:
-                        distance = geopy.distance.geodesic(clicked_latlng, point).meters
-                        if distance < min_distance:
-                            min_distance = distance
-                            closest_track = track_idx
+                for track_idx, segments in track_segments.items():
+                    for segment in segments:
+                        for point in segment:
+                            distance = geopy.distance.geodesic(clicked_latlng, point).meters
+                            if distance < min_distance:
+                                min_distance = distance
+                                closest_track = track_idx
 
                 # Toggle track status if within 50 meters
-                if closest_track is not None and min_distance < 50:  # Click range set to 50m
+                if closest_track is not None and min_distance < CLICK_RANGE_METERS:
                     current_status = st.session_state.track_status.get(closest_track, "To Explore")
 
                     # ✅ Toggle between "To Explore" and "Explored!"
@@ -346,7 +360,7 @@ with tab2:
     ]
     for improvement in improvements:
         parts = improvement.split(":", 1)  # Split into two parts at the first colon
-        if len(parts) == 2:
+        if len(parts) == TITLE_DESCRIPTION_PARTS:
             title, description = parts
             st.markdown(f"<p style='font-size:18px;'><b>{title}:</b>{description}</p>", unsafe_allow_html=True)
         else:

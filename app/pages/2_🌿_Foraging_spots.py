@@ -1,5 +1,5 @@
-import os
 from datetime import UTC, datetime
+from pathlib import Path
 
 import folium
 import pandas as pd
@@ -17,8 +17,8 @@ from streamlit_folium import st_folium
 
 st.set_page_config(page_title="Seasonal Foraging Tracker", layout="wide")
 
-data_directory = "app/foraging_data"
-csv_data_path = os.path.join(data_directory, "foraging_data.csv")
+data_directory = Path("app/foraging_data")
+csv_data_path = data_directory / "foraging_data.csv"
 
 # Inject custom CSS for larger tabs
 st.markdown(
@@ -97,16 +97,14 @@ with tab1:
             ).add_to(m)
 
         # Display the map
-        map_data = st_folium(m, height=600, width="100%", key=f"foraging_map_{selected_month}")
+        map_data = st_folium(m, height=600, width=None, key=f"foraging_map_{selected_month}")
 
         # Show a legend for the icons
         st.write("### Legend:")
         legend_cols = st.columns(4)
-        i = 0
-        for item_type, details in st.session_state.foraging_types.items():
+        for i, (item_type, details) in enumerate(st.session_state.foraging_types.items()):
             col_idx = i % 4
             legend_cols[col_idx].write(f"{details['icon']} {item_type}")
-            i += 1
 
     # Control panel in the right column
     with control_col:
@@ -151,7 +149,7 @@ with tab1:
                 }
 
                 st.session_state.foraging_data[selected_month].append(new_spot)
-                success = Foraging().save_foraging_data(st.session_state.foraging_data)
+                success = Foraging().save_foraging_data(st.session_state.foraging_data, csv_data_path)
                 if success:
                     st.success(f"✅ Added {forage_type} to {selected_month} map!")
                     # Clear the cache to ensure fresh data is loaded
@@ -163,7 +161,7 @@ with tab1:
         # Show spots for the current month
         st.write(f"### {selected_month} Spots ({len(st.session_state.foraging_data[selected_month])})")
         if st.session_state.foraging_data[selected_month]:
-            for i, item in enumerate(st.session_state.foraging_data[selected_month]):
+            for _i, item in enumerate(st.session_state.foraging_data[selected_month]):
                 if item["type"] in st.session_state.foraging_types:
                     icon = st.session_state.foraging_types[item["type"]]["icon"]
                 else:
@@ -172,7 +170,7 @@ with tab1:
 
             if st.button("Clear All Spots for This Month"):
                 st.session_state.foraging_data[selected_month] = []
-                Foraging().save_foraging_data(st.session_state.foraging_data)
+                Foraging().save_foraging_data(st.session_state.foraging_data, csv_data_path)
                 # Clear the cache to ensure fresh data is loaded
                 st.cache_data.clear()
                 st.success(f"Cleared all spots for {selected_month}")
@@ -195,8 +193,8 @@ with tab2:
     st.dataframe(df_calendar, height=480)
 
     # Add a download button for the foraging data
-    if os.path.exists(csv_data_path):
-        with open(csv_data_path) as f:
+    if csv_data_path.exists():
+        with csv_data_path.open() as f:
             st.download_button(
                 label="Download Foraging Data CSV",
                 data=f,
@@ -235,7 +233,7 @@ with tab2:
 
         # Count by type
         type_counts = {}
-        for month, spots in st.session_state.foraging_data.items():
+        for spots in st.session_state.foraging_data.values():
             for spot in spots:
                 if spot["type"] not in type_counts:
                     type_counts[spot["type"]] = 0
@@ -338,7 +336,7 @@ with tab3:
     st.write("⚠️ Warning: Removing a type will not delete existing spots but they will use the 'Other' icon.")
 
     # Don't allow deleting the "Other" type
-    delete_options = [t for t in st.session_state.foraging_types.keys() if t != "Other"]
+    delete_options = [t for t in st.session_state.foraging_types if t != "Other"]
     if delete_options:
         type_to_delete = st.selectbox("Select type to remove:", options=delete_options)
 
@@ -363,12 +361,12 @@ with tab4:
     )
 
     # Create filter for types of forageable items
-    item_types = ["All"] + sorted(list(set([item.get("name").split(" ")[0] for item in foraging_items])))
+    item_types = ["All", *sorted({item.get("name", "").split(" ")[0] for item in foraging_items if item.get("name")})]
     selected_type = st.selectbox("Filter by type:", item_types)
 
     # Apply filter
     if selected_type != "All":
-        filtered_items = [item for item in foraging_items if item.get("name").startswith(selected_type)]
+        filtered_items = [item for item in foraging_items if item.get("name", "").startswith(selected_type)]
     else:
         filtered_items = foraging_items
 
