@@ -22,6 +22,8 @@ dependencies = [
   "gpxpy>=1.6.0",
   "pandas>=2.1.0",
   "plotly>=5.18.0",
+  "python-dotenv>=1.0.0",
+  "pyyaml>=6.0.0",
   "rdp>=0.8",
   "requests>=2.31.0",
   "streamlit>=1.28.0",
@@ -30,6 +32,7 @@ dependencies = [
 
 optional-dependencies.dev = [
   "deptry>=0.24.0",
+  "google-cloud-secret-manager>=2.20.0",
   "pre-commit>=3.6.0",
   "pyproject-fmt>=2.11.0",
   "ruff>=0.11.0",

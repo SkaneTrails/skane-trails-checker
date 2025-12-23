@@ -7,6 +7,11 @@ from pathlib import Path
 import requests
 import streamlit as st
 
+# Load environment variables (with platform precedence)
+from functions.env_loader import load_env_if_needed
+
+load_env_if_needed()
+
 # Configure logging for debugging (only when not in test mode)
 if "pytest" not in sys.modules:
     logging.basicConfig(
