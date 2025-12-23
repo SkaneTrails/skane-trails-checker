@@ -25,5 +25,9 @@ coverage.xml
 # Streamlit
 .streamlit/secrets.toml
 
+# Personal Tracks
+app/tracks_gpx/other_trails/
+app/tracks_gpx/world_wide_hikes/
+
 # Debugging logs
 app_debug.log
