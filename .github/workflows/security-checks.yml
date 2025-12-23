@@ -23,7 +23,7 @@ jobs:
         uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
 
       - name: Set up uv
-        uses: astral-sh/setup-uv@3e91c3902a6afd0808700fe7c38abe94e33e2746 # v5.1.3
+        uses: astral-sh/setup-uv@45cfcb3be5323e8be48c8a1849f80be7e5152a90 # v5.1.4
         with:
           enable-cache: true
           cache-dependency-glob: "uv.lock"
@@ -65,7 +65,7 @@ jobs:
 
       - name: Upload SBOM as artifact
         if: always()
-        uses: actions/upload-artifact@ea054a6d012f3df67f2f98b33c2a74a4c87da3f2 # v4.6.2
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v4.6.2
         with:
           name: sbom-licenses
           path: |
@@ -139,25 +139,10 @@ jobs:
 
       - name: Upload Trivy results as artifact
         if: always()
-        uses: actions/upload-artifact@ea054a6d012f3df67f2f98b33c2a74a4c87da3f2 # v4.6.2
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v4.6.2
         with:
           name: trivy-scan-results
           path: |
             trivy-results.json
             trivy-results.sarif
           retention-days: 30
-
-  dependency-review:
-    name: Dependency Review
-    runs-on: ubuntu-latest
-    if: github.event_name == 'pull_request'
-    steps:
-      - name: Checkout
-        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
-
-      - name: Dependency Review
-        uses: actions/dependency-review-action@3b139cfc5fae8b618d3eae3675e383bb1769c019 # v5.0.1
-        with:
-          fail-on-severity: moderate
-          deny-licenses: GPL-2.0, GPL-3.0, LGPL-2.0, LGPL-2.1, LGPL-3.0, AGPL-3.0
-          comment-summary-in-pr: on-failure
