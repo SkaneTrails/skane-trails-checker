@@ -1,11 +1,122 @@
 from datetime import UTC, datetime
 from pathlib import Path
+from typing import TypedDict
 
+import geopy.distance
 import pandas as pd
 import streamlit as st
 
+from app.resources.hikes_resources import DEFAULT_MAX_DISTANCE, DEFAULT_MIN_DISTANCE
+
 # Constants
 MIN_POINTS_FOR_SIMPLIFICATION = 2  # Minimum points needed for RDP algorithm
+METERS_PER_KM = 1000  # Conversion factor
+
+
+class TrackMetadata(TypedDict):
+    """Metadata computed for a track."""
+
+    distance_km: float
+    segment_count: int
+    point_count: int
+
+
+class TrackInfo(TypedDict):
+    """Complete information about a track for filtering."""
+
+    track_index: int
+    name: str
+    segments: list[list[tuple[float, float]]]
+    status: str
+    distance_km: float
+
+
+def calculate_track_distance(segments: list[list[tuple[float, float]]]) -> TrackMetadata:
+    """Calculate total distance of a track from its segments.
+
+    Args:
+        segments: List of segments, where each segment is a list of (lat, lng) tuples
+
+    Returns:
+        TrackMetadata with distance in km, segment count, and total point count
+
+    """
+    total_distance_meters = 0.0
+    total_points = 0
+
+    for segment in segments:
+        total_points += len(segment)
+        # Calculate distance between consecutive points in the segment
+        for i in range(len(segment) - 1):
+            point1 = segment[i]
+            point2 = segment[i + 1]
+            distance = geopy.distance.geodesic(point1, point2).meters
+            total_distance_meters += distance
+
+    return {
+        "distance_km": round(total_distance_meters / METERS_PER_KM, 2),
+        "segment_count": len(segments),
+        "point_count": total_points,
+    }
+
+
+def filter_tracks(
+    tracks: list[TrackInfo],
+    *,
+    search_query: str = "",
+    min_distance_km: float = DEFAULT_MIN_DISTANCE,
+    max_distance_km: float = DEFAULT_MAX_DISTANCE,
+    show_explored_only: bool = False,
+    show_unexplored_only: bool = False,
+) -> list[TrackInfo]:
+    """Filter tracks based on various criteria.
+
+    Args:
+        tracks: List of TrackInfo dictionaries to filter
+        search_query: Text to search for in track names (case-insensitive)
+        min_distance_km: Minimum track distance in km
+        max_distance_km: Maximum track distance in km
+        show_explored_only: If True, only show tracks with "Explored!" status
+        show_unexplored_only: If True, only show tracks with "To Explore" status
+
+    Returns:
+        Filtered list of TrackInfo dictionaries
+
+    """
+    filtered = tracks
+
+    # Filter by search query (case-insensitive)
+    if search_query:
+        query_lower = search_query.lower()
+        filtered = [t for t in filtered if query_lower in t["name"].lower()]
+
+    # Filter by distance range
+    filtered = [t for t in filtered if min_distance_km <= t["distance_km"] <= max_distance_km]
+
+    # Filter by exploration status
+    if show_explored_only:
+        filtered = [t for t in filtered if t["status"] == "Explored!"]
+    elif show_unexplored_only:
+        filtered = [t for t in filtered if t["status"] == "To Explore"]
+
+    return filtered
+
+
+def get_distance_range(tracks: list[TrackInfo]) -> tuple[float, float]:
+    """Get the min and max distances from a list of tracks.
+
+    Args:
+        tracks: List of TrackInfo dictionaries
+
+    Returns:
+        Tuple of (min_distance, max_distance) in km
+
+    """
+    if not tracks:
+        return (DEFAULT_MIN_DISTANCE, DEFAULT_MAX_DISTANCE)
+
+    distances = [t["distance_km"] for t in tracks]
+    return (min(distances), max(distances))
 
 
 def simplify_track_coordinates(coordinates: list, tolerance: float = 0.0001) -> list:

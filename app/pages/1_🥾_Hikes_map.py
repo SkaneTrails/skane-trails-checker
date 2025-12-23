@@ -5,7 +5,15 @@ import geopy.distance
 import gpxpy
 import streamlit as st
 from functions.gpx import handle_uploaded_gpx, load_additional_gpx_files
-from functions.tracks import load_track_statuses, save_track_statuses
+from functions.tracks import (
+    TrackInfo,
+    calculate_track_distance,
+    filter_tracks,
+    get_distance_range,
+    load_track_statuses,
+    save_track_statuses,
+)
+from resources.hikes_resources import DEFAULT_MAX_DISTANCE, DEFAULT_MIN_DISTANCE
 from streamlit_folium import st_folium
 
 # Constants
@@ -144,11 +152,79 @@ with tab1:
             if st.session_state.get("track_status"):
                 explored_tracks = sum(1 for status in st.session_state.track_status.values() if status == "Explored!")
 
-            st.metric("Total Tracks", total_tracks)
+            # Show filtered count if filters are active
+            filtered_count = st.session_state.get("filtered_track_count", total_tracks)
+            has_active_filters = (
+                st.session_state.get("filter_search", "")
+                or st.session_state.get("filter_min_distance", 0) > 0
+                or st.session_state.get("filter_max_distance", 100) < 50
+                or st.session_state.get("filter_status", "All") != "All"
+            )
+
+            if has_active_filters:
+                st.metric("Showing", f"{filtered_count} of {total_tracks}")
+            else:
+                st.metric("Total Tracks", total_tracks)
+
             st.metric("Explored Tracks", explored_tracks)
             st.metric(
                 "Completion Rate", f"{int((explored_tracks / total_tracks) * 100)}%" if total_tracks > 0 else "0%"
             )
+
+            # --- Filter Section ---
+            st.divider()
+            st.subheader("🔍 Filter Trails")
+
+            # Initialize filter state in session
+            if "filter_search" not in st.session_state:
+                st.session_state.filter_search = ""
+            if "filter_min_distance" not in st.session_state:
+                st.session_state.filter_min_distance = DEFAULT_MIN_DISTANCE
+            if "filter_max_distance" not in st.session_state:
+                st.session_state.filter_max_distance = DEFAULT_MAX_DISTANCE
+            if "filter_status" not in st.session_state:
+                st.session_state.filter_status = "All"
+
+            # Search by name
+            search_query = st.text_input(
+                "Search by name:",
+                value=st.session_state.filter_search,
+                placeholder="e.g., Söderåsen",
+                key="trail_search_input",
+            )
+            st.session_state.filter_search = search_query
+
+            # Distance range slider
+            distance_range = st.slider(
+                "Distance (km):",
+                min_value=0.0,
+                max_value=50.0,
+                value=(st.session_state.filter_min_distance, st.session_state.filter_max_distance),
+                step=1.0,
+                key="distance_slider",
+            )
+            st.session_state.filter_min_distance = distance_range[0]
+            st.session_state.filter_max_distance = distance_range[1]
+
+            # Status filter
+            status_filter = st.radio(
+                "Show:",
+                options=["All", "Explored only", "To explore only"],
+                index=0 if st.session_state.filter_status == "All" else (1 if st.session_state.filter_status == "Explored only" else 2),
+                horizontal=True,
+                key="status_filter_radio",
+            )
+            st.session_state.filter_status = status_filter
+
+            # Clear filters button
+            if st.button("Clear Filters", key="clear_filters_btn"):
+                st.session_state.filter_search = ""
+                st.session_state.filter_min_distance = DEFAULT_MIN_DISTANCE
+                st.session_state.filter_max_distance = DEFAULT_MAX_DISTANCE
+                st.session_state.filter_status = "All"
+                st.rerun()
+
+            st.divider()
 
             # Display a button to manually save status
             if st.button("Save Track Status") and save_track_statuses(st.session_state.track_status, skaneleden_status):
@@ -192,6 +268,7 @@ with tab1:
             # 🗺️ Get all track coordinates to center map
             all_coords = []
             track_segments = {}  # Store track segments separately {track_index: [segment1, segment2, ...]}
+            all_track_info: list[TrackInfo] = []  # Collect all track info for filtering
 
             # Process main GPX tracks if they exist
             gpx_data = st.session_state.get("gpx_data")
@@ -209,15 +286,52 @@ with tab1:
                     # Store all segments of this track under one track_index
                     if segments:
                         track_segments[track_index] = segments
+                        # Calculate distance and store track info
+                        metadata = calculate_track_distance(segments)
+                        track_info: TrackInfo = {
+                            "track_index": track_index,
+                            "name": track.name or f"Track {track_index}",
+                            "segments": segments,
+                            "status": st.session_state.track_status.get(track_index, "To Explore"),
+                            "distance_km": metadata["distance_km"],
+                        }
+                        all_track_info.append(track_info)
                         track_index += 1
 
-            # Add coordinates from additional tracks for map centering
-            for track in st.session_state.additional_tracks:
+            # Add additional tracks
+            additional_start_idx = len(track_segments)
+            for i, track in enumerate(st.session_state.additional_tracks):
+                track_idx = additional_start_idx + i
+                metadata = calculate_track_distance(track["segments"])
+                track_info = {
+                    "track_index": track_idx,
+                    "name": track["name"],
+                    "segments": track["segments"],
+                    "status": st.session_state.track_status.get(track_idx, "To Explore"),
+                    "distance_km": metadata["distance_km"],
+                }
+                all_track_info.append(track_info)
                 for segment in track["segments"]:
                     all_coords.extend(segment)
 
+            # Apply filters to tracks
+            show_explored = st.session_state.filter_status == "Explored only"
+            show_unexplored = st.session_state.filter_status == "To explore only"
+            filtered_tracks = filter_tracks(
+                all_track_info,
+                search_query=st.session_state.filter_search,
+                min_distance_km=st.session_state.filter_min_distance,
+                max_distance_km=st.session_state.filter_max_distance,
+                show_explored_only=show_explored,
+                show_unexplored_only=show_unexplored,
+            )
+
+            # Create set of filtered track indices for efficient lookup
+            filtered_track_indices = {t["track_index"] for t in filtered_tracks}
+
             # Store track segments in session state for the stats panel
             st.session_state.track_segments = track_segments
+            st.session_state.filtered_track_count = len(filtered_tracks)
 
             # Compute map center & zoom
             if all_coords:
@@ -237,12 +351,21 @@ with tab1:
             else:
                 m = folium.Map(zoom_start=10)
 
-            # Plot main tracks with color scheme
+            # Plot main tracks with color scheme (only filtered tracks)
             if st.session_state.get("gpx_data"):
                 for track_index, segments in track_segments.items():
+                    # Skip tracks that are filtered out
+                    if track_index not in filtered_track_indices:
+                        continue
+
                     track_status = st.session_state.track_status.get(track_index, "To Explore")
                     # Orange for to explore, dark green for explored
                     track_color = "#FF8C00" if track_status == "To Explore" else "#006400"  # Orange → Dark Green
+
+                    # Get distance for this track from filtered data
+                    track_data = next((t for t in filtered_tracks if t["track_index"] == track_index), None)
+                    distance_km = track_data["distance_km"] if track_data else 0
+                    distance_text = f" | {distance_km:.1f} km" if distance_km > 0 else ""
 
                     # Plot each segment separately to avoid connecting disconnected segments
                     for segment in segments:
@@ -251,8 +374,8 @@ with tab1:
                             color=track_color,
                             weight=5,
                             opacity=0.7,
-                            popup=f"Track {track_index}: {track_status}",
-                            tooltip="Click near this track!",
+                            popup=f"Track {track_index}: {track_status}{distance_text}",
+                            tooltip=f"Track {track_index}{distance_text} - Click to toggle!",
                         ).add_to(m)
 
                     # Start and End Points with matching colors (use first and last segments)
@@ -269,8 +392,19 @@ with tab1:
                                 fill_opacity=0.9,
                             ).add_to(m)
 
-            # Plot additional tracks
-            for _i, track in enumerate(st.session_state.additional_tracks):
+            # Plot additional tracks (only filtered ones)
+            additional_start_idx = len(track_segments)
+            for i, track in enumerate(st.session_state.additional_tracks):
+                track_idx = additional_start_idx + i
+                # Skip tracks that are filtered out
+                if track_idx not in filtered_track_indices:
+                    continue
+
+                # Get distance for this track from filtered data
+                track_data = next((t for t in filtered_tracks if t["track_index"] == track_idx), None)
+                distance_km = track_data["distance_km"] if track_data else 0
+                distance_text = f" | {distance_km:.1f} km" if distance_km > 0 else ""
+
                 for segment in track["segments"]:
                     # Create a dashed line for additional tracks
                     folium.PolyLine(
@@ -278,8 +412,8 @@ with tab1:
                         color="#2683b5",  # Blue color
                         weight=4,
                         opacity=0.8,
-                        popup=f"Additional Trail: {track['name']}",
-                        tooltip=f"Trail: {track['name']}",
+                        popup=f"Trail: {track['name']}{distance_text}",
+                        tooltip=f"Trail: {track['name']}{distance_text}",
                     ).add_to(m)
 
                     # Add circle markers for start and end
@@ -291,7 +425,7 @@ with tab1:
                             fill=True,
                             fill_color="#2683b5",
                             fill_opacity=0.8,
-                            popup=f"Additional Trail: {track['name']}",
+                            popup=f"Trail: {track['name']}{distance_text}",
                         ).add_to(m)
 
             # Enable ClickForMarker (lets us detect clicks on the map)
