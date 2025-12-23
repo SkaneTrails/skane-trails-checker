@@ -1,0 +1,161 @@
+name: Terraform Checks
+
+on:
+  pull_request:
+    paths:
+      - "infra/**/*.tf"
+      - "infra/**/*.tfvars.example"
+      - ".github/workflows/terraform-checks.yml"
+      - ".tflint.hcl"
+  push:
+    branches: [main]
+    paths:
+      - "infra/**/*.tf"
+      - "infra/**/*.tfvars.example"
+      - ".github/workflows/terraform-checks.yml"
+      - ".tflint.hcl"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  security-events: write
+
+jobs:
+  terraform-validate:
+    name: Terraform Validate
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        environment:
+          - dev
+    steps:
+      - name: Checkout
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@b9cd54a3c349d3f38e8881555d616ced269862dd # v3.2.0
+        with:
+          terraform_version: "~1.12"
+
+      - name: Terraform Format Check
+        run: |
+          echo "Checking Terraform formatting..."
+          terraform fmt -check -recursive infra/
+
+      - name: Terraform Init (Bootstrap)
+        working-directory: infra/environments/${{ matrix.environment }}/init
+        run: |
+          echo "Initializing bootstrap..."
+          terraform init -backend=false
+
+      - name: Terraform Validate (Bootstrap)
+        working-directory: infra/environments/${{ matrix.environment }}/init
+        run: |
+          echo "Validating bootstrap configuration..."
+          terraform validate
+
+      - name: Terraform Init (Main)
+        working-directory: infra/environments/${{ matrix.environment }}
+        run: |
+          echo "Initializing main configuration..."
+          terraform init -backend=false
+
+      - name: Terraform Validate (Main)
+        working-directory: infra/environments/${{ matrix.environment }}
+        run: |
+          echo "Validating main configuration..."
+          terraform validate
+
+  tflint:
+    name: TFLint
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+
+      - name: Setup TFLint
+        uses: terraform-linters/setup-tflint@19a52fbac37dacb22a09518e4ef6ee234f2d4987 # v4.0.0
+        with:
+          tflint_version: latest
+
+      - name: Initialize TFLint
+        run: tflint --init
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+
+      - name: Run TFLint
+        run: |
+          echo "Running TFLint..."
+          cd infra
+          tflint --recursive --config="${GITHUB_WORKSPACE}/.tflint.hcl" --format compact
+
+  trivy-iac:
+    name: Trivy IaC Scan
+    runs-on: ubuntu-latest
+    env:
+      TRIVY_DB_REPOSITORY: public.ecr.aws/aquasecurity/trivy-db:2
+      TRIVY_CACHE_DIR: ${{ github.workspace }}/.cache/trivy
+    steps:
+      - name: Checkout
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+
+      - name: Install Trivy
+        uses: aquasecurity/setup-trivy@e6c2c5e321ed9123bda567646e2f96565e34abe1 # v0.2.4
+        with:
+          cache: true
+
+      - name: Create cache directory
+        run: mkdir -p ${{ env.TRIVY_CACHE_DIR }}
+
+      - name: Get current date
+        id: date
+        run: echo "date=$(date +'%Y-%m-%d')" >> "$GITHUB_OUTPUT"
+
+      - name: Restore Trivy cache
+        uses: actions/cache@9255dc7a253b0ccc959486e2bca901246202afeb # v5.0.1
+        with:
+          path: ${{ env.TRIVY_CACHE_DIR }}
+          key: cache-trivy-iac-${{ steps.date.outputs.date }}
+          restore-keys: cache-trivy-iac-
+
+      - name: Run Trivy IaC scan
+        run: |
+          echo "Scanning Terraform files for security issues..."
+          trivy config \
+            --format json \
+            --output trivy-iac-results.json \
+            --severity CRITICAL,HIGH,MEDIUM \
+            --exit-code 0 \
+            --cache-dir ${{ env.TRIVY_CACHE_DIR }} \
+            infra/
+
+      - name: Check results
+        run: |
+          if [ "$(jq '[.Results[]? | select(.Misconfigurations) | .Misconfigurations | length] | add // 0' trivy-iac-results.json)" -gt "0" ]; then
+            echo "⚠️ Security issues found in Terraform"
+            trivy config --format table infra/
+          else
+            echo "✅ No security issues found"
+          fi
+
+      - name: Generate SARIF report
+        run: |
+          trivy convert --format sarif --output trivy-iac-results.sarif trivy-iac-results.json
+
+      - name: Upload Trivy IaC results to GitHub Security
+        if: always()
+        continue-on-error: true
+        uses: github/codeql-action/upload-sarif@5d4e8d1aca955e8d8589aabd499c5cae939e33c7 # v4.31.9
+        with:
+          sarif_file: trivy-iac-results.sarif
+          category: trivy-iac-scan
+
+      - name: Upload Trivy results as artifact
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        with:
+          name: trivy-iac-scan-results
+          path: |
+            trivy-iac-results.json
+            trivy-iac-results.sarif
+          retention-days: 30

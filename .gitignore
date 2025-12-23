@@ -49,6 +49,14 @@ override.tf.json
 *_override.tf
 *_override.tf.json
 
+# Terraform generated files (contain project-specific IDs)
+backend.tf
+import_tfstate_bucket.sh
+import_tfstate_bucket.ps1
+
+# Terraform access control (contains personal emails)
+infra/environments/*/access/users.txt
+
 # GCP
 gcloud-config/
 service-account-key.json
