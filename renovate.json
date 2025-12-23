@@ -38,6 +38,8 @@
       ]
     },
     {
+      "groupName": "Terraform",
+      "groupSlug": "terraform",
       "matchManagers": [
         "terraform"
       ],
@@ -46,7 +48,32 @@
       ],
       "addLabels": [
         "🌑 type: terraform"
+      ],
+      "automerge": true
+    },
+    {
+      "groupName": "Terraform modules",
+      "groupSlug": "terraform-modules",
+      "matchManagers": [
+        "terraform"
+      ],
+      "matchDepTypes": [
+        "module"
+      ],
+      "addLabels": [
+        "🌑 type: terraform"
       ]
+    },
+    {
+      "groupName": "TFLint plugins",
+      "groupSlug": "tflint-plugins",
+      "matchManagers": [
+        "tflint-plugin"
+      ],
+      "addLabels": [
+        "🌑 type: terraform"
+      ],
+      "automerge": true
     },
     {
       "matchDatasources": [
@@ -63,6 +90,16 @@
         "github-actions"
       ],
       "automerge": true
+    },
+    {
+      "matchPackageNames": [
+        "hashicorp/setup-terraform"
+      ],
+      "matchManagers": [
+        "github-actions"
+      ],
+      "enabled": false,
+      "description": "Disabled due to Renovate digest lookup issues - update manually"
     },
     {
       "groupName": "pre-commit hooks",
