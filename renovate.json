@@ -8,6 +8,8 @@
   "rebaseWhen": "behind-base-branch",
   "branchPrefix": "renovate/",
   "labels": ["🧹 renovate", "📦 type: dependencies"],
+  "dependencyDashboard": true,
+  "dependencyDashboardTitle": "🤖 Renovate Dependency Dashboard",
   "minimumReleaseAge": "3 days",
   "prHourlyLimit": 2,
   "prConcurrentLimit": 5,
