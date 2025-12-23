@@ -32,13 +32,34 @@ If any of these change, suggest updating `.github/copilot-instructions.md` in yo
 
 A Streamlit multi-page application for tracking hiking trails and foraging spots in Skåne, Sweden. The app processes GPX files, manages trail completion statuses, and provides interactive maps for both hiking trails and seasonal foraging locations.
 
-**Deployment target**: Google Cloud Platform under **FREE TIER** constraints.
+**ZERO-COST REQUIREMENT**: This project operates entirely on free tiers - GitHub Free + GCP Free Tier. ALL suggestions must work within these constraints.
 
-## Critical Constraints
+## Critical Constraints: Free Tier Only
 
-### Google Cloud Free Tier Requirements
+**This project is designed to run at zero cost using free tiers only. This is a hard requirement, not a preference.**
+
+### GitHub Free Tier (Public Repository)
+
+**All GitHub features must work on the free tier:**
+
+- **No branch protection rules** - Cannot enforce required reviews, status checks, or restrict who can push
+- **No GitHub Advanced Security** - Code scanning SARIF uploads may fail, dependency review not available
+- **Public repository** - All code, issues, and PRs are publicly visible
+- **Actions minutes** - Unlimited for public repos, 2,000 minutes/month for private repos
+- **Artifacts storage** - 500 MB storage, 1 GB bandwidth/month
+
+**Implications for workflows:**
+
+- SARIF uploads should use `continue-on-error: true` (may not have code scanning enabled)
+- Dependency review action not supported (requires Advanced Security)
+- Rely on Trivy scans and artifact uploads instead of GitHub Security tab
+- No auto-merge via branch protection (use Renovate's `platformAutomerge` instead)
+
+### Google Cloud Free Tier
 
 **ALL infrastructure and code changes MUST stay within GCP free tier limits. This is NON-NEGOTIABLE.**
+
+**Monthly limits:**
 
 - **Cloud Run**: 2 million requests/month, 360,000 GB-seconds/month, 180,000 vCPU-seconds/month
 - **Cloud Storage**: 5 GB storage, 5,000 Class A operations/month, 50,000 Class B operations/month
