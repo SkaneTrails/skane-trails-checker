@@ -1,0 +1,5 @@
+# Skåne Trails Checker - Development Environment
+# Update these values with your actual GCP project ID
+project  = "your-project-id-here"  # TODO: Replace with actual GCP project ID
+location = "EU"                     # Multi-regional for free tier optimization
+region   = "europe-west1"           # Europe West 1 (Belgium) - within free tier
