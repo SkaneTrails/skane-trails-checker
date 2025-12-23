@@ -1,0 +1,12 @@
+# User Access List
+# Add one email per line for users who need access to this project
+# Format: user@example.com
+#
+# These users will be granted the following roles:
+# - Viewer (read-only access to all resources)
+# - Cloud Run Invoker (ability to access deployed apps)
+# - Firestore User (read/write access to Firestore)
+#
+# Example:
+# alice@example.com
+# bob@example.com
