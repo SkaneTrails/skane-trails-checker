@@ -85,11 +85,7 @@ def test_save_and_load_foraging_types(foraging_instance, temp_data_dir) -> None:
     foraging_instance.foraging_types_path = Path(temp_data_dir / "foraging_types.json")
 
     try:
-        custom_types = {
-            "Mushroom": {"icon": "🍄"},
-            "Berries": {"icon": "🫐"},
-            "Custom": {"icon": "🌿"},
-        }
+        custom_types = {"Mushroom": {"icon": "🍄"}, "Berries": {"icon": "🫐"}, "Custom": {"icon": "🌿"}}
 
         # Save
         result = foraging_instance.save_foraging_types(custom_types)

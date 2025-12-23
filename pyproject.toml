@@ -1,95 +1,155 @@
+[build-system]
+build-backend = "uv_build"
+requires = [ "uv-build" ]
+
 [project]
 name = "skane-trails-checker"
 version = "0.1.0"
 description = "A Streamlit app for tracking hiking trails and foraging spots in Skåne, Sweden"
 readme = "README.md"
+license = { text = "MIT" }
 requires-python = ">=3.14"
-license = {text = "MIT"}
+classifiers = [
+  "Private :: Do Not Upload",
+  "Programming Language :: Python :: 3 :: Only",
+  "Programming Language :: Python :: 3.14",
+]
 dependencies = [
-    "folium>=0.15.0",
-    "geopy>=2.4.0",
-    "gpxpy>=1.6.0",
-    "pandas>=2.1.0",
-    "plotly>=5.18.0",
-    "rdp>=0.8",
-    "requests>=2.31.0",
-    "streamlit>=1.28.0",
-    "streamlit-folium>=0.15.0",
+  "folium>=0.15.0",
+  "geopy>=2.4.0",
+  "gpxpy>=1.6.0",
+  "pandas>=2.1.0",
+  "plotly>=5.18.0",
+  "rdp>=0.8",
+  "requests>=2.31.0",
+  "streamlit>=1.28.0",
+  "streamlit-folium>=0.15.0",
 ]
 
-[project.optional-dependencies]
-test = [
-    "pytest>=8.0.0",
-    "pytest-cov>=4.1.0",
-    "pytest-mock>=3.12.0",
-    "pytest-xdist>=3.5.0",
+optional-dependencies.dev = [
+  "deptry>=0.24.0",
+  "pre-commit>=3.6.0",
+  "pyproject-fmt>=2.11.0",
+  "ruff>=0.11.0",
+  "skane-trails-checker[test]",
+  "ty>=0.0.5",
 ]
-dev = [
-    "skane-trails-checker[test]",
-    "ruff>=0.11.0",
-    "pre-commit>=3.6.0",
-    "ty>=0.0.5",
+optional-dependencies.test = [
+  "pytest>=8.0.0",
+  "pytest-cov>=4.1.0",
+  "pytest-mock>=3.12.0",
+  "pytest-xdist>=3.5.0",
 ]
 
 [dependency-groups]
 dev = [
-    "skane-trails-checker[dev]",
+  "skane-trails-checker[dev]",
 ]
+
+[tool.uv]
+package = false
 
 [tool.ruff]
+target-version = "py313" # Ruff doesn't support py314 yet, py313 is compatible
+
 line-length = 120
-target-version = "py313"  # Ruff doesn't support py314 yet, py313 is compatible
+indent-width = 4
+cache-dir = ".cache/.ruff_cache"
+
+format.indent-style = "space"
+format.quote-style = "double"
+format.line-ending = "lf"
+format.skip-magic-trailing-comma = true
+
 lint.select = [
-    "ALL", # include all the rules, including new ones
+  "ALL", # include all the rules, including new ones
 ]
 lint.ignore = [
-    "COM812",    # Trailing comma conflicts with formatter
-    "D",         # Docstring rules (too verbose for now)
-    "E501",      # Line too long (handled by formatter)
-    "T201",      # Print statements (used for logging/debugging in Streamlit)
-    "INP001",    # Implicit namespace package (Streamlit pages pattern)
-    "BLE001",    # Blind exception (acceptable with st.warning/st.error for user-facing messages)
-    "TRY300",    # Consider else block (style preference)
-    "PLC0415",   # Import not at top-level (needed for optional dependencies like rdp/numpy)
-    "S113",      # Request without timeout (not critical for weather API)
-    "S311",      # Random for non-crypto (not used for security purposes)
-    "DTZ007",    # Datetime without timezone (not critical for this use case)
-    "ANN401",    # Any type (acceptable for Streamlit UploadedFile and similar dynamic types)
+  "ANN401",  # Any type (acceptable for Streamlit UploadedFile and similar dynamic types)
+  "BLE001",  # Blind exception (acceptable with st.warning/st.error for user-facing messages)
+  "COM812",  # Trailing comma conflicts with formatter
+  "D",       # Docstring rules (too verbose for now)
+  "DTZ007",  # Datetime without timezone (not critical for this use case)
+  "E501",    # Line too long (handled by formatter)
+  "INP001",  # Implicit namespace package (Streamlit pages pattern)
+  "PLC0415", # Import not at top-level (needed for optional dependencies like rdp/numpy)
+  "S113",    # Request without timeout (not critical for weather API)
+  "S311",    # Random for non-crypto (not used for security purposes)
+  "T201",    # Print statements (used for logging/debugging in Streamlit)
+  "TRY300",  # Consider else block (style preference)
 ]
 
-[tool.ruff.lint.per-file-ignores]
-"tests/**/*.py" = [
-    "S101",      # Allow assert in tests (required for pytest)
-    "PLR2004",   # Allow magic values in tests (self-documenting with comments)
-    "ANN001",    # Missing type annotation for function argument (pytest fixtures have dynamic types)
-    "ARG001",    # Unused function argument (fixtures used for side effects)
-    "ARG002",    # Unused method argument (fixtures used for side effects)
+lint.per-file-ignores."tests/**/*.py" = [
+  "ANN001",  # Missing type annotation for function argument (pytest fixtures have dynamic types)
+  "ARG001",  # Unused function argument (fixtures used for side effects)
+  "ARG002",  # Unused method argument (fixtures used for side effects)
+  "PLR2004", # Allow magic values in tests (self-documenting with comments)
+  "S101",    # Allow assert in tests (required for pytest)
 ]
+
+lint.flake8-quotes.inline-quotes = "double"
+lint.isort.combine-as-imports = true
+lint.isort.split-on-trailing-comma = false
+
+[tool.deptry]
+known_first_party = [ "skane-trails-checker" ]
+ignore_notebooks = true
+pep621_dev_dependency_groups = [ "dev" ]
+
+[tool.deptry.per_rule_ignores]
+# numpy is a transitive dependency used via rdp for coordinate simplification
+DEP003 = [ "numpy" ]
+# These are local packages within the app/ directory
+DEP001 = [ "functions", "resources" ]
+# Test dependencies are in optional-dependencies.test group
+DEP002 = [ "pytest", "pytest-cov", "pytest-mock", "pytest-xdist" ]
+
+[tool.pyproject-fmt]
+keep_full_version = true
 
 [tool.pytest.ini_options]
+cache_dir = ".cache/.pytest_cache"
+
 # Test discovery patterns
 python_files = "test_*.py"
 python_classes = "Test*"
 python_functions = "test_*"
 
+# Test paths
+testpaths = [ "tests" ]
+
 # Output options
 addopts = [
-    "-v",
-    "--strict-markers",
-    "--tb=short",
-    "--cov=app",
-    "--cov-report=term-missing",
-    "--cov-report=html",
-    "-W", "error",  # Treat warnings as errors
+  "--pythonwarnings=error",
+  "-v",
+  "--strict-markers",
+  "--tb=short",
+  "--cov=app",
+  "--cov-report=term-missing",
+  "--cov-report=html",
 ]
 
-# Test paths
-testpaths = ["tests"]
+log_cli = true
+log_cli_level = "INFO"
+log_cli_format = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 
 # Filter specific warnings from external libraries
 filterwarnings = [
-    # Ignore NumPy 2.0 deprecation warning triggered by rdp library
-    # The rdp library uses 2D vectors with numpy.cross which is deprecated in NumPy 2.0
-    # This needs to be fixed in the rdp library upstream
-    "ignore:Arrays of 2-dimensional vectors are deprecated.*:DeprecationWarning",
+  # Ignore NumPy 2.0 deprecation warning triggered by rdp library
+  # The rdp library uses 2D vectors with numpy.cross which is deprecated in NumPy 2.0
+  # This needs to be fixed in the rdp library upstream
+  "ignore:Arrays of 2-dimensional vectors are deprecated.*:DeprecationWarning",
 ]
+
+[tool.coverage.run]
+branch = true
+source = [ "app/" ]
+omit = [  ]
+
+[tool.coverage.report]
+exclude_lines = [
+  "if __name__ == .__main__.:",
+  "pragma: no cover",
+]
+precision = 2
+skip_empty = true

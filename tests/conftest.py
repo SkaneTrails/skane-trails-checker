@@ -68,11 +68,7 @@ def sample_foraging_types_json(temp_data_dir) -> Path:
     """Create a sample foraging types JSON file."""
     import json
 
-    types_data = {
-        "Mushroom": {"icon": "🍄"},
-        "Berries": {"icon": "🫐"},
-        "Other": {"icon": "❓"},
-    }
+    types_data = {"Mushroom": {"icon": "🍄"}, "Berries": {"icon": "🫐"}, "Other": {"icon": "❓"}}
     json_file = temp_data_dir / "foraging_types.json"
     json_file.write_text(json.dumps(types_data))
     return json_file
