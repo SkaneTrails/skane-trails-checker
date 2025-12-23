@@ -55,16 +55,3 @@ resource "google_project_iam_binding" "user_access" {
     google_project_iam_custom_role.app_user,
   ]
 }
-
-# Wait for IAM propagation (GCP takes 60-80 seconds to propagate IAM globally)
-# Without this, Firestore resources will fail with permission denied
-resource "time_sleep" "wait_for_iam_propagation" {
-  create_duration = "90s"
-
-  depends_on = [
-    google_project_iam_binding.prerequisite_roles,
-    google_project_iam_custom_role.infrastructure_manager,
-    google_project_iam_custom_role.app_user,
-    google_project_iam_binding.user_access,
-  ]
-}

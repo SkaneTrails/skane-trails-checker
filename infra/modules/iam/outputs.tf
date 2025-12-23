@@ -26,6 +26,5 @@ output "iam_bindings_complete" {
     google_project_iam_custom_role.infrastructure_manager,
     google_project_iam_custom_role.app_user,
     google_project_iam_binding.user_access,
-    time_sleep.wait_for_iam_propagation,
   ]
 }
