@@ -30,7 +30,17 @@ dev/
 
    This creates the GCS bucket for remote state storage.
 
-2. **Import the state bucket**:
+2. **Enable Service Usage API** (required before Terraform can manage other APIs):
+
+   ```bash
+   gcloud services enable serviceusage.googleapis.com --project=YOUR_PROJECT_ID
+   ```
+
+   **Why**: Terraform needs the Service Usage API enabled to list and enable other APIs programmatically. This is a one-time manual step due to the chicken-and-egg problem of enabling the API that enables APIs.
+
+   **Required permissions**: You need `roles/serviceusage.serviceUsageAdmin` or `roles/owner` to enable this API.
+
+3. **Import the state bucket**:
 
    ```bash
    # Windows PowerShell
@@ -40,15 +50,17 @@ dev/
    ./import_tfstate_bucket.sh
    ```
 
-3. **Configure variables**:
+4. **Configure variables**:
 
    Edit `terraform.tfvars` and set your GCP project ID.
 
-4. **Add users** (optional):
+5. **Add users**:
 
-   Add user emails to `access/users.txt`, one per line.
+   Add your email address to `access/users.txt`, one per line. Lines starting with `#` are comments and will be ignored.
 
-5. **Initialize and apply**:
+   **Important**: This file is gitignored and must be created locally. Terraform will read it directly at plan/apply time to grant IAM permissions.
+
+6. **Initialize and apply**:
 
    ```bash
    terraform init
@@ -56,46 +68,111 @@ dev/
    terraform apply
    ```
 
+## User Management
+
+User access is managed through the `access/users.txt` file (gitignored). Terraform reads this file directly at plan/apply time.
+
+**Format**: One email per line, comments start with `#`
+
+```plaintext
+# access/users.txt
+alice@example.com
+bob@example.com
+```
+
+**Granted roles**:
+
+**Custom roles** (defined in `custom_roles` module):
+
+- `skaneTrailsInfraManager` - **Infrastructure Manager** (temporary during setup)
+  - Create/update/delete Firestore, Secret Manager, Cloud Run, IAM
+  - Used for Terraform apply operations
+  - **Should be revoked after infrastructure is deployed**
+- `skaneTrailsAppUser` - **App User** (permanent)
+  - Read/write Firestore entities (track statuses, foraging data)
+  - Access Secret Manager secrets (read-only)
+  - Read Cloud Storage objects (GPX files)
+  - Invoke Cloud Run services
+
+**Predefined roles**:
+
+- `roles/viewer` - Read-only access to all GCP resources
+
+**Revoking Infrastructure Manager after setup**:
+
+```bash
+# After successful terraform apply, revoke infra role from users
+gcloud projects remove-iam-policy-binding hikes-482104 \
+  --member="user:YOUR_EMAIL" \
+  --role="projects/hikes-482104/roles/skaneTrailsInfraManager"
+```
+
+Keep this role only for CI/CD service accounts that need to deploy infrastructure.
+
+**No tfvars needed** - Users are read directly from the file, no manual copying required.
+
 ## Modules Used
 
-- **iam**: Manages user permissions and access control
+- **apis**: Enables required GCP APIs (Firestore, Secret Manager, IAM, Cloud Resource Manager)
+- **iam**: Manages user permissions, access control, and defines custom IAM roles
+  - Custom roles: Infrastructure Manager, App User (defined in `custom_roles.tf`)
+- **firestore**: Firestore Native database for track statuses and foraging data
 
 ## Resources Created
 
+- GCP API enablements (Firestore, Secret Manager, IAM, Cloud Resource Manager)
 - IAM bindings for user access (if users are specified)
+- Firestore database in Europe multi-region (eur3)
+- Secret Manager secrets for Firestore connection details (database name, project ID, location ID)
 
 ## Free Tier Compliance
 
 All resources in this environment stay within GCP free tier limits:
 
-- IAM operations: No cost
-- Terraform state: Stored in GCS bucket (< 5 GB free tier)
+- **API Enablement**: No cost
+- **IAM operations**: No cost
+- **Terraform state**: Stored in GCS bucket (< 5 GB free tier)
+- **Firestore**: 1 GB storage, 50K reads/day, 20K writes/day free
+- **Secret Manager**: 6 active secret versions free (we use 3)
+
+## Firestore Database
+
+The Firestore database stores hiking trail statuses and foraging spots, replacing local CSV/JSON files.
+
+### Collections
+
+- **`track_statuses`**: Track completion statuses ("To Explore" or "Explored!")
+- **`foraging_spots`**: Foraging location data with coordinates, month, type, notes
+- **`foraging_types`**: Custom foraging types with emoji icons
+
+### Local Debugging
+
+Connection details are stored in Secret Manager for secure access:
+
+```bash
+# View database name
+gcloud secrets versions access latest --secret=firestore-database-name --project=YOUR_PROJECT_ID
+
+# View project ID
+gcloud secrets versions access latest --secret=firestore-project-id --project=YOUR_PROJECT_ID
+
+# View location ID
+gcloud secrets versions access latest --secret=firestore-location-id --project=YOUR_PROJECT_ID
+```
+
+### Required Permissions
+
+Users in `access/users.txt` are granted:
+
+- `roles/datastore.user` - Read/write Firestore data
+- `roles/secretmanager.secretAccessor` - Access Secret Manager secrets for debugging
 
 ## Variables
 
-| Name     | Description                     | Default           | Required |
-| -------- | ------------------------------- | ----------------- | -------- |
-| project  | GCP project ID                  | -                 | Yes      |
-| region   | GCP region for resources        | `europe-west1`    | No       |
-| location | GCP location for multi-regional | `EU`              | No       |
-| users    | List of user emails for access  | `[]` (empty list) | No       |
+| Name               | Description                          | Default        | Required |
+| ------------------ | ------------------------------------ | -------------- | -------- |
+| project            | GCP project ID                       | -              | Yes      |
+| region             | GCP region for resources             | `europe-west1` | No       |
+| firestore_location | Firestore location ID (multi-region) | `eur3`         | No       |
 
-## User Management
-
-Personal users are managed through `access/users.txt`. Add one email per line:
-
-```text
-alice@example.com
-bob@example.com
-```
-
-Then load them in `terraform.tfvars`:
-
-```terraform
-users = [
-  "alice@example.com",
-  "bob@example.com",
-]
-```
-
-Or automate loading from the file using a script.
+**Note**: User emails are NOT in variables - they're read directly from `access/users.txt` at plan/apply time.

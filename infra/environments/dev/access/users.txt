@@ -1,12 +1,17 @@
 # User Access List
-# Add one email per line for users who need access to this project
-# Format: user@example.com
+# Add one email per line for users who need access to the GCP project.
+# Lines starting with # are comments and will be ignored.
+# Empty lines are also ignored.
 #
-# These users will be granted the following roles:
-# - Viewer (read-only access to all resources)
-# - Cloud Run Invoker (ability to access deployed apps)
-# - Firestore User (read/write access to Firestore)
+# These users will be granted the following IAM roles:
+# - roles/viewer (read-only access to all resources)
+# - roles/run.invoker (invoke Cloud Run services)
+# - roles/datastore.user (read/write Firestore data)
+# - roles/storage.objectViewer (view Cloud Storage objects)
+# - roles/secretmanager.secretAccessor (access secrets for local debugging)
 #
 # Example:
 # alice@example.com
 # bob@example.com
+#
+# This file is gitignored - add your own email addresses below:
