@@ -1,6 +1,6 @@
 version = 1
 revision = 3
-requires-python = ">=3.14"
+requires-python = ">=3.14.2"
 
 [[package]]
 name = "altair"
@@ -901,7 +901,7 @@ requires-dist = [
     { name = "streamlit-folium", specifier = ">=0.15.0" },
     { name = "ty", marker = "extra == 'dev'", specifier = ">=0.0.5" },
 ]
-provides-extras = ["test", "dev"]
+provides-extras = ["dev", "test"]
 
 [package.metadata.requires-dev]
 dev = [{ name = "skane-trails-checker", extras = ["dev"] }]
