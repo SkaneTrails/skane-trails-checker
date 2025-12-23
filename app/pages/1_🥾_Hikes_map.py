@@ -99,7 +99,6 @@ with tab1:
         # Load main GPX file if it exists (not applicable for world-wide hikes)
         if gpx_file_path and gpx_file_path.exists() and not use_world_wide_hikes:
             with gpx_file_path.open(encoding="utf-8") as gpx_file:
-                print(f"Loading toggle {gpx_file}")
                 gpx_string = gpx_file.read()  # Read file as string
                 st.session_state.gpx_data = gpxpy.parse(gpx_string)
                 st.session_state.file_loaded = True
@@ -157,26 +156,31 @@ with tab1:
 
             # Add GPX upload section
             st.subheader("Upload Additional Trails")
-            uploaded_file = st.file_uploader("Upload GPX file", type=["gpx"])
+            uploaded_file = st.file_uploader("Upload GPX file", type=["gpx"], key="gpx_uploader")
 
-            # Handle file upload
+            # Handle file upload - check if we haven't already processed this file
             if uploaded_file is not None:
-                with st.spinner(f"Validating and uploading {uploaded_file.name}..."):
-                    success, message = handle_uploaded_gpx(
-                        world_wide_hikes_path,
-                        skane_other_files_path,
-                        uploaded_file,
-                        is_world_wide=st.session_state.use_world_wide_hikes,
-                    )
-                if success:
-                    st.success(message)
-                    # Force reload of additional tracks by clearing the cache
-                    if "gpx_data" in st.session_state:
-                        del st.session_state["gpx_data"]
-                    # Force refresh to show new track
-                    st.rerun()
-                else:
-                    st.error(message)
+                # Use a session state flag to track if we've processed this upload
+                uploaded_file_id = f"{uploaded_file.name}_{uploaded_file.size}"
+                if st.session_state.get("last_uploaded_file_id") != uploaded_file_id:
+                    with st.spinner(f"Validating and uploading {uploaded_file.name}..."):
+                        success, message = handle_uploaded_gpx(
+                            world_wide_hikes_path,
+                            skane_other_files_path,
+                            uploaded_file,
+                            is_world_wide=st.session_state.use_world_wide_hikes,
+                        )
+                    if success:
+                        st.success(message)
+                        # Mark this file as processed
+                        st.session_state.last_uploaded_file_id = uploaded_file_id
+                        # Force reload of additional tracks by clearing the cache
+                        if "gpx_data" in st.session_state:
+                            del st.session_state["gpx_data"]
+                        # Force refresh to show new track
+                        st.rerun()
+                    else:
+                        st.error(message)
 
     # Display Map in the right column if file is loaded or additional tracks exist
     with col2:
