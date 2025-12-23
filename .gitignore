@@ -25,10 +25,13 @@ coverage.xml
 # Streamlit
 .streamlit/secrets.toml
 
-# Personal Tracks
-app/tracks_gpx/other_trails/
-app/tracks_gpx/world_wide_hikes/
-app/tracks_status/
+# Personal Tracks - Block all files but allow README.md
+app/tracks_gpx/other_trails/*
+!app/tracks_gpx/other_trails/README.md
+app/tracks_gpx/world_wide_hikes/*
+!app/tracks_gpx/world_wide_hikes/README.md
+app/tracks_status/*
+!app/tracks_status/README.md
 
 # Debugging logs
 app_debug.log
