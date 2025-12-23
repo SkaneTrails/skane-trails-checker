@@ -37,6 +37,12 @@
       "allowedVersions": "!/-(alpha|beta|rc|dev|snapshot|preview|experimental|unstable)/i"
     },
     {
+      "groupName": "GitHub Actions",
+      "groupSlug": "github-actions",
+      "matchManagers": ["github-actions"],
+      "automerge": true
+    },
+    {
       "groupName": "pre-commit hooks",
       "groupSlug": "pre-commit-hooks",
       "matchManagers": ["pre-commit"],
