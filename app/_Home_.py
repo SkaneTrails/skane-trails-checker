@@ -12,10 +12,7 @@ if "pytest" not in sys.modules:
     logging.basicConfig(
         level=logging.INFO,
         format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-        handlers=[
-            logging.StreamHandler(),
-            logging.FileHandler("app_debug.log"),
-        ],
+        handlers=[logging.StreamHandler(), logging.FileHandler("app_debug.log")],
     )
 logger = logging.getLogger(__name__)
 
@@ -44,9 +41,7 @@ if "pytest" not in sys.modules:  # pragma: no cover - Streamlit UI code
 
         # Set page config (must be first Streamlit command)
         st.set_page_config(  # pragma: no cover - Streamlit UI configuration
-            page_title="Our Skåne app",
-            layout="wide",
-            page_icon="🇸🇪",
+            page_title="Our Skåne app", layout="wide", page_icon="🇸🇪"
         )
         logger.info("Page config set successfully")
     except Exception:

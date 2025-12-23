@@ -36,11 +36,7 @@ def load_additional_gpx_files(directory: Path | str) -> list[dict]:
 
                 # Extract all tracks from this file
                 for track in gpx_data.tracks:
-                    track_data: TrackData = {
-                        "name": track.name or file_name,
-                        "file": file_name,
-                        "segments": [],
-                    }
+                    track_data: TrackData = {"name": track.name or file_name, "file": file_name, "segments": []}
 
                     for segment in track.segments:
                         coordinates = [(point.latitude, point.longitude) for point in segment.points]

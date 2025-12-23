@@ -1,0 +1,26 @@
+name: Renovate
+on:
+  schedule:
+    - cron: "0 2 * * 1" # Every Monday at 2 AM UTC
+  workflow_dispatch: # Manual trigger
+  push:
+    branches:
+      - main # Rebase existing PRs on push to main
+
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: false
+
+jobs:
+  renovate:
+    name: Renovate
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+
+      - name: Self-hosted Renovate
+        uses: renovatebot/github-action@f7fad228a053c69a98e24f8e4f6cf40db8f61e08 # v44.2.1
+        with:
+          configurationFile: renovate.json
+          token: ${{ secrets.GITHUB_TOKEN }}

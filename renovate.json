@@ -1,0 +1,97 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": [
+    "config:recommended",
+    "helpers:pinGitHubActionDigests",
+    "docker:pinDigests"
+  ],
+  "rebaseWhen": "behind-base-branch",
+  "branchPrefix": "renovate/",
+  "labels": ["🧹 renovate", "📦 type: dependencies"],
+  "minimumReleaseAge": "3 days",
+  "prHourlyLimit": 2,
+  "prConcurrentLimit": 5,
+  "packageRules": [
+    {
+      "automerge": true,
+      "automergeStrategy": "rebase",
+      "matchUpdateTypes": ["minor", "patch", "pin", "digest"],
+      "platformAutomerge": true
+    },
+    {
+      "matchDatasources": ["pypi"],
+      "registryUrls": ["https://pypi.org/simple"]
+    },
+    {
+      "matchManagers": ["terraform"],
+      "matchDepTypes": ["required_provider"],
+      "addLabels": ["🌑 type: terraform"]
+    },
+    {
+      "matchDatasources": ["docker"],
+      "versioning": "loose",
+      "rangeStrategy": "pin",
+      "allowedVersions": "!/-(alpha|beta|rc|dev|snapshot|preview|experimental|unstable)/i"
+    },
+    {
+      "groupName": "ruff",
+      "groupSlug": "ruff",
+      "matchPackageNames": ["ruff", "astral-sh/ruff-pre-commit"],
+      "matchManagers": ["pre-commit", "pep621"]
+    },
+    {
+      "groupName": "deptry",
+      "groupSlug": "deptry",
+      "matchPackageNames": ["deptry", "fpgmaas/deptry"],
+      "matchManagers": ["pre-commit", "pep621"]
+    },
+    {
+      "groupName": "pyproject-fmt",
+      "groupSlug": "pyproject-fmt",
+      "matchPackageNames": ["pyproject-fmt", "tox-dev/pyproject-fmt"],
+      "matchManagers": ["pre-commit", "pep621"]
+    },
+    {
+      "groupName": "actionlint",
+      "groupSlug": "actionlint",
+      "matchPackageNames": ["actionlint", "rhysd/actionlint"],
+      "matchManagers": ["pre-commit", "github-actions"]
+    },
+    {
+      "groupName": "uv",
+      "groupSlug": "uv",
+      "matchPackageNames": ["uv", "astral-sh/uv-pre-commit"],
+      "matchManagers": ["pre-commit", "pep621", "github-actions"]
+    },
+    {
+      "groupName": "pytest",
+      "groupSlug": "pytest",
+      "matchPackageNames": [
+        "pytest",
+        "pytest-cov",
+        "pytest-mock",
+        "pytest-xdist"
+      ],
+      "matchManagers": ["pep621"]
+    },
+    {
+      "matchPackageNames": ["python"],
+      "matchUpdateTypes": ["minor"],
+      "enabled": false,
+      "description": "Only allow Python patch updates"
+    },
+    {
+      "rangeStrategy": "bump",
+      "matchPackageNames": ["python"],
+      "matchManagers": ["pep621"]
+    }
+  ],
+  "lockFileMaintenance": {
+    "enabled": true,
+    "automerge": true,
+    "schedule": ["before 4am on monday"]
+  },
+  "pre-commit": {
+    "enabled": true
+  }
+}
