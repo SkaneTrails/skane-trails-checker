@@ -183,24 +183,24 @@ with tab1:
         if tracks_to_display:
             # 🗺️ Get all track coordinates to center map
             all_coords = []
-            track_coordinates = {}  # Store track coordinates
+            track_segments = {}  # Store track segments separately {track_index: [segment1, segment2, ...]}
 
             # Process main GPX tracks if they exist
             gpx_data = st.session_state.get("gpx_data")
             if gpx_data:
                 track_index = 0  # Ensuring unique track index
                 for track in gpx_data.tracks:
-                    # Collect all segments for this track
-                    all_track_coords = []
+                    # Collect all segments for this track as separate lists
+                    segments = []
                     for segment in track.segments:
                         coordinates = [(point.latitude, point.longitude) for point in segment.points]
                         if coordinates:
-                            all_track_coords.extend(coordinates)
+                            segments.append(coordinates)
+                            all_coords.extend(coordinates)
 
                     # Store all segments of this track under one track_index
-                    if all_track_coords:
-                        track_coordinates[track_index] = all_track_coords
-                        all_coords.extend(all_track_coords)
+                    if segments:
+                        track_segments[track_index] = segments
                         track_index += 1
 
             # Add coordinates from additional tracks for map centering
@@ -208,8 +208,8 @@ with tab1:
                 for segment in track["segments"]:
                     all_coords.extend(segment)
 
-            # Store track coordinates in session state for the stats panel
-            st.session_state.track_coordinates = track_coordinates
+            # Store track segments in session state for the stats panel
+            st.session_state.track_segments = track_segments
 
             # Compute map center & zoom
             if all_coords:
@@ -231,30 +231,35 @@ with tab1:
 
             # Plot main tracks with color scheme
             if st.session_state.get("gpx_data"):
-                for track_index, coordinates in track_coordinates.items():
+                for track_index, segments in track_segments.items():
                     track_status = st.session_state.track_status.get(track_index, "To Explore")
                     # Orange for to explore, dark green for explored
                     track_color = "#FF8C00" if track_status == "To Explore" else "#006400"  # Orange → Dark Green
 
-                    folium.PolyLine(
-                        coordinates,
-                        color=track_color,
-                        weight=5,
-                        opacity=0.7,
-                        popup=f"Track {track_index}: {track_status}",
-                        tooltip="Click near this track!",
-                    ).add_to(m)
-
-                    # Start and End Points with matching colors
-                    for point in [coordinates[0], coordinates[-1]]:
-                        folium.CircleMarker(
-                            location=point,
-                            radius=6,
+                    # Plot each segment separately to avoid connecting disconnected segments
+                    for segment in segments:
+                        folium.PolyLine(
+                            segment,
                             color=track_color,
-                            fill=True,
-                            fill_color=track_color,
-                            fill_opacity=0.9,
+                            weight=5,
+                            opacity=0.7,
+                            popup=f"Track {track_index}: {track_status}",
+                            tooltip="Click near this track!",
                         ).add_to(m)
+
+                    # Start and End Points with matching colors (use first and last segments)
+                    if segments:
+                        first_segment = segments[0]
+                        last_segment = segments[-1]
+                        for point in [first_segment[0], last_segment[-1]]:
+                            folium.CircleMarker(
+                                location=point,
+                                radius=6,
+                                color=track_color,
+                                fill=True,
+                                fill_color=track_color,
+                                fill_opacity=0.9,
+                            ).add_to(m)
 
             # Plot additional tracks
             for _i, track in enumerate(st.session_state.additional_tracks):
@@ -298,12 +303,13 @@ with tab1:
                 closest_track = None
                 min_distance = float("inf")
 
-                for track_idx, coordinates in track_coordinates.items():
-                    for point in coordinates:
-                        distance = geopy.distance.geodesic(clicked_latlng, point).meters
-                        if distance < min_distance:
-                            min_distance = distance
-                            closest_track = track_idx
+                for track_idx, segments in track_segments.items():
+                    for segment in segments:
+                        for point in segment:
+                            distance = geopy.distance.geodesic(clicked_latlng, point).meters
+                            if distance < min_distance:
+                                min_distance = distance
+                                closest_track = track_idx
 
                 # Toggle track status if within 50 meters
                 if closest_track is not None and min_distance < CLICK_RANGE_METERS:
