@@ -15,6 +15,7 @@
     {
       "description": "Auto-merge minor, patch, pin, and digest updates",
       "automerge": true,
+      "platformAutomerge": true,
       "automergeStrategy": "squash",
       "matchUpdateTypes": ["minor", "patch", "pin", "digest"]
     },
