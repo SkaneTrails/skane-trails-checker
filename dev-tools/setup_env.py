@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """
 Setup script to fetch Firestore connection details from GCP Secret Manager
 and populate .env file for local development.
@@ -102,10 +101,7 @@ def get_gcp_project() -> str:
 
     try:
         result = subprocess.run(  # noqa: S603
-            [gcloud_path, "config", "get-value", "project"],
-            capture_output=True,
-            text=True,
-            check=True,
+            [gcloud_path, "config", "get-value", "project"], capture_output=True, text=True, check=True
         )
         project = result.stdout.strip()
         if not project:
