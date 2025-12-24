@@ -63,7 +63,7 @@ def calculate_track_distance(segments: list[list[tuple[float, float]]]) -> Track
     }
 
 
-def filter_tracks(
+def filter_tracks(  # noqa: PLR0913
     tracks: list[TrackInfo],
     *,
     search_query: str = "",

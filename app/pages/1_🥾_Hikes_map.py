@@ -9,7 +9,6 @@ from functions.tracks import (
     TrackInfo,
     calculate_track_distance,
     filter_tracks,
-    get_distance_range,
     load_track_statuses,
     save_track_statuses,
 )
@@ -157,7 +156,7 @@ with tab1:
             has_active_filters = (
                 st.session_state.get("filter_search", "")
                 or st.session_state.get("filter_min_distance", 0) > 0
-                or st.session_state.get("filter_max_distance", 100) < 50
+                or st.session_state.get("filter_max_distance", DEFAULT_MAX_DISTANCE) < DEFAULT_MAX_DISTANCE
                 or st.session_state.get("filter_status", "All") != "All"
             )
 
