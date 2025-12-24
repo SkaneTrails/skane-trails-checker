@@ -24,7 +24,7 @@ class TrackMetadata(TypedDict):
     point_count: int
 
 
-class TrackInfo(TypedDict):
+class TrackInfo(TypedDict, total=False):
     """Complete information about a track for filtering."""
 
     track_index: int
@@ -32,6 +32,7 @@ class TrackInfo(TypedDict):
     segments: list[list[tuple[float, float]]]
     status: str
     distance_km: float
+    source: str  # "skaneleden" or "additional"
 
 
 def calculate_track_distance(segments: list[list[tuple[float, float]]]) -> TrackMetadata:
@@ -93,8 +94,10 @@ def filter_tracks(  # noqa: PLR0913
         query_lower = search_query.lower()
         filtered = [t for t in filtered if query_lower in t["name"].lower()]
 
-    # Filter by distance range
-    filtered = [t for t in filtered if min_distance_km <= t["distance_km"] <= max_distance_km]
+    # Filter by distance range (skip for Skåneleden tracks - they have fixed official distances)
+    filtered = [
+        t for t in filtered if t.get("source") == "skaneleden" or min_distance_km <= t["distance_km"] <= max_distance_km
+    ]
 
     # Filter by exploration status
     if show_explored_only:

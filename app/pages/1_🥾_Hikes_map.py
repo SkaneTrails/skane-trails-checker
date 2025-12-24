@@ -43,38 +43,142 @@ st.title("🥾 Skåne Trails Explorer & Future Improvements")
 # Create tabs
 tab1, tab2 = st.tabs(["Map and trails 🌍", "🚀 Possible Improvements"])
 
+# Define file paths (use relative paths for better portability)
+cur_dir = pathlib.Path(__file__).parent.parent.absolute()
+data_directory = cur_dir
+# Create data directory if it doesn't exist
+data_directory.mkdir(parents=True, exist_ok=True)
 
-# Main GPX Explorer Tab
-with tab1:
-    # Use columns to create a sidebar-like layout while maintaining full width for the map
-    col1, col2 = st.columns([1, 4], gap="large")  # 1:4 ratio gives 20% width to stats, 80% to map
+# Define the path to the GPX file and CSV file
+world_wide_hikes_path = data_directory / "tracks_gpx/world_wide_hikes/"
+skaneleden_gpx_file_path = data_directory / "tracks_gpx/skaneleden/all-skane-trails.gpx"  # Main GPX file
+skane_other_files_path = data_directory / "tracks_gpx/other_trails/"  # Directory with other trails
+skaneleden_status = data_directory / "tracks_status/track_skaneleden_status.csv"  # Path for saving track statuses
+# Create directories if they don't exist
 
-    with col1:
-        # 🎨 Streamlit App Title (in the sidebar)
-        st.title("Skåne map and trails 🌍")
-
-    # Define file paths (use relative paths for better portability)
-    cur_dir = pathlib.Path(__file__).parent.parent.absolute()
-    data_directory = cur_dir
-    # Create data directory if it doesn't exist
-    data_directory.mkdir(parents=True, exist_ok=True)
-
-    # Define the path to the GPX file and CSV file
-    world_wide_hikes_path = data_directory / "tracks_gpx/world_wide_hikes/"
-    skaneleden_gpx_file_path = data_directory / "tracks_gpx/skaneleden/all-skane-trails.gpx"  # Main GPX file
-    skane_other_files_path = data_directory / "tracks_gpx/other_trails/"  # Directory with other trails
-    skaneleden_status = data_directory / "tracks_status/track_skaneleden_status.csv"  # Path for saving track statuses
-    # Create directories if they don't exist
-
-    skaneleden_status.parent.mkdir(parents=True, exist_ok=True)
-    skane_other_files_path.mkdir(parents=True, exist_ok=True)
-    world_wide_hikes_path.mkdir(parents=True, exist_ok=True)
+skaneleden_status.parent.mkdir(parents=True, exist_ok=True)
+skane_other_files_path.mkdir(parents=True, exist_ok=True)
+world_wide_hikes_path.mkdir(parents=True, exist_ok=True)
 
 
 # Initialize session state for trail source toggle if not already set
 if "use_world_wide_hikes" not in st.session_state:
     st.session_state.use_world_wide_hikes = False
+
 # 📂 Load GPX file based on current toggle state
+# Determine which GPX files to load based on toggle
+use_world_wide_hikes = st.session_state.get("use_world_wide_hikes", False)
+if use_world_wide_hikes:
+    gpx_file_path = None  # No main GPX file for world-wide hikes
+    additional_files_path = world_wide_hikes_path
+else:
+    gpx_file_path = skaneleden_gpx_file_path
+    additional_files_path = skane_other_files_path
+
+# Reload data if trail source has changed
+if "gpx_data" not in st.session_state or st.session_state.get("last_trail_source") != use_world_wide_hikes:
+    st.session_state.gpx_data = None
+    st.session_state.file_loaded = False
+    st.session_state.track_status = {}
+    st.session_state.additional_tracks = []
+    st.session_state.last_trail_source = use_world_wide_hikes
+
+    # Load main GPX file if it exists (not applicable for world-wide hikes)
+    if gpx_file_path and gpx_file_path.exists() and not use_world_wide_hikes:
+        with gpx_file_path.open(encoding="utf-8") as gpx_file:
+            gpx_string = gpx_file.read()  # Read file as string
+            st.session_state.gpx_data = gpxpy.parse(gpx_string)
+            st.session_state.file_loaded = True
+
+            # Load track statuses from CSV or initialize new
+            st.session_state.track_status = load_track_statuses(skaneleden_status)
+
+            # Assign "To Explore" to all tracks if not already set
+            for i in range(len(st.session_state.gpx_data.tracks)):
+                if i not in st.session_state.track_status:
+                    st.session_state.track_status[i] = "To Explore"
+
+            # Save initial statuses if needed
+            save_track_statuses(st.session_state.track_status, skaneleden_status)
+
+        # Load additional tracks based on current toggle state
+        st.session_state.additional_tracks = load_additional_gpx_files(additional_files_path)
+    elif use_world_wide_hikes:
+        # Load track statuses from CSV or initialize new
+        st.session_state.track_status = load_track_statuses(skaneleden_status)
+        # Load additional tracks for world-wide hikes
+        st.session_state.additional_tracks = load_additional_gpx_files(additional_files_path)
+    else:
+        st.session_state.file_loaded = False
+        st.session_state.additional_tracks = []
+
+# --- Filter Section (Above Map) ---
+with tab1:
+    # 🎨 Streamlit App Title
+    st.title("Skåne map and trails 🌍")
+
+    if st.session_state.get("file_loaded", False) or st.session_state.additional_tracks:
+        with st.expander("🔍 Filter Trails", expanded=True):
+            # Initialize filter state in session
+            if "filter_search" not in st.session_state:
+                st.session_state.filter_search = ""
+            if "filter_min_distance" not in st.session_state:
+                st.session_state.filter_min_distance = DEFAULT_MIN_DISTANCE
+            if "filter_max_distance" not in st.session_state:
+                st.session_state.filter_max_distance = DEFAULT_MAX_DISTANCE
+            if "filter_status" not in st.session_state:
+                st.session_state.filter_status = "All"
+
+            # Create horizontal layout for filters
+            filter_col1, filter_col2, filter_col3, filter_col4 = st.columns([2, 2, 2, 1])
+
+            with filter_col1:
+                search_query = st.text_input(
+                    "Search by name:",
+                    value=st.session_state.filter_search,
+                    placeholder="e.g., Söderåsen",
+                    key="trail_search_input",
+                )
+                st.session_state.filter_search = search_query
+
+            with filter_col2:
+                distance_range = st.slider(
+                    "Distance (km):",
+                    min_value=0.0,
+                    max_value=50.0,
+                    value=(st.session_state.filter_min_distance, st.session_state.filter_max_distance),
+                    step=1.0,
+                    key="distance_slider",
+                )
+                st.session_state.filter_min_distance = distance_range[0]
+                st.session_state.filter_max_distance = distance_range[1]
+
+            with filter_col3:
+                status_filter = st.radio(
+                    "Show:",
+                    options=["All", "Explored only", "To explore only"],
+                    index=0
+                    if st.session_state.filter_status == "All"
+                    else (1 if st.session_state.filter_status == "Explored only" else 2),
+                    horizontal=True,
+                    key="status_filter_radio",
+                )
+                st.session_state.filter_status = status_filter
+
+            with filter_col4:
+                st.write("")  # Spacer for alignment
+                if st.button("Clear Filters", key="clear_filters_btn"):
+                    st.session_state.filter_search = ""
+                    st.session_state.filter_min_distance = DEFAULT_MIN_DISTANCE
+                    st.session_state.filter_max_distance = DEFAULT_MAX_DISTANCE
+                    st.session_state.filter_status = "All"
+                    st.rerun()
+
+# Create columns for sidebar and map layout (AFTER filters)
+with tab1:
+    col1, col2 = st.columns([1, 4], gap="large")  # 1:4 ratio gives 20% width to stats, 80% to map
+
+# Display statistics and upload button in the left column
 with tab1:
     with col1:
         # Add toggle for trail source
@@ -84,58 +188,12 @@ with tab1:
             help="Toggle between Skåne trails and World Wide hikes",
         )
 
-        # Update session state with the toggle value
-        st.session_state.use_world_wide_hikes = use_world_wide_hikes
+        # Update session state with the toggle value and reload if changed
+        if use_world_wide_hikes != st.session_state.use_world_wide_hikes:
+            st.session_state.use_world_wide_hikes = use_world_wide_hikes
+            st.session_state.last_trail_source = None  # Force reload
+            st.rerun()
 
-    # Determine which GPX files to load based on toggle
-    if use_world_wide_hikes:
-        gpx_file_path = None  # No main GPX file for world-wide hikes
-        additional_files_path = world_wide_hikes_path
-    else:
-        gpx_file_path = skaneleden_gpx_file_path
-        additional_files_path = skane_other_files_path
-
-    # Reload data if trail source has changed
-    if "gpx_data" not in st.session_state or st.session_state.get("last_trail_source") != use_world_wide_hikes:
-        st.session_state.gpx_data = None
-        st.session_state.file_loaded = False
-        st.session_state.track_status = {}
-        st.session_state.additional_tracks = []
-        st.session_state.last_trail_source = use_world_wide_hikes
-
-        # Load main GPX file if it exists (not applicable for world-wide hikes)
-        if gpx_file_path and gpx_file_path.exists() and not use_world_wide_hikes:
-            with gpx_file_path.open(encoding="utf-8") as gpx_file:
-                gpx_string = gpx_file.read()  # Read file as string
-                st.session_state.gpx_data = gpxpy.parse(gpx_string)
-                st.session_state.file_loaded = True
-
-                # Load track statuses from CSV or initialize new
-                st.session_state.track_status = load_track_statuses(skaneleden_status)
-
-                # Assign "To Explore" to all tracks if not already set
-                for i in range(len(st.session_state.gpx_data.tracks)):
-                    if i not in st.session_state.track_status:
-                        st.session_state.track_status[i] = "To Explore"
-
-                # Save initial statuses if needed
-                save_track_statuses(st.session_state.track_status, skaneleden_status)
-
-            # Load additional tracks based on current toggle state
-            st.session_state.additional_tracks = load_additional_gpx_files(additional_files_path)
-        elif use_world_wide_hikes:
-            # Load track statuses from CSV or initialize new
-            st.session_state.track_status = load_track_statuses(skaneleden_status)
-            # Load additional tracks for world-wide hikes
-            st.session_state.additional_tracks = load_additional_gpx_files(additional_files_path)
-        else:
-            st.session_state.file_loaded = False
-            st.error(f"File not found: {gpx_file_path}")
-            st.session_state.additional_tracks = []
-
-# Display statistics and upload button in the left column
-with tab1:
-    with col1:
         if st.session_state.get("file_loaded", False) or st.session_state.additional_tracks:
             st.header("Track Statistics")
 
@@ -169,61 +227,6 @@ with tab1:
             st.metric(
                 "Completion Rate", f"{int((explored_tracks / total_tracks) * 100)}%" if total_tracks > 0 else "0%"
             )
-
-            # --- Filter Section ---
-            st.divider()
-            st.subheader("🔍 Filter Trails")
-
-            # Initialize filter state in session
-            if "filter_search" not in st.session_state:
-                st.session_state.filter_search = ""
-            if "filter_min_distance" not in st.session_state:
-                st.session_state.filter_min_distance = DEFAULT_MIN_DISTANCE
-            if "filter_max_distance" not in st.session_state:
-                st.session_state.filter_max_distance = DEFAULT_MAX_DISTANCE
-            if "filter_status" not in st.session_state:
-                st.session_state.filter_status = "All"
-
-            # Search by name
-            search_query = st.text_input(
-                "Search by name:",
-                value=st.session_state.filter_search,
-                placeholder="e.g., Söderåsen",
-                key="trail_search_input",
-            )
-            st.session_state.filter_search = search_query
-
-            # Distance range slider
-            distance_range = st.slider(
-                "Distance (km):",
-                min_value=0.0,
-                max_value=50.0,
-                value=(st.session_state.filter_min_distance, st.session_state.filter_max_distance),
-                step=1.0,
-                key="distance_slider",
-            )
-            st.session_state.filter_min_distance = distance_range[0]
-            st.session_state.filter_max_distance = distance_range[1]
-
-            # Status filter
-            status_filter = st.radio(
-                "Show:",
-                options=["All", "Explored only", "To explore only"],
-                index=0
-                if st.session_state.filter_status == "All"
-                else (1 if st.session_state.filter_status == "Explored only" else 2),
-                horizontal=True,
-                key="status_filter_radio",
-            )
-            st.session_state.filter_status = status_filter
-
-            # Clear filters button
-            if st.button("Clear Filters", key="clear_filters_btn"):
-                st.session_state.filter_search = ""
-                st.session_state.filter_min_distance = DEFAULT_MIN_DISTANCE
-                st.session_state.filter_max_distance = DEFAULT_MAX_DISTANCE
-                st.session_state.filter_status = "All"
-                st.rerun()
 
             st.divider()
 
@@ -295,6 +298,7 @@ with tab1:
                             "segments": segments,
                             "status": st.session_state.track_status.get(track_index, "To Explore"),
                             "distance_km": metadata["distance_km"],
+                            "source": "skaneleden",
                         }
                         all_track_info.append(track_info)
                         track_index += 1
@@ -310,6 +314,7 @@ with tab1:
                     "segments": track["segments"],
                     "status": st.session_state.track_status.get(track_idx, "To Explore"),
                     "distance_km": metadata["distance_km"],
+                    "source": "additional",
                 }
                 all_track_info.append(track_info)
                 for segment in track["segments"]:
