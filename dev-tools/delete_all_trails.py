@@ -12,6 +12,7 @@ from functions.firestore_client import get_firestore_client
 # Load environment variables
 load_env_if_needed()
 
+
 def delete_all_trails() -> None:
     """Delete all documents from trails collection."""
     db = get_firestore_client()
@@ -41,6 +42,7 @@ def delete_all_trails() -> None:
 
     print(f"[Firestore] Deleted {details_count} trail details")
     print(f"[Firestore] Total deleted: {count + details_count} documents")
+
 
 if __name__ == "__main__":
     print("=" * 60)

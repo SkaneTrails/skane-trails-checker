@@ -150,8 +150,7 @@ with tab1:
                 if st.session_state.get("last_uploaded_file_id") != uploaded_file_id:
                     with st.spinner(f"Validating and uploading {uploaded_file.name}..."):
                         success, message = handle_uploaded_gpx(
-                            uploaded_file,
-                            is_world_wide=st.session_state.use_world_wide_hikes,
+                            uploaded_file, is_world_wide=st.session_state.use_world_wide_hikes
                         )
                     if success:
                         st.success(message)

@@ -38,18 +38,10 @@ def gpx_track_to_trail(gpx_track: gpxpy.gpx.GPXTrack, source: str, index: int = 
     # Calculate bounds
     lats = [lat for lat, _ in all_coordinates]
     lngs = [lng for _, lng in all_coordinates]
-    bounds = TrailBounds(
-        north=max(lats),
-        south=min(lats),
-        east=max(lngs),
-        west=min(lngs),
-    )
+    bounds = TrailBounds(north=max(lats), south=min(lats), east=max(lngs), west=min(lngs))
 
     # Calculate center
-    center = TrailCenter(
-        lat=sum(lats) / len(lats),
-        lng=sum(lngs) / len(lngs),
-    )
+    center = TrailCenter(lat=sum(lats) / len(lats), lng=sum(lngs) / len(lngs))
 
     # Calculate approximate length (sum of distances between consecutive points)
     length_km = 0.0
@@ -60,7 +52,7 @@ def gpx_track_to_trail(gpx_track: gpxpy.gpx.GPXTrack, source: str, index: int = 
         # (1 degree ≈ 111 km at equator, less at higher latitudes)
         lat_diff = (lat2 - lat1) * 111.0
         lng_diff = (lng2 - lng1) * 111.0 * abs(lat1 / 90.0)  # Latitude correction
-        length_km += (lat_diff ** 2 + lng_diff ** 2) ** 0.5
+        length_km += (lat_diff**2 + lng_diff**2) ** 0.5
 
     # Generate stable trail_id from track name, index, and first coordinate
     # Include first coordinate to ensure uniqueness across files with same track names
@@ -82,7 +74,9 @@ def gpx_track_to_trail(gpx_track: gpxpy.gpx.GPXTrack, source: str, index: int = 
     )
 
 
-def load_trails_from_gpx_data(gpx_data: gpxpy.gpx.GPX | None, source: str, existing_statuses: dict[int, str] | None = None) -> list[Trail]:
+def load_trails_from_gpx_data(
+    gpx_data: gpxpy.gpx.GPX | None, source: str, existing_statuses: dict[int, str] | None = None
+) -> list[Trail]:
     """Convert GPX data to list of Trail objects.
 
     Args:
