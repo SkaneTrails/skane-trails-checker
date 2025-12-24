@@ -1,4 +1,5 @@
 """Quick script to check Firestore trails data."""
+
 import sys
 from pathlib import Path
 

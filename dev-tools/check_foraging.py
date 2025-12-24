@@ -1,4 +1,5 @@
 """Quick script to check Firestore foraging data."""
+
 from app.functions.env_loader import load_env_if_needed
 from app.functions.foraging_storage import get_all_foraging_spots
 

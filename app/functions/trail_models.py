@@ -57,10 +57,7 @@ class Trail:
                 "east": float(self.bounds.east),
                 "west": float(self.bounds.west),
             },
-            "center": {
-                "lat": float(self.center.lat),
-                "lng": float(self.center.lng),
-            },
+            "center": {"lat": float(self.center.lat), "lng": float(self.center.lng)},
             "source": self.source,
             "last_updated": self.last_updated,
         }
