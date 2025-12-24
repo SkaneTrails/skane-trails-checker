@@ -21,7 +21,7 @@ for trail in trails:
     status = trail.status
     source = trail.source
     updated = trail.last_updated
-    
+
     print(f"  ID: {trail.trail_id}")
     print(f"    Name: {name}")
     print(f"    Status: {status}")

@@ -8,7 +8,7 @@ import requests
 import streamlit as st
 
 # Load environment variables (with platform precedence)
-from functions.env_loader import load_env_if_needed
+from app.functions.env_loader import load_env_if_needed
 
 load_env_if_needed()
 

@@ -4,50 +4,50 @@ from pathlib import Path
 
 import gpxpy
 
-from functions.trail_converter import gpx_track_to_trail
-from functions.trail_storage import get_all_trails, save_trail
+from app.functions.trail_converter import gpx_track_to_trail
+from app.functions.trail_storage import get_all_trails, save_trail
 
 
 def bootstrap_planned_trails(gpx_file_path: Path | str) -> tuple[int, str]:
     """Load planned trails from disk GPX file to Firestore if not already present.
-    
+
     This function checks if any trails with source="planned_hikes" exist in Firestore.
     If none are found, it loads them from the specified GPX file.
-    
+
     Args:
         gpx_file_path: Path to the all-skane-trails.gpx file
-        
+
     Returns:
         Tuple of (trails_loaded, message)
     """
     gpx_path = Path(gpx_file_path)
-    
+
     print("[Bootstrap] Checking for planned trails in Firestore...")
-    
+
     # Check if file exists
     if not gpx_path.exists():
         msg = f"Planned trails GPX file not found: {gpx_path}"
         print(f"[Bootstrap] ERROR: {msg}")
         return 0, msg
-    
+
     # Check if planned trails already exist in Firestore
     all_trails = get_all_trails()
     planned_trails = [t for t in all_trails if t.source == "planned_hikes"]
-    
+
     if planned_trails:
         msg = f"Planned trails already in Firestore ({len(planned_trails)} trails)"
         print(f"[Bootstrap] {msg}")
         return 0, msg
-    
+
     # Load from disk
     print(f"[Bootstrap] Loading from {gpx_path}...")
     try:
         with gpx_path.open(encoding="utf-8") as gpx_file:
             gpx_string = gpx_file.read()
             gpx_data = gpxpy.parse(gpx_string)
-        
+
         print(f"[Bootstrap] Found {len(gpx_data.tracks)} tracks in GPX file")
-        
+
         loaded_count = 0
         for track in gpx_data.tracks:
             # Multi-segment GPX - treat each segment as separate trail
@@ -59,10 +59,10 @@ def bootstrap_planned_trails(gpx_file_path: Path | str) -> tuple[int, str]:
                         temp_track = gpxpy.gpx.GPXTrack()
                         temp_track.name = f"{track.name} - Segment {seg_idx + 1}"
                         temp_track.segments = [segment]
-                        
+
                         # Convert to Trail object
                         trail = gpx_track_to_trail(temp_track, source="planned_hikes", index=seg_idx)
-                        
+
                         print(f"  [Bootstrap] Saving trail {seg_idx + 1}/{len(track.segments)}: {trail.name}")
                         save_trail(trail)
                         loaded_count += 1
@@ -79,11 +79,11 @@ def bootstrap_planned_trails(gpx_file_path: Path | str) -> tuple[int, str]:
                 except Exception as e:
                     print(f"  [Bootstrap] ERROR: Failed to save track '{track.name}': {e}")
                     continue
-        
+
         msg = f"Loaded {loaded_count} Skåneleden trails from disk to Firestore"
         print(f"[Bootstrap] {msg}")
         return loaded_count, msg
-    
+
     except Exception as e:
         msg = f"Error loading Skåneleden trails: {e}"
         print(f"[Bootstrap] ERROR: {msg}")

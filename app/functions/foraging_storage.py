@@ -2,7 +2,7 @@
 
 from datetime import UTC, datetime
 
-from functions.firestore_client import get_collection
+from app.functions.firestore_client import get_collection
 
 
 def get_foraging_spots(month: str | None = None) -> list[dict]:

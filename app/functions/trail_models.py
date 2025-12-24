@@ -1,6 +1,6 @@
 """Data models for trails stored in Firestore."""
 
-from dataclasses import asdict, dataclass
+from dataclasses import dataclass
 
 
 @dataclass
