@@ -4,7 +4,7 @@ import sys
 from pathlib import Path
 
 # Add app directory to path for imports
-sys.path.insert(0, str(Path(__file__).parent / "app"))
+sys.path.insert(0, str(Path(__file__).parent.parent / "app"))
 
 from functions.env_loader import load_env_if_needed
 from functions.firestore_client import get_firestore_client
