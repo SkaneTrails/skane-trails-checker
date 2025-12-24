@@ -5,8 +5,10 @@ import folium
 import pandas as pd
 import plotly.express as px
 import streamlit as st
-from functions.env_loader import load_env_if_needed
-from functions.foraging_storage import (
+from streamlit_folium import st_folium
+
+from app.functions.env_loader import load_env_if_needed
+from app.functions.foraging_storage import (
     delete_foraging_spot,
     delete_foraging_type,
     get_foraging_spots,
@@ -14,14 +16,13 @@ from functions.foraging_storage import (
     save_foraging_spot,
     save_foraging_type,
 )
-from resources.foraging_resources import (
+from app.resources.foraging_resources import (
     color_options,
     foraging_calendar,
     foraging_items,
     month_to_season,
     nature_emojis,
 )
-from streamlit_folium import st_folium
 
 # Load environment variables (with platform precedence)
 load_env_if_needed()

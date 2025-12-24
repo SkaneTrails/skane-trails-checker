@@ -4,10 +4,11 @@ import folium
 import geopy.distance
 import gpxpy
 import streamlit as st
-from functions.env_loader import load_env_if_needed
-from functions.gpx import handle_uploaded_gpx, load_additional_gpx_files
-from functions.tracks import load_track_statuses, save_track_statuses
 from streamlit_folium import st_folium
+
+from app.functions.env_loader import load_env_if_needed
+from app.functions.gpx import handle_uploaded_gpx, load_additional_gpx_files
+from app.functions.tracks import load_track_statuses, save_track_statuses
 
 # Load environment variables (with platform precedence)
 load_env_if_needed()
