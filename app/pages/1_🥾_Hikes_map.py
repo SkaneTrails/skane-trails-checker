@@ -168,39 +168,42 @@ with tab1:
                     else:
                         st.error(message)
 
-    # Display Map in the right column if file is loaded or additional tracks exist
+    # Display Map in the right column
     with col2:
-        # Check if there are tracks to display from Firestore
-        tracks_to_display = st.session_state.trails
+        # 🗺️ Get all track coordinates to center map
+        all_coords = []
 
-        if tracks_to_display:
-            # 🗺️ Get all track coordinates to center map
-            all_coords = []
-
-            # Collect coordinates from Firestore trails
+        # Collect coordinates from Firestore trails
+        if st.session_state.trails:
             for trail in st.session_state.trails:
                 all_coords.extend(trail.coordinates_map)
 
-            # Compute map center & zoom
-            if all_coords:
-                avg_lat = sum(lat for lat, lon in all_coords) / len(all_coords)
-                avg_lon = sum(lon for lat, lon in all_coords) / len(all_coords)
+        # Compute map center & zoom
+        if all_coords:
+            avg_lat = sum(lat for lat, lon in all_coords) / len(all_coords)
+            avg_lon = sum(lon for lat, lon in all_coords) / len(all_coords)
 
-                # Check if using world-wide hikes and set specific center for Italy
-                if st.session_state.use_world_wide_hikes:
-                    # Coordinates for central Italy (e.g., Tuscany region)
-                    m = folium.Map(location=[43.7696, 11.2558], zoom_start=7)  # Centered on Florence
-                else:
-                    # Original dynamic centering for Skåne trails
-                    m = folium.Map(location=[avg_lat, avg_lon], zoom_start=10)
-            # If no coordinates, use Italy center as default
-            elif st.session_state.use_world_wide_hikes:
+            # Check if using world-wide hikes and set specific center for Italy
+            if st.session_state.use_world_wide_hikes:
+                # Coordinates for central Italy (e.g., Tuscany region)
                 m = folium.Map(location=[43.7696, 11.2558], zoom_start=7)  # Centered on Florence
             else:
-                m = folium.Map(zoom_start=10)
+                # Original dynamic centering for Skåne trails
+                m = folium.Map(location=[avg_lat, avg_lon], zoom_start=10)
+        # If no coordinates, use defaults based on mode
+        elif st.session_state.use_world_wide_hikes:
+            m = folium.Map(location=[43.7696, 11.2558], zoom_start=7)  # Centered on Florence
+        else:
+            # Default to Skåne region when no trails exist
+            m = folium.Map(location=[56.0, 13.5], zoom_start=9)  # Centered on Skåne
 
-            # Plot trails from Firestore
-            for trail in st.session_state.trails:
+        # Plot trails from Firestore (if any exist)
+        if st.session_state.trails:
+            # Plot planned hikes first (will be underneath), then uploaded trails (on top)
+            planned_trails = [t for t in st.session_state.trails if t.source == "planned_hikes"]
+            uploaded_trails = [t for t in st.session_state.trails if t.source != "planned_hikes"]
+            
+            for trail in planned_trails + uploaded_trails:
                 # Color scheme:
                 # - Planned hikes: Orange for to explore, dark green for explored
                 # - Uploaded trails: Blue (always blue, shows user-added content)
@@ -240,51 +243,53 @@ with tab1:
                             fill_opacity=0.9,
                         ).add_to(m)
 
-            # Enable ClickForMarker (lets us detect clicks on the map)
-            m.add_child(folium.LatLngPopup())
+        # Enable ClickForMarker (lets us detect clicks on the map) - always add regardless of trails
+        m.add_child(folium.LatLngPopup())
 
-            # Get the screen height (approximated)
-            map_height = 800  # Larger default height
+        # Get the screen height (approximated)
+        map_height = 800  # Larger default height
 
-            # Display the interactive map with full width and calculated height
-            # returned_objects=["last_clicked"] prevents reruns on zoom/pan, only on clicks
-            map_data = st_folium(m, height=map_height, width=None, key="map", returned_objects=["last_clicked"])
+        # Display the interactive map with full width and calculated height
+        # returned_objects=["last_clicked"] prevents reruns on zoom/pan, only on clicks
+        map_data = st_folium(m, height=map_height, width=None, key="map", returned_objects=["last_clicked"])
 
-            # Handle map clicks to toggle trail status
-            if map_data and "last_clicked" in map_data and map_data["last_clicked"] is not None:
-                clicked_latlng = (map_data["last_clicked"]["lat"], map_data["last_clicked"]["lng"])
+        # Handle map clicks to toggle trail status (only if trails exist)
+        if st.session_state.trails and map_data and "last_clicked" in map_data and map_data["last_clicked"] is not None:
+            clicked_latlng = (map_data["last_clicked"]["lat"], map_data["last_clicked"]["lng"])
 
-                # Find the closest trail to the clicked location
-                closest_trail = None
-                min_distance = float("inf")
+            # Find the closest trail to the clicked location
+            closest_trail = None
+            min_distance = float("inf")
 
-                for trail in st.session_state.trails:
-                    for point in trail.coordinates_map:
-                        distance = geopy.distance.geodesic(clicked_latlng, point).meters
-                        if distance < min_distance:
-                            min_distance = distance
-                            closest_trail = trail
+            for trail in st.session_state.trails:
+                for point in trail.coordinates_map:
+                    distance = geopy.distance.geodesic(clicked_latlng, point).meters
+                    if distance < min_distance:
+                        min_distance = distance
+                        closest_trail = trail
 
-                # Toggle trail status if within 50 meters
-                if closest_trail is not None and min_distance < CLICK_RANGE_METERS:
-                    # Toggle between "To Explore" and "Explored!"
-                    new_status = "Explored!" if closest_trail.status == "To Explore" else "To Explore"
+            # Toggle trail status if within 50 meters
+            if closest_trail is not None and min_distance < CLICK_RANGE_METERS:
+                # Toggle between "To Explore" and "Explored!"
+                new_status = "Explored!" if closest_trail.status == "To Explore" else "To Explore"
+                
+                # Update in Firestore
+                try:
+                    update_trail_status(closest_trail.trail_id, new_status)
                     
-                    # Update in Firestore
-                    try:
-                        update_trail_status(closest_trail.trail_id, new_status)
-                        
-                        # Update local state
-                        closest_trail.status = new_status
-                        
-                        st.success(f"✅ {closest_trail.name} has been marked as '{new_status}' and saved!")
-                        
-                        # Force UI refresh to update map color
-                        st.rerun()
-                    except Exception as e:
-                        st.error(f"❌ Failed to update trail status: {e}")
-        else:
-            st.warning("No tracks available to display. Try uploading a GPX file.")
+                    # Update local state
+                    closest_trail.status = new_status
+                    
+                    st.success(f"✅ {closest_trail.name} has been marked as '{new_status}' and saved!")
+                    
+                    # Force UI refresh to update map color
+                    st.rerun()
+                except Exception as e:
+                    st.error(f"❌ Failed to update trail status: {e}")
+
+        # Show info message when no trails exist
+        if not st.session_state.trails:
+            st.info("📍 No trails yet. Upload a GPX file to get started!")
 
 # Possible Improvements Tab
 with tab2:
