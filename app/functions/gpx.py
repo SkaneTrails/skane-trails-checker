@@ -1,4 +1,3 @@
-import shutil
 import tempfile
 from pathlib import Path
 from typing import Any, TypedDict
@@ -6,8 +5,8 @@ from typing import Any, TypedDict
 import gpxpy
 import streamlit as st
 
-from functions.trail_converter import gpx_track_to_trail
-from functions.trail_storage import save_trail
+from app.functions.trail_converter import gpx_track_to_trail
+from app.functions.trail_storage import save_trail
 
 
 class TrackData(TypedDict):
@@ -61,11 +60,11 @@ def handle_uploaded_gpx(
     is_world_wide: bool = False,
 ) -> tuple[bool, str]:
     """Upload GPX file and save trails to Firestore (no disk storage).
-    
+
     Args:
         uploaded_file: Streamlit uploaded file object
         is_world_wide: Whether this is a world-wide hike or local trail
-        
+
     Returns:
         Tuple of (success, message)
     """
@@ -84,7 +83,7 @@ def handle_uploaded_gpx(
             gpx_data = gpxpy.parse(gpx_string)  # This will raise an exception if the file is invalid
 
         print(f"[Upload] GPX valid, found {len(gpx_data.tracks)} tracks")
-        
+
         # Clean up temporary file
         tmp_file_path.unlink()
 
@@ -96,13 +95,13 @@ def handle_uploaded_gpx(
             try:
                 # Convert GPX track to Trail object
                 trail = gpx_track_to_trail(track, source=source, index=i)
-                
+
                 # Save simplified trail for map display
                 save_trail(trail)
                 saved_count += 1
-                
+
                 # Note: TrailDetails with full coordinates NOT saved due to Firestore 1MB document limit
-                
+
             except Exception as e:
                 # Continue processing other tracks even if one fails
                 st.warning(f"Failed to save track '{track.name}' to Firestore: {e}")

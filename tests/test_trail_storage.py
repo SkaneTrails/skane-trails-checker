@@ -110,7 +110,7 @@ class TestTrail:
             "difficulty": "Easy",
             "length_km": 10.0,
             "status": "Explored!",
-            "coordinates_map": [[56.0, 13.0], [56.1, 13.1]],
+            "coordinates_map": [{"lat": 56.0, "lng": 13.0}, {"lat": 56.1, "lng": 13.1}],
             "bounds": {"north": 56.1, "south": 56.0, "east": 13.1, "west": 13.0},
             "center": {"lat": 56.05, "lng": 13.05},
             "source": "other_trails",
@@ -159,7 +159,7 @@ class TestTrailDetails:
         """Test creating TrailDetails from dictionary."""
         data = {
             "trail_id": "test_trail",
-            "coordinates_full": [[56.0, 13.0], [56.1, 13.1], [56.2, 13.2]],
+            "coordinates_full": [{"lat": 56.0, "lng": 13.0}, {"lat": 56.1, "lng": 13.1}, {"lat": 56.2, "lng": 13.2}],
             "elevation_profile": [100.0, 110.0, 105.0],
             "waypoints": [{"name": "Point 1", "lat": 56.0, "lng": 13.0}],
             "statistics": {"distance": 20.0},
@@ -202,7 +202,7 @@ class TestGetAllTrails:
             "difficulty": "Easy",
             "length_km": 10.0,
             "status": "To Explore",
-            "coordinates_map": [[56.0, 13.0], [56.1, 13.1]],
+            "coordinates_map": [{"lat": 56.0, "lng": 13.0}, {"lat": 56.1, "lng": 13.1}],
             "bounds": {"north": 56.1, "south": 56.0, "east": 13.1, "west": 13.0},
             "center": {"lat": 56.05, "lng": 13.05},
             "source": "skaneleden",
@@ -216,7 +216,7 @@ class TestGetAllTrails:
             "difficulty": "Hard",
             "length_km": 20.0,
             "status": "Explored!",
-            "coordinates_map": [[57.0, 14.0], [57.1, 14.1]],
+            "coordinates_map": [{"lat": 57.0, "lng": 14.0}, {"lat": 57.1, "lng": 14.1}],
             "bounds": {"north": 57.1, "south": 57.0, "east": 14.1, "west": 14.0},
             "center": {"lat": 57.05, "lng": 14.05},
             "source": "other_trails",
@@ -243,7 +243,7 @@ class TestGetAllTrails:
             "difficulty": "Easy",
             "length_km": 5.0,
             "status": "To Explore",
-            "coordinates_map": [[56.0, 13.0]],
+            "coordinates_map": [{"lat": 56.0, "lng": 13.0}],
             "bounds": {"north": 56.0, "south": 56.0, "east": 13.0, "west": 13.0},
             "center": {"lat": 56.0, "lng": 13.0},
             "source": "skaneleden",
@@ -267,7 +267,7 @@ class TestGetTrailDetails:
         mock_doc.exists = True
         mock_doc.to_dict.return_value = {
             "trail_id": "trail1",
-            "coordinates_full": [[56.0, 13.0], [56.1, 13.1], [56.2, 13.2]],
+            "coordinates_full": [{"lat": 56.0, "lng": 13.0}, {"lat": 56.1, "lng": 13.1}, {"lat": 56.2, "lng": 13.2}],
             "elevation_profile": [100.0, 110.0, 105.0],
             "waypoints": None,
             "statistics": None,

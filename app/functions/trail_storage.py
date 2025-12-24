@@ -2,8 +2,8 @@
 
 from datetime import UTC, datetime
 
-from functions.firestore_client import get_collection
-from functions.trail_models import Trail, TrailDetails
+from app.functions.firestore_client import get_collection
+from app.functions.trail_models import Trail, TrailDetails
 
 
 def get_all_trails() -> list[Trail]:
@@ -55,7 +55,7 @@ def save_trail(trail: Trail) -> None:
     collection = get_collection("trails")
     trail.last_updated = datetime.now(UTC).isoformat()
     trail_dict = trail.to_dict()
-    
+
     collection.document(trail.trail_id).set(trail_dict)
     print(f"[Firestore] Saved trail: {trail.name}")
 

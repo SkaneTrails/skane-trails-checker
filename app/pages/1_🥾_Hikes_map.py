@@ -2,16 +2,13 @@ import pathlib
 
 import folium
 import geopy.distance
-import gpxpy
 import streamlit as st
 from streamlit_folium import st_folium
 
-from functions.bootstrap_trails import bootstrap_planned_trails
-from functions.env_loader import load_env_if_needed
-from functions.gpx import handle_uploaded_gpx
-from functions.trail_converter import gpx_track_to_trail, load_trails_from_gpx_data
-from functions.trail_models import Trail
-from functions.trail_storage import get_all_trails, save_trail, update_trail_status
+from app.functions.bootstrap_trails import bootstrap_planned_trails
+from app.functions.env_loader import load_env_if_needed
+from app.functions.gpx import handle_uploaded_gpx
+from app.functions.trail_storage import get_all_trails, update_trail_status
 
 # Load environment variables (with platform precedence)
 load_env_if_needed()
@@ -57,7 +54,7 @@ with tab1:
     # Bootstrap planned trails from disk if not in Firestore
     cur_dir = pathlib.Path(__file__).parent.parent.absolute()
     planned_gpx_file = cur_dir / "tracks_gpx/planned_hikes/all-skane-trails.gpx"
-    
+
     # Only bootstrap once per session
     if "planned_trails_bootstrapped" not in st.session_state:
         count, message = bootstrap_planned_trails(planned_gpx_file)
@@ -71,7 +68,7 @@ with tab1:
 # Initialize session state for trail source toggle if not already set
 if "use_world_wide_hikes" not in st.session_state:
     st.session_state.use_world_wide_hikes = False
-    
+
 # 📂 Load trails from Firestore based on current toggle state
 with tab1:
     with col1:
@@ -89,13 +86,13 @@ with tab1:
     if "trails" not in st.session_state or st.session_state.get("last_trail_source") != use_world_wide_hikes:
         st.session_state.trails = []  # List of Trail objects from Firestore
         st.session_state.last_trail_source = use_world_wide_hikes
-        
+
         # Load all trails from Firestore
         all_trails = get_all_trails()
 
         # Load trails from Firestore
         all_trails = get_all_trails()
-        
+
         # Filter trails by source based on toggle
         # Trail sources:
         #   - "skaneleden": Official Skåneleden trails (special coloring/behavior)
@@ -117,7 +114,7 @@ with tab1:
             # Calculate total tracks from Firestore trails (exclude planned hikes - those are available/planned trails)
             user_trails = [t for t in st.session_state.trails if t.source != "planned_hikes"]
             total_tracks = len(user_trails)
-            
+
             # Calculate explored tracks (only user trails)
             explored_tracks = sum(1 for trail in user_trails if trail.status == "Explored!")
 
@@ -129,12 +126,12 @@ with tab1:
 
             # Add trail legend
             st.subheader("🗺️ Trail Legend")
-            
+
             # Count trails by source
             planned_count = sum(1 for t in st.session_state.trails if t.source == "planned_hikes")
             other_trails_count = sum(1 for t in st.session_state.trails if t.source == "other_trails")
             world_wide_count = sum(1 for t in st.session_state.trails if t.source == "world_wide_hikes")
-            
+
             if planned_count > 0:
                 st.markdown(f"**Planned Hikes** ({planned_count}): 🟠 To Explore → 🟢 Explored")
             if other_trails_count > 0:
@@ -202,7 +199,7 @@ with tab1:
             # Plot planned hikes first (will be underneath), then uploaded trails (on top)
             planned_trails = [t for t in st.session_state.trails if t.source == "planned_hikes"]
             uploaded_trails = [t for t in st.session_state.trails if t.source != "planned_hikes"]
-            
+
             for trail in planned_trails + uploaded_trails:
                 # Color scheme:
                 # - Planned hikes: Orange for to explore, dark green for explored
@@ -272,16 +269,16 @@ with tab1:
             if closest_trail is not None and min_distance < CLICK_RANGE_METERS:
                 # Toggle between "To Explore" and "Explored!"
                 new_status = "Explored!" if closest_trail.status == "To Explore" else "To Explore"
-                
+
                 # Update in Firestore
                 try:
                     update_trail_status(closest_trail.trail_id, new_status)
-                    
+
                     # Update local state
                     closest_trail.status = new_status
-                    
+
                     st.success(f"✅ {closest_trail.name} has been marked as '{new_status}' and saved!")
-                    
+
                     # Force UI refresh to update map color
                     st.rerun()
                 except Exception as e:
