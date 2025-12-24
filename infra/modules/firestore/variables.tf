@@ -3,6 +3,11 @@ variable "project" {
   type        = string
 }
 
+variable "database_name" {
+  description = "Firestore database name (use a descriptive name, not 'default')"
+  type        = string
+}
+
 variable "location_id" {
   description = "Firestore location ID (e.g., eur3 for multi-region Europe)"
   type        = string

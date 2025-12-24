@@ -16,6 +16,7 @@ Requirements:
 """
 
 import argparse
+import shutil
 import sys
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
@@ -91,9 +92,17 @@ def get_gcp_project() -> str:
     """Get GCP project ID from gcloud config."""
     import subprocess
 
+    # Find gcloud executable (cross-platform)
+    gcloud_path = shutil.which("gcloud")
+    if not gcloud_path:
+        print(f"{Colors.RED}❌ gcloud CLI not found in PATH{Colors.RESET}")
+        print("\n💡 Install gcloud: https://cloud.google.com/sdk/docs/install")
+        print("   After installation, restart your terminal or IDE")
+        sys.exit(1)
+
     try:
         result = subprocess.run(
-            ["gcloud", "config", "get-value", "project"],  # noqa: S607
+            [gcloud_path, "config", "get-value", "project"],
             capture_output=True,
             text=True,
             check=True,
@@ -109,10 +118,6 @@ def get_gcp_project() -> str:
         print(f"{Colors.RED}❌ Failed to get GCP project from gcloud{Colors.RESET}")
         print("\n💡 Authenticate with:")
         print("   gcloud auth application-default login")
-        sys.exit(1)
-    except FileNotFoundError:
-        print(f"{Colors.RED}❌ gcloud CLI not found{Colors.RESET}")
-        print("\n💡 Install gcloud: https://cloud.google.com/sdk/docs/install")
         sys.exit(1)
 
 

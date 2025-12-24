@@ -2,8 +2,8 @@
 
 from datetime import UTC, datetime
 
-from app.functions.firestore_client import get_collection
-from app.functions.trail_models import Trail, TrailDetails
+from functions.firestore_client import get_collection
+from functions.trail_models import Trail, TrailDetails
 
 
 def get_all_trails() -> list[Trail]:
@@ -12,6 +12,7 @@ def get_all_trails() -> list[Trail]:
     Returns:
         List of Trail objects with simplified coordinates for map display
     """
+    print("[Firestore] Loading all trails...")
     collection = get_collection("trails")
     docs = collection.stream()
 
@@ -21,6 +22,7 @@ def get_all_trails() -> list[Trail]:
         if data:
             trails.append(Trail.from_dict(data))
 
+    print(f"[Firestore] Loaded {len(trails)} trails")
     return trails
 
 
@@ -49,9 +51,13 @@ def save_trail(trail: Trail) -> None:
     Args:
         trail: Trail object to save
     """
+    print(f"[Firestore] Saving trail: {trail.name} (ID: {trail.trail_id}, Source: {trail.source})")
     collection = get_collection("trails")
     trail.last_updated = datetime.now(UTC).isoformat()
-    collection.document(trail.trail_id).set(trail.to_dict())
+    trail_dict = trail.to_dict()
+    
+    collection.document(trail.trail_id).set(trail_dict)
+    print(f"[Firestore] Saved trail: {trail.name}")
 
 
 def save_trail_details(details: TrailDetails) -> None:
@@ -60,8 +66,11 @@ def save_trail_details(details: TrailDetails) -> None:
     Args:
         details: TrailDetails object to save
     """
+    print(f"[Firestore] Saving trail details for: {details.trail_id}")
     collection = get_collection("trail_details")
-    collection.document(details.trail_id).set(details.to_dict())
+    details_dict = details.to_dict()
+    collection.document(details.trail_id).set(details_dict)
+    print(f"[Firestore] Saved trail details for: {details.trail_id}")
 
 
 def update_trail_status(trail_id: str, status: str) -> None:
@@ -71,8 +80,10 @@ def update_trail_status(trail_id: str, status: str) -> None:
         trail_id: Unique identifier for the trail
         status: New status ("To Explore" | "Explored!")
     """
+    print(f"[Firestore] Updating trail {trail_id} status to: {status}")
     collection = get_collection("trails")
     collection.document(trail_id).update({"status": status, "last_updated": datetime.now(UTC).isoformat()})
+    print(f"[Firestore] Updated trail {trail_id} status")
 
 
 def delete_trail(trail_id: str) -> None:

@@ -7,8 +7,8 @@ import plotly.express as px
 import streamlit as st
 from streamlit_folium import st_folium
 
-from app.functions.env_loader import load_env_if_needed
-from app.functions.foraging_storage import (
+from functions.env_loader import load_env_if_needed
+from functions.foraging_storage import (
     delete_foraging_spot,
     delete_foraging_type,
     get_foraging_spots,
@@ -16,7 +16,7 @@ from app.functions.foraging_storage import (
     save_foraging_spot,
     save_foraging_type,
 )
-from app.resources.foraging_resources import (
+from resources.foraging_resources import (
     color_options,
     foraging_calendar,
     foraging_items,
@@ -28,9 +28,6 @@ from app.resources.foraging_resources import (
 load_env_if_needed()
 
 st.set_page_config(page_title="Seasonal Foraging Tracker", layout="wide")
-
-data_directory = Path("app/foraging_data")
-csv_data_path = data_directory / "foraging_data.csv"
 
 # Inject custom CSS for larger tabs
 st.markdown(
@@ -215,13 +212,6 @@ with tab2:
     # Display as table
     st.write("### Seasonal Foraging Availability")
     st.dataframe(df_calendar, height=480)
-
-    # Add a download button for the foraging data
-    if csv_data_path.exists():
-        with csv_data_path.open() as f:
-            st.download_button(
-                label="Download Foraging Data CSV", data=f, file_name="foraging_data.csv", mime="text/csv"
-            )
 
     # Add a section to visualize current foraging data
     st.write("### Your Foraging Data")
