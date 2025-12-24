@@ -103,12 +103,7 @@ class TestFilterTracks:
 
     def test_filter_combined_criteria(self, sample_tracks) -> None:
         """Filter using multiple criteria."""
-        result = filter_tracks(
-            sample_tracks,
-            search_query="trail",
-            min_distance_km=3.0,
-            show_unexplored_only=True,
-        )
+        result = filter_tracks(sample_tracks, search_query="trail", min_distance_km=3.0, show_unexplored_only=True)
 
         assert len(result) == 2
         assert all("trail" in t["name"].lower() for t in result)

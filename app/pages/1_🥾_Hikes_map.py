@@ -209,7 +209,9 @@ with tab1:
             status_filter = st.radio(
                 "Show:",
                 options=["All", "Explored only", "To explore only"],
-                index=0 if st.session_state.filter_status == "All" else (1 if st.session_state.filter_status == "Explored only" else 2),
+                index=0
+                if st.session_state.filter_status == "All"
+                else (1 if st.session_state.filter_status == "Explored only" else 2),
                 horizontal=True,
                 key="status_filter_radio",
             )
