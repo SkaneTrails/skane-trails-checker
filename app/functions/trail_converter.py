@@ -31,7 +31,7 @@ def gpx_track_to_trail(gpx_track: gpxpy.gpx.GPXTrack, source: str, index: int = 
     
     # Simplify coordinates to fit Firestore 1MB limit (~500-750 points for large trails)
     # Lower tolerance = more points. Adjusted to balance detail vs. document size.
-    simplified_coords = simplify_track_coordinates(all_coordinates, tolerance=0.0001)
+    simplified_coords = simplify_track_coordinates(all_coordinates, tolerance=0.00001)
     
     # Calculate bounds
     lats = [lat for lat, _ in all_coordinates]
@@ -60,9 +60,11 @@ def gpx_track_to_trail(gpx_track: gpxpy.gpx.GPXTrack, source: str, index: int = 
         lng_diff = (lng2 - lng1) * 111.0 * abs(lat1 / 90.0)  # Latitude correction
         length_km += (lat_diff ** 2 + lng_diff ** 2) ** 0.5
     
-    # Generate stable trail_id from track name and index
+    # Generate stable trail_id from track name, index, and first coordinate
+    # Include first coordinate to ensure uniqueness across files with same track names
     name = gpx_track.name or f"Unnamed Trail {index}"
-    trail_id = hashlib.md5(f"{source}_{name}_{index}".encode()).hexdigest()[:12]
+    first_coord = f"{all_coordinates[0][0]:.6f},{all_coordinates[0][1]:.6f}"
+    trail_id = hashlib.md5(f"{source}_{name}_{index}_{first_coord}".encode()).hexdigest()[:12]
     
     return Trail(
         trail_id=trail_id,
