@@ -1,9 +1,14 @@
 import pathlib
+import sys
+from pathlib import Path
 
 import folium
 import geopy.distance
 import streamlit as st
 from streamlit_folium import st_folium
+
+# Add project root to Python path for imports
+sys.path.insert(0, str(Path(__file__).parent.parent.parent.absolute()))
 
 from app.functions.bootstrap_trails import bootstrap_planned_trails
 from app.functions.env_loader import load_env_if_needed

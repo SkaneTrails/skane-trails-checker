@@ -1,4 +1,6 @@
+import sys
 from datetime import UTC, datetime
+from pathlib import Path
 
 import folium
 import pandas as pd
@@ -12,6 +14,9 @@ from resources.foraging_resources import (
     nature_emojis,
 )
 from streamlit_folium import st_folium
+
+# Add project root to Python path for imports
+sys.path.insert(0, str(Path(__file__).parent.parent.parent.absolute()))
 
 from app.functions.env_loader import load_env_if_needed
 from app.functions.foraging_storage import (
