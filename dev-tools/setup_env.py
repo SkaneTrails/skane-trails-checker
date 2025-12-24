@@ -101,7 +101,7 @@ def get_gcp_project() -> str:
         sys.exit(1)
 
     try:
-        result = subprocess.run(
+        result = subprocess.run(  # noqa: S603
             [gcloud_path, "config", "get-value", "project"],
             capture_output=True,
             text=True,

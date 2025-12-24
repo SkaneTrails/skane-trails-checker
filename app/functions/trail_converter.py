@@ -66,7 +66,7 @@ def gpx_track_to_trail(gpx_track: gpxpy.gpx.GPXTrack, source: str, index: int = 
     # Include first coordinate to ensure uniqueness across files with same track names
     name = gpx_track.name or f"Unnamed Trail {index}"
     first_coord = f"{all_coordinates[0][0]:.6f},{all_coordinates[0][1]:.6f}"
-    trail_id = hashlib.md5(f"{source}_{name}_{index}_{first_coord}".encode()).hexdigest()[:12]
+    trail_id = hashlib.md5(f"{source}_{name}_{index}_{first_coord}".encode()).hexdigest()[:12]  # noqa: S324
 
     return Trail(
         trail_id=trail_id,
