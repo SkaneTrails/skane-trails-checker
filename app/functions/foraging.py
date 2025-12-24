@@ -5,7 +5,10 @@ from typing import ClassVar
 import pandas as pd
 import streamlit as st
 
-from resources.foraging_resources import default_foraging_types
+try:
+    from app.resources.foraging_resources import default_foraging_types
+except ModuleNotFoundError:
+    from resources.foraging_resources import default_foraging_types
 
 
 class Foraging:

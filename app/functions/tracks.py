@@ -6,7 +6,10 @@ import geopy.distance
 import pandas as pd
 import streamlit as st
 
-from app.resources.hikes_resources import DEFAULT_MAX_DISTANCE, DEFAULT_MIN_DISTANCE
+try:
+    from app.resources.hikes_resources import DEFAULT_MAX_DISTANCE, DEFAULT_MIN_DISTANCE
+except ModuleNotFoundError:
+    from resources.hikes_resources import DEFAULT_MAX_DISTANCE, DEFAULT_MIN_DISTANCE
 
 # Constants
 MIN_POINTS_FOR_SIMPLIFICATION = 2  # Minimum points needed for RDP algorithm
