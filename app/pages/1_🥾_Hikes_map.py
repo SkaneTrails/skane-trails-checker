@@ -44,12 +44,20 @@ st.title("🥾 Skåne Trails Explorer & Future Improvements")
 # Create tabs
 tab1, tab2 = st.tabs(["Map and trails 🌍", "🚀 Possible Improvements"])
 
+# Define file paths (use relative paths for better portability)
+cur_dir = pathlib.Path(__file__).parent.parent.absolute()
+data_directory = cur_dir
+# Create data directory if it doesn't exist
+data_directory.mkdir(parents=True, exist_ok=True)
 
-# Main GPX Explorer Tab
-with tab1:
-    # Use columns to create a sidebar-like layout while maintaining full width for the map
-    col1, col2 = st.columns([1, 4], gap="large")  # 1:4 ratio gives 20% width to stats, 80% to map
+# Define the path to the GPX file and CSV file
+world_wide_hikes_path = data_directory / "tracks_gpx/world_wide_hikes/"
+skaneleden_gpx_file_path = data_directory / "tracks_gpx/skaneleden/all-skane-trails.gpx"  # Main GPX file
+skane_other_files_path = data_directory / "tracks_gpx/other_trails/"  # Directory with other trails
+skaneleden_status = data_directory / "tracks_status/track_skaneleden_status.csv"  # Path for saving track statuses
+# Create directories if they don't exist
 
+<<<<<<< HEAD
     with col1:
         # 🎨 Streamlit App Title (in the sidebar)
         st.title("Skåne map and trails 🌍")
@@ -66,13 +74,136 @@ with tab1:
             st.info(f"📍 {message}")
             # Trigger a reload to display the newly loaded trails
             st.rerun()
+=======
+skaneleden_status.parent.mkdir(parents=True, exist_ok=True)
+skane_other_files_path.mkdir(parents=True, exist_ok=True)
+world_wide_hikes_path.mkdir(parents=True, exist_ok=True)
+>>>>>>> origin/main
 
 
 # Initialize session state for trail source toggle if not already set
 if "use_world_wide_hikes" not in st.session_state:
     st.session_state.use_world_wide_hikes = False
+<<<<<<< HEAD
     
 # 📂 Load trails from Firestore based on current toggle state
+=======
+
+# 📂 Load GPX file based on current toggle state
+# Determine which GPX files to load based on toggle
+use_world_wide_hikes = st.session_state.get("use_world_wide_hikes", False)
+if use_world_wide_hikes:
+    gpx_file_path = None  # No main GPX file for world-wide hikes
+    additional_files_path = world_wide_hikes_path
+else:
+    gpx_file_path = skaneleden_gpx_file_path
+    additional_files_path = skane_other_files_path
+
+# Reload data if trail source has changed
+if "gpx_data" not in st.session_state or st.session_state.get("last_trail_source") != use_world_wide_hikes:
+    st.session_state.gpx_data = None
+    st.session_state.file_loaded = False
+    st.session_state.track_status = {}
+    st.session_state.additional_tracks = []
+    st.session_state.last_trail_source = use_world_wide_hikes
+
+    # Load main GPX file if it exists (not applicable for world-wide hikes)
+    if gpx_file_path and gpx_file_path.exists() and not use_world_wide_hikes:
+        with gpx_file_path.open(encoding="utf-8") as gpx_file:
+            gpx_string = gpx_file.read()  # Read file as string
+            st.session_state.gpx_data = gpxpy.parse(gpx_string)
+            st.session_state.file_loaded = True
+
+            # Load track statuses from CSV or initialize new
+            st.session_state.track_status = load_track_statuses(skaneleden_status)
+
+            # Assign "To Explore" to all tracks if not already set
+            for i in range(len(st.session_state.gpx_data.tracks)):
+                if i not in st.session_state.track_status:
+                    st.session_state.track_status[i] = "To Explore"
+
+            # Save initial statuses if needed
+            save_track_statuses(st.session_state.track_status, skaneleden_status)
+
+        # Load additional tracks based on current toggle state
+        st.session_state.additional_tracks = load_additional_gpx_files(additional_files_path)
+    elif use_world_wide_hikes:
+        # Load track statuses from CSV or initialize new
+        st.session_state.track_status = load_track_statuses(skaneleden_status)
+        # Load additional tracks for world-wide hikes
+        st.session_state.additional_tracks = load_additional_gpx_files(additional_files_path)
+    else:
+        st.session_state.file_loaded = False
+        st.session_state.additional_tracks = []
+
+# --- Filter Section (Above Map) ---
+with tab1:
+    # 🎨 Streamlit App Title
+    st.title("Skåne map and trails 🌍")
+
+    if st.session_state.get("file_loaded", False) or st.session_state.additional_tracks:
+        with st.expander("🔍 Filter Trails", expanded=True):
+            # Initialize filter state in session
+            if "filter_search" not in st.session_state:
+                st.session_state.filter_search = ""
+            if "filter_min_distance" not in st.session_state:
+                st.session_state.filter_min_distance = DEFAULT_MIN_DISTANCE
+            if "filter_max_distance" not in st.session_state:
+                st.session_state.filter_max_distance = DEFAULT_MAX_DISTANCE
+            if "filter_status" not in st.session_state:
+                st.session_state.filter_status = "All"
+
+            # Create horizontal layout for filters
+            filter_col1, filter_col2, filter_col3, filter_col4 = st.columns([2, 2, 2, 1])
+
+            with filter_col1:
+                search_query = st.text_input(
+                    "Search by name:",
+                    value=st.session_state.filter_search,
+                    placeholder="e.g., Söderåsen",
+                    key="trail_search_input",
+                )
+                st.session_state.filter_search = search_query
+
+            with filter_col2:
+                distance_range = st.slider(
+                    "Distance (km):",
+                    min_value=0.0,
+                    max_value=50.0,
+                    value=(st.session_state.filter_min_distance, st.session_state.filter_max_distance),
+                    step=1.0,
+                    key="distance_slider",
+                )
+                st.session_state.filter_min_distance = distance_range[0]
+                st.session_state.filter_max_distance = distance_range[1]
+
+            with filter_col3:
+                status_filter = st.radio(
+                    "Show:",
+                    options=["All", "Explored only", "To explore only"],
+                    index=0
+                    if st.session_state.filter_status == "All"
+                    else (1 if st.session_state.filter_status == "Explored only" else 2),
+                    horizontal=True,
+                    key="status_filter_radio",
+                )
+                st.session_state.filter_status = status_filter
+
+            with filter_col4:
+                st.write("")  # Spacer for alignment
+                if st.button("Clear Filters", key="clear_filters_btn"):
+                    st.session_state.filter_search = ""
+                    st.session_state.filter_min_distance = DEFAULT_MIN_DISTANCE
+                    st.session_state.filter_max_distance = DEFAULT_MAX_DISTANCE
+                    st.session_state.filter_status = "All"
+                    st.rerun()
+
+# Create columns for sidebar and map layout (AFTER filters)
+with tab1:
+    col1, col2 = st.columns([1, 4], gap="large")  # 1:4 ratio gives 20% width to stats, 80% to map
+
+# Display statistics and upload button in the left column
+>>>>>>> origin/main
 with tab1:
     with col1:
         # Add toggle for trail source
@@ -82,9 +213,13 @@ with tab1:
             help="Toggle between Skåne trails and World Wide hikes",
         )
 
-        # Update session state with the toggle value
-        st.session_state.use_world_wide_hikes = use_world_wide_hikes
+        # Update session state with the toggle value and reload if changed
+        if use_world_wide_hikes != st.session_state.use_world_wide_hikes:
+            st.session_state.use_world_wide_hikes = use_world_wide_hikes
+            st.session_state.last_trail_source = None  # Force reload
+            st.rerun()
 
+<<<<<<< HEAD
     # Reload data if trail source has changed
     if "trails" not in st.session_state or st.session_state.get("last_trail_source") != use_world_wide_hikes:
         st.session_state.trails = []  # List of Trail objects from Firestore
@@ -112,6 +247,9 @@ with tab1:
 with tab1:
     with col1:
         if st.session_state.trails:
+=======
+        if st.session_state.get("file_loaded", False) or st.session_state.additional_tracks:
+>>>>>>> origin/main
             st.header("Track Statistics")
 
             # Calculate total tracks from Firestore trails (exclude planned hikes - those are available/planned trails)
@@ -121,12 +259,26 @@ with tab1:
             # Calculate explored tracks (only user trails)
             explored_tracks = sum(1 for trail in user_trails if trail.status == "Explored!")
 
-            st.metric("Total Tracks", total_tracks)
+            # Show filtered count if filters are active
+            filtered_count = st.session_state.get("filtered_track_count", total_tracks)
+            has_active_filters = (
+                st.session_state.get("filter_search", "")
+                or st.session_state.get("filter_min_distance", 0) > 0
+                or st.session_state.get("filter_max_distance", DEFAULT_MAX_DISTANCE) < DEFAULT_MAX_DISTANCE
+                or st.session_state.get("filter_status", "All") != "All"
+            )
+
+            if has_active_filters:
+                st.metric("Showing", f"{filtered_count} of {total_tracks}")
+            else:
+                st.metric("Total Tracks", total_tracks)
+
             st.metric("Explored Tracks", explored_tracks)
             st.metric(
                 "Completion Rate", f"{int((explored_tracks / total_tracks) * 100)}%" if total_tracks > 0 else "0%"
             )
 
+<<<<<<< HEAD
             # Add trail legend
             st.subheader("🗺️ Trail Legend")
             
@@ -141,6 +293,13 @@ with tab1:
                 st.markdown(f"**Local Trails** ({other_trails_count}): 🔵 Uploaded trails")
             if world_wide_count > 0:
                 st.markdown(f"**World Wide** ({world_wide_count}): 🔵 Uploaded trails")
+=======
+            st.divider()
+
+            # Display a button to manually save status
+            if st.button("Save Track Status") and save_track_statuses(st.session_state.track_status, skaneleden_status):
+                st.success("Track statuses saved successfully!")
+>>>>>>> origin/main
 
             # Add GPX upload section
             st.subheader("Upload Additional Trails")
@@ -176,10 +335,80 @@ with tab1:
         if tracks_to_display:
             # 🗺️ Get all track coordinates to center map
             all_coords = []
+<<<<<<< HEAD
 
             # Collect coordinates from Firestore trails
             for trail in st.session_state.trails:
                 all_coords.extend(trail.coordinates_map)
+=======
+            track_segments = {}  # Store track segments separately {track_index: [segment1, segment2, ...]}
+            all_track_info: list[TrackInfo] = []  # Collect all track info for filtering
+
+            # Process main GPX tracks if they exist
+            gpx_data = st.session_state.get("gpx_data")
+            if gpx_data:
+                track_index = 0  # Ensuring unique track index
+                for track in gpx_data.tracks:
+                    # Collect all segments for this track as separate lists
+                    segments = []
+                    for segment in track.segments:
+                        coordinates = [(point.latitude, point.longitude) for point in segment.points]
+                        if coordinates:
+                            segments.append(coordinates)
+                            all_coords.extend(coordinates)
+
+                    # Store all segments of this track under one track_index
+                    if segments:
+                        track_segments[track_index] = segments
+                        # Calculate distance and store track info
+                        metadata = calculate_track_distance(segments)
+                        track_info: TrackInfo = {
+                            "track_index": track_index,
+                            "name": track.name or f"Track {track_index}",
+                            "segments": segments,
+                            "status": st.session_state.track_status.get(track_index, "To Explore"),
+                            "distance_km": metadata["distance_km"],
+                            "source": "skaneleden",
+                        }
+                        all_track_info.append(track_info)
+                        track_index += 1
+
+            # Add additional tracks
+            additional_start_idx = len(track_segments)
+            for i, track in enumerate(st.session_state.additional_tracks):
+                track_idx = additional_start_idx + i
+                metadata = calculate_track_distance(track["segments"])
+                track_info = {
+                    "track_index": track_idx,
+                    "name": track["name"],
+                    "segments": track["segments"],
+                    "status": st.session_state.track_status.get(track_idx, "To Explore"),
+                    "distance_km": metadata["distance_km"],
+                    "source": "additional",
+                }
+                all_track_info.append(track_info)
+                for segment in track["segments"]:
+                    all_coords.extend(segment)
+
+            # Apply filters to tracks
+            show_explored = st.session_state.filter_status == "Explored only"
+            show_unexplored = st.session_state.filter_status == "To explore only"
+            filtered_tracks = filter_tracks(
+                all_track_info,
+                search_query=st.session_state.filter_search,
+                min_distance_km=st.session_state.filter_min_distance,
+                max_distance_km=st.session_state.filter_max_distance,
+                show_explored_only=show_explored,
+                show_unexplored_only=show_unexplored,
+            )
+
+            # Create set of filtered track indices for efficient lookup
+            filtered_track_indices = {t["track_index"] for t in filtered_tracks}
+
+            # Store track segments in session state for the stats panel
+            st.session_state.track_segments = track_segments
+            st.session_state.filtered_track_count = len(filtered_tracks)
+>>>>>>> origin/main
 
             # Compute map center & zoom
             if all_coords:
@@ -199,6 +428,7 @@ with tab1:
             else:
                 m = folium.Map(zoom_start=10)
 
+<<<<<<< HEAD
             # Plot trails from Firestore
             for trail in st.session_state.trails:
                 # Color scheme:
@@ -231,13 +461,88 @@ with tab1:
                     start_point = trail.coordinates_map[0]
                     end_point = trail.coordinates_map[-1]
                     for point in [start_point, end_point]:
+=======
+            # Plot main tracks with color scheme (only filtered tracks)
+            if st.session_state.get("gpx_data"):
+                for track_index, segments in track_segments.items():
+                    # Skip tracks that are filtered out
+                    if track_index not in filtered_track_indices:
+                        continue
+
+                    track_status = st.session_state.track_status.get(track_index, "To Explore")
+                    # Orange for to explore, dark green for explored
+                    track_color = "#FF8C00" if track_status == "To Explore" else "#006400"  # Orange → Dark Green
+
+                    # Get distance for this track from filtered data
+                    track_data = next((t for t in filtered_tracks if t["track_index"] == track_index), None)
+                    distance_km = track_data["distance_km"] if track_data else 0
+                    distance_text = f" | {distance_km:.1f} km" if distance_km > 0 else ""
+
+                    # Plot each segment separately to avoid connecting disconnected segments
+                    for segment in segments:
+                        folium.PolyLine(
+                            segment,
+                            color=track_color,
+                            weight=5,
+                            opacity=0.7,
+                            popup=f"Track {track_index}: {track_status}{distance_text}",
+                            tooltip=f"Track {track_index}{distance_text} - Click to toggle!",
+                        ).add_to(m)
+
+                    # Start and End Points with matching colors (use first and last segments)
+                    if segments:
+                        first_segment = segments[0]
+                        last_segment = segments[-1]
+                        for point in [first_segment[0], last_segment[-1]]:
+                            folium.CircleMarker(
+                                location=point,
+                                radius=6,
+                                color=track_color,
+                                fill=True,
+                                fill_color=track_color,
+                                fill_opacity=0.9,
+                            ).add_to(m)
+
+            # Plot additional tracks (only filtered ones)
+            additional_start_idx = len(track_segments)
+            for i, track in enumerate(st.session_state.additional_tracks):
+                track_idx = additional_start_idx + i
+                # Skip tracks that are filtered out
+                if track_idx not in filtered_track_indices:
+                    continue
+
+                # Get distance for this track from filtered data
+                track_data = next((t for t in filtered_tracks if t["track_index"] == track_idx), None)
+                distance_km = track_data["distance_km"] if track_data else 0
+                distance_text = f" | {distance_km:.1f} km" if distance_km > 0 else ""
+
+                for segment in track["segments"]:
+                    # Create a dashed line for additional tracks
+                    folium.PolyLine(
+                        segment,
+                        color="#2683b5",  # Blue color
+                        weight=4,
+                        opacity=0.8,
+                        popup=f"Trail: {track['name']}{distance_text}",
+                        tooltip=f"Trail: {track['name']}{distance_text}",
+                    ).add_to(m)
+
+                    # Add circle markers for start and end
+                    for point in [segment[0], segment[-1]]:
+>>>>>>> origin/main
                         folium.CircleMarker(
                             location=[point[0], point[1]],
                             radius=6,
                             color=track_color,
                             fill=True,
+<<<<<<< HEAD
                             fill_color=track_color,
                             fill_opacity=0.9,
+=======
+                            fill_color="#2683b5",
+                            fill_opacity=0.8,
+                            popup=f"Trail: {track['name']}{distance_text}",
+>>>>>>> origin/main
                         ).add_to(m)
 
             # Enable ClickForMarker (lets us detect clicks on the map)
