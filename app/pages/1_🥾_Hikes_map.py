@@ -450,9 +450,6 @@ with col2:
                     st.rerun()
                 except Exception as e:
                     st.error(f"❌ Failed to update trail status: {e}")
-            else:
-                # For uploaded hikes, just highlight and show in sidebar
-                st.rerun()
 
     # Show info message when no trails exist
     if not st.session_state.trails:
