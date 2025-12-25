@@ -54,11 +54,6 @@ dev = [
 [tool.uv]
 package = false
 
-# Automatically install pre-commit hooks after sync
-post-install = [
-  "pre-commit install --install-hooks",
-]
-
 [tool.ruff]
 target-version = "py313" # Ruff doesn't support py314 yet, py313 is compatible
 
