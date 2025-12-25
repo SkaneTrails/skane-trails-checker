@@ -144,30 +144,30 @@ with tab1:
             if world_wide_count > 0:
                 st.markdown(f"**World Wide** ({world_wide_count}): 🔵 Uploaded trails")
 
-            # Add GPX upload section
-            st.subheader("Upload Additional Trails")
-            uploaded_file = st.file_uploader("Upload GPX file", type=["gpx"], key="gpx_uploader")
+        # Add GPX upload section - always visible, not just when trails exist
+        st.subheader("Upload Additional Trails")
+        uploaded_file = st.file_uploader("Upload GPX file", type=["gpx"], key="gpx_uploader")
 
-            # Handle file upload - check if we haven't already processed this file
-            if uploaded_file is not None:
-                # Use a session state flag to track if we've processed this upload
-                uploaded_file_id = f"{uploaded_file.name}_{uploaded_file.size}"
-                if st.session_state.get("last_uploaded_file_id") != uploaded_file_id:
-                    with st.spinner(f"Validating and uploading {uploaded_file.name}..."):
-                        success, message = handle_uploaded_gpx(
-                            uploaded_file, is_world_wide=st.session_state.use_world_wide_hikes
-                        )
-                    if success:
-                        st.success(message)
-                        # Mark this file as processed
-                        st.session_state.last_uploaded_file_id = uploaded_file_id
-                        # Force reload of trails by clearing the cache
-                        if "trails" in st.session_state:
-                            del st.session_state["trails"]
-                        # Force refresh to show new track
-                        st.rerun()
-                    else:
-                        st.error(message)
+        # Handle file upload - check if we haven't already processed this file
+        if uploaded_file is not None:
+            # Use a session state flag to track if we've processed this upload
+            uploaded_file_id = f"{uploaded_file.name}_{uploaded_file.size}"
+            if st.session_state.get("last_uploaded_file_id") != uploaded_file_id:
+                with st.spinner(f"Validating and uploading {uploaded_file.name}..."):
+                    success, message = handle_uploaded_gpx(
+                        uploaded_file, is_world_wide=st.session_state.use_world_wide_hikes
+                    )
+                if success:
+                    st.success(message)
+                    # Mark this file as processed
+                    st.session_state.last_uploaded_file_id = uploaded_file_id
+                    # Force reload of trails by clearing the cache
+                    if "trails" in st.session_state:
+                        del st.session_state["trails"]
+                    # Force refresh to show new track
+                    st.rerun()
+                else:
+                    st.error(message)
 
     # Display Map in the right column
     with col2:
