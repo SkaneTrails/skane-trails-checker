@@ -75,13 +75,15 @@ uv sync --extra dev  # Install all dependencies including dev tools
    This creates a `.env` file with Firestore connection details. The file is automatically gitignored.
 
    **If gcloud is not found in PATH:**
-   
+
    **PowerShell:**
+
    ```powershell
    $env:PATH += ";$(Split-Path (Get-Command gcloud).Path)"
    ```
-   
+
    **Bash:**
+
    ```bash
    export PATH="$PATH:$(dirname $(which gcloud))"
    ```
