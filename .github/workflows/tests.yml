@@ -31,6 +31,10 @@ jobs:
 
   lint:
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        check: [pre-commit, ruff-check, ruff-format, deptry, ty]
 
     steps:
       - name: Checkout
@@ -48,24 +52,28 @@ jobs:
         run: uv sync
 
       - name: Cache pre-commit environments
+        if: matrix.check == 'pre-commit'
         uses: actions/cache@1bd1e32a3bdc45362d1e726936510720a7c30a57 # v4.2.0
         with:
           path: ~/.cache/pre-commit
           key: pre-commit-${{ runner.os }}-${{ hashFiles('.pre-commit-config.yaml') }}
 
-      - name: Run pre-commit hooks
-        run: uv run pre-commit run --all-files
-        env:
-          SKIP: terraform_fmt,terraform_trivy
-
-      - name: Run ruff check
-        run: uv run ruff check .
-
-      - name: Run ruff format check
-        run: uv run ruff format --check .
-
-      - name: Run deptry
-        run: uv run deptry .
-
-      - name: Run ty type check
-        run: uv run ty check app/
+      - name: Run ${{ matrix.check }}
+        run: |
+          case "${{ matrix.check }}" in
+            pre-commit)
+              SKIP=terraform_fmt,terraform_trivy uv run pre-commit run --all-files
+              ;;
+            ruff-check)
+              uv run ruff check .
+              ;;
+            ruff-format)
+              uv run ruff format --check .
+              ;;
+            deptry)
+              uv run deptry .
+              ;;
+            ty)
+              uv run ty check app/ --fail-on-warning
+              ;;
+          esac

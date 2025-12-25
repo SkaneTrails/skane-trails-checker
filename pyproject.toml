@@ -101,6 +101,9 @@ known_first_party = [ "skane-trails-checker" ]
 ignore_notebooks = true
 pep621_dev_dependency_groups = [ "dev" ]
 
+[tool.deptry.package_module_name_map]
+skane-trails-checker = "app"
+
 [tool.deptry.per_rule_ignores]
 # numpy is a transitive dependency used via rdp for coordinate simplification
 DEP003 = [ "numpy" ]
