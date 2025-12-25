@@ -16,18 +16,67 @@ You are collaborating with a human who may make changes between your edits:
 - **Consider alternatives early** - if fixing an issue seems difficult, time-consuming, or impossible due to fundamental limitations (library constraints, architectural issues, external dependencies), proactively offer to explore alternative approaches or tools. Don't spend excessive time patching around a root cause that can't be solved. Ask: "Should we look for alternatives?" before investing heavily in workarounds.
 - **Never work directly on main** - Always create a feature branch for changes. Use conventional commit prefixes (feat:, fix:, chore:, etc.) in branch names (e.g., `feat/add-feature`, `fix/bug-name`, `chore/update-deps`)
 
-## Keeping Instructions Current
+## Documentation Research Guidelines
 
-When reviewing PRs, check if changes affect this documentation:
+**When encountering unexpected behavior, limitations, or obstacles, PROACTIVELY offer to check official documentation BEFORE attempting workarounds.**
+
+### When to Check Documentation
+
+Offer to research documentation when you encounter:
+
+- **Library/Framework limitations** - API doesn't behave as expected, missing features, or constraints
+- **Integration issues** - Components not working together as anticipated
+- **Unexpected behavior** - Code produces results that contradict assumptions
+- **Missing functionality** - Feature seems impossible with current approach
+- **Multiple failed attempts** - Same problem resists 2+ solution attempts
+
+### Documentation Research Process
+
+1. **Identify the knowledge gap** - What specific behavior/feature is unclear?
+1. **Propose documentation sources** - Suggest which docs to check (official docs, GitHub repos, API references)
+1. **Get approval** - Ask: "Should I check the official documentation for [X] before proceeding?"
+1. **Research thoroughly** - Use `fetch_webpage` for official docs, `github_repo` for implementation examples
+1. **Report findings** - Summarize what the docs say and how it changes the approach
+1. **Update solution** - Implement based on authoritative information, not guesswork
+
+### Example Scenarios
+
+**❌ BAD - Guessing without checking:**
+
+```
+The API doesn't seem to support this. Let me try a workaround with [complex hack].
+```
+
+**✅ GOOD - Proactive documentation check:**
+
+```
+The API isn't behaving as expected. Before trying workarounds, should I check
+the official [library] documentation to see if there's a proper way to handle this?
+```
+
+### Documentation Sources Priority
+
+1. **Official project documentation** - Primary source of truth
+1. **GitHub repository examples** - Real-world usage patterns
+1. **API reference docs** - Detailed parameter/return value specs
+1. **GitHub issues/discussions** - Known limitations and workarounds
+1. **Stack Overflow** - Community solutions (verify against official docs)
+
+**Never assume library behavior without checking documentation when hitting obstacles.**
+
+## Pull Request Reviews
+
+**When performing Copilot-assisted PR reviews**, check if changes affect this documentation and suggest updates as part of your review:
 
 - New/renamed/removed workflows in `.github/workflows/`
 - Changes to code style tools (ruff, pre-commit hooks, etc.)
 - New dependencies or architectural patterns
 - Changes to testing patterns or conventions
+- Updates to development workflows or commands
 
-If any of these change, suggest updating `.github/copilot-instructions.md` in your review.
+If changes impact how code should be written, reviewed, or debugged, suggest updating `.github/copilot-instructions.md`.
 
-**Important:** This file is strictly for Copilot. All changes must be assessed for relevance to AI-assisted coding (writing, reviewing, debugging, and troubleshooting code). If a suggested change wouldn't help Copilot with these tasks, point that out. Do not add operational, access, or administrative information that doesn't affect code or troubleshooting.
+**Important:** This file is strictly for Copilot coding assistance. All changes must be relevant to AI-assisted coding (writing, reviewing, debugging, troubleshooting). Do not add operational, access, or administrative information that doesn't affect code or troubleshooting.
 
 ## Project Overview
 
@@ -108,38 +157,18 @@ A Streamlit multi-page application for tracking hiking trails and foraging spots
 
 - **Session state** (`st.session_state`) is the primary state container across page loads
 - Key session state variables:
-  - `gpx_data`: Parsed GPX tracks (main Skåneleden trails)
-  - `additional_tracks`: User-uploaded or regional trails
-  - `track_status`: Dict mapping track IDs to status ("To Explore" | "Explored!")
-  - `foraging_data`: Month-indexed dict of foraging spots with lat/lng
+  - `trails`: List of Trail objects from Firestore (filtered by source)
+  - `selected_trail_id`: Currently selected trail for sidebar display
   - `use_world_wide_hikes`: Toggle between Skåne trails and worldwide hikes
-- **Persistence**: CSV files for track statuses (`tracks_status/`), JSON for foraging types (`foraging_data/`)
-  - **Migration planned**: Moving to Cloud Storage for GPX files and Firestore for statuses/foraging data
-
-### Cloud Deployment Architecture (Planned)
-
-- **Cloud Run**: Hosts Streamlit app container
-  - Serverless, pay-per-use (fits free tier with 2M requests/month)
-  - Scales to zero when not in use (no cost when idle)
-  - Memory limit: 512 MB (within free tier GB-seconds allocation)
-- **Cloud Storage**: Stores GPX trail files
-  - Replaces local `tracks_gpx/` directory structure
-  - 5 GB free tier (current GPX files are ~10 MB)
-- **Firestore**: Stores track statuses and foraging data
-  - Replaces CSV/JSON files with real-time NoSQL database
-  - 1 GB storage, 50K reads/day, 20K writes/day free tier
-- **Container Registry**: Stores Docker images for Cloud Run
-  - 0.5 GB free tier storage
-- **CI/CD**: GitHub Actions triggers Cloud Build on push
-  - 120 build-minutes/day free tier
+  - `foraging_data`: Month-indexed dict of foraging spots from Firestore
+- **Persistence**: Firestore for all data (trails, statuses, foraging spots, foraging types)
 
 ### Directory Structure Conventions
 
-- `tracks_gpx/skaneleden/` - Official Skåneleden trail GPX files
-- `tracks_gpx/other_trails/` - Regional supplementary trails
-- `tracks_gpx/world_wide_hikes/` - User-uploaded international hikes
-- `app/foraging_data/` - Foraging spots CSV and types JSON
+- `app/tracks_gpx/planned_hikes/` - Official Skåneleden trail GPX files (bootstrapped to Firestore)
 - `app/media/` - Static images for foraging guide
+- `app/functions/` - Core business logic (Firestore clients, trail/foraging operations)
+- `app/resources/` - Static data structures and defaults
 
 ## Development Workflows
 
@@ -361,10 +390,10 @@ uv run ptw -- --cov=app
 
 ### Foraging Data Structure
 
-- **Monthly organization**: Dict keys are short month names (Jan-Dec)
-- **Spot schema**: `{"type": str, "lat": float, "lng": float, "notes": str, "date": str}`
+- **Firestore collections**: `foraging_spots` and `foraging_types`
+- **Spot schema**: `{"type": str, "lat": float, "lng": float, "notes": str, "month": str, "created_at": str, "last_updated": str}`
+- **Type schema**: `{"icon": str}` with document ID as type name
 - **Type customization**: Users can add custom foraging types with emoji icons
-  - Stored in `foraging_types.json` with `{"icon": str}` structure
   - Defaults in `resources/foraging_resources.py`
 
 ### File Path Management
@@ -384,10 +413,15 @@ uv run ptw -- --cov=app
 
 ### Data Persistence
 
-- **Track statuses**: CSV with columns `[track_id, status, last_updated]`
-  - Auto-save on status change and manual "Save Track Status" button
-- **Foraging data**: Single CSV with all months' data, loaded into memory on app start
-  - Saved via `Foraging.save_foraging_data()` after each modification
+- **Trails**: Stored in Firestore `trails` collection (Trail model)
+  - Simplified coordinates (~50 points) for map rendering
+  - Full coordinates in `trail_details` collection (TrailDetails model)
+  - Trail sources: `planned_hikes`, `other_trails`, `world_wide_hikes`
+  - Cached for 30 minutes with manual invalidation on mutations
+- **Foraging data**: Stored in Firestore `foraging_spots` and `foraging_types` collections
+  - Spots include: type, lat, lng, notes, month, created_at, last_updated
+  - Types include: icon and other properties
+  - Loaded per-month or all at once as needed
 
 ## Common Gotchas
 
@@ -418,22 +452,21 @@ uv run ptw -- --cov=app
 
 ### Modifying GPX Logic
 
-- Test with multiple track types: Skåneleden (single GPX, multiple tracks), other trails (multiple GPX files), world-wide hikes
-- Verify toggle behavior: `use_world_wide_hikes` changes data source and file upload destination
+- Test with multiple trail sources: `planned_hikes` (Skåneleden trails), `other_trails` (local uploads), `world_wide_hikes` (international)
+- Verify toggle behavior: `use_world_wide_hikes` filters trails from Firestore by source
+- Trail operations use Firestore collections: `trails` (list view), `trail_details` (full data)
+- Cache invalidation: Clear `load_all_trails()` cache after mutations (create, update, delete)
 
 ### Updating Foraging Features
 
-- Changes to `foraging_types` require updating both session state and JSON file
-- Month names are hardcoded as short form ("Jan"-"Dec"); maintain consistency
+- Changes to foraging spots use Firestore operations: `save_foraging_spot()`, `update_foraging_spot()`, `delete_foraging_spot()`
+- Changes to foraging types use: `save_foraging_type()`, `delete_foraging_type()`
+- Month names are short form ("Jan"-"Dec") and stored in the `month` field
 - Calendar data in `resources/foraging_resources.py` is display-only (not used for validation)
 
 ### Testing & Deployment Considerations
 
-- **Follow existing patterns** - Maintain consistency with current code structure until refactoring is complete
-- **Cloud deployment constraints** - Keep in mind startup time and memory limits when making architectural decisions
-  - Cloud Run free tier: 512 MB memory limit, 2M requests/month
-  - Design for fast cold starts (< 5 seconds)
-  - Minimize dependencies and container size
+- **Follow existing patterns** - Maintain consistency with current code structure
 - **Free tier compliance** - All changes must stay within GCP free tier limits
   - Verify resource usage before implementing new features
   - Use Firestore batch operations to minimize read/write operations
@@ -442,7 +475,6 @@ uv run ptw -- --cov=app
   - No manual creation via console or gcloud CLI
   - Document resource limits and costs in terraform comments
 - **Test with real data** - When modifying track parsing, test with actual Garmin GPX files to ensure compatibility
-- **Backwards compatibility** - Maintain compatibility with existing CSV/JSON data files during migration
 
 ## Code Quality Principles
 

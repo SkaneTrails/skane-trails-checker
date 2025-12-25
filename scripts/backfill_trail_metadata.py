@@ -3,18 +3,15 @@
 Backfill metadata (date, elevation) for existing trails in Firestore.
 
 This script:
-1. Loads all trails from Firestore for a specific source type
-2. For each trail, finds matching GPX file in the specified directory
+1. Loads all trails from Firestore
+2. For each trail, finds matching GPX file in tracks_gpx/ directories
 3. Extracts metadata (activity_date, activity_type, elevation_gain, elevation_loss)
 4. Updates Firestore with the metadata
 
 Usage:
-    uv run python dev-tools/backfill_trail_metadata.py --source planned_hikes --gpx-dir app/tracks_gpx/planned_hikes
-    uv run python dev-tools/backfill_trail_metadata.py --source other_trails --gpx-dir /path/to/other/trails
-    uv run python dev-tools/backfill_trail_metadata.py --source world_wide_hikes --gpx-dir /path/to/world/hikes
+    uv run python scripts/backfill_trail_metadata.py
 """
 
-import argparse
 import logging
 import sys
 from pathlib import Path
@@ -88,22 +85,25 @@ def extract_metadata_from_gpx(gpx_file_path: Path) -> dict:  # noqa: C901, PLR09
     return metadata
 
 
-def find_gpx_file(trail_name: str, gpx_directory: Path) -> Path | None:
+def find_gpx_file(trail_name: str, trail_source: str, gpx_directories: dict[str, Path]) -> Path | None:
     """Find GPX file matching the trail name.
 
     Args:
         trail_name: Name of the trail
-        gpx_directory: Directory containing GPX files
+        trail_source: Source of the trail (planned_hikes, other_trails, world_wide_hikes)
+        gpx_directories: Dict mapping source to directory path
 
     Returns:
         Path to GPX file or None if not found
     """
-    if not gpx_directory.exists():
+    # Get directory for this source
+    gpx_dir = gpx_directories.get(trail_source)
+    if not gpx_dir or not gpx_dir.exists():
         return None
 
     # Search for matching GPX file
     # Try exact match first
-    for gpx_file in gpx_directory.glob("*.gpx"):
+    for gpx_file in gpx_dir.glob("*.gpx"):
         # Parse GPX to check track names
         try:
             with gpx_file.open(encoding="utf-8") as f:
@@ -120,51 +120,25 @@ def find_gpx_file(trail_name: str, gpx_directory: Path) -> Path | None:
 
 def main() -> None:  # noqa: C901, PLR0912, PLR0915
     """Backfill metadata for all trails."""
-    # Parse command-line arguments
-    parser = argparse.ArgumentParser(
-        description="Backfill metadata for trails from GPX files",
-        formatter_class=argparse.RawDescriptionHelpFormatter,
-        epilog="""
-Examples:
-  python dev-tools/backfill_trail_metadata.py --source planned_hikes --gpx-dir app/tracks_gpx/planned_hikes
-  python dev-tools/backfill_trail_metadata.py --source other_trails --gpx-dir /path/to/other/trails
-  python dev-tools/backfill_trail_metadata.py --source world_wide_hikes --gpx-dir /path/to/world/hikes
-        """,
-    )
-    parser.add_argument(
-        "--source",
-        required=True,
-        help="Trail source type to backfill (e.g., planned_hikes, other_trails, world_wide_hikes)",
-    )
-    parser.add_argument("--gpx-dir", required=True, type=Path, help="Directory containing GPX files for this source")
-
-    args = parser.parse_args()
-
     logger.info("Starting trail metadata backfill...")
-    logger.info("  Source type: %s", args.source)
-    logger.info("  GPX directory: %s", args.gpx_dir)
 
-    # Verify directory exists
-    if not args.gpx_dir.exists():
-        logger.error("GPX directory not found: %s", args.gpx_dir)
-        sys.exit(1)
+    # Define GPX directories
+    app_dir = Path(__file__).parent.parent / "app"
+    gpx_directories = {
+        "planned_hikes": app_dir / "tracks_gpx" / "planned_hikes",
+        "other_trails": app_dir / "tracks_gpx" / "other_trails",
+        "world_wide_hikes": app_dir / "tracks_gpx" / "world_wide_hikes",
+    }
 
-    if not args.gpx_dir.is_dir():
-        logger.error("Path is not a directory: %s", args.gpx_dir)
-        sys.exit(1)
+    # Verify directories exist
+    for path in gpx_directories.values():
+        if not path.exists():
+            logger.warning("Directory not found: %s", path)
 
     # Load all trails
     logger.info("Loading trails from Firestore...")
-    all_trails = get_all_trails()
-    logger.info("Found %d total trails", len(all_trails))
-
-    # Filter trails by source
-    trails = [t for t in all_trails if t.source == args.source]
-    logger.info("Found %d trails with source=%s", len(trails), args.source)
-
-    if not trails:
-        logger.warning("No trails found for source: %s", args.source)
-        return
+    trails = get_all_trails()
+    logger.info("Found %d trails", len(trails))
 
     # Track statistics
     updated_count = 0
@@ -180,10 +154,10 @@ Examples:
             continue
 
         # Find matching GPX file
-        gpx_file = find_gpx_file(trail.name, args.gpx_dir)
+        gpx_file = find_gpx_file(trail.name, trail.source, gpx_directories)
 
         if not gpx_file:
-            logger.warning("GPX file not found for trail: %s", trail.name)
+            logger.warning("GPX file not found for trail: %s (source: %s)", trail.name, trail.source)
             not_found_count += 1
             continue
 
