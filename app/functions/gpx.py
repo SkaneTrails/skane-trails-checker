@@ -90,11 +90,18 @@ def handle_uploaded_gpx(
         # Save trails to Firestore (no longer saving to disk)
         source = "world_wide_hikes" if is_world_wide else "other_trails"
         print(f"[Upload] Saving to Firestore with source: {source}")
+
+        # Extract metadata from GPX file (activity date/time)
+        gpx_metadata = {}
+        if gpx_data.time:
+            gpx_metadata["time"] = gpx_data.time.isoformat()
+
         saved_count = 0
         for i, track in enumerate(gpx_data.tracks):
             try:
-                # Convert GPX track to Trail object
-                trail = gpx_track_to_trail(track, source=source, index=i)
+                # Convert GPX track to Trail object with metadata
+                # Uploaded hikes are marked as "Explored!" since they've already been done
+                trail = gpx_track_to_trail(track, source=source, index=i, status="Explored!", gpx_metadata=gpx_metadata)
 
                 # Save simplified trail for map display
                 save_trail(trail)

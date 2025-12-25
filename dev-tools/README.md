@@ -16,9 +16,9 @@ Automatically fetches Firestore connection details from GCP Secret Manager and c
    gcloud auth application-default login
    ```
 
-2. **IAM Permissions**: Your user must have `roles/secretmanager.secretAccessor` role
+1. **IAM Permissions**: Your user must have `roles/secretmanager.secretAccessor` role
 
-3. **Python Dependencies**: Install dev dependencies with:
+1. **Python Dependencies**: Install dev dependencies with:
 
    ```bash
    uv sync --extra dev
@@ -60,10 +60,10 @@ uv run python dev-tools/setup_env.py --list
 #### How It Works
 
 1. **Environment Detection**: Reads `ENV` variable from `.env` (defaults to `dev`)
-2. **Secret Mapping**: Uses `secret_mappings.yaml` to map Secret Manager secret names to environment variable names
-3. **Fetch from GCP**: Retrieves latest versions of secrets using Secret Manager API
-4. **Write `.env`**: Creates/updates `.env` file with fetched values
-5. **Freshness Check**: Skips fetching if `.env` is less than 24 hours old (override with `--force`)
+1. **Secret Mapping**: Uses `secret_mappings.yaml` to map Secret Manager secret names to environment variable names
+1. **Fetch from GCP**: Retrieves latest versions of secrets using Secret Manager API
+1. **Write `.env`**: Creates/updates `.env` file with fetched values
+1. **Freshness Check**: Skips fetching if `.env` is less than 24 hours old (override with `--force`)
 
 #### Troubleshooting
 
@@ -88,14 +88,14 @@ Possible causes:
    gcloud secrets list
    ```
 
-2. Missing permissions:
+1. Missing permissions:
 
    ```bash
    # Check your IAM roles
    gcloud projects get-iam-policy YOUR_PROJECT_ID --flatten="bindings[].members" --filter="bindings.members:user:YOUR_EMAIL"
    ```
 
-3. Secret Manager API not enabled:
+1. Secret Manager API not enabled:
 
    ```bash
    # Enable the API
@@ -119,8 +119,8 @@ Current mappings for `dev` environment:
 To add new secrets:
 
 1. Create secret in Secret Manager (via Terraform recommended)
-2. Add mapping to `secret_mappings.yaml`
-3. Run `uv run python dev-tools/setup_env.py --force`
+1. Add mapping to `secret_mappings.yaml`
+1. Run `uv run python dev-tools/setup_env.py --force`
 
 #### Security Notes
 

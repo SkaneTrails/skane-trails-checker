@@ -30,7 +30,7 @@ dev/
 
    This creates the GCS bucket for remote state storage.
 
-2. **Enable Service Usage API** (required before Terraform can manage other APIs):
+1. **Enable Service Usage API** (required before Terraform can manage other APIs):
 
    ```bash
    gcloud services enable serviceusage.googleapis.com --project=YOUR_PROJECT_ID
@@ -40,7 +40,7 @@ dev/
 
    **Required permissions**: You need `roles/serviceusage.serviceUsageAdmin` or `roles/owner` to enable this API.
 
-3. **Import the state bucket**:
+1. **Import the state bucket**:
 
    ```bash
    # Windows PowerShell
@@ -50,17 +50,17 @@ dev/
    ./import_tfstate_bucket.sh
    ```
 
-4. **Configure variables**:
+1. **Configure variables**:
 
    Edit `terraform.tfvars` and set your GCP project ID.
 
-5. **Add users**:
+1. **Add users**:
 
    Add your email address to `access/users.txt`, one per line. Lines starting with `#` are comments and will be ignored.
 
    **Important**: This file is gitignored and must be created locally. Terraform will read it directly at plan/apply time to grant IAM permissions.
 
-6. **Initialize and apply**:
+1. **Initialize and apply**:
 
    ```bash
    terraform init

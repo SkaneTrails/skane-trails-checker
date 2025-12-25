@@ -1,3 +1,4 @@
+import logging
 import pathlib
 import sys
 from pathlib import Path
@@ -7,28 +8,41 @@ import geopy.distance
 import streamlit as st
 from streamlit_folium import st_folium
 
+# Get logger (configured in _Home_.py)
+logger = logging.getLogger(__name__)
+
 # Add project root to Python path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent.parent.absolute()))
 
-from app.functions.bootstrap_trails import bootstrap_planned_trails
-from app.functions.env_loader import load_env_if_needed
-from app.functions.gpx import handle_uploaded_gpx
-from app.functions.place_models import Place, get_category_display
-from app.functions.places_storage import get_all_places
-from app.functions.tracks import filter_trails
-from app.functions.trail_storage import get_all_trails, update_trail_status
-from app.resources.hikes_resources import DEFAULT_MAX_DISTANCE, DEFAULT_MIN_DISTANCE
+from app.functions.bootstrap_trails import bootstrap_planned_trails  # noqa: E402
+from app.functions.env_loader import load_env_if_needed  # noqa: E402
+from app.functions.gpx import handle_uploaded_gpx  # noqa: E402
+from app.functions.place_models import Place, get_category_display  # noqa: E402
+from app.functions.places_storage import get_all_places  # noqa: E402
+from app.functions.tracks import filter_trails  # noqa: E402
+from app.functions.trail_storage import (  # noqa: E402
+    delete_trail,
+    get_all_trails,
+    update_trail_name,
+    update_trail_status,
+)
+from app.resources.hikes_resources import DEFAULT_MAX_DISTANCE, DEFAULT_MIN_DISTANCE  # noqa: E402
 
 # Load environment variables (with platform precedence)
 load_env_if_needed()
-
-# Constants
-CLICK_RANGE_METERS = 50  # Distance threshold for track click detection
 
 # Set page config to wide mode for full-width layout
 st.set_page_config(layout="wide")
 
 st.title("🥾 Skåne Trails Explorer")
+
+
+# Cache trail loading to avoid repeated Firestore calls
+@st.cache_data(ttl=1800, show_spinner=False)  # Cache for 30 minutes (invalidated manually on mutations)
+def load_all_trails() -> list:
+    """Load all trails from Firestore with caching."""
+    return get_all_trails()
+
 
 # Bootstrap planned trails from disk if not in Firestore
 cur_dir = pathlib.Path(__file__).parent.parent.absolute()
@@ -40,12 +54,14 @@ if "planned_trails_bootstrapped" not in st.session_state:
     st.session_state.planned_trails_bootstrapped = True
     if count > 0:
         st.info(f"📍 {message}")
-        # Trigger a reload to display the newly loaded trails
-        st.rerun()
 
 # Initialize session state for trail source toggle if not already set
 if "use_world_wide_hikes" not in st.session_state:
     st.session_state.use_world_wide_hikes = False
+
+# Initialize selected trail
+if "selected_trail_id" not in st.session_state:
+    st.session_state.selected_trail_id = None
 
 
 # --- Load Places (POIs) ---
@@ -86,8 +102,18 @@ if "trails" not in st.session_state or st.session_state.get("last_trail_source")
     st.session_state.trails = []  # List of Trail objects from Firestore
     st.session_state.last_trail_source = use_world_wide_hikes
 
-    # Load all trails from Firestore
-    all_trails = get_all_trails()
+    # Reset map position/zoom when switching trail sources
+    if "map_center" in st.session_state:
+        del st.session_state.map_center
+    if "map_zoom" in st.session_state:
+        del st.session_state.map_zoom
+
+    # Reset filter max distance when switching (will be recalculated)
+    if "filter_max_distance" in st.session_state:
+        del st.session_state.filter_max_distance
+
+    # Load all trails from Firestore (cached)
+    all_trails = load_all_trails()
 
     # Filter trails by source based on toggle
     # Trail sources:
@@ -104,13 +130,29 @@ if "trails" not in st.session_state or st.session_state.get("last_trail_source")
 # --- Filter Section (Above Map) ---
 if st.session_state.trails:
     with st.expander("🔍 Filter Trails", expanded=True):
+        # Calculate dynamic max distance from loaded trails (rounded up to nearest 5km)
+        # Only consider user-uploaded trails since distance filter doesn't apply to planned hikes
+        if st.session_state.trails:
+            filterable_trails = [t for t in st.session_state.trails if t.source != "planned_hikes"]
+            if filterable_trails:
+                max_trail_length = max(t.length_km for t in filterable_trails)
+                dynamic_max_distance = ((int(max_trail_length) // 5) + 1) * 5  # Round up to nearest 5
+            else:
+                # No user trails, use default
+                dynamic_max_distance = DEFAULT_MAX_DISTANCE
+        else:
+            dynamic_max_distance = DEFAULT_MAX_DISTANCE
+
         # Initialize filter state in session
         if "filter_search" not in st.session_state:
             st.session_state.filter_search = ""
         if "filter_min_distance" not in st.session_state:
             st.session_state.filter_min_distance = DEFAULT_MIN_DISTANCE
         if "filter_max_distance" not in st.session_state:
-            st.session_state.filter_max_distance = DEFAULT_MAX_DISTANCE
+            st.session_state.filter_max_distance = dynamic_max_distance
+
+        # Cap filter_max_distance at dynamic_max_distance (in case trails changed or old session state)
+        st.session_state.filter_max_distance = min(st.session_state.filter_max_distance, dynamic_max_distance)
         if "filter_status" not in st.session_state:
             st.session_state.filter_status = "All"
 
@@ -130,8 +172,8 @@ if st.session_state.trails:
             distance_range = st.slider(
                 "Distance (km):",
                 min_value=0.0,
-                max_value=100.0,
-                value=(st.session_state.filter_min_distance, st.session_state.filter_max_distance),
+                max_value=float(dynamic_max_distance),
+                value=(float(st.session_state.filter_min_distance), float(st.session_state.filter_max_distance)),
                 step=1.0,
                 key="distance_slider",
                 help="Note: Distance filter does not apply to Planned Hikes (Skåneleden)",
@@ -262,10 +304,10 @@ with col1:
                 st.success(message)
                 # Mark this file as processed
                 st.session_state.last_uploaded_file_id = uploaded_file_id
-                # Force reload of trails by clearing the cache
+                # Invalidate cache and session state to reload trails
+                load_all_trails.clear()
                 if "trails" in st.session_state:
                     del st.session_state["trails"]
-                # Force refresh to show new track
                 st.rerun()
             else:
                 st.error(message)
@@ -280,24 +322,38 @@ with col2:
         for trail in filtered_trails:
             all_coords.extend(trail.coordinates_map)
 
-    # Compute map center & zoom
+    # Compute map center & zoom (use stored values if available, otherwise calculate defaults)
     if all_coords:
         avg_lat = sum(lat for lat, lon in all_coords) / len(all_coords)
         avg_lon = sum(lon for lat, lon in all_coords) / len(all_coords)
 
-        # Check if using world-wide hikes and set specific center for Italy
-        if st.session_state.use_world_wide_hikes:
-            # Coordinates for central Italy (e.g., Tuscany region)
-            m = folium.Map(location=[43.7696, 11.2558], zoom_start=7)  # Centered on Florence
-        else:
-            # Original dynamic centering for Skåne trails
-            m = folium.Map(location=[avg_lat, avg_lon], zoom_start=10)
+        # Initialize map position/zoom in session state on first render to prevent map recreation
+        if "map_center" not in st.session_state or "map_zoom" not in st.session_state:
+            # Center map based on trail mode (initial defaults)
+            if st.session_state.use_world_wide_hikes:
+                # Coordinates for central Italy (e.g., Tuscany region)
+                st.session_state.map_center = [43.7696, 11.2558]
+                st.session_state.map_zoom = 7
+            else:
+                # Dynamic centering for Skåne trails
+                st.session_state.map_center = [avg_lat, avg_lon]
+                st.session_state.map_zoom = 10
+
+        # Always use session state values for consistency
+        map_center = st.session_state.map_center
+        map_zoom = st.session_state.map_zoom
+        logger.debug("Using map parameters: center=%s, zoom=%s", map_center, map_zoom)
+
+        m = folium.Map(location=map_center, zoom_start=map_zoom)
+        logger.debug("Created new folium.Map object: id=%s, center=%s, zoom=%s", id(m), map_center, map_zoom)
     # If no coordinates, use defaults based on mode
     elif st.session_state.use_world_wide_hikes:
         m = folium.Map(location=[43.7696, 11.2558], zoom_start=7)  # Centered on Florence
+        logger.debug("Created new folium.Map object: id=%s (world-wide default)", id(m))
     else:
         # Default to Skåne region when no trails exist
         m = folium.Map(location=[56.0, 13.5], zoom_start=9)  # Centered on Skåne
+        logger.debug("Created new folium.Map object: id=%s (Skåne default)", id(m))
 
     # Plot filtered trails (if any exist after filtering)
     if filtered_trails:
@@ -306,10 +362,18 @@ with col2:
         uploaded_trails = [t for t in filtered_trails if t.source != "planned_hikes"]
 
         for trail in planned_trails + uploaded_trails:
+            # Check if this trail is selected (sidebar open)
+            is_selected = trail.trail_id == st.session_state.get("selected_trail_id")
+
             # Color scheme:
             # - Planned hikes: Orange for to explore, dark green for explored
             # - Uploaded trails: Blue (always blue, shows user-added content)
-            if trail.source == "planned_hikes":
+            # - Selected trail: Bright yellow highlight with thicker line
+            if is_selected:
+                track_color = "#FFD700"  # Bright gold for selected trail
+                weight = 8
+                opacity = 1.0
+            elif trail.source == "planned_hikes":
                 track_color = "#FF8C00" if trail.status == "To Explore" else "#006400"  # Orange → Dark Green
                 weight = 5
                 opacity = 0.8
@@ -319,23 +383,44 @@ with col2:
                 weight = 4
                 opacity = 0.7
 
-            # Plot the trail
-            # Convert coordinates to list format for Folium
+            # Build popup HTML with trail information
+            popup_html = f"<b>{trail.name}</b><br>"
+            popup_html += f"Distance: {trail.length_km:.1f} km<br>"
+
+            if trail.activity_date:
+                # Format date nicely (remove time if present)
+                date_str = trail.activity_date.split("T")[0]
+                popup_html += f"Date: {date_str}<br>"
+
+            if trail.activity_type:
+                popup_html += f"Activity: {trail.activity_type.title()}<br>"
+
+            if trail.elevation_gain is not None:
+                popup_html += f"Elevation Gain: {trail.elevation_gain:.0f} m<br>"
+
+            if trail.elevation_loss is not None:
+                popup_html += f"Elevation Loss: {trail.elevation_loss:.0f} m<br>"
+
+            # Add status for planned hikes
+            if trail.source == "planned_hikes":
+                popup_html += f"<br><i>Status: {trail.status}</i>"
+
+            # Plot the trail with popup (first click shows popup, second click opens sidebar)
             coords_for_folium = [[lat, lng] for lat, lng in trail.coordinates_map]
             folium.PolyLine(
                 coords_for_folium,
                 color=track_color,
                 weight=weight,
                 opacity=opacity,
-                popup=f"{trail.name}: {trail.status}",
-                tooltip=f"Click to toggle status: {trail.name}",
+                popup=folium.Popup(popup_html, max_width=300),
+                tooltip=f"{trail.name} ({trail.length_km:.1f} km)",
             ).add_to(m)
 
-            # Start and End Points with matching colors
+            # Start and End Points with matching colors (visual only, not interactive)
             if trail.coordinates_map:
                 start_point = trail.coordinates_map[0]
                 end_point = trail.coordinates_map[-1]
-                for point in [start_point, end_point]:
+                for _point_label, point in [("Start", start_point), ("End", end_point)]:
                     folium.CircleMarker(
                         location=[point[0], point[1]],
                         radius=6,
@@ -343,6 +428,7 @@ with col2:
                         fill=True,
                         fill_color=track_color,
                         fill_opacity=0.9,
+                        # No popup or tooltip - visual markers only
                     ).add_to(m)
 
     # --- Plot POI Markers ---
@@ -391,48 +477,192 @@ with col2:
 
     # Enable ClickForMarker (lets us detect clicks on the map) - always add regardless of trails
     m.add_child(folium.LatLngPopup())
-
     # Get the screen height (approximated)
     map_height = 800  # Larger default height
 
     # Display the interactive map with full width and calculated height
-    # returned_objects=["last_clicked"] prevents reruns on zoom/pan, only on clicks
-    map_data = st_folium(m, height=map_height, width=None, key="map", returned_objects=["last_clicked"])
+    # Return last_object_clicked to capture clicks on trails (PolyLines and markers)
+    map_data = st_folium(m, height=map_height, width=None, key="map", returned_objects=["last_object_clicked"])
 
-    # Handle map clicks to toggle trail status (only if trails exist)
-    if st.session_state.trails and map_data and "last_clicked" in map_data and map_data["last_clicked"] is not None:
-        clicked_latlng = (map_data["last_clicked"]["lat"], map_data["last_clicked"]["lng"])
+    # Update map position/zoom in session state ONLY if user actually moved the map
+    # Don't overwrite on first render to prevent map recreation
+    if map_data and "center" in map_data and "zoom" in map_data:
+        new_center = [map_data["center"]["lat"], map_data["center"]["lng"]]
+        new_zoom = map_data["zoom"]
 
-        # Find the closest trail to the clicked location
+        logger.debug("map_data returned: center=%s, zoom=%s", new_center, new_zoom)
+
+        # Calculate if the map was actually moved by the user (not just initialized)
+        current_center = st.session_state.get("map_center")
+        current_zoom = st.session_state.get("map_zoom")
+
+        logger.debug("Current session state: center=%s, zoom=%s", current_center, current_zoom)
+
+        if current_center and current_zoom:
+            # Only update if significantly different (user moved the map)
+            # Threshold for detecting center movement (degrees)
+            CENTER_MOVE_THRESHOLD = 0.001
+            center_moved = (
+                abs(new_center[0] - current_center[0]) > CENTER_MOVE_THRESHOLD
+                or abs(new_center[1] - current_center[1]) > CENTER_MOVE_THRESHOLD
+            )
+            zoom_changed = new_zoom != current_zoom
+
+            if center_moved or zoom_changed:
+                logger.debug("Map moved by user: center=%s, zoom=%s", new_center, new_zoom)
+                st.session_state.map_center = new_center
+                st.session_state.map_zoom = new_zoom
+            else:
+                logger.debug("Map position unchanged, not updating session state")
+
+    # Debug: Check what map_data contains
+    logger.debug("map_data keys: %s", list(map_data.keys()) if map_data else "None")
+    logger.debug("last_object_clicked value: %s", map_data.get("last_object_clicked") if map_data else "None")
+
+    # Handle trail clicks (only if trails exist)
+    # Two-click pattern: First click shows popup, second click on same trail opens sidebar
+    MAX_CLICK_DISTANCE_METERS = 150  # Increased for more forgiving clicks
+    if (
+        st.session_state.trails
+        and map_data
+        and "last_object_clicked" in map_data
+        and map_data["last_object_clicked"] is not None
+    ):
+        clicked_latlng = (map_data["last_object_clicked"]["lat"], map_data["last_object_clicked"]["lng"])
+        logger.debug("Object click detected at %s", clicked_latlng)
+
+        # Find which trail was clicked by matching coordinates
+        # Use ALL coordinates (not sampled) for accurate click detection
         closest_trail = None
         min_distance = float("inf")
 
         for trail in st.session_state.trails:
+            # Check all coordinates for accurate click detection
             for point in trail.coordinates_map:
                 distance = geopy.distance.geodesic(clicked_latlng, point).meters
                 if distance < min_distance:
                     min_distance = distance
                     closest_trail = trail
 
-        # Toggle trail status if within 50 meters
-        if closest_trail is not None and min_distance < CLICK_RANGE_METERS:
-            # Toggle between "To Explore" and "Explored!"
-            new_status = "Explored!" if closest_trail.status == "To Explore" else "To Explore"
+        logger.debug(
+            "Closest trail: %s, Distance: %.1fm", closest_trail.name if closest_trail else "None", min_distance
+        )
 
-            # Update in Firestore
-            try:
-                update_trail_status(closest_trail.trail_id, new_status)
-
-                # Update local state
-                closest_trail.status = new_status
-
-                st.success(f"✅ {closest_trail.name} has been marked as '{new_status}' and saved!")
-
-                # Force UI refresh to update map color
-                st.rerun()
-            except Exception as e:
-                st.error(f"❌ Failed to update trail status: {e}")
+        # Two-click pattern implementation
+        if closest_trail and min_distance < MAX_CLICK_DISTANCE_METERS:
+            # Check if this is the second click on the same trail
+            if st.session_state.get("first_clicked_trail_id") == closest_trail.trail_id:
+                # Second click on same trail - open sidebar
+                logger.info(
+                    "Second click on trail: %s (id: %s) - opening sidebar", closest_trail.name, closest_trail.trail_id
+                )
+                st.session_state.selected_trail_id = closest_trail.trail_id
+            else:
+                # First click on this trail - just mark it (popup will show)
+                logger.info(
+                    "First click on trail: %s (id: %s) - popup will show", closest_trail.name, closest_trail.trail_id
+                )
+                st.session_state.first_clicked_trail_id = closest_trail.trail_id
+                # Clear sidebar selection if switching trails
+                if st.session_state.get("selected_trail_id") != closest_trail.trail_id:
+                    st.session_state.selected_trail_id = None
+        else:
+            # Click on empty space - deselect everything
+            logger.debug("Click on empty space - deselecting")
+            st.session_state.first_clicked_trail_id = None
+            st.session_state.selected_trail_id = None
 
     # Show info message when no trails exist
     if not st.session_state.trails:
         st.info("📍 No trails yet. Upload a GPX file to get started!")
+
+# Sidebar: Show selected trail actions (AFTER click handler)
+logger.debug("Sidebar rendering, selected_trail_id = %s", st.session_state.get("selected_trail_id"))
+with st.sidebar:
+    if st.session_state.get("selected_trail_id"):
+        selected_trail = next(
+            (t for t in st.session_state.trails if t.trail_id == st.session_state.selected_trail_id), None
+        )
+        logger.debug("Found selected trail: %s", selected_trail.name if selected_trail else "None")
+        if selected_trail:
+            st.divider()
+            st.subheader("📍 Selected Trail")
+
+            # Display trail name
+            st.write(f"**{selected_trail.name}**")
+
+            # Status toggle for planned hikes only
+            if selected_trail.source == "planned_hikes":
+                st.divider()
+                current_status_is_explored = selected_trail.status == "Explored!"
+                new_status_toggle = st.toggle(
+                    "Mark as Explored",
+                    value=current_status_is_explored,
+                    key=f"status_toggle_{selected_trail.trail_id}",
+                    help="Toggle exploration status for this planned hike",
+                )
+
+                # Check if status changed
+                if new_status_toggle != current_status_is_explored:
+                    new_status = "Explored!" if new_status_toggle else "To Explore"
+                    try:
+                        update_trail_status(selected_trail.trail_id, new_status)
+                        selected_trail.status = new_status
+                        st.success(f"✅ Status updated to: {new_status}")
+                        load_all_trails.clear()  # Invalidate cache
+                        st.rerun()
+                    except Exception as e:
+                        st.error(f"❌ Failed to update status: {e}")
+
+            # Rename section
+            with st.form(key="rename_trail_form"):
+                new_name = st.text_input("Rename trail:", value=selected_trail.name, label_visibility="visible")
+                col_rename, col_clear = st.columns(2)
+
+                with col_rename:
+                    rename_submitted = st.form_submit_button("Rename", use_container_width=True)
+
+                with col_clear:
+                    clear_selection = st.form_submit_button("Clear", use_container_width=True)
+
+                if rename_submitted and new_name and new_name != selected_trail.name:
+                    try:
+                        update_trail_name(selected_trail.trail_id, new_name)
+                        selected_trail.name = new_name
+                        st.success(f"✅ Renamed to: {new_name}")
+                        load_all_trails.clear()  # Invalidate cache after update
+                        st.session_state.selected_trail_id = None  # Clear selection after rename
+                        st.rerun()
+                    except Exception as e:
+                        st.error(f"❌ Failed to rename: {e}")
+
+                if clear_selection:
+                    st.session_state.selected_trail_id = None
+                    st.rerun()
+
+            # Delete section with confirmation
+            with st.expander("🗑️ Delete Trail", expanded=False):
+                st.warning(f"⚠️ This will permanently delete **{selected_trail.name}**")
+
+                with st.form(key="delete_trail_form"):
+                    confirm_delete = st.checkbox("I confirm I want to delete this trail")
+                    delete_submitted = st.form_submit_button(
+                        "Delete Permanently", type="primary", use_container_width=True
+                    )
+
+                    if delete_submitted:
+                        if confirm_delete:
+                            try:
+                                delete_trail(selected_trail.trail_id)
+                                # Remove from session state trails list
+                                st.session_state.trails = [
+                                    t for t in st.session_state.trails if t.trail_id != selected_trail.trail_id
+                                ]
+                                st.session_state.selected_trail_id = None
+                                st.success(f"✅ Deleted: {selected_trail.name}")
+                                load_all_trails.clear()  # Invalidate cache after deletion
+                                st.rerun()
+                            except Exception as e:
+                                st.error(f"❌ Failed to delete: {e}")
+                        else:
+                            st.error("Please check the confirmation box to delete")

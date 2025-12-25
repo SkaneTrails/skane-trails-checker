@@ -162,24 +162,27 @@ def test_parse_gpx_file_when_valid_then_returns_tracks(tmp_path):
 ## Pull Request Process
 
 1. **Ensure all CI checks pass:**
+
    - All tests pass
    - Code coverage maintained
    - Linting passes
    - Security scans pass
 
-2. **Write a clear PR description:**
+1. **Write a clear PR description:**
+
    - What problem does this solve?
    - What changes were made?
    - How was it tested?
    - Any breaking changes?
 
-3. **Address review feedback promptly**
+1. **Address review feedback promptly**
 
-4. **Keep PRs focused:**
+1. **Keep PRs focused:**
+
    - One feature/fix per PR
    - Avoid mixing refactoring with new features
 
-5. **Squash and merge** (preferred) once approved
+1. **Squash and merge** (preferred) once approved
 
 ## What to Contribute
 

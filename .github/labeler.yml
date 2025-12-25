@@ -1,7 +1,6 @@
 "📝 type: documentation":
   - changed-files:
-      - any-glob-to-any-file:
-          ["docs/**", "README.md", "CONTRIBUTING.md", "*.md"]
+      - any-glob-to-any-file: ["docs/**", "README.md", "CONTRIBUTING.md", "*.md"]
 
 "⚙️ type: github-actions":
   - changed-files:
@@ -13,8 +12,7 @@
 
 "🐍 type: python-tooling":
   - changed-files:
-      - any-glob-to-any-file:
-          ["pyproject.toml", ".python-version", ".pre-commit-config.yaml"]
+      - any-glob-to-any-file: ["pyproject.toml", ".python-version", ".pre-commit-config.yaml"]
 
 "🌑 type: terraform":
   - changed-files:
@@ -50,5 +48,4 @@
 
 "🚀 type: deployment":
   - changed-files:
-      - any-glob-to-any-file:
-          ["infra/**", "Dockerfile", ".github/workflows/deploy*"]
+      - any-glob-to-any-file: ["infra/**", "Dockerfile", ".github/workflows/deploy*"]

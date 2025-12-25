@@ -4,8 +4,9 @@ from pathlib import Path
 
 import gpxpy
 
+from app.functions.firestore_client import get_collection
 from app.functions.trail_converter import gpx_track_to_trail
-from app.functions.trail_storage import get_all_trails, save_trail
+from app.functions.trail_storage import save_trail
 
 
 def bootstrap_planned_trails(gpx_file_path: Path | str) -> tuple[int, str]:
@@ -30,12 +31,13 @@ def bootstrap_planned_trails(gpx_file_path: Path | str) -> tuple[int, str]:
         print(f"[Bootstrap] ERROR: {msg}")
         return 0, msg
 
-    # Check if planned trails already exist in Firestore
-    all_trails = get_all_trails()
-    planned_trails = [t for t in all_trails if t.source == "planned_hikes"]
+    # Check if planned trails already exist in Firestore (efficient: just check existence)
+    collection = get_collection("trails")
+    planned_query = collection.where("source", "==", "planned_hikes").limit(1).stream()
+    has_planned_trails = any(True for _ in planned_query)
 
-    if planned_trails:
-        msg = f"Planned trails already in Firestore ({len(planned_trails)} trails)"
+    if has_planned_trails:
+        msg = "Planned trails already in Firestore"
         print(f"[Bootstrap] {msg}")
         return 0, msg
 

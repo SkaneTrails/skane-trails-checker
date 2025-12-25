@@ -5,8 +5,8 @@
 This project uses **pytest** for testing. Tests are organized to cover three layers:
 
 1. **Unit tests** - Pure business logic functions (GPX parsing, data management)
-2. **Integration tests** - Streamlit components (planned)
-3. **End-to-end tests** - Full page workflows (planned)
+1. **Integration tests** - Streamlit components (planned)
+1. **End-to-end tests** - Full page workflows (planned)
 
 ## Running Tests
 
@@ -140,8 +140,8 @@ Tests can be run in CI/CD pipelines:
 ### Tests not discovered in VS Code
 
 1. Ensure `pytest-xdist` is installed: `uv sync`
-2. Check Python interpreter is correct (bottom right of VS Code)
-3. Reload VS Code window
+1. Check Python interpreter is correct (bottom right of VS Code)
+1. Reload VS Code window
 
 ### Import errors in tests
 

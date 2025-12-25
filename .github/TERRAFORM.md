@@ -20,17 +20,17 @@ Runs automatically on PRs that modify Terraform files:
 Create the Terraform state bucket (one-time setup):
 
 1. Update `infra/environments/dev/init/terraform.tfvars` locally with your project ID
-2. Run bootstrap: `cd infra/environments/dev/init && terraform init && terraform apply`
-3. Import state bucket: `cd .. && ./import_tfstate_bucket.ps1` (Windows) or `./import_tfstate_bucket.sh` (Linux/macOS)
+1. Run bootstrap: `cd infra/environments/dev/init && terraform init && terraform apply`
+1. Import state bucket: `cd .. && ./import_tfstate_bucket.ps1` (Windows) or `./import_tfstate_bucket.sh` (Linux/macOS)
 
 ### Deploy Changes
 
 After bootstrap, deploy infrastructure changes locally:
 
 1. Update `infra/environments/dev/terraform.tfvars` with your configuration
-2. Initialize backend: `cd infra/environments/dev && terraform init`
-3. Plan changes: `terraform plan`
-4. Apply changes: `terraform apply`
+1. Initialize backend: `cd infra/environments/dev && terraform init`
+1. Plan changes: `terraform plan`
+1. Apply changes: `terraform apply`
 
 ## Security Notes
 
