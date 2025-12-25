@@ -106,13 +106,9 @@ class TestTrackExceptions:
 class TestGPXUpload:
     """Test GPX file upload handling."""
 
-    def test_handle_uploaded_gpx_successful_upload(self, temp_dir) -> None:
+    @patch("app.functions.gpx.save_trail")
+    def test_handle_uploaded_gpx_successful_upload(self, mock_save_trail, temp_dir) -> None:
         """Test successful GPX file upload."""
-        world_wide_path = temp_dir / "world_wide"
-        skane_path = temp_dir / "skane"
-        world_wide_path.mkdir()
-        skane_path.mkdir()
-
         # Create mock uploaded file
         mock_file = Mock()
         mock_file.name = "test_track.gpx"
@@ -127,19 +123,17 @@ class TestGPXUpload:
     </trk>
 </gpx>"""
 
-        success, message = handle_uploaded_gpx(str(world_wide_path), str(skane_path), mock_file, is_world_wide=False)
+        success, message = handle_uploaded_gpx(mock_file, is_world_wide=False)
 
         assert success is True
         assert "Successfully uploaded" in message
-        assert (skane_path / "test_track.gpx").exists()
+        assert "test_track.gpx" in message
+        # Verify trail was saved to Firestore
+        assert mock_save_trail.called
 
-    def test_handle_uploaded_gpx_world_wide(self, temp_dir) -> None:
-        """Test uploading to world-wide hikes directory."""
-        world_wide_path = temp_dir / "world_wide"
-        skane_path = temp_dir / "skane"
-        world_wide_path.mkdir()
-        skane_path.mkdir()
-
+    @patch("app.functions.gpx.save_trail")
+    def test_handle_uploaded_gpx_world_wide(self, mock_save_trail, temp_dir) -> None:
+        """Test uploading to world-wide hikes."""
         mock_file = Mock()
         mock_file.name = "world_track.gpx"
         mock_file.getvalue.return_value = b"""<?xml version="1.0" encoding="UTF-8"?>
@@ -152,47 +146,35 @@ class TestGPXUpload:
     </trk>
 </gpx>"""
 
-        success, _message = handle_uploaded_gpx(str(world_wide_path), str(skane_path), mock_file, is_world_wide=True)
+        success, _message = handle_uploaded_gpx(mock_file, is_world_wide=True)
 
         assert success is True
-        assert (world_wide_path / "world_track.gpx").exists()
-        assert not (skane_path / "world_track.gpx").exists()
+        # Verify trail was saved with correct source
+        assert mock_save_trail.called
+        saved_trail = mock_save_trail.call_args[0][0]
+        assert saved_trail.source == "world_wide_hikes"
 
     def test_handle_uploaded_gpx_invalid_gpx(self, temp_dir) -> None:
         """Test uploading invalid GPX file."""
-        world_wide_path = temp_dir / "world_wide"
-        skane_path = temp_dir / "skane"
-        world_wide_path.mkdir()
-        skane_path.mkdir()
-
         mock_file = Mock()
         mock_file.name = "invalid.gpx"
         mock_file.getvalue.return_value = b"This is not valid GPX content"
 
-        success, message = handle_uploaded_gpx(str(world_wide_path), str(skane_path), mock_file, is_world_wide=False)
+        success, message = handle_uploaded_gpx(mock_file, is_world_wide=False)
 
         assert success is False
         assert "Error uploading file" in message
-        # Verify temp file was cleaned up
-        assert not (skane_path / "invalid.gpx").exists()
 
     def test_handle_uploaded_gpx_cleanup_on_error(self, temp_dir) -> None:
         """Test that temporary files are cleaned up on error."""
-        world_wide_path = temp_dir / "world_wide"
-        skane_path = temp_dir / "skane"
-        world_wide_path.mkdir()
-        skane_path.mkdir()
-
         mock_file = Mock()
         mock_file.name = "error.gpx"
         mock_file.getvalue.side_effect = Exception("Mock error during read")
 
-        success, message = handle_uploaded_gpx(str(world_wide_path), str(skane_path), mock_file, is_world_wide=False)
+        success, message = handle_uploaded_gpx(mock_file, is_world_wide=False)
 
         assert success is False
         assert "Error uploading file" in message
-        # Verify no files left behind
-        assert not (skane_path / "error.gpx").exists()
 
 
 class TestSimplifyCoordinatesEdgeCases:

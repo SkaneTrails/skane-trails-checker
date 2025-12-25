@@ -13,6 +13,12 @@ variable "firestore_location" {
   type        = string
 }
 
+variable "firestore_database_name" {
+  description = "Firestore database name"
+  type        = string
+  default     = "skane-trails-db"
+}
+
 # Commented out: unused variable flagged by TFLint
 # variable "location" {
 #   description = "GCP location for multi-regional resources (e.g., Cloud Storage)"

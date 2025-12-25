@@ -53,8 +53,45 @@ curl -LsSf https://astral.sh/uv/install.sh | sh
 # Clone and set up
 git clone https://github.com/SkaneTrails/skane-trails-checker.git
 cd skane-trails-checker
-uv sync  # Creates .venv and installs dependencies
+uv sync --extra dev  # Install all dependencies including dev tools
 ```
+
+### Local Development Setup
+
+**First-time setup requires Firestore connection configuration:**
+
+1. **Authenticate with Google Cloud:**
+
+   ```bash
+   gcloud auth application-default login
+   ```
+
+2. **Fetch Firestore secrets from GCP Secret Manager:**
+
+   ```bash
+   uv run python dev-tools/setup_env.py
+   ```
+
+   This creates a `.env` file with Firestore connection details. The file is automatically gitignored.
+
+   **If gcloud is not found in PATH:**
+   
+   **PowerShell:**
+   ```powershell
+   $env:PATH += ";$(Split-Path (Get-Command gcloud).Path)"
+   ```
+   
+   **Bash:**
+   ```bash
+   export PATH="$PATH:$(dirname $(which gcloud))"
+   ```
+
+   **Options:**
+   - `--force` - Force refresh even if .env is fresh
+   - `--check` - Validate .env has all required variables
+   - `--list` - Show secret mappings
+
+   See [dev-tools/README.md](dev-tools/README.md) for troubleshooting.
 
 ### Running the App
 

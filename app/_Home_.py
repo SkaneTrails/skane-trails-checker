@@ -7,6 +7,14 @@ from pathlib import Path
 import requests
 import streamlit as st
 
+# Add project root to Python path for imports
+sys.path.insert(0, str(Path(__file__).parent.parent.absolute()))
+
+# Load environment variables (with platform precedence)
+from app.functions.env_loader import load_env_if_needed
+
+load_env_if_needed()
+
 # Configure logging for debugging (only when not in test mode)
 if "pytest" not in sys.modules:
     logging.basicConfig(
