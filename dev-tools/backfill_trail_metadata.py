@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """
 Backfill metadata (date, elevation) for existing trails in Firestore.
 
