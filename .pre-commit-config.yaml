@@ -3,33 +3,37 @@ default_install_hook_types:
   - post-checkout
   - post-merge
   - post-rewrite
-
 default_stages:
   - pre-commit
-
 default_language_version:
   python: python3.14
-
 repos:
   - repo: https://github.com/tox-dev/pyproject-fmt
     rev: "v2.11.1"
     hooks:
       - id: pyproject-fmt
-
   - repo: https://github.com/abravalheri/validate-pyproject
     rev: v0.24.1
     hooks:
       - id: validate-pyproject
-
+  # Fast YAML formatter (Go-based) - run early since it may change line endings
+  - repo: https://github.com/google/yamlfmt
+    rev: v0.14.0
+    hooks:
+      - id: yamlfmt
+        args:
+          - -formatter
+          - line_ending=lf,retain_line_breaks=true,max_empty_lines=2
+  # Fix line endings AFTER formatters that may introduce mixed endings
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v6.0.0
     hooks:
+      - id: mixed-line-ending
+        args: [--fix=lf]
       - id: trailing-whitespace
       - id: name-tests-test
         args: ["--pytest-test-first"]
       - id: end-of-file-fixer
-      - id: mixed-line-ending
-        args: [--fix=lf]
       - id: check-yaml
       - id: check-toml
       - id: check-json
@@ -42,32 +46,40 @@ repos:
         args: [--maxkb=150]
       - id: detect-private-key
       - id: debug-statements
-
-  # Validate GitHub Actions workflows
   - repo: https://github.com/rhysd/actionlint
+    # Validate GitHub Actions workflows
+
     rev: v1.7.9
     hooks:
       - id: actionlint
-
   - repo: https://github.com/astral-sh/ruff-pre-commit
     rev: v0.14.10
     hooks:
       - id: ruff
         args: [--fix, --exit-non-zero-on-fix]
       - id: ruff-format
-
   - repo: https://github.com/fpgmaas/deptry
     rev: 0.24.0
     hooks:
       - id: deptry
-
+  # Fast Markdown formatter (Python)
+  - repo: https://github.com/executablebooks/mdformat
+    rev: 0.7.19
+    hooks:
+      - id: mdformat
+        additional_dependencies:
+          - mdformat-gfm # GitHub Flavored Markdown
+          - mdformat-tables
+  # Keep prettier only for JSON and TOML
   - repo: https://github.com/pre-commit/mirrors-prettier
+    # TOML formatting - using prettier for now (taplo pre-commit hook not available)
+
+    # YAML, JSON, and Markdown are the main performance bottlenecks anyway
     rev: "v4.0.0-alpha.8"
     hooks:
       - id: prettier
-        files: \.(json|markdown|md|yaml|yml|toml)$
+        files: \.(json|toml)$
         exclude: ^renovate\.json$
-
   - repo: https://github.com/astral-sh/uv-pre-commit
     rev: 0.9.18
     hooks:
@@ -77,17 +89,10 @@ repos:
           - post-checkout
           - post-merge
           - post-rewrite
-
-  # Ty type checker (run as local command since no pre-commit repo yet)
   - repo: local
+    # Ty type checker (run as local command since no pre-commit repo yet)
+
     hooks:
-      - id: ty
-        name: ty type check
-        entry: uv run ty check
-        language: system
-        types: [python]
-        pass_filenames: false
-        args: [app/]
       - id: pytest
         name: pytest
         entry: uv run pytest
@@ -95,15 +100,21 @@ repos:
         types: [python]
         pass_filenames: false
         args: [tests/, -x, --tb=short]
-
-  # Terraform hooks
+      - id: ty
+        name: ty type check
+        entry: uv run ty check
+        language: system
+        types: [python]
+        pass_filenames: false
+        args: [app/]
   - repo: https://github.com/antonbabenko/pre-commit-terraform
+    # Terraform hooks
+
     rev: v1.104.0
     hooks:
       - id: terraform_fmt
         name: terraform fmt
         description: Format Terraform files
-      # - id: terraform_validate # This check is slow and is covered in CI
       #   name: terraform validate
       #   description: Validate Terraform files
       #   args:
@@ -114,6 +125,8 @@ repos:
       #   args:
       #     - --args=--config=__GIT_WORKING_DIR__/.tflint.hcl
       - id: terraform_trivy
+        # - id: terraform_validate # This check is slow and is covered in CI
+
         name: terraform trivy
         description: Security scan Terraform files
         args:

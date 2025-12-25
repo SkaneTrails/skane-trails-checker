@@ -66,7 +66,7 @@ uv sync --extra dev  # Install all dependencies including dev tools
    gcloud auth application-default login
    ```
 
-2. **Fetch Firestore secrets from GCP Secret Manager:**
+1. **Fetch Firestore secrets from GCP Secret Manager:**
 
    ```bash
    uv run python dev-tools/setup_env.py
@@ -75,18 +75,21 @@ uv sync --extra dev  # Install all dependencies including dev tools
    This creates a `.env` file with Firestore connection details. The file is automatically gitignored.
 
    **If gcloud is not found in PATH:**
-   
+
    **PowerShell:**
+
    ```powershell
    $env:PATH += ";$(Split-Path (Get-Command gcloud).Path)"
    ```
-   
+
    **Bash:**
+
    ```bash
    export PATH="$PATH:$(dirname $(which gcloud))"
    ```
 
    **Options:**
+
    - `--force` - Force refresh even if .env is fresh
    - `--check` - Validate .env has all required variables
    - `--list` - Show secret mappings
@@ -151,9 +154,9 @@ uv run pre-commit install  # Set up pre-commit hooks
 ### Adding Your Own Trails
 
 1. Export GPX file from Garmin Connect or similar service
-2. Use the file uploader in the "Hikes Map" page
-3. Toggle between Skåne trails (default) or worldwide hikes view
-4. Uploaded trails are saved to the worldwide hikes collection
+1. Use the file uploader in the "Hikes Map" page
+1. Toggle between Skåne trails (default) or worldwide hikes view
+1. Uploaded trails are saved to the worldwide hikes collection
 
 ## Technology Stack
 
@@ -173,11 +176,11 @@ See [GitHub Issues](https://github.com/SkaneTrails/skane-trails-checker/issues) 
 Contributions welcome! Please:
 
 1. Read [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines
-2. Fork the repository
-3. Create a feature branch (`git checkout -b feat/amazing-feature`)
-4. Follow conventional commit format (`feat:`, `fix:`, `chore:`, etc.)
-5. Ensure tests pass (`uv run pytest`)
-6. Submit a pull request
+1. Fork the repository
+1. Create a feature branch (`git checkout -b feat/amazing-feature`)
+1. Follow conventional commit format (`feat:`, `fix:`, `chore:`, etc.)
+1. Ensure tests pass (`uv run pytest`)
+1. Submit a pull request
 
 See [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) for technical architecture and patterns.
 
