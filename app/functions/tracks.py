@@ -1,6 +1,6 @@
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import TypedDict
+from typing import TYPE_CHECKING, TypedDict
 
 import geopy.distance
 import pandas as pd
@@ -10,6 +10,9 @@ try:
     from app.resources.hikes_resources import DEFAULT_MAX_DISTANCE, DEFAULT_MIN_DISTANCE
 except ModuleNotFoundError:
     from resources.hikes_resources import DEFAULT_MAX_DISTANCE, DEFAULT_MIN_DISTANCE
+
+if TYPE_CHECKING:
+    from app.functions.trail_models import Trail
 
 # Constants
 MIN_POINTS_FOR_SIMPLIFICATION = 2  # Minimum points needed for RDP algorithm
@@ -123,6 +126,48 @@ def get_distance_range(tracks: list[TrackInfo]) -> tuple[float, float]:
 
     distances = [t["distance_km"] for t in tracks]
     return (min(distances), max(distances))
+
+
+def filter_trails(  # noqa: PLR0913
+    trails: "list[Trail]",
+    *,
+    search_query: str = "",
+    min_distance_km: float = DEFAULT_MIN_DISTANCE,
+    max_distance_km: float = DEFAULT_MAX_DISTANCE,
+    show_explored_only: bool = False,
+    show_unexplored_only: bool = False,
+) -> "list[Trail]":
+    """Filter Trail objects based on various criteria.
+
+    Args:
+        trails: List of Trail objects to filter
+        search_query: Text to search for in trail names (case-insensitive)
+        min_distance_km: Minimum trail distance in km
+        max_distance_km: Maximum trail distance in km
+        show_explored_only: If True, only show trails with "Explored!" status
+        show_unexplored_only: If True, only show trails with "To Explore" status
+
+    Returns:
+        Filtered list of Trail objects
+
+    """
+    filtered = trails
+
+    # Filter by search query (case-insensitive)
+    if search_query:
+        query_lower = search_query.lower()
+        filtered = [t for t in filtered if query_lower in t.name.lower()]
+
+    # Filter by distance range (skip for planned_hikes - official Skåneleden trails)
+    filtered = [t for t in filtered if t.source == "planned_hikes" or min_distance_km <= t.length_km <= max_distance_km]
+
+    # Filter by exploration status
+    if show_explored_only:
+        filtered = [t for t in filtered if t.status == "Explored!"]
+    elif show_unexplored_only:
+        filtered = [t for t in filtered if t.status == "To Explore"]
+
+    return filtered
 
 
 def simplify_track_coordinates(coordinates: list, tolerance: float = 0.0001) -> list:
