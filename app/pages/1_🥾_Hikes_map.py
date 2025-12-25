@@ -436,4 +436,3 @@ with col2:
     # Show info message when no trails exist
     if not st.session_state.trails:
         st.info("📍 No trails yet. Upload a GPX file to get started!")
-
