@@ -13,6 +13,8 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent.absolute()))
 from app.functions.bootstrap_trails import bootstrap_planned_trails
 from app.functions.env_loader import load_env_if_needed
 from app.functions.gpx import handle_uploaded_gpx
+from app.functions.place_models import Place, get_category_display
+from app.functions.places_storage import get_all_places
 from app.functions.tracks import filter_trails
 from app.functions.trail_storage import get_all_trails, update_trail_status
 from app.resources.hikes_resources import DEFAULT_MAX_DISTANCE, DEFAULT_MIN_DISTANCE
@@ -44,6 +46,30 @@ if "planned_trails_bootstrapped" not in st.session_state:
 # Initialize session state for trail source toggle if not already set
 if "use_world_wide_hikes" not in st.session_state:
     st.session_state.use_world_wide_hikes = False
+
+
+# --- Load Places (POIs) ---
+@st.cache_data(ttl=300)  # Cache for 5 minutes
+def load_places() -> list[Place]:
+    """Load all places from Firestore."""
+    return get_all_places()
+
+
+# Initialize places in session state
+if "places" not in st.session_state:
+    st.session_state.places = load_places()
+
+# Build available place categories from data
+available_place_categories: dict[str, str] = {}
+for place in st.session_state.places:
+    for cat in place.categories:
+        if cat.slug not in available_place_categories:
+            display = get_category_display(cat.slug)
+            available_place_categories[cat.slug] = f"{display['icon']} {display['name']}"
+
+# Initialize place category filter
+if "selected_place_categories" not in st.session_state:
+    st.session_state.selected_place_categories = []
 
 # Add toggle for trail source (above filters)
 use_world_wide_hikes = st.toggle(
@@ -132,7 +158,34 @@ if st.session_state.trails:
                 st.session_state.filter_min_distance = DEFAULT_MIN_DISTANCE
                 st.session_state.filter_max_distance = DEFAULT_MAX_DISTANCE
                 st.session_state.filter_status = "All"
+                st.session_state.selected_place_categories = []
                 st.rerun()
+
+# --- Places (POI) Filter Section ---
+if st.session_state.places and available_place_categories:
+    with st.expander("📍 Show Points of Interest", expanded=False):
+        st.markdown("Select POI categories to display on the map:")
+
+        # Create checkboxes for each category in a grid layout
+        poi_cols = st.columns(4)
+        selected_slugs = []
+
+        for idx, (slug, display_name) in enumerate(sorted(available_place_categories.items())):
+            col_idx = idx % 4
+            with poi_cols[col_idx]:
+                # Check if this category was previously selected
+                is_selected = slug in st.session_state.get("selected_place_categories", [])
+                if st.checkbox(display_name, value=is_selected, key=f"poi_{slug}"):
+                    selected_slugs.append(slug)
+
+        st.session_state.selected_place_categories = selected_slugs
+
+        # Show count of selected places
+        if selected_slugs:
+            filtered_places = [
+                p for p in st.session_state.places if any(slug in p.category_slugs for slug in selected_slugs)
+            ]
+            st.caption(f"Showing {len(filtered_places)} places")
 
 # Apply filters to trails
 show_explored = st.session_state.get("filter_status") == "Explored only"
@@ -291,6 +344,50 @@ with col2:
                         fill_color=track_color,
                         fill_opacity=0.9,
                     ).add_to(m)
+
+    # --- Plot POI Markers ---
+    selected_poi_categories = st.session_state.get("selected_place_categories", [])
+    if selected_poi_categories and st.session_state.places:
+        # Color mapping for POI categories
+        POI_COLORS = {
+            "parkering": "blue",
+            "vatten": "lightblue",
+            "lagerplats-med-vindskydd": "green",
+            "toalett": "purple",
+            "kollektivtrafik": "orange",
+            "boende": "red",
+            "badplats": "cadetblue",
+            "ata-dricka": "pink",
+            "livsmedelgardsbutik": "lightgreen",
+            "sevardhet": "darkred",
+            "aktivitet": "darkgreen",
+            "turistinformation": "gray",
+            "konst": "darkpurple",
+            "naturlekplats": "lightgreen",
+        }
+
+        for place in st.session_state.places:
+            # Check if place matches any selected category
+            if any(slug in selected_poi_categories for slug in place.category_slugs):
+                # Get primary category for color
+                primary_slug = place.category_slugs[0] if place.category_slugs else "unknown"
+                color = POI_COLORS.get(primary_slug, "gray")
+
+                # Build popup content
+                categories_str = ", ".join(place.category_names)
+                popup_html = f"""
+                <b>{place.name}</b><br>
+                <i>{categories_str}</i><br>
+                {f"📍 {place.city}" if place.city else ""}
+                {f"<br><a href='{place.weburl}' target='_blank'>More info</a>" if place.weburl else ""}
+                """
+
+                folium.Marker(
+                    location=[place.lat, place.lng],
+                    popup=folium.Popup(popup_html, max_width=300),
+                    tooltip=place.name,
+                    icon=folium.Icon(color=color, icon="info-sign"),
+                ).add_to(m)
 
     # Enable ClickForMarker (lets us detect clicks on the map) - always add regardless of trails
     m.add_child(folium.LatLngPopup())
