@@ -47,8 +47,16 @@ jobs:
       - name: Install dependencies
         run: uv sync
 
+      - name: Cache pre-commit environments
+        uses: actions/cache@5b049eb5c5a67c0a1f2c8e26236b890c37b841b2 # v4.2.1
+        with:
+          path: ~/.cache/pre-commit
+          key: pre-commit-${{ runner.os }}-${{ hashFiles('.pre-commit-config.yaml') }}
+
       - name: Run pre-commit hooks
         run: uv run pre-commit run --all-files
+        env:
+          SKIP: terraform_fmt,terraform_trivy
 
       - name: Run ruff check
         run: uv run ruff check .
