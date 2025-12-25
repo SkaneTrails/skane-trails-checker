@@ -203,6 +203,86 @@ See `pyproject.toml` for tool configurations (ruff, pytest, etc.).
 - **Self-documenting code**: Avoid inline comments - code should be readable without them. Only add comments for complex logic or non-obvious design decisions.
 - **Test coverage**: All new methods and modified functions must have corresponding tests.
 
+## Test-Driven Development (TDD)
+
+**Strongly prefer TDD when implementing new features or modules.** Write tests first, then implement the code to make them pass.
+
+### When to Use TDD
+
+- **New modules or classes** - Write tests first to define the interface and behavior
+- **New functions with complex logic** - Test edge cases before implementation
+- **Bug fixes** - Write a failing test that reproduces the bug, then fix it
+- **Refactoring** - Ensure tests pass before and after refactoring
+
+### TDD Workflow
+
+1. **Write a failing test** - Define expected behavior in a test that fails
+2. **Implement minimal code** - Write just enough code to make the test pass
+3. **Refactor** - Clean up code while keeping tests green
+4. **Repeat** - Add more tests for edge cases and additional functionality
+
+### Test Structure Guidelines
+
+- **Use pytest fixtures** for setup and teardown (see `tests/conftest.py` for shared fixtures)
+- **Mock external dependencies** - Mock Firestore, Secret Manager, file I/O, network calls
+- **Test classes** - Group related tests in classes (e.g., `TestFirestoreClient`, `TestTrailStorage`)
+- **Descriptive test names** - Test methods should clearly describe what they test
+  - Good: `test_get_all_trails_empty()`, `test_save_trail_updates_timestamp()`
+  - Bad: `test_trails()`, `test_function()`
+- **Test coverage targets**:
+  - New code: Aim for 100% coverage on new modules
+  - Modified code: Ensure all changed lines are covered
+  - Overall: Maintain >70% coverage across the codebase
+
+### Test Organization
+
+```python
+class TestMyFeature:
+    """Tests for MyFeature functionality."""
+
+    def test_happy_path(self, mock_dependency):
+        """Test the main success scenario."""
+        # Arrange - set up test data
+        # Act - call the function
+        # Assert - verify results
+        pass
+
+    def test_edge_case_empty_input(self):
+        """Test behavior with empty input."""
+        pass
+
+    def test_error_handling(self, mock_dependency):
+        """Test proper error handling."""
+        with pytest.raises(ValueError, match="Expected error message"):
+            # Call function that should raise error
+            pass
+```
+
+### Exceptions to TDD
+
+TDD is **not required** for:
+
+- **Streamlit UI code** - Visual/interactive components are hard to test
+- **Simple glue code** - Trivial wrappers with no logic
+- **Exploratory coding** - When spiking out ideas (but add tests before merging)
+- **Hot fixes in production** - When time is critical (but add tests immediately after)
+
+### Running Tests
+
+```bash
+# Run all tests with coverage
+uv run pytest -n=auto --cov=app --cov-report=term-missing
+
+# Run specific test file
+uv run pytest tests/test_firestore_client.py -v
+
+# Run specific test class or method
+uv run pytest tests/test_firestore_client.py::TestFirestoreClient::test_get_client -v
+
+# Watch mode (requires pytest-watch)
+uv run ptw -- --cov=app
+```
+
 ## Terraform Conventions
 
 - **All infrastructure must be declared in Terraform** - no manual resource creation via console or CLI

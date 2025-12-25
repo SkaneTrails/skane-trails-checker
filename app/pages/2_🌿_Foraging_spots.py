@@ -1,3 +1,4 @@
+import sys
 from datetime import UTC, datetime
 from pathlib import Path
 
@@ -5,7 +6,6 @@ import folium
 import pandas as pd
 import plotly.express as px
 import streamlit as st
-from functions.foraging import Foraging
 from resources.foraging_resources import (
     color_options,
     foraging_calendar,
@@ -15,10 +15,23 @@ from resources.foraging_resources import (
 )
 from streamlit_folium import st_folium
 
-st.set_page_config(page_title="Seasonal Foraging Tracker", layout="wide")
+# Add project root to Python path for imports
+sys.path.insert(0, str(Path(__file__).parent.parent.parent.absolute()))
 
-data_directory = Path("app/foraging_data")
-csv_data_path = data_directory / "foraging_data.csv"
+from app.functions.env_loader import load_env_if_needed
+from app.functions.foraging_storage import (
+    delete_foraging_spot,
+    delete_foraging_type,
+    get_foraging_spots,
+    get_foraging_types,
+    save_foraging_spot,
+    save_foraging_type,
+)
+
+# Load environment variables (with platform precedence)
+load_env_if_needed()
+
+st.set_page_config(page_title="Seasonal Foraging Tracker", layout="wide")
 
 # Inject custom CSS for larger tabs
 st.markdown(
@@ -45,10 +58,17 @@ short_months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "
 
 # Initialize or load foraging data and types
 if "foraging_data" not in st.session_state:
-    st.session_state.foraging_data = Foraging().load_foraging_data(csv_data_path)
+    # Load from Firestore: organize spots by month
+    all_spots = get_foraging_spots()  # Get all spots from Firestore
+    foraging_data = {month: [] for month in short_months}
+    for spot in all_spots:
+        month = spot.get("month")
+        if month in foraging_data:
+            foraging_data[month].append(spot)
+    st.session_state.foraging_data = foraging_data
 
 if "foraging_types" not in st.session_state:
-    st.session_state.foraging_types = Foraging().load_foraging_types()
+    st.session_state.foraging_types = get_foraging_types()
 
 # Create tabs
 tab1, tab2, tab3, tab4 = st.tabs(["🌍 Foraging Map", "📅 Yearly Overview", "⚙️ Manage Types", "📖 Foraging Guide"])
@@ -145,16 +165,19 @@ with tab1:
                     "lat": lat,
                     "lng": lng,
                     "notes": notes,
+                    "month": selected_month,
                     "date": datetime.now(UTC).strftime("%Y-%m-%d"),
                 }
 
                 st.session_state.foraging_data[selected_month].append(new_spot)
-                success = Foraging().save_foraging_data(st.session_state.foraging_data, csv_data_path)
-                if success:
-                    st.success(f"✅ Added {forage_type} to {selected_month} map!")
-                    # Clear the cache to ensure fresh data is loaded
-                    st.cache_data.clear()
-                    st.rerun()  # Refresh to show the new marker
+
+                # Save to Firestore
+                spot_id = save_foraging_spot(new_spot)
+                st.success(f"✅ Added {forage_type} to {selected_month} map! (ID: {spot_id})")
+
+                # Clear the cache to ensure fresh data is loaded
+                st.cache_data.clear()
+                st.rerun()  # Refresh to show the new marker
             else:
                 st.error("Please select a location on the map or enter coordinates.")
 
@@ -169,11 +192,16 @@ with tab1:
                 st.write(f"{icon} **{item['type']}**")
 
             if st.button("Clear All Spots for This Month"):
+                # Delete all spots for this month from Firestore
+                spots_to_delete = get_foraging_spots(month=selected_month)
+                for spot in spots_to_delete:
+                    if "id" in spot:
+                        delete_foraging_spot(spot["id"])
                 st.session_state.foraging_data[selected_month] = []
-                Foraging().save_foraging_data(st.session_state.foraging_data, csv_data_path)
+                st.success(f"Cleared all spots for {selected_month}")
+
                 # Clear the cache to ensure fresh data is loaded
                 st.cache_data.clear()
-                st.success(f"Cleared all spots for {selected_month}")
                 st.rerun()
         else:
             st.write("No foraging spots recorded for this month.")
@@ -188,13 +216,6 @@ with tab2:
     # Display as table
     st.write("### Seasonal Foraging Availability")
     st.dataframe(df_calendar, height=480)
-
-    # Add a download button for the foraging data
-    if csv_data_path.exists():
-        with csv_data_path.open() as f:
-            st.download_button(
-                label="Download Foraging Data CSV", data=f, file_name="foraging_data.csv", mime="text/csv"
-            )
 
     # Add a section to visualize current foraging data
     st.write("### Your Foraging Data")
@@ -299,12 +320,12 @@ with tab3:
         if new_type_name and new_type_name not in st.session_state.foraging_types:
             st.session_state.foraging_types[new_type_name] = {"icon": selected_emoji, "color": selected_color}
 
-            # Save updated foraging types
-            success = Foraging().save_foraging_types(st.session_state.foraging_types)
-            if success:
-                st.success(f"✅ Added new foraging type: {selected_emoji} {new_type_name}")
-                st.cache_data.clear()
-                st.rerun()
+            # Save to Firestore
+            save_foraging_type(new_type_name, {"icon": selected_emoji, "color": selected_color})
+            st.success(f"✅ Added new foraging type: {selected_emoji} {new_type_name}")
+
+            st.cache_data.clear()
+            st.rerun()
         elif not new_type_name:
             st.error("Please enter a name for the new foraging type.")
         else:
@@ -324,11 +345,13 @@ with tab3:
         if st.button("Remove Type"):
             if type_to_delete in st.session_state.foraging_types and type_to_delete != "Other":
                 del st.session_state.foraging_types[type_to_delete]
-                success = Foraging().save_foraging_types(st.session_state.foraging_types)
-                if success:
-                    st.success(f"✅ Removed foraging type: {type_to_delete}")
-                    st.cache_data.clear()
-                    st.rerun()
+
+                # Delete from Firestore
+                delete_foraging_type(type_to_delete)
+                st.success(f"✅ Removed foraging type: {type_to_delete}")
+
+                st.cache_data.clear()
+                st.rerun()
             else:
                 st.error("Cannot remove the 'Other' type as it's used as a fallback.")
     else:

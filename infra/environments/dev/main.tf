@@ -43,8 +43,9 @@ module "iam" {
 module "firestore" {
   source = "../../modules/firestore"
 
-  project     = var.project
-  location_id = var.firestore_location
+  project       = var.project
+  database_name = var.firestore_database_name
+  location_id   = var.firestore_location
 
   # Implicit dependencies through API service references
   firestore_api_service     = module.apis.firestore_service
