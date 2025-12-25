@@ -14,7 +14,7 @@ from app.functions.bootstrap_trails import bootstrap_planned_trails
 from app.functions.env_loader import load_env_if_needed
 from app.functions.gpx import handle_uploaded_gpx
 from app.functions.tracks import filter_trails
-from app.functions.trail_storage import get_all_trails, update_trail_status
+from app.functions.trail_storage import delete_trail, get_all_trails, update_trail_name, update_trail_status
 from app.resources.hikes_resources import DEFAULT_MAX_DISTANCE, DEFAULT_MIN_DISTANCE
 
 # Load environment variables (with platform precedence)
@@ -44,6 +44,10 @@ if "planned_trails_bootstrapped" not in st.session_state:
 # Initialize session state for trail source toggle if not already set
 if "use_world_wide_hikes" not in st.session_state:
     st.session_state.use_world_wide_hikes = False
+
+# Initialize selected trail for highlighting
+if "selected_trail_id" not in st.session_state:
+    st.session_state.selected_trail_id = None
 
 # Add toggle for trail source (above filters)
 use_world_wide_hikes = st.toggle(
@@ -192,6 +196,79 @@ with col1:
         if world_wide_count > 0:
             st.markdown(f"**World Wide** ({world_wide_count}): 🔵 Uploaded trails")
 
+    # Show selected trail details and rename option
+    if st.session_state.selected_trail_id:
+        selected_trail = next(
+            (t for t in st.session_state.trails if t.trail_id == st.session_state.selected_trail_id), None
+        )
+        if selected_trail:
+            st.divider()
+            st.subheader("📍 Selected Trail")
+
+            # Display trail info
+            st.write(f"**{selected_trail.name}**")
+            st.write(f"Distance: {selected_trail.length_km:.1f} km")
+
+            if selected_trail.activity_date:
+                date_str = selected_trail.activity_date.split("T")[0]
+                st.write(f"Date: {date_str}")
+
+            if selected_trail.activity_type:
+                st.write(f"Activity: {selected_trail.activity_type.title()}")
+
+            if selected_trail.elevation_gain is not None:
+                st.write(f"Elevation Gain: {selected_trail.elevation_gain:.0f} m")
+
+            # Rename section
+            with st.form(key="rename_trail_form"):
+                new_name = st.text_input("Rename trail:", value=selected_trail.name, max_chars=100)
+                col_rename, col_clear = st.columns(2)
+
+                with col_rename:
+                    rename_submitted = st.form_submit_button("Rename", use_container_width=True)
+
+                with col_clear:
+                    clear_selection = st.form_submit_button("Clear", use_container_width=True)
+
+                if rename_submitted and new_name and new_name != selected_trail.name:
+                    try:
+                        update_trail_name(selected_trail.trail_id, new_name)
+                        selected_trail.name = new_name
+                        st.success(f"✅ Renamed to: {new_name}")
+                        st.rerun()
+                    except Exception as e:
+                        st.error(f"❌ Failed to rename: {e}")
+
+                if clear_selection:
+                    st.session_state.selected_trail_id = None
+                    st.rerun()
+
+            # Delete section with confirmation
+            with st.expander("🗑️ Delete Trail", expanded=False):
+                st.warning(f"⚠️ This will permanently delete **{selected_trail.name}**")
+
+                with st.form(key="delete_trail_form"):
+                    confirm_delete = st.checkbox("I confirm I want to delete this trail")
+                    delete_submitted = st.form_submit_button(
+                        "Delete Permanently", type="primary", use_container_width=True
+                    )
+
+                    if delete_submitted:
+                        if confirm_delete:
+                            try:
+                                delete_trail(selected_trail.trail_id)
+                                # Remove from session state trails list
+                                st.session_state.trails = [
+                                    t for t in st.session_state.trails if t.trail_id != selected_trail.trail_id
+                                ]
+                                st.session_state.selected_trail_id = None
+                                st.success(f"✅ Deleted: {selected_trail.name}")
+                                st.rerun()
+                            except Exception as e:
+                                st.error(f"❌ Failed to delete: {e}")
+                        else:
+                            st.error("Please check the confirmation box to delete")
+
     # Add GPX upload section - always visible, not just when trails exist
     st.subheader("Upload Additional Trails")
     uploaded_file = st.file_uploader("Upload GPX file", type=["gpx"], key="gpx_uploader")
@@ -253,18 +330,50 @@ with col2:
         uploaded_trails = [t for t in filtered_trails if t.source != "planned_hikes"]
 
         for trail in planned_trails + uploaded_trails:
+            # Check if this trail is selected for highlighting
+            is_selected = st.session_state.selected_trail_id == trail.trail_id
+
             # Color scheme:
             # - Planned hikes: Orange for to explore, dark green for explored
             # - Uploaded trails: Blue (always blue, shows user-added content)
+            # - Selected trails: Brighter with thicker line
             if trail.source == "planned_hikes":
                 track_color = "#FF8C00" if trail.status == "To Explore" else "#006400"  # Orange → Dark Green
-                weight = 5
-                opacity = 0.8
+                weight = 7 if is_selected else 5
+                opacity = 1.0 if is_selected else 0.8
             else:
                 # Other trails and world-wide hikes: Blue
                 track_color = "#2683b5"  # Blue
-                weight = 4
-                opacity = 0.7
+                weight = 6 if is_selected else 4
+                opacity = 0.95 if is_selected else 0.7
+
+            # Build popup HTML with trail information
+            popup_html = f"<b>{trail.name}</b><br>"
+            popup_html += f"Distance: {trail.length_km:.1f} km<br>"
+
+            if trail.activity_date:
+                # Format date nicely (remove time if present)
+                date_str = trail.activity_date.split("T")[0]
+                popup_html += f"Date: {date_str}<br>"
+
+            if trail.activity_type:
+                popup_html += f"Activity: {trail.activity_type.title()}<br>"
+
+            if trail.elevation_gain is not None:
+                popup_html += f"Elevation Gain: {trail.elevation_gain:.0f} m<br>"
+
+            if trail.elevation_loss is not None:
+                popup_html += f"Elevation Loss: {trail.elevation_loss:.0f} m<br>"
+
+            # Add status for planned hikes
+            if trail.source == "planned_hikes":
+                popup_html += f"<br><i>Status: {trail.status}</i>"
+
+            # Different tooltip for planned vs uploaded hikes
+            if trail.source == "planned_hikes":
+                tooltip_text = f"Click to toggle status: {trail.name}"
+            else:
+                tooltip_text = f"Click for details: {trail.name}"
 
             # Plot the trail
             # Convert coordinates to list format for Folium
@@ -274,8 +383,8 @@ with col2:
                 color=track_color,
                 weight=weight,
                 opacity=opacity,
-                popup=f"{trail.name}: {trail.status}",
-                tooltip=f"Click to toggle status: {trail.name}",
+                popup=folium.Popup(popup_html, max_width=300),
+                tooltip=tooltip_text,
             ).add_to(m)
 
             # Start and End Points with matching colors
@@ -302,7 +411,8 @@ with col2:
     # returned_objects=["last_clicked"] prevents reruns on zoom/pan, only on clicks
     map_data = st_folium(m, height=map_height, width=None, key="map", returned_objects=["last_clicked"])
 
-    # Handle map clicks to toggle trail status (only if trails exist)
+    # Handle map clicks (only if trails exist)
+    MAX_CLICK_DISTANCE_METERS = 1000  # Maximum distance to consider a click on a trail
     if st.session_state.trails and map_data and "last_clicked" in map_data and map_data["last_clicked"] is not None:
         clicked_latlng = (map_data["last_clicked"]["lat"], map_data["last_clicked"]["lng"])
 
@@ -317,26 +427,33 @@ with col2:
                     min_distance = distance
                     closest_trail = trail
 
-        # Toggle trail status if within 50 meters
-        if closest_trail is not None and min_distance < CLICK_RANGE_METERS:
-            # Toggle between "To Explore" and "Explored!"
-            new_status = "Explored!" if closest_trail.status == "To Explore" else "To Explore"
+        # If we found a trail within reasonable distance, process the click
+        if closest_trail and min_distance < MAX_CLICK_DISTANCE_METERS:
+            # Highlight the clicked trail
+            st.session_state.selected_trail_id = closest_trail.trail_id
 
-            # Update in Firestore
-            try:
-                update_trail_status(closest_trail.trail_id, new_status)
+            # Only toggle status for planned hikes - uploaded hikes are already done
+            if closest_trail.source == "planned_hikes":
+                # Toggle between "To Explore" and "Explored!"
+                new_status = "Explored!" if closest_trail.status == "To Explore" else "To Explore"
 
-                # Update local state
-                closest_trail.status = new_status
+                # Update in Firestore
+                try:
+                    update_trail_status(closest_trail.trail_id, new_status)
 
-                st.success(f"✅ {closest_trail.name} has been marked as '{new_status}' and saved!")
+                    # Update local state
+                    closest_trail.status = new_status
 
-                # Force UI refresh to update map color
+                    st.success(f"✅ {closest_trail.name} has been marked as '{new_status}' and saved!")
+
+                    # Force UI refresh to update map color
+                    st.rerun()
+                except Exception as e:
+                    st.error(f"❌ Failed to update trail status: {e}")
+            else:
+                # For uploaded hikes, just highlight and show in sidebar
                 st.rerun()
-            except Exception as e:
-                st.error(f"❌ Failed to update trail status: {e}")
 
     # Show info message when no trails exist
     if not st.session_state.trails:
         st.info("📍 No trails yet. Upload a GPX file to get started!")
-

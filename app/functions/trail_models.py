@@ -39,12 +39,16 @@ class Trail:
     center: TrailCenter
     source: str  # "planned_hikes" | "other_trails" | "world_wide_hikes"
     last_updated: str  # ISO 8601 timestamp
+    activity_date: str | None = None  # ISO 8601 timestamp when activity took place
+    activity_type: str | None = None  # Type of activity (running, hiking, cycling, etc.)
+    elevation_gain: float | None = None  # Total elevation gain in meters
+    elevation_loss: float | None = None  # Total elevation loss in meters
 
     def to_dict(self) -> dict:
         """Convert to dictionary for Firestore storage."""
         # Convert coordinates to array of objects (not nested arrays - Firestore limitation)
         coords_objects = [{"lat": float(lat), "lng": float(lng)} for lat, lng in self.coordinates_map]
-        return {
+        data = {
             "trail_id": self.trail_id,
             "name": self.name,
             "difficulty": self.difficulty,
@@ -61,6 +65,16 @@ class Trail:
             "source": self.source,
             "last_updated": self.last_updated,
         }
+        # Add optional fields if present
+        if self.activity_date is not None:
+            data["activity_date"] = self.activity_date
+        if self.activity_type is not None:
+            data["activity_type"] = self.activity_type
+        if self.elevation_gain is not None:
+            data["elevation_gain"] = float(self.elevation_gain)
+        if self.elevation_loss is not None:
+            data["elevation_loss"] = float(self.elevation_loss)
+        return data
 
     @classmethod
     def from_dict(cls, data: dict) -> "Trail":
@@ -80,6 +94,10 @@ class Trail:
             center=center,
             source=data["source"],
             last_updated=data["last_updated"],
+            activity_date=data.get("activity_date"),
+            activity_type=data.get("activity_type"),
+            elevation_gain=data.get("elevation_gain"),
+            elevation_loss=data.get("elevation_loss"),
         )
 
 

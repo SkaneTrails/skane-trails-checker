@@ -44,9 +44,9 @@ st.session_state.track_status[track_id] = "Explored!"
 ### Data Flow
 
 1. **GPX Files** → `functions/gpx.py` → Parse tracks
-2. **Track Status** → `functions/tracks.py` → Load/save CSV
-3. **Foraging Data** → `functions/foraging.py` → Load/save JSON
-4. **Map Rendering** → Folium → `streamlit_folium` → Display
+1. **Track Status** → `functions/tracks.py` → Load/save CSV
+1. **Foraging Data** → `functions/foraging.py` → Load/save JSON
+1. **Map Rendering** → Folium → `streamlit_folium` → Display
 
 ### Key Patterns
 
@@ -181,9 +181,9 @@ Suppress false positives in `.trivyignore`
 See GitHub issues #35-#40 for Firebase migration roadmap:
 
 1. **Abstract storage layer** - Decouple business logic from file storage
-2. **Firebase/Firestore** - Cloud storage for GPX files and data
-3. **Docker/Cloud Run** - Containerized deployment
-4. **Zero-cost production** - Deploy on GCP free tier
+1. **Firebase/Firestore** - Cloud storage for GPX files and data
+1. **Docker/Cloud Run** - Containerized deployment
+1. **Zero-cost production** - Deploy on GCP free tier
 
 ## Questions?
 

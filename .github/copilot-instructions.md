@@ -207,6 +207,52 @@ See `pyproject.toml` for tool configurations (ruff, pytest, etc.).
 
 **Strongly prefer TDD when implementing new features or modules.** Write tests first, then implement the code to make them pass.
 
+## Bug Fixes & Debugging Workflow
+
+**CRITICAL: When a bug is reported or the app crashes, ALWAYS follow this workflow:**
+
+1. **Run tests first** - Check if existing tests catch the bug: `uv run pytest tests/ -x -v`
+1. **If tests don't catch it**, write a failing test that reproduces the bug
+1. **Then fix the bug** - Make the minimum change to make the test pass
+1. **Verify the fix** - Ensure the new test passes and no other tests broke
+
+**DO NOT:**
+
+- ❌ Jump straight to looking at terminal output and fixing based on error messages
+- ❌ Fix bugs without adding regression tests (unless UI-only issues)
+- ❌ Look at stack traces before checking if tests catch the issue
+
+**Example workflow:**
+
+```bash
+# User reports: "The app crashes"
+# Step 1: Run tests first
+uv run pytest tests/ -x -v
+
+# Step 2: If tests catch it, read the test failure output
+# Step 3: Fix the code to make tests pass
+# Step 4: Verify all tests pass
+
+# If tests DON'T catch it:
+# Step 2b: Write a test that reproduces the bug
+# Step 3b: Fix the bug
+# Step 4b: Verify the new test passes
+```
+
+**This ensures:**
+
+- Every bug fix includes a regression test
+- Tests become more comprehensive over time
+- Future refactoring won't reintroduce the same bugs
+
+**Test complexity guidelines:**
+
+- Keep tests **simple and fast** - the suite runs in pre-commit hooks (~4 seconds target)
+- Avoid expensive operations: large file I/O, network calls, complex computations
+- Mock external dependencies rather than calling real APIs or databases
+- If a test would be too complex or slow (e.g., full Streamlit UI interactions), document the bug fix without adding a test
+- Prefer unit tests over integration tests for speed
+
 ### When to Use TDD
 
 - **New modules or classes** - Write tests first to define the interface and behavior
@@ -217,9 +263,9 @@ See `pyproject.toml` for tool configurations (ruff, pytest, etc.).
 ### TDD Workflow
 
 1. **Write a failing test** - Define expected behavior in a test that fails
-2. **Implement minimal code** - Write just enough code to make the test pass
-3. **Refactor** - Clean up code while keeping tests green
-4. **Repeat** - Add more tests for edge cases and additional functionality
+1. **Implement minimal code** - Write just enough code to make the test pass
+1. **Refactor** - Clean up code while keeping tests green
+1. **Repeat** - Add more tests for edge cases and additional functionality
 
 ### Test Structure Guidelines
 
@@ -366,8 +412,8 @@ uv run ptw -- --cov=app
 ### Adding New Pages
 
 1. Create file in `app/pages/` with format `N_emoji_Name.py` (N = display order)
-2. Include `st.set_page_config(layout="wide")` if full-width layout needed
-3. Access shared session state directly; no imports needed
+1. Include `st.set_page_config(layout="wide")` if full-width layout needed
+1. Access shared session state directly; no imports needed
 
 ### Modifying GPX Logic
 

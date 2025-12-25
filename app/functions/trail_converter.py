@@ -9,7 +9,13 @@ from app.functions.tracks import simplify_track_coordinates
 from app.functions.trail_models import Trail, TrailBounds, TrailCenter
 
 
-def gpx_track_to_trail(gpx_track: gpxpy.gpx.GPXTrack, source: str, index: int = 0, status: str = "To Explore") -> Trail:
+def gpx_track_to_trail(
+    gpx_track: gpxpy.gpx.GPXTrack,
+    source: str,
+    index: int = 0,
+    status: str = "To Explore",
+    gpx_metadata: dict | None = None,
+) -> Trail:
     """Convert a GPX track to a Trail object.
 
     Args:
@@ -17,15 +23,19 @@ def gpx_track_to_trail(gpx_track: gpxpy.gpx.GPXTrack, source: str, index: int = 
         source: Source identifier ("skaneleden", "other_trails", "world_wide_hikes")
         index: Track index (for creating stable IDs)
         status: Current status of the trail
+        gpx_metadata: Optional metadata dict with 'time' and other GPX-level info
 
     Returns:
         Trail object ready for Firestore storage
     """
-    # Extract all coordinates from all segments
+    # Extract all coordinates and elevation data from all segments
     all_coordinates = []
+    all_elevations = []
     for segment in gpx_track.segments:
-        coords = [(point.latitude, point.longitude) for point in segment.points]
-        all_coordinates.extend(coords)
+        for point in segment.points:
+            all_coordinates.append((point.latitude, point.longitude))
+            if point.elevation is not None:
+                all_elevations.append(point.elevation)
 
     if not all_coordinates:
         msg = f"Track '{gpx_track.name}' has no coordinates"
@@ -54,6 +64,27 @@ def gpx_track_to_trail(gpx_track: gpxpy.gpx.GPXTrack, source: str, index: int = 
         lng_diff = (lng2 - lng1) * 111.0 * abs(lat1 / 90.0)  # Latitude correction
         length_km += (lat_diff**2 + lng_diff**2) ** 0.5
 
+    # Calculate elevation gain/loss if elevation data available
+    elevation_gain = None
+    elevation_loss = None
+    if len(all_elevations) > 1:
+        gain = 0.0
+        loss = 0.0
+        for i in range(len(all_elevations) - 1):
+            diff = all_elevations[i + 1] - all_elevations[i]
+            if diff > 0:
+                gain += diff
+            else:
+                loss += abs(diff)
+        elevation_gain = round(gain, 1)
+        elevation_loss = round(loss, 1)
+
+    # Extract activity metadata from GPX
+    activity_date = None
+    activity_type = gpx_track.type  # Garmin includes activity type in track
+    if gpx_metadata and "time" in gpx_metadata:
+        activity_date = gpx_metadata["time"]
+
     # Generate stable trail_id from track name, index, and first coordinate
     # Include first coordinate to ensure uniqueness across files with same track names
     name = gpx_track.name or f"Unnamed Trail {index}"
@@ -71,6 +102,10 @@ def gpx_track_to_trail(gpx_track: gpxpy.gpx.GPXTrack, source: str, index: int = 
         center=center,
         source=source,
         last_updated=datetime.now(UTC).isoformat(),
+        activity_date=activity_date,
+        activity_type=activity_type,
+        elevation_gain=elevation_gain,
+        elevation_loss=elevation_loss,
     )
 
 
