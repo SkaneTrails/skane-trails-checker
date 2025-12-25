@@ -1,4 +1,6 @@
+import json
 import logging
+import os
 import random
 import sys
 from datetime import datetime
@@ -15,13 +17,60 @@ from app.functions.env_loader import load_env_if_needed
 
 load_env_if_needed()
 
-# Configure logging for debugging (only when not in test mode)
+
+# JSON formatter for Cloud Logging
+class CloudLoggingFormatter(logging.Formatter):
+    """Format logs as JSON for Google Cloud Logging."""
+
+    def format(self, record: logging.LogRecord) -> str:
+        log_obj = {
+            "severity": record.levelname,
+            "message": record.getMessage(),
+            "component": record.name,
+            "timestamp": self.formatTime(record, self.datefmt),
+        }
+
+        # Add exception info if present
+        if record.exc_info:
+            log_obj["exception"] = self.formatException(record.exc_info)
+
+        # Add extra fields if present (trail_id, trail_name, etc.)
+        for key in ["trail_id", "trail_name", "user_id"]:
+            if hasattr(record, key):
+                log_obj[key] = getattr(record, key)
+
+        return json.dumps(log_obj)
+
+
+# Configure logging for the entire application (only when not in test mode)
 if "pytest" not in sys.modules:
-    logging.basicConfig(
-        level=logging.INFO,
-        format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-        handlers=[logging.StreamHandler(), logging.FileHandler("app_debug.log")],
-    )
+    # Set log level from command-line argument, environment variable, or default to INFO
+    # Check for --log-level argument in sys.argv
+    log_level_name = "INFO"  # Default
+
+    # Check command-line arguments first
+    for i, arg in enumerate(sys.argv):
+        if arg == "--log-level" and i + 1 < len(sys.argv):
+            log_level_name = sys.argv[i + 1].upper()
+            break
+    else:
+        # Fall back to environment variable
+        log_level_name = os.getenv("LOG_LEVEL", "INFO").upper()
+
+    log_level = getattr(logging, log_level_name, logging.INFO)
+
+    # Configure root logger
+    root_logger = logging.getLogger()
+    root_logger.setLevel(log_level)
+
+    # Clear any existing handlers
+    root_logger.handlers.clear()
+
+    # Add stdout handler with JSON formatter for Cloud Logging
+    handler = logging.StreamHandler(sys.stdout)
+    handler.setFormatter(CloudLoggingFormatter())
+    root_logger.addHandler(handler)
+
 logger = logging.getLogger(__name__)
 
 # Constants

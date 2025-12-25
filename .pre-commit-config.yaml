@@ -99,7 +99,7 @@ repos:
         language: system
         types: [python]
         pass_filenames: false
-        args: [tests/, -x, --tb=short]
+        args: [tests/, -x, --no-cov, -q]
       - id: ty
         name: ty type check
         entry: uv run ty check
