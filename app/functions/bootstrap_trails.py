@@ -3,6 +3,7 @@
 from pathlib import Path
 
 import gpxpy
+import gpxpy.gpx
 
 from app.functions.firestore_client import get_collection
 from app.functions.trail_converter import gpx_track_to_trail

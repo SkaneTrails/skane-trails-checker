@@ -1,9 +1,13 @@
 """Firestore storage adapter for trails."""
 
 from datetime import UTC, datetime
+from typing import TYPE_CHECKING
 
 from app.functions.firestore_client import get_collection
 from app.functions.trail_models import Trail, TrailDetails
+
+if TYPE_CHECKING:
+    from google.cloud.firestore_v1 import DocumentSnapshot
 
 
 def get_all_trails() -> list[Trail]:
@@ -35,8 +39,9 @@ def get_trail_details(trail_id: str) -> TrailDetails | None:
     Returns:
         TrailDetails object with full coordinates, or None if not found
     """
+
     collection = get_collection("trail_details")
-    doc = collection.document(trail_id).get()
+    doc: DocumentSnapshot = collection.document(trail_id).get()  # type: ignore[assignment]
 
     if doc.exists is False:
         return None
