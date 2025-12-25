@@ -86,6 +86,33 @@ def update_trail_status(trail_id: str, status: str) -> None:
     print(f"[Firestore] Updated trail {trail_id} status")
 
 
+def update_trail_name(trail_id: str, name: str) -> None:
+    """Update the name of a trail.
+
+    Args:
+        trail_id: Unique identifier for the trail
+        name: New name for the trail
+    """
+    print(f"[Firestore] Updating trail {trail_id} name to: {name}")
+    collection = get_collection("trails")
+    collection.document(trail_id).update({"name": name, "last_updated": datetime.now(UTC).isoformat()})
+    print(f"[Firestore] Updated trail {trail_id} name")
+
+
+def update_trail(trail_id: str, updates: dict) -> None:
+    """Update multiple fields of a trail.
+
+    Args:
+        trail_id: Unique identifier for the trail
+        updates: Dictionary of field names and values to update
+    """
+    print(f"[Firestore] Updating trail {trail_id} with fields: {list(updates.keys())}")
+    collection = get_collection("trails")
+    updates["last_updated"] = datetime.now(UTC).isoformat()
+    collection.document(trail_id).update(updates)
+    print(f"[Firestore] Updated trail {trail_id}")
+
+
 def delete_trail(trail_id: str) -> None:
     """Delete a trail and its details from Firestore.
 

@@ -63,13 +63,14 @@ Users listed in `users.txt` also receive:
    alice@example.com
    ```
 
-2. Update the `users` variable in `terraform.tfvars` to load from the file
-3. Run `terraform apply` to grant access
+1. Update the `users` variable in `terraform.tfvars` to load from the file
+
+1. Run `terraform apply` to grant access
 
 ### Remove a User
 
 1. Remove the user's email from `users.txt`
-2. Run `terraform apply` to revoke access
+1. Run `terraform apply` to revoke access
 
 ## Variables
 

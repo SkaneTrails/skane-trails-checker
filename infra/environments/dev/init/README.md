@@ -9,14 +9,19 @@ Creates the GCS bucket for storing Terraform remote state. This is a one-time se
 ## Prerequisites
 
 1. **GCP Project**: Create a GCP project (free tier)
-2. **gcloud CLI**: Installed and authenticated (`gcloud auth application-default login`)
-3. **Terraform**: Version >= 1.12
-4. **Permissions**: The following IAM roles are required to run this bootstrap:
+
+1. **gcloud CLI**: Installed and authenticated (`gcloud auth application-default login`)
+
+1. **Terraform**: Version >= 1.12
+
+1. **Permissions**: The following IAM roles are required to run this bootstrap:
+
    - **Storage Admin** (`roles/storage.admin`) - Create and manage GCS buckets
    - **Storage Object Admin** (`roles/storage.objectAdmin`) - Manage bucket objects and versioning
    - Alternatively, **Project Editor** (`roles/editor`) or **Project Owner** (`roles/owner`) includes these permissions
 
    These permissions are needed to:
+
    - Create the GCS bucket for Terraform state
    - Enable versioning on the bucket
    - Configure bucket lifecycle policies
@@ -136,5 +141,5 @@ Run `terraform init` first to download provider plugins.
 After bootstrap is complete, you can proceed to set up the main infrastructure:
 
 1. Firestore database
-2. Cloud Storage buckets for GPX files
-3. Cloud Run service for the Streamlit app
+1. Cloud Storage buckets for GPX files
+1. Cloud Run service for the Streamlit app
