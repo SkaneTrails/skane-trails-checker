@@ -4,6 +4,7 @@ import hashlib
 from datetime import UTC, datetime
 
 import gpxpy
+import gpxpy.gpx
 
 from app.functions.tracks import simplify_track_coordinates
 from app.functions.trail_models import Trail, TrailBounds, TrailCenter
