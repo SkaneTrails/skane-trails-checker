@@ -13,7 +13,9 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent.absolute()))
 from app.functions.bootstrap_trails import bootstrap_planned_trails
 from app.functions.env_loader import load_env_if_needed
 from app.functions.gpx import handle_uploaded_gpx
+from app.functions.tracks import filter_trails
 from app.functions.trail_storage import get_all_trails, update_trail_status
+from app.resources.hikes_resources import DEFAULT_MAX_DISTANCE, DEFAULT_MIN_DISTANCE
 
 # Load environment variables (with platform precedence)
 load_env_if_needed()
@@ -49,12 +51,8 @@ tab1, tab2 = st.tabs(["Map and trails 🌍", "🚀 Possible Improvements"])
 
 # Main GPX Explorer Tab
 with tab1:
-    # Use columns to create a sidebar-like layout while maintaining full width for the map
-    col1, col2 = st.columns([1, 4], gap="large")  # 1:4 ratio gives 20% width to stats, 80% to map
-
-    with col1:
-        # 🎨 Streamlit App Title (in the sidebar)
-        st.title("Skåne map and trails 🌍")
+    # 🎨 Streamlit App Title
+    st.title("Skåne map and trails 🌍")
 
     # Bootstrap planned trails from disk if not in Firestore
     cur_dir = pathlib.Path(__file__).parent.parent.absolute()
@@ -76,16 +74,15 @@ if "use_world_wide_hikes" not in st.session_state:
 
 # 📂 Load trails from Firestore based on current toggle state
 with tab1:
-    with col1:
-        # Add toggle for trail source
-        use_world_wide_hikes = st.toggle(
-            "Use World Wide Hikes",
-            value=st.session_state.get("use_world_wide_hikes", False),
-            help="Toggle between Skåne trails and World Wide hikes",
-        )
+    # Add toggle for trail source (above filters)
+    use_world_wide_hikes = st.toggle(
+        "Use World Wide Hikes",
+        value=st.session_state.get("use_world_wide_hikes", False),
+        help="Toggle between Skåne trails and World Wide hikes",
+    )
 
-        # Update session state with the toggle value
-        st.session_state.use_world_wide_hikes = use_world_wide_hikes
+    # Update session state with the toggle value
+    st.session_state.use_world_wide_hikes = use_world_wide_hikes
 
     # Reload data if trail source has changed
     if "trails" not in st.session_state or st.session_state.get("last_trail_source") != use_world_wide_hikes:
@@ -110,11 +107,98 @@ with tab1:
             # Show Skåneleden and other local trails
             st.session_state.trails = [t for t in all_trails if t.source in ("planned_hikes", "other_trails")]
 
+# --- Filter Section (Above Map) ---
+with tab1:
+    if st.session_state.trails:
+        with st.expander("🔍 Filter Trails", expanded=True):
+            # Initialize filter state in session
+            if "filter_search" not in st.session_state:
+                st.session_state.filter_search = ""
+            if "filter_min_distance" not in st.session_state:
+                st.session_state.filter_min_distance = DEFAULT_MIN_DISTANCE
+            if "filter_max_distance" not in st.session_state:
+                st.session_state.filter_max_distance = DEFAULT_MAX_DISTANCE
+            if "filter_status" not in st.session_state:
+                st.session_state.filter_status = "All"
+
+            # Create horizontal layout for filters
+            filter_col1, filter_col2, filter_col3, filter_col4 = st.columns([2, 2, 2, 1])
+
+            with filter_col1:
+                search_query = st.text_input(
+                    "Search by name:",
+                    value=st.session_state.filter_search,
+                    placeholder="e.g., Söderåsen",
+                    key="trail_search_input",
+                )
+                st.session_state.filter_search = search_query
+
+            with filter_col2:
+                distance_range = st.slider(
+                    "Distance (km):",
+                    min_value=0.0,
+                    max_value=100.0,
+                    value=(st.session_state.filter_min_distance, st.session_state.filter_max_distance),
+                    step=1.0,
+                    key="distance_slider",
+                    help="Note: Distance filter does not apply to Planned Hikes (Skåneleden)",
+                )
+                st.session_state.filter_min_distance = distance_range[0]
+                st.session_state.filter_max_distance = distance_range[1]
+
+            with filter_col3:
+                status_filter = st.radio(
+                    "Show:",
+                    options=["All", "Explored only", "To explore only"],
+                    index=0
+                    if st.session_state.filter_status == "All"
+                    else (1 if st.session_state.filter_status == "Explored only" else 2),
+                    horizontal=True,
+                    key="status_filter_radio",
+                )
+                st.session_state.filter_status = status_filter
+
+            with filter_col4:
+                st.write("")  # Spacer for alignment
+                if st.button("Clear Filters", key="clear_filters_btn"):
+                    st.session_state.filter_search = ""
+                    st.session_state.filter_min_distance = DEFAULT_MIN_DISTANCE
+                    st.session_state.filter_max_distance = DEFAULT_MAX_DISTANCE
+                    st.session_state.filter_status = "All"
+                    st.rerun()
+
+    # Apply filters to trails
+    show_explored = st.session_state.get("filter_status") == "Explored only"
+    show_unexplored = st.session_state.get("filter_status") == "To explore only"
+    filtered_trails = filter_trails(
+        st.session_state.trails,
+        search_query=st.session_state.get("filter_search", ""),
+        min_distance_km=st.session_state.get("filter_min_distance", DEFAULT_MIN_DISTANCE),
+        max_distance_km=st.session_state.get("filter_max_distance", DEFAULT_MAX_DISTANCE),
+        show_explored_only=show_explored,
+        show_unexplored_only=show_unexplored,
+    )
+
+    # Create columns for sidebar and map layout (AFTER filters)
+    col1, col2 = st.columns([1, 4], gap="large")  # 1:4 ratio gives 20% width to stats, 80% to map
+
 # Display statistics and upload button in the left column
 with tab1:
     with col1:
         if st.session_state.trails:
             st.header("Track Statistics")
+
+            # Check if filters are active
+            has_active_filters = (
+                st.session_state.get("filter_search", "")
+                or st.session_state.get("filter_min_distance", 0) > DEFAULT_MIN_DISTANCE
+                or st.session_state.get("filter_max_distance", DEFAULT_MAX_DISTANCE) < DEFAULT_MAX_DISTANCE
+                or st.session_state.get("filter_status", "All") != "All"
+            )
+
+            # Show filtered count if filters are active
+            if has_active_filters:
+                st.metric("Showing", f"{len(filtered_trails)} of {len(st.session_state.trails)}")
 
             # Calculate total tracks from Firestore trails (exclude planned hikes - those are available/planned trails)
             user_trails = [t for t in st.session_state.trails if t.source != "planned_hikes"]
@@ -174,9 +258,9 @@ with tab1:
         # 🗺️ Get all track coordinates to center map
         all_coords = []
 
-        # Collect coordinates from Firestore trails
-        if st.session_state.trails:
-            for trail in st.session_state.trails:
+        # Collect coordinates from filtered trails
+        if filtered_trails:
+            for trail in filtered_trails:
                 all_coords.extend(trail.coordinates_map)
 
         # Compute map center & zoom
@@ -198,11 +282,11 @@ with tab1:
             # Default to Skåne region when no trails exist
             m = folium.Map(location=[56.0, 13.5], zoom_start=9)  # Centered on Skåne
 
-        # Plot trails from Firestore (if any exist)
-        if st.session_state.trails:
+        # Plot filtered trails (if any exist after filtering)
+        if filtered_trails:
             # Plot planned hikes first (will be underneath), then uploaded trails (on top)
-            planned_trails = [t for t in st.session_state.trails if t.source == "planned_hikes"]
-            uploaded_trails = [t for t in st.session_state.trails if t.source != "planned_hikes"]
+            planned_trails = [t for t in filtered_trails if t.source == "planned_hikes"]
+            uploaded_trails = [t for t in filtered_trails if t.source != "planned_hikes"]
 
             for trail in planned_trails + uploaded_trails:
                 # Color scheme:
