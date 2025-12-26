@@ -7,7 +7,7 @@ environment variables are loaded before any other modules need them.
 import os
 
 
-def load_env_if_needed() -> None:
+def load_env_if_needed() -> None:  # pragma: no cover
     """Load .env file only if environment variables are not already set.
 
     Environment variables set by deployment platforms (Cloud Run, etc.)

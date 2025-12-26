@@ -73,6 +73,9 @@ def save_places_batch(places: list[Place], batch_size: int = 500) -> int:
     Returns:
         Number of places saved
     """
+    if not places:
+        return 0
+
     from app.functions.firestore_client import get_firestore_client
 
     db = get_firestore_client()

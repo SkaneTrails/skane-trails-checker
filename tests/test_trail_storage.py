@@ -13,6 +13,8 @@ from app.functions.trail_storage import (
     get_trail_details,
     save_trail,
     save_trail_details,
+    update_trail,
+    update_trail_name,
     update_trail_status,
 )
 
@@ -135,6 +137,67 @@ class TestTrail:
         assert restored_trail.coordinates_map == sample_trail.coordinates_map
         assert restored_trail.bounds.north == sample_trail.bounds.north
 
+    def test_trail_with_optional_fields(self) -> None:
+        """Test Trail with all optional fields populated."""
+        trail = Trail(
+            trail_id="test_with_optionals",
+            name="Test Trail",
+            difficulty="Easy",
+            length_km=10.0,
+            status="Explored!",
+            coordinates_map=[(56.0, 13.0), (56.1, 13.1)],
+            bounds=TrailBounds(north=56.1, south=56.0, east=13.1, west=13.0),
+            center=TrailCenter(lat=56.05, lng=13.05),
+            source="world_wide_hikes",
+            last_updated="2025-12-26T10:00:00Z",
+            activity_date="2025-12-20T14:30:00Z",
+            activity_type="running",
+            elevation_gain=150.5,
+            elevation_loss=75.2,
+        )
+
+        trail_dict = trail.to_dict()
+
+        assert trail_dict["activity_date"] == "2025-12-20T14:30:00Z"
+        assert trail_dict["activity_type"] == "running"
+        assert trail_dict["elevation_gain"] == 150.5
+        assert trail_dict["elevation_loss"] == 75.2
+
+    def test_trail_roundtrip_with_optional_fields(self) -> None:
+        """Test Trail serialization roundtrip with optional fields."""
+        data = {
+            "trail_id": "test_roundtrip",
+            "name": "Test Trail",
+            "difficulty": "Medium",
+            "length_km": 12.5,
+            "status": "To Explore",
+            "coordinates_map": [{"lat": 56.0, "lng": 13.0}],
+            "bounds": {"north": 56.0, "south": 55.9, "east": 13.1, "west": 13.0},
+            "center": {"lat": 55.95, "lng": 13.05},
+            "source": "other_trails",
+            "last_updated": "2025-12-26T10:00:00Z",
+            "activity_date": "2025-12-25T08:00:00Z",
+            "activity_type": "hiking",
+            "elevation_gain": 200.0,
+            "elevation_loss": 180.0,
+        }
+
+        trail = Trail.from_dict(data)
+
+        assert trail.activity_date == "2025-12-25T08:00:00Z"
+        assert trail.activity_type == "hiking"
+        assert trail.elevation_gain == 200.0
+        assert trail.elevation_loss == 180.0
+
+        # Roundtrip
+        trail_dict = trail.to_dict()
+        restored = Trail.from_dict(trail_dict)
+
+        assert restored.activity_date == trail.activity_date
+        assert restored.activity_type == trail.activity_type
+        assert restored.elevation_gain == trail.elevation_gain
+        assert restored.elevation_loss == trail.elevation_loss
+
 
 class TestTrailDetails:
     """Tests for TrailDetails dataclass."""
@@ -179,6 +242,60 @@ class TestTrailDetails:
         assert details.elevation_profile is None
         assert details.waypoints is None
         assert details.statistics is None
+
+    def test_trail_details_to_dict_with_all_optionals(self) -> None:
+        """Test TrailDetails.to_dict() with all optional fields."""
+        details = TrailDetails(
+            trail_id="full_trail",
+            coordinates_full=[(56.0, 13.0), (56.1, 13.1), (56.2, 13.2)],
+            elevation_profile=[100.0, 120.0, 110.0],
+            waypoints=[{"name": "Start", "lat": 56.0, "lng": 13.0}, {"name": "End", "lat": 56.2, "lng": 13.2}],
+            statistics={"total_distance": 25.5, "avg_speed": 5.2},
+        )
+
+        details_dict = details.to_dict()
+
+        assert details_dict["trail_id"] == "full_trail"
+        assert len(details_dict["coordinates_full"]) == 3
+        assert details_dict["elevation_profile"] == [100.0, 120.0, 110.0]
+        assert len(details_dict["waypoints"]) == 2
+        assert details_dict["statistics"]["total_distance"] == 25.5
+
+    def test_trail_details_to_dict_without_optionals(self) -> None:
+        """Test TrailDetails.to_dict() without optional fields."""
+        details = TrailDetails(trail_id="minimal_trail", coordinates_full=[(56.0, 13.0), (56.1, 13.1)])
+
+        details_dict = details.to_dict()
+
+        assert details_dict["trail_id"] == "minimal_trail"
+        assert len(details_dict["coordinates_full"]) == 2
+        assert "elevation_profile" not in details_dict
+        assert "waypoints" not in details_dict
+        assert "statistics" not in details_dict
+
+    def test_trail_details_roundtrip_with_optionals(self) -> None:
+        """Test TrailDetails serialization roundtrip with optional fields."""
+        data = {
+            "trail_id": "roundtrip_trail",
+            "coordinates_full": [{"lat": 56.0, "lng": 13.0}, {"lat": 56.1, "lng": 13.1}],
+            "elevation_profile": [95.0, 105.0],
+            "waypoints": [{"name": "Checkpoint", "lat": 56.05, "lng": 13.05}],
+            "statistics": {"duration": 3600},
+        }
+
+        details = TrailDetails.from_dict(data)
+
+        assert details.elevation_profile == [95.0, 105.0]
+        assert len(details.waypoints) == 1
+        assert details.statistics["duration"] == 3600
+
+        # Roundtrip
+        details_dict = details.to_dict()
+        restored = TrailDetails.from_dict(details_dict)
+
+        assert restored.elevation_profile == details.elevation_profile
+        assert restored.waypoints == details.waypoints
+        assert restored.statistics == details.statistics
 
 
 class TestGetAllTrails:
@@ -355,6 +472,58 @@ class TestUpdateTrailStatus:
         mock_firestore_collection.document.return_value.update.assert_called_once_with(
             {"status": "Explored!", "last_updated": fixed_time.isoformat()}
         )
+
+
+class TestUpdateTrailName:
+    """Tests for update_trail_name function."""
+
+    @patch("app.functions.trail_storage.datetime")
+    def test_update_trail_name(self, mock_datetime, mock_firestore_collection) -> None:
+        """Test updating trail name."""
+        fixed_time = datetime(2025, 1, 20, 17, 0, 0, tzinfo=UTC)
+        mock_datetime.now.return_value = fixed_time
+
+        update_trail_name("trail1", "New Trail Name")
+
+        mock_firestore_collection.document.assert_called_once_with("trail1")
+        mock_firestore_collection.document.return_value.update.assert_called_once_with(
+            {"name": "New Trail Name", "last_updated": fixed_time.isoformat()}
+        )
+
+
+class TestUpdateTrail:
+    """Tests for update_trail function."""
+
+    @patch("app.functions.trail_storage.datetime")
+    def test_update_trail_single_field(self, mock_datetime, mock_firestore_collection) -> None:
+        """Test updating a single trail field."""
+        fixed_time = datetime(2025, 1, 20, 18, 0, 0, tzinfo=UTC)
+        mock_datetime.now.return_value = fixed_time
+
+        update_trail("trail1", {"status": "Explored!"})
+
+        mock_firestore_collection.document.assert_called_once_with("trail1")
+        mock_firestore_collection.document.return_value.update.assert_called_once_with(
+            {"status": "Explored!", "last_updated": fixed_time.isoformat()}
+        )
+
+    @patch("app.functions.trail_storage.datetime")
+    def test_update_trail_multiple_fields(self, mock_datetime, mock_firestore_collection) -> None:
+        """Test updating multiple trail fields."""
+        fixed_time = datetime(2025, 1, 20, 19, 0, 0, tzinfo=UTC)
+        mock_datetime.now.return_value = fixed_time
+
+        updates = {"name": "Updated Name", "status": "Explored!", "distance": 15.5}
+        update_trail("trail1", updates)
+
+        mock_firestore_collection.document.assert_called_once_with("trail1")
+        called_updates = mock_firestore_collection.document.return_value.update.call_args[0][0]
+
+        # Verify all fields are in the update call
+        assert called_updates["name"] == "Updated Name"
+        assert called_updates["status"] == "Explored!"
+        assert called_updates["distance"] == 15.5
+        assert called_updates["last_updated"] == fixed_time.isoformat()
 
 
 class TestDeleteTrail:
