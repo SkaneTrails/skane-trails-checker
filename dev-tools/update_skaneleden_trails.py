@@ -18,6 +18,7 @@ import urllib.request
 from pathlib import Path
 
 import gpxpy
+import gpxpy.gpx
 from rdp import rdp
 
 
