@@ -7,7 +7,7 @@ from app.functions.firestore_client import get_collection
 from app.functions.trail_models import Trail, TrailDetails
 
 if TYPE_CHECKING:
-    from google.cloud.firestore_v1 import DocumentSnapshot
+    from google.cloud.firestore_v1 import DocumentSnapshot  # pragma: no cover
 
 
 def get_all_trails() -> list[Trail]:

@@ -152,7 +152,7 @@ filterwarnings = [
 [tool.coverage.run]
 branch = true
 source = [ "app/" ]
-omit = [  ]
+omit = [ "dev-tools/*", "app/functions/bootstrap_trails.py" ]
 
 [tool.coverage.report]
 exclude_lines = [

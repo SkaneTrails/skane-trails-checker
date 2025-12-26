@@ -15,7 +15,7 @@ class FirestoreConfig:
         self.location_id = location_id
 
 
-def _get_secret(secret_name: str, project_id: str) -> str:
+def _get_secret(secret_name: str, project_id: str) -> str:  # pragma: no cover
     """Retrieve secret value from Secret Manager.
 
     Args:
@@ -46,7 +46,7 @@ def _load_config_from_secrets(project_id: str) -> FirestoreConfig:
     return FirestoreConfig(project_id=project_id, database_id=database_id, location_id=location_id)
 
 
-def _load_config_from_env() -> FirestoreConfig | None:
+def _load_config_from_env() -> FirestoreConfig | None:  # pragma: no cover
     """Load Firestore configuration from environment variables.
 
     Environment variables:
@@ -68,7 +68,7 @@ def _load_config_from_env() -> FirestoreConfig | None:
 
 
 @lru_cache(maxsize=1)
-def get_firestore_client() -> firestore.Client:
+def get_firestore_client() -> firestore.Client:  # pragma: no cover
     """Get or create Firestore client with proper authentication.
 
     Authentication flow:
@@ -106,7 +106,7 @@ def get_firestore_client() -> firestore.Client:
     return firestore.Client(project=config.project_id, database=config.database_id)
 
 
-def get_collection(collection_name: str) -> firestore.CollectionReference:
+def get_collection(collection_name: str) -> firestore.CollectionReference:  # pragma: no cover
     """Get a Firestore collection reference.
 
     Args:

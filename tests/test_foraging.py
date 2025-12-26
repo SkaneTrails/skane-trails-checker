@@ -21,6 +21,20 @@ class TestForaging:
         assert isinstance(types, dict)
         assert "Mushroom" in types or "Other" in types
 
+    def test_load_foraging_types_nonexistent_file(self, temp_dir, monkeypatch) -> None:
+        """Loading types from non-existent file should return defaults."""
+        # Change the foraging_types_path to a non-existent file
+
+        foraging = Foraging()
+        fake_path = temp_dir / "nonexistent_types.json"
+        monkeypatch.setattr(foraging, "foraging_types_path", fake_path)
+
+        types = foraging.load_foraging_types()
+
+        # Should return default types
+        assert isinstance(types, dict)
+        assert len(types) > 0  # Default types should have entries
+
     def test_load_foraging_data_existing_file(self, sample_foraging_csv) -> None:
         """Load foraging data from existing CSV file."""
         foraging = Foraging()

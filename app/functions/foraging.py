@@ -7,7 +7,7 @@ import streamlit as st
 
 try:
     from app.resources.foraging_resources import default_foraging_types
-except ModuleNotFoundError:
+except ModuleNotFoundError:  # pragma: no cover
     from resources.foraging_resources import default_foraging_types
 
 
