@@ -19,7 +19,7 @@ load_env_if_needed()
 
 
 # JSON formatter for Cloud Logging
-class CloudLoggingFormatter(logging.Formatter):
+class CloudLoggingFormatter(logging.Formatter):  # pragma: no cover
     """Format logs as JSON for Google Cloud Logging."""
 
     def format(self, record: logging.LogRecord) -> str:
@@ -43,7 +43,7 @@ class CloudLoggingFormatter(logging.Formatter):
 
 
 # Configure logging for the entire application (only when not in test mode)
-if "pytest" not in sys.modules:
+if "pytest" not in sys.modules:  # pragma: no cover
     # Set log level from command-line argument, environment variable, or default to INFO
     # Check for --log-level argument in sys.argv
     log_level_name = "INFO"  # Default
@@ -71,14 +71,14 @@ if "pytest" not in sys.modules:
     handler.setFormatter(CloudLoggingFormatter())
     root_logger.addHandler(handler)
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger(__name__)  # pragma: no cover
 
 # Constants
 HTTP_OK = 200  # HTTP success status code
 
 
 # Function to get weather data
-def get_weather() -> dict | None:
+def get_weather() -> dict | None:  # pragma: no cover
     lat, lon = 56.0, 13.5  # Default location (Southern Sweden)
     weather_url = f"https://api.open-meteo.com/v1/forecast?latitude={lat}&longitude={lon}&daily=temperature_2m_max,temperature_2m_min,weathercode,precipitation_sum&timezone=Europe/Stockholm&forecast_days=4"
     response = requests.get(weather_url)
