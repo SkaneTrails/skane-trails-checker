@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """
 Download, merge, and simplify Skåneleden trail GPX files.
 
