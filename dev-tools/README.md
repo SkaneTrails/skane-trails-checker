@@ -129,8 +129,71 @@ To add new secrets:
 - Secrets are fetched on-demand, not stored in code
 - Use Secret Manager as the single source of truth for configuration
 
+## Skåneleden Trail Updater
+
+### `update_skaneleden_trails.py`
+
+Downloads, merges, and simplifies official Skåneleden trail GPX files from skaneleden.se into a single `all-skane-trails.gpx` file.
+
+#### Usage
+
+```bash
+uv run python dev-tools/update_skaneleden_trails.py
+```
+
+This script performs three steps automatically:
+
+1. **Download**: Fetches all 169 etapp GPX files from the official Skåneleden website
+1. **Merge**: Combines them into a single GPX file with proper trail names (format: "SL# Trail Name, Etapp: etapp-name")
+1. **Simplify**: Applies RDP algorithm to reduce file size while maintaining ~5m accuracy
+
+#### Output
+
+- **Temporary files**: `dev-tools/skaneleden_gpx/` (created during download, can be deleted)
+- **Final output**: `app/tracks_gpx/planned_hikes/all-skane-trails.gpx`
+  - ~156 tracks (169 etapps, some files contain multiple segments)
+  - ~21,000 points
+  - ~2 MB file size
+
+#### After Running
+
+Run the Streamlit app to bootstrap the new trails into Firestore:
+
+```bash
+uv run streamlit run app/_Home_.py
+```
+
+The app will automatically detect that no `planned_hikes` trails exist and load them from the GPX file.
+
+#### Notes
+
+- Downloads ~146 GPX files automatically (23 etapps don't have GPX files on the website)
+- Handles both track-format (`<trk>`) and route-format (`<rte>`) GPX files
+- Some GPX files contain multiple track segments, resulting in 156 tracks from 169 etapps
+- Uses RDP simplification with tolerance 0.00005 (~5m accuracy, ~80% size reduction)
+
+## Other Tools
+
+### Trail Management
+
+- **`delete_planned_trails.py`**: Delete all `planned_hikes` trails from Firestore (useful before re-bootstrapping)
+- **`delete_all_trails.py`**: Delete ALL trails from Firestore (use with caution)
+- **`check_firestore.py`**: View trails stored in Firestore
+
+### Data Import
+
+- **`import_foraging.py`**: Import foraging spots from CSV
+- **`import_places.py`**: Import places/POIs
+
+### Maintenance
+
+- **`backfill_trail_metadata.py`**: Update existing trails with missing metadata
+- **`check_foraging.py`**: Verify foraging data integrity
+- **`check_rounding.py`**: Check coordinate precision
+
 ## Files
 
 - **`secret_mappings.yaml`**: Maps Secret Manager secrets to environment variables
-- **`setup_env.py`**: Main setup script (documented above)
+- **`setup_env.py`**: Main setup script for local environment
+- **`update_skaneleden_trails.py`**: Downloads, merges, and simplifies Skåneleden GPX files
 - **`README.md`**: This file
