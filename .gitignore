@@ -77,3 +77,6 @@ app/tracks_status/*
 
 # Debugging logs
 app_debug.log
+
+# Copilot working context (local only)
+.copilot-todo.md

@@ -100,6 +100,8 @@ lint.isort.split-on-trailing-comma = false
 known_first_party = [ "skane-trails-checker" ]
 ignore_notebooks = true
 pep621_dev_dependency_groups = [ "dev" ]
+# Exclude Cloud Function code (has its own requirements.txt) and venv
+exclude = [ "infra/modules/backup/function", ".venv", "venv", "htmlcov" ]
 
 [tool.deptry.package_module_name_map]
 skane-trails-checker = "app"
