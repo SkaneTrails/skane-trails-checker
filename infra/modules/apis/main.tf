@@ -28,3 +28,39 @@ resource "google_project_service" "iam" {
 
   disable_on_destroy = false
 }
+
+# APIs for Firestore backup functionality
+resource "google_project_service" "storage" {
+  project = var.project
+  service = "storage.googleapis.com"
+
+  disable_on_destroy = false
+}
+
+resource "google_project_service" "cloudfunctions" {
+  project = var.project
+  service = "cloudfunctions.googleapis.com"
+
+  disable_on_destroy = false
+}
+
+resource "google_project_service" "cloudbuild" {
+  project = var.project
+  service = "cloudbuild.googleapis.com"
+
+  disable_on_destroy = false
+}
+
+resource "google_project_service" "cloudscheduler" {
+  project = var.project
+  service = "cloudscheduler.googleapis.com"
+
+  disable_on_destroy = false
+}
+
+resource "google_project_service" "run" {
+  project = var.project
+  service = "run.googleapis.com"
+
+  disable_on_destroy = false
+}
