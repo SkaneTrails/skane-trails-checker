@@ -17,6 +17,9 @@ resource "google_storage_bucket" "firestore_backups" {
   # Uniform bucket-level access (recommended)
   uniform_bucket_level_access = true
 
+  # Prevent accidental public exposure
+  public_access_prevention = "enforced"
+
   # Auto-delete old backups to stay within 5 GB free tier
   lifecycle_rule {
     condition {
@@ -157,4 +160,6 @@ resource "google_cloud_run_service_iam_member" "scheduler_invoker" {
   service  = google_cloudfunctions2_function.firestore_backup.name
   role     = "roles/run.invoker"
   member   = "serviceAccount:${google_service_account.backup_function.email}"
+
+  depends_on = [var.run_api_service]
 }

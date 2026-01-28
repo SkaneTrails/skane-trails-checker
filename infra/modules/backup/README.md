@@ -84,16 +84,16 @@ gcloud scheduler jobs run firestore-weekly-backup --location=europe-west1
 
 ## Variables
 
-| Name                      | Description            | Default                   |
-| ------------------------- | ---------------------- | ------------------------- |
-| `project`                 | GCP project ID         | (required)                |
-| `backup_bucket_name`      | Backup bucket name     | (required)                |
-| `backup_bucket_location`  | Bucket location        | `EU`                      |
-| `backup_retention_days`   | Days to keep backups   | `30`                      |
-| `firestore_database_name` | Database to backup     | (required)                |
-| `function_region`         | Cloud Functions region | `europe-west1`            |
-| `scheduler_region`        | Cloud Scheduler region | `europe-west1`            |
-| `backup_schedule`         | Cron schedule          | `0 3 * * 0` (Sundays 3AM) |
+| Name                       | Description            | Default                   |
+| -------------------------- | ---------------------- | ------------------------- |
+| `project`                  | GCP project ID         | (required)                |
+| `backup_bucket_name`       | Backup bucket name     | (required)                |
+| `backup_bucket_location`   | Bucket location        | `EU`                      |
+| `backup_retention_days`    | Days to keep backups   | `30`                      |
+| `firestore_database_names` | Databases to backup    | (required)                |
+| `function_region`          | Cloud Functions region | `europe-west1`            |
+| `scheduler_region`         | Cloud Scheduler region | `europe-west1`            |
+| `backup_schedule`          | Cron schedule          | `0 3 * * 0` (Sundays 3AM) |
 
 ## Required APIs
 

@@ -369,11 +369,13 @@ When working across multiple repositories with the same or similar files (e.g., 
 
 ______________________________________________________________________
 
-## 10. Skane Trail Hikes project context
+## 10. Skåne Trails project context
 
-In Geospatial repositories:
+For this project (Skåne Trails Streamlit app on GCP free tier):
 
-- **Copilot code review bot** often leaves automated suggestions—see section 3.3 for how to assess these critically.
+- **Streamlit multi-page app**: Many PRs change UI behavior and page interactions (`app/_Home_.py`, `app/pages/`). When reviewing, consider both code quality and user experience impacts.
+- **Firestore + Cloud Run on GCP free tier**: All data persistence uses Firestore and the app runs on Cloud Run. PR changes must respect free-tier limits (reads/writes, requests, CPU/memory) and avoid introducing costly polling or chatty database patterns.
+- **Infrastructure via Terraform only**: Any change that affects GCP resources must be implemented in `infra/` with Terraform. Do not suggest or approve manual console or `gcloud`-only changes.
+- **Security and CI workflows**: CI runs Trivy scans, SBOM and license checks, and tests via GitHub Actions. When reviewing PRs, ensure new dependencies, workflows, or patterns align with these existing checks and keep the project zero-cost and public-repo safe.
 - **Pre-commit hooks** may auto-format files—always run `git diff` after committing to verify the actual changes.
 - **mdformat** can alter markdown structure—be aware that deeply indented markdown after code blocks may be reformatted.
-- **CI workflows** vary by repo—check `.github/workflows/` for the specific checks that run.

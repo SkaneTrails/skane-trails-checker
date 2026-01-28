@@ -74,4 +74,5 @@ module "backup" {
   cloudfunctions_api_service = module.apis.cloudfunctions_service
   cloudbuild_api_service     = module.apis.cloudbuild_service
   cloudscheduler_api_service = module.apis.cloudscheduler_service
+  run_api_service            = module.apis.run_service
 }

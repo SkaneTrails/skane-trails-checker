@@ -63,3 +63,8 @@ variable "cloudscheduler_api_service" {
   description = "Cloud Scheduler API service resource for depends_on (from apis module)"
   type        = any
 }
+
+variable "run_api_service" {
+  description = "Cloud Run API service resource for depends_on (from apis module)"
+  type        = any
+}
