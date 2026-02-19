@@ -58,28 +58,21 @@ repos:
       - id: ruff
         args: [--fix, --exit-non-zero-on-fix]
       - id: ruff-format
-  - repo: https://github.com/fpgmaas/deptry
-    rev: 0.24.0
+  # Deptry - check for missing/unused dependencies (runs from uv venv)
+  - repo: local
     hooks:
       - id: deptry
-  # Fast Markdown formatter (Python)
-  - repo: https://github.com/executablebooks/mdformat
-    rev: 0.7.22
-    hooks:
-      - id: mdformat
-        additional_dependencies:
-          - mdformat-gfm # GitHub Flavored Markdown
-          - mdformat-tables
-  # Keep prettier only for JSON and TOML
+        name: deptry
+        entry: uv run deptry .
+        language: system
+        types: [python]
+        pass_filenames: false
   - repo: https://github.com/pre-commit/mirrors-prettier
-    # TOML formatting - using prettier for now (taplo pre-commit hook not available)
-
-    # YAML, JSON, and Markdown are the main performance bottlenecks anyway
     rev: "v4.0.0-alpha.8"
     hooks:
       - id: prettier
-        files: \.(json|toml)$
-        exclude: ^renovate\.json$
+        files: \.(json|markdown|md|toml)$
+        exclude: ^(renovate\.json|\.github/copilot-instructions\.md|\.github/skills/.*|\.github/instructions/.*)$
   - repo: https://github.com/astral-sh/uv-pre-commit
     rev: 0.9.28
     hooks:
