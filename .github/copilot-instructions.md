@@ -15,6 +15,7 @@ You are collaborating with a human who may make changes between your edits:
 - **Solve the actual problem** - when hitting obstacles (permissions, cross-repo dependencies, missing APIs), do not suggest workarounds that avoid the problem instead of solving it. If the goal is "validate X" and validation requires extra permissions, the answer is "add the permissions" not "skip validation." Never present a workaround as equivalent to a real solution.
 - **Consider alternatives early** - if fixing an issue seems difficult, time-consuming, or impossible due to fundamental limitations (library constraints, architectural issues, external dependencies), proactively offer to explore alternative approaches or tools. Don't spend excessive time patching around a root cause that can't be solved. Ask: "Should we look for alternatives?" before investing heavily in workarounds.
 - **Never work directly on main** - Always create a feature branch for changes. Use conventional commit prefixes (feat:, fix:, chore:, etc.) in branch names (e.g., `feat/add-feature`, `fix/bug-name`, `chore/update-deps`)
+- **Before editing Copilot config** - read `copilot-self-improvement` skill before modifying `copilot-instructions.md`, `*.instructions.md`, skills, or `copilot-references.md`
 
 ## Documentation Research Guidelines
 
@@ -475,6 +476,16 @@ uv run ptw -- --cov=app
   - No manual creation via console or gcloud CLI
   - Document resource limits and costs in terraform comments
 - **Test with real data** - When modifying track parsing, test with actual Garmin GPX files to ensure compatibility
+
+## Skills (AI Agent Instructions)
+
+Skills in `.github/skills/` provide domain-specific instructions:
+
+| Skill | Purpose |
+| ----- | ------- |
+| `copilot-self-improvement/` | Meta-skill for maintaining Copilot config, skills, instructions |
+| `pr-review-workflow/` | Handle PR creation, review comments, CI status using GitHub CLI |
+| `working-context/` | Track tasks and discovered issues across conversations |
 
 ## Code Quality Principles
 
