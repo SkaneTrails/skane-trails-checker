@@ -1,0 +1,111 @@
+"""Firestore storage operations for trails."""
+
+import logging
+from datetime import UTC, datetime
+
+from api.models.trail import Coordinate, TrailBounds, TrailDetailsResponse, TrailResponse
+from api.storage.firestore_client import get_collection
+
+logger = logging.getLogger(__name__)
+
+
+def _doc_to_trail(data: dict) -> TrailResponse:
+    """Convert a Firestore document dict to a TrailResponse model."""
+    bounds_data = data.get("bounds", {})
+    center_data = data.get("center", {})
+
+    return TrailResponse(
+        trail_id=data["trail_id"],
+        name=data["name"],
+        difficulty=data.get("difficulty", "Unknown"),
+        length_km=data.get("length_km", 0.0),
+        status=data.get("status", "To Explore"),
+        coordinates_map=[Coordinate(lat=coord["lat"], lng=coord["lng"]) for coord in data.get("coordinates_map", [])],
+        bounds=TrailBounds(
+            north=bounds_data.get("north", 0.0),
+            south=bounds_data.get("south", 0.0),
+            east=bounds_data.get("east", 0.0),
+            west=bounds_data.get("west", 0.0),
+        ),
+        center=Coordinate(lat=center_data.get("lat", 0.0), lng=center_data.get("lng", 0.0)),
+        source=data.get("source", ""),
+        last_updated=data.get("last_updated", ""),
+        activity_date=data.get("activity_date"),
+        activity_type=data.get("activity_type"),
+        elevation_gain=data.get("elevation_gain"),
+        elevation_loss=data.get("elevation_loss"),
+    )
+
+
+def _doc_to_trail_details(data: dict) -> TrailDetailsResponse:
+    """Convert a Firestore document dict to a TrailDetailsResponse model."""
+    return TrailDetailsResponse(
+        trail_id=data["trail_id"],
+        coordinates_full=[Coordinate(lat=coord["lat"], lng=coord["lng"]) for coord in data.get("coordinates_full", [])],
+        elevation_profile=data.get("elevation_profile"),
+        waypoints=data.get("waypoints"),
+        statistics=data.get("statistics"),
+    )
+
+
+def get_all_trails(source: str | None = None) -> list[TrailResponse]:
+    """Get all trails, optionally filtered by source."""
+    logger.info("Loading trails (source=%s)", source)
+    collection = get_collection("trails")
+
+    docs = collection.where("source", "==", source).stream() if source else collection.stream()
+
+    trails = []
+    for doc in docs:
+        data = doc.to_dict()
+        if data:
+            trails.append(_doc_to_trail(data))
+
+    logger.info("Loaded %d trails", len(trails))
+    return trails
+
+
+def get_trail(trail_id: str) -> TrailResponse | None:
+    """Get a single trail by ID."""
+    doc = get_collection("trails").document(trail_id).get()
+    if not doc.exists:
+        return None
+    data = doc.to_dict()
+    return _doc_to_trail(data) if data else None
+
+
+def get_trail_details(trail_id: str) -> TrailDetailsResponse | None:
+    """Get detailed trail data for a specific trail."""
+    doc = get_collection("trail_details").document(trail_id).get()
+    if not doc.exists:
+        return None
+    data = doc.to_dict()
+    return _doc_to_trail_details(data) if data else None
+
+
+def update_trail_status(trail_id: str, status: str) -> None:
+    """Update the status of a trail."""
+    logger.info("Updating trail %s status to: %s", trail_id, status)
+    get_collection("trails").document(trail_id).update(
+        {"status": status, "last_updated": datetime.now(UTC).isoformat()}
+    )
+
+
+def update_trail_name(trail_id: str, name: str) -> None:
+    """Update the name of a trail."""
+    logger.info("Updating trail %s name to: %s", trail_id, name)
+    get_collection("trails").document(trail_id).update({"name": name, "last_updated": datetime.now(UTC).isoformat()})
+
+
+def update_trail(trail_id: str, updates: dict) -> None:
+    """Update multiple fields of a trail."""
+    logger.info("Updating trail %s with fields: %s", trail_id, list(updates.keys()))
+    updates["last_updated"] = datetime.now(UTC).isoformat()
+    get_collection("trails").document(trail_id).update(updates)
+
+
+def delete_trail(trail_id: str) -> None:
+    """Delete a trail and its details from Firestore."""
+    logger.info("Deleting trail %s", trail_id)
+    get_collection("trails").document(trail_id).delete()
+    get_collection("trail_details").document(trail_id).delete()

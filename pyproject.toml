@@ -15,6 +15,7 @@ classifiers = [
   "Programming Language :: Python :: 3.14",
 ]
 dependencies = [
+  "fastapi>=0.115.0",
   "folium>=0.15.0",
   "geopy>=2.4.0",
   "google-cloud-firestore>=2.19.0",
@@ -22,12 +23,14 @@ dependencies = [
   "gpxpy>=1.6.0",
   "pandas>=2.1.0",
   "plotly>=5.18.0",
+  "pydantic>=2.10.0",
   "python-dotenv>=1.0.0",
   "pyyaml>=6.0.0",
   "rdp>=0.8",
   "requests>=2.32.5",
   "streamlit>=1.28.0",
   "streamlit-folium>=0.15.0",
+  "uvicorn>=0.34.0",
 ]
 
 optional-dependencies.dev = [
@@ -40,6 +43,7 @@ optional-dependencies.dev = [
   "ty>=0.0.5",
 ]
 optional-dependencies.test = [
+  "httpx>=0.28.0",
   "pytest>=8.0.0",
   "pytest-cov>=4.1.0",
   "pytest-mock>=3.12.0",
@@ -86,6 +90,7 @@ lint.ignore = [
 
 lint.per-file-ignores."tests/**/*.py" = [
   "ANN001",  # Missing type annotation for function argument (pytest fixtures have dynamic types)
+  "ANN201",  # Missing return type annotation (test methods return None)
   "ARG001",  # Unused function argument (fixtures used for side effects)
   "ARG002",  # Unused method argument (fixtures used for side effects)
   "PLR2004", # Allow magic values in tests (self-documenting with comments)
@@ -97,7 +102,7 @@ lint.isort.combine-as-imports = true
 lint.isort.split-on-trailing-comma = false
 
 [tool.deptry]
-known_first_party = [ "skane-trails-checker" ]
+known_first_party = [ "api", "skane-trails-checker" ]
 ignore_notebooks = true
 pep621_dev_dependency_groups = [ "dev" ]
 # Exclude Cloud Function code (has its own requirements.txt) and venv
@@ -105,14 +110,15 @@ exclude = [ "infra/modules/backup/function", ".venv", "venv", "htmlcov" ]
 
 [tool.deptry.package_module_name_map]
 skane-trails-checker = "app"
+fastapi = "fastapi"
 
 [tool.deptry.per_rule_ignores]
 # numpy is a transitive dependency used via rdp for coordinate simplification
 DEP003 = [ "numpy" ]
 # These are local packages within the app/ directory
-DEP001 = [ "functions", "resources" ]
+DEP001 = [ "api", "functions", "resources" ]
 # Test dependencies are in optional-dependencies.test group
-DEP002 = [ "pytest", "pytest-cov", "pytest-mock", "pytest-xdist" ]
+DEP002 = [ "pytest", "pytest-cov", "pytest-mock", "pytest-xdist", "uvicorn", "httpx" ]
 
 [tool.pyproject-fmt]
 keep_full_version = true
@@ -135,6 +141,7 @@ addopts = [
   "--strict-markers",
   "--tb=short",
   "--cov=app",
+  "--cov=api",
   "--cov-report=term-missing",
   "--cov-report=html",
 ]
@@ -153,7 +160,7 @@ filterwarnings = [
 
 [tool.coverage.run]
 branch = true
-source = [ "app/" ]
+source = [ "app/", "api/" ]
 omit = [ "dev-tools/*", "app/functions/bootstrap_trails.py" ]
 
 [tool.coverage.report]
