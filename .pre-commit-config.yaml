@@ -58,10 +58,15 @@ repos:
       - id: ruff
         args: [--fix, --exit-non-zero-on-fix]
       - id: ruff-format
-  - repo: https://github.com/fpgmaas/deptry
-    rev: 0.24.0
+  # Deptry - check for missing/unused dependencies (runs from uv venv)
+  - repo: local
     hooks:
       - id: deptry
+        name: deptry
+        entry: uv run deptry .
+        language: system
+        types: [python]
+        pass_filenames: false
   # Fast Markdown formatter (Python)
   - repo: https://github.com/executablebooks/mdformat
     rev: 0.7.22
