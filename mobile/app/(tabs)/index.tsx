@@ -1,8 +1,12 @@
+import { useMemo } from 'react';
 import { Platform, StyleSheet, Text, View } from 'react-native';
 import { TrailMap } from '@/components/TrailMap';
 import { useTrails } from '@/lib/hooks';
+import { type ColorTokens, type SpacingTokens, useTheme } from '@/lib/theme';
 
 export default function MapScreen() {
+  const { colors, spacing } = useTheme();
+  const styles = useMemo(() => createStyles(colors, spacing), [colors, spacing]);
   const { data: trails, isLoading, error } = useTrails();
 
   if (Platform.OS !== 'web') {
@@ -31,31 +35,32 @@ export default function MapScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  center: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 20,
-  },
-  overlay: {
-    position: 'absolute',
-    top: 10,
-    left: 0,
-    right: 0,
-    alignItems: 'center',
-    pointerEvents: 'none',
-  },
-  overlayText: {
-    backgroundColor: 'rgba(0,0,0,0.6)',
-    color: '#fff',
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
-    fontSize: 14,
-    overflow: 'hidden',
-  },
-});
+const createStyles = (colors: ColorTokens, spacing: SpacingTokens) =>
+  StyleSheet.create({
+    container: {
+      flex: 1,
+    },
+    center: {
+      flex: 1,
+      justifyContent: 'center',
+      alignItems: 'center',
+      padding: spacing['2xl'],
+    },
+    overlay: {
+      position: 'absolute',
+      top: spacing['md-lg'],
+      left: 0,
+      right: 0,
+      alignItems: 'center',
+      pointerEvents: 'none',
+    },
+    overlayText: {
+      backgroundColor: colors.overlay,
+      color: colors.text.inverse,
+      paddingHorizontal: spacing.xl,
+      paddingVertical: spacing.md,
+      borderRadius: spacing['2xl'],
+      fontSize: 14,
+      overflow: 'hidden',
+    },
+  });

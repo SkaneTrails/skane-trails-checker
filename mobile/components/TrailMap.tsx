@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react';
+import { useTheme } from '@/lib/theme';
 import type { Trail } from '@/lib/types';
 
 // Leaflet CSS is loaded dynamically to avoid SSR/RN issues
@@ -21,6 +22,7 @@ const DEFAULT_CENTER: [number, number] = [56.0, 13.5];
 const DEFAULT_ZOOM = 9;
 
 export function TrailMap({ trails }: TrailMapProps) {
+  const { colors } = useTheme();
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<L.Map | null>(null);
 
@@ -54,7 +56,8 @@ export function TrailMap({ trails }: TrailMapProps) {
         if (!trail.coordinates_map || trail.coordinates_map.length === 0) continue;
 
         const latlngs = trail.coordinates_map.map((c) => [c.lat, c.lng] as [number, number]);
-        const color = trail.status === 'Explored!' ? '#2d8a4e' : '#dc3545';
+        const color =
+          trail.status === 'Explored!' ? colors.status.explored.line : colors.status.toExplore.line;
         const polyline = L.polyline(latlngs, {
           color,
           weight: 3,
@@ -87,7 +90,7 @@ export function TrailMap({ trails }: TrailMapProps) {
         mapInstanceRef.current = null;
       }
     };
-  }, [trails]);
+  }, [trails, colors]);
 
   return <div ref={mapRef} style={{ width: '100%', height: '100%', minHeight: 400 }} />;
 }

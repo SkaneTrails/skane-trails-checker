@@ -64,4 +64,38 @@ describe('foragingApi', () => {
       expect(result).toEqual([{ name: 'Mushrooms', icon: '🍄' }]);
     });
   });
+
+  describe('updateSpot', () => {
+    it('sends PATCH with partial spot data', async () => {
+      mockApiRequest.mockResolvedValue(undefined);
+      await foragingApi.updateSpot('spot1', { notes: 'Updated notes' });
+      expect(mockApiRequest).toHaveBeenCalledWith('/api/v1/foraging/spots/spot1', {
+        method: 'PATCH',
+        body: JSON.stringify({ notes: 'Updated notes' }),
+      });
+    });
+  });
+
+  describe('createType', () => {
+    it('sends POST with type data', async () => {
+      const typeData = { name: 'Berries', icon: '🫐', color: '#4B0082' };
+      mockApiRequest.mockResolvedValue({ ...typeData });
+      const result = await foragingApi.createType(typeData);
+      expect(mockApiRequest).toHaveBeenCalledWith('/api/v1/foraging/types', {
+        method: 'POST',
+        body: JSON.stringify(typeData),
+      });
+      expect(result).toEqual(typeData);
+    });
+  });
+
+  describe('deleteType', () => {
+    it('sends DELETE request for type', async () => {
+      mockApiRequest.mockResolvedValue(undefined);
+      await foragingApi.deleteType('Mushrooms');
+      expect(mockApiRequest).toHaveBeenCalledWith('/api/v1/foraging/types/Mushrooms', {
+        method: 'DELETE',
+      });
+    });
+  });
 });

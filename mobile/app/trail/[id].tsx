@@ -1,8 +1,20 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useMemo } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useTrail, useTrailDetails, useUpdateTrail } from '@/lib/hooks';
+import {
+  type BorderRadiusTokens,
+  type ColorTokens,
+  type SpacingTokens,
+  useTheme,
+} from '@/lib/theme';
 
 export default function TrailDetailScreen() {
+  const { colors, spacing, borderRadius } = useTheme();
+  const styles = useMemo(
+    () => createStyles(colors, spacing, borderRadius),
+    [colors, spacing, borderRadius],
+  );
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const { data: trail, isLoading: trailLoading } = useTrail(id);
@@ -106,102 +118,107 @@ export default function TrailDetailScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#f5f5f5',
-  },
-  content: {
-    padding: 16,
-  },
-  center: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 20,
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    marginBottom: 16,
-    color: '#1a5e2a',
-  },
-  statsRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 12,
-    marginBottom: 20,
-  },
-  stat: {
-    backgroundColor: '#fff',
-    borderRadius: 10,
-    padding: 14,
-    minWidth: 100,
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.08,
-    shadowRadius: 2,
-    elevation: 1,
-  },
-  statLabel: {
-    fontSize: 12,
-    color: '#888',
-    marginBottom: 4,
-  },
-  statValue: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#333',
-  },
-  statusSection: {
-    marginBottom: 20,
-  },
-  statusButton: {
-    padding: 16,
-    borderRadius: 10,
-    alignItems: 'center',
-  },
-  exploredButton: {
-    backgroundColor: '#d4edda',
-  },
-  toExploreButton: {
-    backgroundColor: '#f8d7da',
-  },
-  statusButtonText: {
-    fontSize: 18,
-    fontWeight: '600',
-  },
-  infoSection: {
-    backgroundColor: '#fff',
-    borderRadius: 10,
-    padding: 16,
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    marginBottom: 10,
-    color: '#333',
-  },
-  infoText: {
-    fontSize: 14,
-    color: '#555',
-    marginBottom: 6,
-  },
-  error: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#c00',
-    marginBottom: 12,
-  },
-  button: {
-    backgroundColor: '#1a5e2a',
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-    borderRadius: 8,
-  },
-  buttonText: {
-    color: '#fff',
-    fontWeight: '600',
-  },
-});
+const createStyles = (
+  colors: ColorTokens,
+  spacing: SpacingTokens,
+  borderRadius: BorderRadiusTokens,
+) =>
+  StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: colors.background,
+    },
+    content: {
+      padding: spacing.xl,
+    },
+    center: {
+      flex: 1,
+      justifyContent: 'center',
+      alignItems: 'center',
+      padding: spacing['2xl'],
+    },
+    title: {
+      fontSize: 24,
+      fontWeight: 'bold',
+      marginBottom: spacing.xl,
+      color: colors.primary,
+    },
+    statsRow: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: spacing.lg,
+      marginBottom: spacing['2xl'],
+    },
+    stat: {
+      backgroundColor: colors.surface,
+      borderRadius: borderRadius.md,
+      padding: spacing['lg-xl'],
+      minWidth: 100,
+      alignItems: 'center',
+      shadowColor: colors.shadow,
+      shadowOffset: { width: 0, height: 1 },
+      shadowOpacity: 0.08,
+      shadowRadius: 2,
+      elevation: 1,
+    },
+    statLabel: {
+      fontSize: 12,
+      color: colors.text.muted,
+      marginBottom: spacing.xs,
+    },
+    statValue: {
+      fontSize: 18,
+      fontWeight: '700',
+      color: colors.text.primary,
+    },
+    statusSection: {
+      marginBottom: spacing['2xl'],
+    },
+    statusButton: {
+      padding: spacing.xl,
+      borderRadius: borderRadius.md,
+      alignItems: 'center',
+    },
+    exploredButton: {
+      backgroundColor: colors.status.explored.bg,
+    },
+    toExploreButton: {
+      backgroundColor: colors.status.toExplore.bg,
+    },
+    statusButtonText: {
+      fontSize: 18,
+      fontWeight: '600',
+    },
+    infoSection: {
+      backgroundColor: colors.surface,
+      borderRadius: borderRadius.md,
+      padding: spacing.xl,
+    },
+    sectionTitle: {
+      fontSize: 18,
+      fontWeight: '600',
+      marginBottom: spacing['md-lg'],
+      color: colors.text.primary,
+    },
+    infoText: {
+      fontSize: 14,
+      color: colors.text.secondary,
+      marginBottom: spacing.sm,
+    },
+    error: {
+      fontSize: 16,
+      fontWeight: 'bold',
+      color: colors.error,
+      marginBottom: spacing.lg,
+    },
+    button: {
+      backgroundColor: colors.primary,
+      paddingHorizontal: spacing['2xl'],
+      paddingVertical: spacing['md-lg'],
+      borderRadius: borderRadius.sm,
+    },
+    buttonText: {
+      color: colors.text.inverse,
+      fontWeight: '600',
+    },
+  });

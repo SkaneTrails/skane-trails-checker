@@ -1,7 +1,12 @@
 import { renderHook, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { createQueryWrapper } from '@/test/helpers';
-import { useForagingSpots, useForagingTypes } from '../use-foraging';
+import {
+  useCreateForagingSpot,
+  useDeleteForagingSpot,
+  useForagingSpots,
+  useForagingTypes,
+} from '../use-foraging';
 
 vi.mock('@/lib/api', () => ({
   foragingApi: {
@@ -70,5 +75,42 @@ describe('useForagingTypes', () => {
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
     expect(result.current.data).toEqual(types);
+  });
+});
+
+describe('useCreateForagingSpot', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('creates a spot and invalidates queries', async () => {
+    const newSpot = { type: 'Berries', lat: 56.1, lng: 13.6, notes: 'Blueberries', month: 'Jul' };
+    mockForagingApi.createSpot.mockResolvedValue({ id: 'new1', ...newSpot });
+    const wrapper = createQueryWrapper();
+
+    const { result } = renderHook(() => useCreateForagingSpot(), { wrapper });
+
+    result.current.mutate(newSpot);
+
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+    expect(mockForagingApi.createSpot).toHaveBeenCalledWith(newSpot);
+  });
+});
+
+describe('useDeleteForagingSpot', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('deletes a spot and invalidates queries', async () => {
+    mockForagingApi.deleteSpot.mockResolvedValue(undefined);
+    const wrapper = createQueryWrapper();
+
+    const { result } = renderHook(() => useDeleteForagingSpot(), { wrapper });
+
+    result.current.mutate('spot1');
+
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+    expect(mockForagingApi.deleteSpot).toHaveBeenCalledWith('spot1');
   });
 });

@@ -1,7 +1,13 @@
 import { renderHook, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { createQueryWrapper } from '@/test/helpers';
-import { useTrail, useTrails, useUpdateTrail } from '../use-trails';
+import {
+  useDeleteTrail,
+  useTrail,
+  useTrailDetails,
+  useTrails,
+  useUpdateTrail,
+} from '../use-trails';
 
 vi.mock('@/lib/api', () => ({
   trailsApi: {
@@ -89,5 +95,50 @@ describe('useUpdateTrail', () => {
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
     expect(mockTrailsApi.updateTrail).toHaveBeenCalledWith('abc123', { status: 'Explored!' });
+  });
+});
+
+describe('useTrailDetails', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('fetches trail details by id', async () => {
+    const details = { ...sampleTrail, coordinates_full: [{ lat: 56.0, lng: 13.5 }] };
+    mockTrailsApi.getTrailDetails.mockResolvedValue(details);
+    const wrapper = createQueryWrapper();
+
+    const { result } = renderHook(() => useTrailDetails('abc123'), { wrapper });
+
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+    expect(result.current.data).toEqual(details);
+    expect(mockTrailsApi.getTrailDetails).toHaveBeenCalledWith('abc123');
+  });
+
+  it('does not fetch when id is empty', () => {
+    const wrapper = createQueryWrapper();
+
+    const { result } = renderHook(() => useTrailDetails(''), { wrapper });
+
+    expect(result.current.fetchStatus).toBe('idle');
+    expect(mockTrailsApi.getTrailDetails).not.toHaveBeenCalled();
+  });
+});
+
+describe('useDeleteTrail', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('deletes a trail and invalidates queries', async () => {
+    mockTrailsApi.deleteTrail.mockResolvedValue(undefined);
+    const wrapper = createQueryWrapper();
+
+    const { result } = renderHook(() => useDeleteTrail(), { wrapper });
+
+    result.current.mutate('abc123');
+
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+    expect(mockTrailsApi.deleteTrail).toHaveBeenCalledWith('abc123');
   });
 });

@@ -1,9 +1,15 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 import { usePlaceCategories, usePlaces } from '@/lib/hooks';
+import {
+  type BorderRadiusTokens,
+  type ColorTokens,
+  type SpacingTokens,
+  useTheme,
+} from '@/lib/theme';
 import type { Place } from '@/lib/types';
 
-function PlaceItem({ place }: { place: Place }) {
+function PlaceItem({ place, styles }: { place: Place; styles: ReturnType<typeof createStyles> }) {
   return (
     <View style={styles.card}>
       <Text style={styles.placeName}>{place.name}</Text>
@@ -36,6 +42,11 @@ function PlaceItem({ place }: { place: Place }) {
 }
 
 export default function PlacesScreen() {
+  const { colors, spacing, borderRadius } = useTheme();
+  const styles = useMemo(
+    () => createStyles(colors, spacing, borderRadius),
+    [colors, spacing, borderRadius],
+  );
   const [selectedCategory, setSelectedCategory] = useState<string | undefined>();
   const { data: places, isLoading, error } = usePlaces(selectedCategory);
   const { data: categories } = usePlaceCategories();
@@ -82,7 +93,7 @@ export default function PlacesScreen() {
         <FlatList
           data={places}
           keyExtractor={(item) => item.place_id}
-          renderItem={({ item }) => <PlaceItem place={item} />}
+          renderItem={({ item }) => <PlaceItem place={item} styles={styles} />}
           contentContainerStyle={styles.list}
           ListEmptyComponent={
             <View style={styles.center}>
@@ -95,95 +106,100 @@ export default function PlacesScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#f5f5f5',
-  },
-  center: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 20,
-  },
-  filterBar: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    padding: 8,
-    gap: 6,
-    backgroundColor: '#fff',
-    borderBottomWidth: 1,
-    borderBottomColor: '#eee',
-  },
-  filterChip: {
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 16,
-    backgroundColor: '#eee',
-  },
-  filterChipActive: {
-    backgroundColor: '#1a5e2a',
-  },
-  filterText: {
-    fontSize: 13,
-    color: '#333',
-  },
-  filterTextActive: {
-    color: '#fff',
-    fontWeight: '600',
-  },
-  list: {
-    padding: 12,
-    gap: 10,
-  },
-  card: {
-    backgroundColor: '#fff',
-    borderRadius: 10,
-    padding: 14,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 3,
-    elevation: 2,
-  },
-  placeName: {
-    fontSize: 16,
-    fontWeight: '600',
-    marginBottom: 4,
-  },
-  description: {
-    fontSize: 14,
-    color: '#444',
-    marginBottom: 8,
-  },
-  cardMeta: {
-    gap: 6,
-  },
-  coords: {
-    fontSize: 12,
-    color: '#999',
-  },
-  categoriesRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 6,
-  },
-  categoryTag: {
-    fontSize: 12,
-    backgroundColor: '#e3f2fd',
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 10,
-    color: '#1565c0',
-  },
-  website: {
-    fontSize: 13,
-    color: '#1a5e2a',
-    marginTop: 6,
-  },
-  error: {
-    fontSize: 16,
-    color: '#c00',
-    fontWeight: 'bold',
-  },
-});
+const createStyles = (
+  colors: ColorTokens,
+  spacing: SpacingTokens,
+  borderRadius: BorderRadiusTokens,
+) =>
+  StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: colors.background,
+    },
+    center: {
+      flex: 1,
+      justifyContent: 'center',
+      alignItems: 'center',
+      padding: spacing['2xl'],
+    },
+    filterBar: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      padding: spacing.md,
+      gap: spacing.sm,
+      backgroundColor: colors.surface,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.border,
+    },
+    filterChip: {
+      paddingHorizontal: spacing['md-lg'],
+      paddingVertical: spacing.sm,
+      borderRadius: borderRadius.xl,
+      backgroundColor: colors.tag.inactive.bg,
+    },
+    filterChipActive: {
+      backgroundColor: colors.primary,
+    },
+    filterText: {
+      fontSize: 13,
+      color: colors.text.primary,
+    },
+    filterTextActive: {
+      color: colors.text.inverse,
+      fontWeight: '600',
+    },
+    list: {
+      padding: spacing.lg,
+      gap: spacing['md-lg'],
+    },
+    card: {
+      backgroundColor: colors.surface,
+      borderRadius: borderRadius.md,
+      padding: spacing['lg-xl'],
+      shadowColor: colors.shadow,
+      shadowOffset: { width: 0, height: 1 },
+      shadowOpacity: 0.1,
+      shadowRadius: 3,
+      elevation: 2,
+    },
+    placeName: {
+      fontSize: 16,
+      fontWeight: '600',
+      marginBottom: spacing.xs,
+    },
+    description: {
+      fontSize: 14,
+      color: colors.text.secondary,
+      marginBottom: spacing.md,
+    },
+    cardMeta: {
+      gap: spacing.sm,
+    },
+    coords: {
+      fontSize: 12,
+      color: colors.text.tertiary,
+    },
+    categoriesRow: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: spacing.sm,
+    },
+    categoryTag: {
+      fontSize: 12,
+      backgroundColor: colors.tag.place.bg,
+      paddingHorizontal: spacing.md,
+      paddingVertical: spacing['2xs'],
+      borderRadius: borderRadius.md,
+      color: colors.tag.place.text,
+    },
+    website: {
+      fontSize: 13,
+      color: colors.text.link,
+      marginTop: spacing.sm,
+    },
+    error: {
+      fontSize: 16,
+      color: colors.error,
+      fontWeight: 'bold',
+    },
+  });

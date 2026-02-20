@@ -1,9 +1,16 @@
 import { useRouter } from 'expo-router';
+import { useMemo } from 'react';
 import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useTrails } from '@/lib/hooks';
+import {
+  type BorderRadiusTokens,
+  type ColorTokens,
+  type SpacingTokens,
+  useTheme,
+} from '@/lib/theme';
 import type { Trail } from '@/lib/types';
 
-function TrailItem({ trail }: { trail: Trail }) {
+function TrailItem({ trail, styles }: { trail: Trail; styles: ReturnType<typeof createStyles> }) {
   const router = useRouter();
 
   return (
@@ -31,6 +38,11 @@ function TrailItem({ trail }: { trail: Trail }) {
 }
 
 export default function TrailsScreen() {
+  const { colors, spacing, borderRadius } = useTheme();
+  const styles = useMemo(
+    () => createStyles(colors, spacing, borderRadius),
+    [colors, spacing, borderRadius],
+  );
   const { data: trails, isLoading, error, refetch } = useTrails();
 
   if (isLoading) {
@@ -65,7 +77,7 @@ export default function TrailsScreen() {
       <FlatList
         data={trails}
         keyExtractor={(item) => item.trail_id}
-        renderItem={({ item }) => <TrailItem trail={item} />}
+        renderItem={({ item }) => <TrailItem trail={item} styles={styles} />}
         contentContainerStyle={styles.list}
         ListEmptyComponent={
           <View style={styles.center}>
@@ -77,90 +89,95 @@ export default function TrailsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#f5f5f5',
-  },
-  center: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 20,
-  },
-  summary: {
-    backgroundColor: '#1a5e2a',
-    padding: 12,
-    alignItems: 'center',
-  },
-  summaryText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  list: {
-    padding: 12,
-    gap: 10,
-  },
-  card: {
-    backgroundColor: '#fff',
-    borderRadius: 10,
-    padding: 14,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 3,
-    elevation: 2,
-  },
-  cardHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  trailName: {
-    fontSize: 16,
-    fontWeight: '600',
-    flex: 1,
-    marginRight: 8,
-  },
-  statusBadge: {
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 12,
-  },
-  explored: {
-    backgroundColor: '#d4edda',
-  },
-  toExplore: {
-    backgroundColor: '#f8d7da',
-  },
-  statusText: {
-    fontSize: 12,
-    fontWeight: '600',
-  },
-  cardMeta: {
-    flexDirection: 'row',
-    gap: 16,
-  },
-  metaText: {
-    fontSize: 13,
-    color: '#666',
-  },
-  error: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#c00',
-    marginBottom: 12,
-  },
-  retryButton: {
-    backgroundColor: '#1a5e2a',
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-    borderRadius: 8,
-  },
-  retryText: {
-    color: '#fff',
-    fontWeight: '600',
-  },
-});
+const createStyles = (
+  colors: ColorTokens,
+  spacing: SpacingTokens,
+  borderRadius: BorderRadiusTokens,
+) =>
+  StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: colors.background,
+    },
+    center: {
+      flex: 1,
+      justifyContent: 'center',
+      alignItems: 'center',
+      padding: spacing['2xl'],
+    },
+    summary: {
+      backgroundColor: colors.primary,
+      padding: spacing.lg,
+      alignItems: 'center',
+    },
+    summaryText: {
+      color: colors.text.inverse,
+      fontSize: 16,
+      fontWeight: '600',
+    },
+    list: {
+      padding: spacing.lg,
+      gap: spacing['md-lg'],
+    },
+    card: {
+      backgroundColor: colors.surface,
+      borderRadius: borderRadius.md,
+      padding: spacing['lg-xl'],
+      shadowColor: colors.shadow,
+      shadowOffset: { width: 0, height: 1 },
+      shadowOpacity: 0.1,
+      shadowRadius: 3,
+      elevation: 2,
+    },
+    cardHeader: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      marginBottom: spacing.md,
+    },
+    trailName: {
+      fontSize: 16,
+      fontWeight: '600',
+      flex: 1,
+      marginRight: spacing.md,
+    },
+    statusBadge: {
+      paddingHorizontal: spacing['md-lg'],
+      paddingVertical: spacing.xs,
+      borderRadius: borderRadius.lg,
+    },
+    explored: {
+      backgroundColor: colors.status.explored.bg,
+    },
+    toExplore: {
+      backgroundColor: colors.status.toExplore.bg,
+    },
+    statusText: {
+      fontSize: 12,
+      fontWeight: '600',
+    },
+    cardMeta: {
+      flexDirection: 'row',
+      gap: spacing.xl,
+    },
+    metaText: {
+      fontSize: 13,
+      color: colors.text.secondary,
+    },
+    error: {
+      fontSize: 16,
+      fontWeight: 'bold',
+      color: colors.error,
+      marginBottom: spacing.lg,
+    },
+    retryButton: {
+      backgroundColor: colors.primary,
+      paddingHorizontal: spacing['2xl'],
+      paddingVertical: spacing['md-lg'],
+      borderRadius: borderRadius.sm,
+    },
+    retryText: {
+      color: colors.text.inverse,
+      fontWeight: '600',
+    },
+  });

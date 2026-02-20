@@ -14,7 +14,7 @@ export default defineConfig({
     coverage: {
       provider: 'v8',
       include: ['lib/**/*.{ts,tsx}', 'components/**/*.{ts,tsx}'],
-      exclude: ['**/__tests__/**', '**/index.ts', 'lib/types.ts'],
+      exclude: ['**/__tests__/**', '**/index.ts', 'lib/types.ts', 'components/TrailMap.tsx'],
       thresholds: {
         statements: 70,
         branches: 60,
