@@ -20,7 +20,10 @@ app = FastAPI(
     openapi_url="/api/openapi.json",
 )
 
-ALLOWED_ORIGINS = os.getenv("ALLOWED_ORIGINS", "http://localhost:3000,http://localhost:8081").split(",")
+ALLOWED_ORIGINS = os.getenv(
+    "ALLOWED_ORIGINS",
+    "http://localhost:3000,http://localhost:8080,http://localhost:8081,http://localhost:8082,http://localhost:19006",
+).split(",")
 
 app.add_middleware(
     CORSMiddleware,  # type: ignore[arg-type]
