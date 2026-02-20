@@ -78,5 +78,8 @@ app/tracks_status/*
 # Debugging logs
 app_debug.log
 
+# Temporary/debug scripts
+tmp/
+
 # Copilot working context (local only)
 .copilot-todo.md
