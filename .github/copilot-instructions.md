@@ -16,6 +16,7 @@ You are collaborating with a human who may make changes between your edits:
 - **Consider alternatives early** - if fixing an issue seems difficult, time-consuming, or impossible due to fundamental limitations (library constraints, architectural issues, external dependencies), proactively offer to explore alternative approaches or tools. Don't spend excessive time patching around a root cause that can't be solved. Ask: "Should we look for alternatives?" before investing heavily in workarounds.
 - **Never work directly on main** - Always create a feature branch for changes. Use conventional commit prefixes (feat:, fix:, chore:, etc.) in branch names (e.g., `feat/add-feature`, `fix/bug-name`, `chore/update-deps`)
 - **Before editing Copilot config** - read `copilot-self-improvement` skill before modifying `copilot-instructions.md`, `*.instructions.md`, skills, or `copilot-references.md`
+- **Never run inline Python in PowerShell** - NEVER use `python -c "..."` or `uv run python -c "..."` in the terminal. PowerShell mangles parentheses, quotes, and special characters inside string arguments, causing `SyntaxError: '(' was never closed` and similar parse errors. **Always** write the code to a temporary `.py` file (in `tmp/`) and execute it with `python tmp/script.py`. Delete the file afterward if it was single-use.
 
 ## Documentation Research Guidelines
 
@@ -481,11 +482,11 @@ uv run ptw -- --cov=app
 
 Skills in `.github/skills/` provide domain-specific instructions:
 
-| Skill | Purpose |
-| ----- | ------- |
+| Skill                       | Purpose                                                         |
+| --------------------------- | --------------------------------------------------------------- |
 | `copilot-self-improvement/` | Meta-skill for maintaining Copilot config, skills, instructions |
-| `pr-review-workflow/` | Handle PR creation, review comments, CI status using GitHub CLI |
-| `working-context/` | Track tasks and discovered issues across conversations |
+| `pr-review-workflow/`       | Handle PR creation, review comments, CI status using GitHub CLI |
+| `working-context/`          | Track tasks and discovered issues across conversations          |
 
 ## Code Quality Principles
 
