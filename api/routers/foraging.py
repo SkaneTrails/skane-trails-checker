@@ -2,8 +2,9 @@
 
 from typing import Annotated
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 
+from api.auth import AuthenticatedUser, require_auth
 from api.models.foraging import (
     ForagingSpotCreate,
     ForagingSpotResponse,
@@ -25,7 +26,9 @@ def list_foraging_spots(
 
 
 @router.post("/spots", status_code=201)
-def create_foraging_spot(body: ForagingSpotCreate) -> ForagingSpotResponse:
+def create_foraging_spot(
+    body: ForagingSpotCreate, _user: Annotated[AuthenticatedUser, Depends(require_auth)]
+) -> ForagingSpotResponse:
     """Create a new foraging spot."""
     spot_data = body.model_dump()
     doc_id = foraging_storage.save_foraging_spot(spot_data)
@@ -39,7 +42,9 @@ def create_foraging_spot(body: ForagingSpotCreate) -> ForagingSpotResponse:
 
 
 @router.patch("/spots/{spot_id}", status_code=204)
-def update_foraging_spot(spot_id: str, body: ForagingSpotUpdate) -> None:
+def update_foraging_spot(
+    spot_id: str, body: ForagingSpotUpdate, _user: Annotated[AuthenticatedUser, Depends(require_auth)]
+) -> None:
     """Update a foraging spot."""
     updates = body.model_dump(exclude_none=True)
     if not updates:
@@ -49,7 +54,7 @@ def update_foraging_spot(spot_id: str, body: ForagingSpotUpdate) -> None:
 
 
 @router.delete("/spots/{spot_id}", status_code=204)
-def delete_foraging_spot(spot_id: str) -> None:
+def delete_foraging_spot(spot_id: str, _user: Annotated[AuthenticatedUser, Depends(require_auth)]) -> None:
     """Delete a foraging spot."""
     foraging_storage.delete_foraging_spot(spot_id)
 
@@ -61,7 +66,9 @@ def list_foraging_types() -> list[ForagingTypeResponse]:
 
 
 @router.post("/types", status_code=201)
-def create_foraging_type(body: ForagingTypeCreate) -> ForagingTypeResponse:
+def create_foraging_type(
+    body: ForagingTypeCreate, _user: Annotated[AuthenticatedUser, Depends(require_auth)]
+) -> ForagingTypeResponse:
     """Create or update a foraging type."""
     type_data = body.model_dump(exclude={"name"}, exclude_defaults=True)
     type_data["icon"] = body.icon
@@ -70,6 +77,6 @@ def create_foraging_type(body: ForagingTypeCreate) -> ForagingTypeResponse:
 
 
 @router.delete("/types/{type_name}", status_code=204)
-def delete_foraging_type(type_name: str) -> None:
+def delete_foraging_type(type_name: str, _user: Annotated[AuthenticatedUser, Depends(require_auth)]) -> None:
     """Delete a foraging type."""
     foraging_storage.delete_foraging_type(type_name)
