@@ -75,16 +75,16 @@ async def get_current_user(
             name=decoded_token.get("name"),
             picture=decoded_token.get("picture"),
         )
-    except auth.InvalidIdTokenError:  # pragma: no cover
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid authentication token",
-            headers={"WWW-Authenticate": "Bearer"},
-        ) from None
     except auth.ExpiredIdTokenError:  # pragma: no cover
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Authentication token has expired",
+            headers={"WWW-Authenticate": "Bearer"},
+        ) from None
+    except auth.InvalidIdTokenError:  # pragma: no cover
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid authentication token",
             headers={"WWW-Authenticate": "Bearer"},
         ) from None
     except Exception:  # pragma: no cover
