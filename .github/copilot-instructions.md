@@ -20,6 +20,38 @@ You are collaborating with a human who may make changes between your edits:
 - **Before editing Copilot config** - read `copilot-self-improvement` skill before modifying `copilot-instructions.md`, `*.instructions.md`, skills, or `copilot-references.md`
 - **Never run inline Python in PowerShell** - NEVER use `python -c "..."` or `uv run python -c "..."` in the terminal. PowerShell mangles parentheses, quotes, and special characters inside string arguments, causing `SyntaxError: '(' was never closed` and similar parse errors. **Always** write the code to a temporary `.py` file (in `tmp/`) and execute it with `python tmp/script.py`. Delete the file afterward if it was single-use.
 
+## Documentation Standards
+
+**All documentation targets a junior developer** unfamiliar with Terraform, GCP, and related tools. Assume they can clone a repo, run a script, and follow step-by-step instructions.
+
+### Keeping Documentation Current
+
+> **BLOCKING REQUIREMENT: Update docs BEFORE pushing.**
+
+When making changes that affect setup, infrastructure, scripts, or workflows:
+
+- [ ] **Infrastructure changes** → Update `infra/environments/dev/README.md`
+- [ ] **New/changed scripts** → Update script headers + README
+- [ ] **New variables** → Update `terraform.tfvars.example` + variables table in README
+- [ ] **New modules** → Update "Modules Used" in environment README
+- [ ] **Architecture changes** → Update `copilot-instructions.md` Architecture section
+- [ ] **New skills** → Add to skills table in `copilot-instructions.md`
+
+### Automation over Manual Steps
+
+- **Never require manual file creation** for setup. Use scripts or `.example` template files that the user copies
+- **Consolidate scripts** — prefer one script with subcommands or flags over many single-purpose scripts
+- **Scripts must be idempotent** — safe to run multiple times, skip already-completed steps
+- **Error messages must guide the user** — on failure, explain what went wrong AND what to do next
+- **Provide both `.sh` and `.ps1`** for cross-platform support
+
+### Script Design Principles
+
+- Check prerequisites at the start (authenticated? CLI installed? files exist?)
+- Use colored output to distinguish success (green), warnings (yellow), errors (red)
+- Show progress: what step is running, what was created/skipped
+- Never silently succeed or fail — always confirm the outcome
+
 ## Documentation Research Guidelines
 
 **When encountering unexpected behavior, limitations, or obstacles, PROACTIVELY offer to check official documentation BEFORE attempting workarounds.**

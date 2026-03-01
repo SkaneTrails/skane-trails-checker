@@ -21,7 +21,7 @@ variable "backup_retention_days" {
 }
 
 variable "firestore_database_names" {
-  description = "List of Firestore database names to backup"
+  description = "List of Firestore database names to backup (pass from firestore module output)"
   type        = list(string)
 }
 
@@ -38,9 +38,9 @@ variable "scheduler_region" {
 }
 
 variable "backup_schedule" {
-  description = "Cron schedule for backups (default: Sundays at 3 AM UTC)"
+  description = "Cron schedule for backups (default: nightly at 3 AM UTC)"
   type        = string
-  default     = "0 3 * * 0"
+  default     = "0 3 * * *"
 }
 
 # API service dependencies
