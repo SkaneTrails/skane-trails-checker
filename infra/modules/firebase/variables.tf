@@ -14,12 +14,6 @@ variable "hosting_site_id" {
   type        = string
 }
 
-variable "authorized_domains" {
-  description = "Additional authorized domains for OAuth redirects (e.g., Cloud Run URLs)"
-  type        = list(string)
-  default     = []
-}
-
 variable "firebase_api_service" {
   description = "Firebase API service resource (for dependency)"
   type        = any
