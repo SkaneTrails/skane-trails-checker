@@ -1,6 +1,7 @@
 """Helper functions to bridge old GPX-based system with new Firestore Trail models."""
 
 import hashlib
+import math
 from datetime import UTC, datetime
 
 import gpxpy
@@ -62,7 +63,7 @@ def gpx_track_to_trail(
         # Simple Euclidean distance approximation in km
         # (1 degree ≈ 111 km at equator, less at higher latitudes)
         lat_diff = (lat2 - lat1) * 111.0
-        lng_diff = (lng2 - lng1) * 111.0 * abs(lat1 / 90.0)  # Latitude correction
+        lng_diff = (lng2 - lng1) * 111.0 * math.cos(math.radians(lat1))
         length_km += (lat_diff**2 + lng_diff**2) ** 0.5
 
     # Calculate elevation gain/loss if elevation data available

@@ -31,7 +31,10 @@ def delete_planned_trails() -> None:
             print(f"  Deleted {deleted_count} trails...")
 
     print(f"\n✓ Deleted {deleted_count} planned_hikes trails from Firestore")
-    print("\nNext step: Run bootstrap_trails.py to re-seed planned trails from GPX files.")
+    print(
+        "\nNext step: Re-seed planned trails by running the app"
+        " (calls bootstrap_planned_trails from app.functions.bootstrap_trails)."
+    )
 
 
 if __name__ == "__main__":
