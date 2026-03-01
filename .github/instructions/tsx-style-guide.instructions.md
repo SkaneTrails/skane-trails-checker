@@ -1,6 +1,6 @@
----
-applyTo: "**/*.{ts,tsx}"
----
+______________________________________________________________________
+
+## applyTo: "\*\*/\*.{ts,tsx}"
 
 # TypeScript/React Style Guide
 
@@ -35,11 +35,11 @@ export default function TrailDetailScreen() { ... }
 ### Component Structure Order
 
 1. Type definitions (props interface)
-2. Hooks (`useState`, `useEffect`, custom hooks)
-3. Event handlers (`handle` prefix)
-4. Derived/computed values
-5. Early returns (loading, error)
-6. Main JSX return
+1. Hooks (`useState`, `useEffect`, custom hooks)
+1. Event handlers (`handle` prefix)
+1. Derived/computed values
+1. Early returns (loading, error)
+1. Main JSX return
 
 ```tsx
 interface TrailCardProps {
@@ -92,9 +92,9 @@ export const useTrailFilter = (initialSource?: TrailSource) => {
 ### Before Writing New Code
 
 1. Check `components/` for existing shared components
-2. Check `lib/hooks/` for existing hooks
-3. Check `lib/utils/` for existing utilities
-4. No code blocks >10 lines duplicated across files
+1. Check `lib/hooks/` for existing hooks
+1. Check `lib/utils/` for existing utilities
+1. No code blocks >10 lines duplicated across files
 
 ### Self-Documenting Code
 
@@ -111,17 +111,17 @@ export const useTrailFilter = (initialSource?: TrailSource) => {
 **Pre-flight checklist before writing any style value:**
 
 1. Search theme files for existing tokens matching your value
-2. Pick the nearest spacing token — consistency > pixel-perfection
-3. If no token exists, add one to the theme BEFORE using the value
-4. Never construct color strings at runtime (e.g., template literals with alpha)
+1. Pick the nearest spacing token — consistency > pixel-perfection
+1. If no token exists, add one to the theme BEFORE using the value
+1. Never construct color strings at runtime (e.g., template literals with alpha)
 
 ### Component Reuse
 
 Before writing any new visual element:
 
 1. **Can an existing shared component do this?** Check `components/` first
-2. **Can an existing component be extended?** Add a prop rather than creating a duplicate
-3. **Create a new shared component** only when (1) and (2) fail
+1. **Can an existing component be extended?** Add a prop rather than creating a duplicate
+1. **Create a new shared component** only when (1) and (2) fail
 
 ## Error Handling
 
@@ -139,6 +139,6 @@ Before writing any new visual element:
 ## When to Split Files
 
 1. File >300 lines → extract components, hooks, or utils
-2. Component function >40 lines → extract sub-components or hooks
-3. Reused logic → custom hook in `lib/hooks/`
-4. Complex state → separate hook or reducer
+1. Component function >40 lines → extract sub-components or hooks
+1. Reused logic → custom hook in `lib/hooks/`
+1. Complex state → separate hook or reducer

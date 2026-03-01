@@ -9,14 +9,14 @@ This module is designed to stay within GCP free tier limits:
 | Service             | Free Tier            | This Module                    |
 | ------------------- | -------------------- | ------------------------------ |
 | **Cloud Scheduler** | 3 jobs/month         | 1 job                          |
-| **Cloud Functions** | 2M invocations/month | ~4/month (weekly)              |
+| **Cloud Functions** | 2M invocations/month | ~30/month (nightly)            |
 | **Cloud Storage**   | 5 GB                 | ~30 MB (with 30-day retention) |
-| **Cloud Build**     | 120 min/day          | ~1 min/week                    |
+| **Cloud Build**     | 120 min/day          | ~1 min (initial deploy only)   |
 
 ## Architecture
 
 ```
-Cloud Scheduler (weekly cron)
+Cloud Scheduler (nightly cron)
         │
         ▼
 Cloud Functions (Python 3.12)
@@ -30,7 +30,7 @@ Cloud Storage Bucket (backups)
 
 ## How It Works
 
-1. **Cloud Scheduler** triggers the Cloud Function weekly (Sundays at 3 AM UTC by default)
+1. **Cloud Scheduler** triggers the Cloud Function nightly (3 AM UTC by default)
 1. **Cloud Function** calls the Firestore Admin API to export the database
 1. **Firestore** exports all collections to the Cloud Storage bucket
 1. **Lifecycle policy** auto-deletes backups older than 30 days to stay within free tier
@@ -93,7 +93,7 @@ gcloud scheduler jobs run firestore-weekly-backup --location=europe-west1
 | `firestore_database_names` | Databases to backup    | (required)                |
 | `function_region`          | Cloud Functions region | `europe-west1`            |
 | `scheduler_region`         | Cloud Scheduler region | `europe-west1`            |
-| `backup_schedule`          | Cron schedule          | `0 3 * * 0` (Sundays 3AM) |
+| `backup_schedule`          | Cron schedule          | `0 3 * * *` (nightly 3AM) |
 
 ## Required APIs
 

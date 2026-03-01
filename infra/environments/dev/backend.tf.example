@@ -1,0 +1,10 @@
+# Backend configuration for Terraform state
+# Copy this file to backend.tf and fill in your bucket name
+# backend.tf is NOT gitignored (backend config must be version controlled)
+
+terraform {
+  backend "gcs" {
+    bucket = "your-unique-tfstate-bucket-name"
+    prefix = "terraform/state"
+  }
+}

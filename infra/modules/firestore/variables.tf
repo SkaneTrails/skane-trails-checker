@@ -25,5 +25,5 @@ variable "secretmanager_api_service" {
 
 variable "iam_bindings_complete" {
   description = "IAM bindings completion marker to ensure permissions are set before creating Firestore resources"
-  type        = string
+  type        = any
 }

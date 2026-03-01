@@ -32,7 +32,6 @@ dependencies = [
   "streamlit-folium>=0.15.0",
   "uvicorn>=0.34.0",
 ]
-
 optional-dependencies.dev = [
   "deptry>=0.24.0",
   "google-cloud-secret-manager>=2.20.0",
@@ -59,17 +58,14 @@ dev = [
 package = false
 
 [tool.ruff]
-target-version = "py313" # Ruff doesn't support py314 yet, py313 is compatible
-
+target-version = "py313"  # Ruff doesn't support py314 yet, py313 is compatible
 line-length = 120
 indent-width = 4
 cache-dir = ".cache/.ruff_cache"
-
 format.indent-style = "space"
 format.quote-style = "double"
 format.line-ending = "lf"
 format.skip-magic-trailing-comma = true
-
 lint.select = [
   "ALL", # include all the rules, including new ones
 ]
@@ -87,7 +83,6 @@ lint.ignore = [
   "T201",    # Print statements (used for logging/debugging in Streamlit)
   "TRY300",  # Consider else block (style preference)
 ]
-
 lint.per-file-ignores."tests/**/*.py" = [
   "ANN001",  # Missing type annotation for function argument (pytest fixtures have dynamic types)
   "ANN201",  # Missing return type annotation (test methods return None)
@@ -96,7 +91,6 @@ lint.per-file-ignores."tests/**/*.py" = [
   "PLR2004", # Allow magic values in tests (self-documenting with comments)
   "S101",    # Allow assert in tests (required for pytest)
 ]
-
 lint.flake8-quotes.inline-quotes = "double"
 lint.isort.combine-as-imports = true
 lint.isort.split-on-trailing-comma = false
@@ -107,35 +101,28 @@ ignore_notebooks = true
 pep621_dev_dependency_groups = [ "dev" ]
 # Exclude Cloud Function code (has its own requirements.txt) and venv
 exclude = [ "infra/modules/backup/function", ".venv", "venv", "htmlcov" ]
-
-[tool.deptry.package_module_name_map]
-skane-trails-checker = "app"
-fastapi = "fastapi"
-
-[tool.deptry.per_rule_ignores]
+package_module_name_map.skane-trails-checker = "app"
+package_module_name_map.fastapi = "fastapi"
 # numpy is a transitive dependency used via rdp for coordinate simplification
-DEP003 = [ "numpy" ]
+per_rule_ignores.DEP003 = [ "numpy" ]
 # These are local packages within the app/ directory
-DEP001 = [ "api", "functions", "resources" ]
+per_rule_ignores.DEP001 = [ "api", "functions", "resources" ]
 # Test dependencies are in optional-dependencies.test group
-DEP002 = [ "pytest", "pytest-cov", "pytest-mock", "pytest-xdist", "uvicorn", "httpx" ]
+per_rule_ignores.DEP002 = [ "pytest", "pytest-cov", "pytest-mock", "pytest-xdist", "uvicorn", "httpx" ]
 
 [tool.pyproject-fmt]
 keep_full_version = true
 
-[tool.pytest.ini_options]
-cache_dir = ".cache/.pytest_cache"
-
+[tool.pytest]
+ini_options.cache_dir = ".cache/.pytest_cache"
 # Test discovery patterns
-python_files = "test_*.py"
-python_classes = "Test*"
-python_functions = "test_*"
-
+ini_options.python_files = "test_*.py"
+ini_options.python_classes = "Test*"
+ini_options.python_functions = "test_*"
 # Test paths
-testpaths = [ "tests" ]
-
+ini_options.testpaths = [ "tests" ]
 # Output options
-addopts = [
+ini_options.addopts = [
   "--pythonwarnings=error",
   "-v",
   "--strict-markers",
@@ -145,28 +132,24 @@ addopts = [
   "--cov-report=term-missing",
   "--cov-report=html",
 ]
-
-log_cli = true
-log_cli_level = "INFO"
-log_cli_format = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-
+ini_options.log_cli = true
+ini_options.log_cli_level = "INFO"
+ini_options.log_cli_format = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 # Filter specific warnings from external libraries
-filterwarnings = [
+ini_options.filterwarnings = [
   # Ignore NumPy 2.0 deprecation warning triggered by rdp library
   # The rdp library uses 2D vectors with numpy.cross which is deprecated in NumPy 2.0
   # This needs to be fixed in the rdp library upstream
   "ignore:Arrays of 2-dimensional vectors are deprecated.*:DeprecationWarning",
 ]
 
-[tool.coverage.run]
-branch = true
-source = [ "app/", "api/" ]
-omit = [ "dev-tools/*", "app/functions/bootstrap_trails.py" ]
-
-[tool.coverage.report]
-exclude_lines = [
+[tool.coverage]
+run.branch = true
+run.omit = [ "app/functions/bootstrap_trails.py", "dev-tools/*" ]
+run.source = [ "api/", "app/" ]
+report.exclude_lines = [
   "if __name__ == .__main__.:",
   "pragma: no cover",
 ]
-precision = 2
-skip_empty = true
+report.precision = 2
+report.skip_empty = true
