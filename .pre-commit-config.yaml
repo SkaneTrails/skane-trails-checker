@@ -21,6 +21,7 @@ repos:
     rev: v0.21.0
     hooks:
       - id: yamlfmt
+        exclude: pnpm-lock\.yaml$
         args:
           - -formatter
           - line_ending=lf,retain_line_breaks=true,max_empty_lines=2
