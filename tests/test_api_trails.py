@@ -138,58 +138,58 @@ class TestGetTrailDetails:
 class TestUpdateTrail:
     @patch("api.routers.trails.trail_storage.get_trail")
     @patch("api.routers.trails.trail_storage.update_trail")
-    def test_update_trail_name(self, mock_update, mock_get):
+    def test_update_trail_name(self, mock_update, mock_get, authenticated_client):
         updated_trail = SAMPLE_TRAIL.model_copy(update={"name": "Renamed Trail"})
         mock_get.side_effect = [SAMPLE_TRAIL, updated_trail]
         mock_update.return_value = None
 
-        response = client.patch("/api/v1/trails/abc123", json={"name": "Renamed Trail"})
+        response = authenticated_client.patch("/api/v1/trails/abc123", json={"name": "Renamed Trail"})
         assert response.status_code == 200
         assert response.json()["name"] == "Renamed Trail"
         mock_update.assert_called_once_with("abc123", {"name": "Renamed Trail"})
 
     @patch("api.routers.trails.trail_storage.get_trail")
     @patch("api.routers.trails.trail_storage.update_trail")
-    def test_update_trail_status(self, mock_update, mock_get):
+    def test_update_trail_status(self, mock_update, mock_get, authenticated_client):
         updated_trail = SAMPLE_TRAIL.model_copy(update={"status": "Explored!"})
         mock_get.side_effect = [SAMPLE_TRAIL, updated_trail]
         mock_update.return_value = None
 
-        response = client.patch("/api/v1/trails/abc123", json={"status": "Explored!"})
+        response = authenticated_client.patch("/api/v1/trails/abc123", json={"status": "Explored!"})
         assert response.status_code == 200
         assert response.json()["status"] == "Explored!"
 
     @patch("api.routers.trails.trail_storage.get_trail")
-    def test_update_trail_not_found(self, mock_get):
+    def test_update_trail_not_found(self, mock_get, authenticated_client):
         mock_get.return_value = None
-        response = client.patch("/api/v1/trails/nonexistent", json={"name": "New"})
+        response = authenticated_client.patch("/api/v1/trails/nonexistent", json={"name": "New"})
         assert response.status_code == 404
 
     @patch("api.routers.trails.trail_storage.get_trail")
-    def test_update_trail_no_fields(self, mock_get):
+    def test_update_trail_no_fields(self, mock_get, authenticated_client):
         mock_get.return_value = SAMPLE_TRAIL
-        response = client.patch("/api/v1/trails/abc123", json={})
+        response = authenticated_client.patch("/api/v1/trails/abc123", json={})
         assert response.status_code == 400
         assert "No fields to update" in response.json()["detail"]
 
-    def test_update_trail_invalid_status(self):
-        response = client.patch("/api/v1/trails/abc123", json={"status": "Bad Status"})
+    def test_update_trail_invalid_status(self, authenticated_client):
+        response = authenticated_client.patch("/api/v1/trails/abc123", json={"status": "Bad Status"})
         assert response.status_code == 422
 
 
 class TestDeleteTrail:
     @patch("api.routers.trails.trail_storage.get_trail")
     @patch("api.routers.trails.trail_storage.delete_trail")
-    def test_delete_trail(self, mock_delete, mock_get):
+    def test_delete_trail(self, mock_delete, mock_get, authenticated_client):
         mock_get.return_value = SAMPLE_TRAIL
         mock_delete.return_value = None
 
-        response = client.delete("/api/v1/trails/abc123")
+        response = authenticated_client.delete("/api/v1/trails/abc123")
         assert response.status_code == 204
         mock_delete.assert_called_once_with("abc123")
 
     @patch("api.routers.trails.trail_storage.get_trail")
-    def test_delete_trail_not_found(self, mock_get):
+    def test_delete_trail_not_found(self, mock_get, authenticated_client):
         mock_get.return_value = None
-        response = client.delete("/api/v1/trails/nonexistent")
+        response = authenticated_client.delete("/api/v1/trails/nonexistent")
         assert response.status_code == 404

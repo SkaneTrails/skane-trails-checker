@@ -58,11 +58,11 @@ class TestListForagingSpots:
 class TestCreateForagingSpot:
     @patch("api.routers.foraging.foraging_storage.get_foraging_spots")
     @patch("api.routers.foraging.foraging_storage.save_foraging_spot")
-    def test_create_spot(self, mock_save, mock_get):
+    def test_create_spot(self, mock_save, mock_get, authenticated_client):
         mock_save.return_value = "new_doc_id"
         mock_get.return_value = [ForagingSpotResponse(id="new_doc_id", type="Herbs", lat=56.2, lng=13.3, month="Jun")]
 
-        response = client.post(
+        response = authenticated_client.post(
             "/api/v1/foraging/spots", json={"type": "Herbs", "lat": 56.2, "lng": 13.3, "month": "Jun"}
         )
         assert response.status_code == 201
@@ -70,28 +70,30 @@ class TestCreateForagingSpot:
         assert data["id"] == "new_doc_id"
         assert data["type"] == "Herbs"
 
-    def test_create_spot_invalid_data(self):
-        response = client.post("/api/v1/foraging/spots", json={"type": "", "lat": 56.0, "lng": 13.0, "month": "Jan"})
+    def test_create_spot_invalid_data(self, authenticated_client):
+        response = authenticated_client.post(
+            "/api/v1/foraging/spots", json={"type": "", "lat": 56.0, "lng": 13.0, "month": "Jan"}
+        )
         assert response.status_code == 422
 
 
 class TestUpdateForagingSpot:
     @patch("api.routers.foraging.foraging_storage.update_foraging_spot")
-    def test_update_spot(self, mock_update):
+    def test_update_spot(self, mock_update, authenticated_client):
         mock_update.return_value = None
-        response = client.patch("/api/v1/foraging/spots/spot1", json={"notes": "Updated notes"})
+        response = authenticated_client.patch("/api/v1/foraging/spots/spot1", json={"notes": "Updated notes"})
         assert response.status_code == 204
 
-    def test_update_spot_no_fields(self):
-        response = client.patch("/api/v1/foraging/spots/spot1", json={})
+    def test_update_spot_no_fields(self, authenticated_client):
+        response = authenticated_client.patch("/api/v1/foraging/spots/spot1", json={})
         assert response.status_code == 400
 
 
 class TestDeleteForagingSpot:
     @patch("api.routers.foraging.foraging_storage.delete_foraging_spot")
-    def test_delete_spot(self, mock_delete):
+    def test_delete_spot(self, mock_delete, authenticated_client):
         mock_delete.return_value = None
-        response = client.delete("/api/v1/foraging/spots/spot1")
+        response = authenticated_client.delete("/api/v1/foraging/spots/spot1")
         assert response.status_code == 204
         mock_delete.assert_called_once_with("spot1")
 
@@ -110,9 +112,11 @@ class TestListForagingTypes:
 
 class TestCreateForagingType:
     @patch("api.routers.foraging.foraging_storage.save_foraging_type")
-    def test_create_type(self, mock_save):
+    def test_create_type(self, mock_save, authenticated_client):
         mock_save.return_value = None
-        response = client.post("/api/v1/foraging/types", json={"name": "Wild Garlic", "icon": "🌿", "color": "#228B22"})
+        response = authenticated_client.post(
+            "/api/v1/foraging/types", json={"name": "Wild Garlic", "icon": "🌿", "color": "#228B22"}
+        )
         assert response.status_code == 201
         data = response.json()
         assert data["name"] == "Wild Garlic"
@@ -121,8 +125,8 @@ class TestCreateForagingType:
 
 class TestDeleteForagingType:
     @patch("api.routers.foraging.foraging_storage.delete_foraging_type")
-    def test_delete_type(self, mock_delete):
+    def test_delete_type(self, mock_delete, authenticated_client):
         mock_delete.return_value = None
-        response = client.delete("/api/v1/foraging/types/Mushrooms")
+        response = authenticated_client.delete("/api/v1/foraging/types/Mushrooms")
         assert response.status_code == 204
         mock_delete.assert_called_once_with("Mushrooms")

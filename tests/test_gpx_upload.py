@@ -140,11 +140,11 @@ class TestParseGpxUpload:
 class TestUploadGpxEndpoint:
     @patch("api.routers.trails.trail_storage.save_trail")
     @patch("api.routers.trails.parse_gpx_upload")
-    def test_upload_valid_gpx(self, mock_parse, mock_save):
+    def test_upload_valid_gpx(self, mock_parse, mock_save, authenticated_client):
         mock_parse.return_value = [SAMPLE_TRAIL]
         mock_save.return_value = None
 
-        response = client.post(
+        response = authenticated_client.post(
             "/api/v1/trails/upload",
             files={"file": ("trail.gpx", io.BytesIO(VALID_GPX.encode()), "application/gpx+xml")},
         )
@@ -157,11 +157,11 @@ class TestUploadGpxEndpoint:
 
     @patch("api.routers.trails.trail_storage.save_trail")
     @patch("api.routers.trails.parse_gpx_upload")
-    def test_upload_with_source_param(self, mock_parse, mock_save):
+    def test_upload_with_source_param(self, mock_parse, mock_save, authenticated_client):
         mock_parse.return_value = [SAMPLE_TRAIL]
         mock_save.return_value = None
 
-        response = client.post(
+        response = authenticated_client.post(
             "/api/v1/trails/upload?source=world_wide_hikes",
             files={"file": ("trail.gpx", io.BytesIO(VALID_GPX.encode()), "application/gpx+xml")},
         )
@@ -170,38 +170,38 @@ class TestUploadGpxEndpoint:
         _, kwargs = mock_parse.call_args
         assert kwargs["source"] == "world_wide_hikes"
 
-    def test_upload_non_gpx_file(self):
-        response = client.post(
+    def test_upload_non_gpx_file(self, authenticated_client):
+        response = authenticated_client.post(
             "/api/v1/trails/upload", files={"file": ("trail.txt", io.BytesIO(b"not gpx"), "text/plain")}
         )
         assert response.status_code == 400
         assert "must be a .gpx file" in response.json()["detail"]
 
-    def test_upload_no_filename(self):
-        response = client.post(
+    def test_upload_no_filename(self, authenticated_client):
+        response = authenticated_client.post(
             "/api/v1/trails/upload", files={"file": ("", io.BytesIO(b"content"), "application/octet-stream")}
         )
         assert response.status_code == 422
 
-    def test_upload_empty_file(self):
-        response = client.post(
+    def test_upload_empty_file(self, authenticated_client):
+        response = authenticated_client.post(
             "/api/v1/trails/upload", files={"file": ("trail.gpx", io.BytesIO(b""), "application/gpx+xml")}
         )
         assert response.status_code == 400
         assert "empty" in response.json()["detail"]
 
-    def test_upload_invalid_source(self):
-        response = client.post(
+    def test_upload_invalid_source(self, authenticated_client):
+        response = authenticated_client.post(
             "/api/v1/trails/upload?source=planned_hikes",
             files={"file": ("trail.gpx", io.BytesIO(VALID_GPX.encode()), "application/gpx+xml")},
         )
         assert response.status_code == 422
 
     @patch("api.routers.trails.parse_gpx_upload")
-    def test_upload_invalid_gpx_content(self, mock_parse):
+    def test_upload_invalid_gpx_content(self, mock_parse, authenticated_client):
         mock_parse.side_effect = ValueError("Invalid GPX file: not valid xml")
 
-        response = client.post(
+        response = authenticated_client.post(
             "/api/v1/trails/upload", files={"file": ("trail.gpx", io.BytesIO(b"not xml"), "application/gpx+xml")}
         )
         assert response.status_code == 400
@@ -209,12 +209,12 @@ class TestUploadGpxEndpoint:
 
     @patch("api.routers.trails.trail_storage.save_trail")
     @patch("api.routers.trails.parse_gpx_upload")
-    def test_upload_multiple_tracks(self, mock_parse, mock_save):
+    def test_upload_multiple_tracks(self, mock_parse, mock_save, authenticated_client):
         trail2 = SAMPLE_TRAIL.model_copy(update={"trail_id": "def456", "name": "Trail Two"})
         mock_parse.return_value = [SAMPLE_TRAIL, trail2]
         mock_save.return_value = None
 
-        response = client.post(
+        response = authenticated_client.post(
             "/api/v1/trails/upload",
             files={"file": ("multi.gpx", io.BytesIO(MULTI_TRACK_GPX.encode()), "application/gpx+xml")},
         )
@@ -223,10 +223,10 @@ class TestUploadGpxEndpoint:
         assert mock_save.call_count == 2
 
     @patch("api.routers.trails.parse_gpx_upload")
-    def test_upload_gpx_no_valid_tracks(self, mock_parse):
+    def test_upload_gpx_no_valid_tracks(self, mock_parse, authenticated_client):
         mock_parse.side_effect = ValueError("No valid tracks found in GPX file")
 
-        response = client.post(
+        response = authenticated_client.post(
             "/api/v1/trails/upload",
             files={"file": ("empty_tracks.gpx", io.BytesIO(VALID_GPX.encode()), "application/gpx+xml")},
         )

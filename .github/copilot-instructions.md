@@ -92,6 +92,7 @@ ______________________________________________________________________
 
 - `api/models/` — Pydantic models (Trail, Place, Foraging)
 - `api/routers/` — REST endpoints (trails, foraging, places)
+- `api/auth/` — Firebase Auth middleware (token validation, `require_auth` dependency)
 - `api/storage/` — Firestore persistence + client
 
 **Expo/React Native** (frontend, `mobile/`):
