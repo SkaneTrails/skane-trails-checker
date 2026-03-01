@@ -88,20 +88,25 @@ ______________________________________________________________________
 
 ## Architecture
 
-**Streamlit app** (legacy, being replaced):
+**FastAPI API** (backend):
 
-- Entry: `app/_Home_.py` — weather dashboard
-- Pages: `app/pages/` with `N_emoji_Name.py` naming (auto-discovered)
-- Logic: `app/functions/` — GPX parsing, storage, models (mixed concerns)
-- Resources: `app/resources/` — static data
-
-**FastAPI API** (new):
-
-- `api/models/` — Pydantic models
+- `api/models/` — Pydantic models (Trail, Place, Foraging)
 - `api/routers/` — REST endpoints (trails, foraging, places)
-- `api/storage/` — Firestore persistence
+- `api/storage/` — Firestore persistence + client
 
-**State**: Streamlit uses `st.session_state`; Firestore for persistence. See `firestore.instructions.md` for schema.
+**Expo/React Native** (frontend, `mobile/`):
+
+- Follows meal-planner architecture: Expo Router, React Query, NativeWind
+- Theme engine: `lib/theme/` with token-based `ThemeProvider` + `useTheme()` hook
+- Shared components: `components/` — Button, Toggle, Chip, etc. (all theme-driven)
+- Map: react-leaflet (web-first) with trail polylines + markers
+
+**GPX processing** (server-side):
+
+- `app/functions/gpx.py` + `trail_converter.py` — parse, simplify, save
+- `app/functions/bootstrap_trails.py` — seed planned hikes from bundled GPX
+
+**State**: Firestore for persistence, React Query for client cache. See `firestore.instructions.md` for schema.
 
 **5 Firestore collections**: `trails`, `trail_details`, `foraging_spots`, `foraging_types`, `places`
 
@@ -118,13 +123,13 @@ ______________________________________________________________________
 
 ### Map Rendering
 
-- Folium + `streamlit_folium` for embedding
-- Status colors: "Explored!" = green, "To Explore" = red
-- Use unique keys for `st_folium()` to prevent re-renders
+- react-leaflet with OpenStreetMap tiles (zero cost, no API key)
+- Status colors: "Explored!" = dark green, "To Explore" = orange (planned = blue)
+- Trail polylines from `coordinates_map` array; full detail from `trail_details`
 
 ### Trail Sources
 
-Three sources filter trails from Firestore: `planned_hikes` (Skåneleden), `other_trails` (local), `world_wide_hikes` (international). Toggle via `use_world_wide_hikes` session state.
+Three sources filter trails from Firestore: `planned_hikes` (Skåneleden), `other_trails` (local), `world_wide_hikes` (international).
 
 ______________________________________________________________________
 

@@ -1,13 +1,14 @@
 """Helper functions to bridge old GPX-based system with new Firestore Trail models."""
 
 import hashlib
+import math
 from datetime import UTC, datetime
 
 import gpxpy
 import gpxpy.gpx
 
+from api.models.trail import Coordinate, TrailBounds, TrailResponse
 from app.functions.tracks import simplify_track_coordinates
-from app.functions.trail_models import Trail, TrailBounds, TrailCenter
 
 
 def gpx_track_to_trail(
@@ -16,8 +17,8 @@ def gpx_track_to_trail(
     index: int = 0,
     status: str = "To Explore",
     gpx_metadata: dict | None = None,
-) -> Trail:
-    """Convert a GPX track to a Trail object.
+) -> TrailResponse:
+    """Convert a GPX track to a TrailResponse object.
 
     Args:
         gpx_track: GPXTrack object from gpxpy
@@ -27,7 +28,7 @@ def gpx_track_to_trail(
         gpx_metadata: Optional metadata dict with 'time' and other GPX-level info
 
     Returns:
-        Trail object ready for Firestore storage
+        TrailResponse object ready for Firestore storage
     """
     # Extract all coordinates and elevation data from all segments
     all_coordinates = []
@@ -52,7 +53,7 @@ def gpx_track_to_trail(
     bounds = TrailBounds(north=max(lats), south=min(lats), east=max(lngs), west=min(lngs))
 
     # Calculate center
-    center = TrailCenter(lat=sum(lats) / len(lats), lng=sum(lngs) / len(lngs))
+    center = Coordinate(lat=sum(lats) / len(lats), lng=sum(lngs) / len(lngs))
 
     # Calculate approximate length (sum of distances between consecutive points)
     length_km = 0.0
@@ -62,7 +63,7 @@ def gpx_track_to_trail(
         # Simple Euclidean distance approximation in km
         # (1 degree ≈ 111 km at equator, less at higher latitudes)
         lat_diff = (lat2 - lat1) * 111.0
-        lng_diff = (lng2 - lng1) * 111.0 * abs(lat1 / 90.0)  # Latitude correction
+        lng_diff = (lng2 - lng1) * 111.0 * math.cos(math.radians(lat1))
         length_km += (lat_diff**2 + lng_diff**2) ** 0.5
 
     # Calculate elevation gain/loss if elevation data available
@@ -92,13 +93,13 @@ def gpx_track_to_trail(
     first_coord = f"{all_coordinates[0][0]:.6f},{all_coordinates[0][1]:.6f}"
     trail_id = hashlib.md5(f"{source}_{name}_{index}_{first_coord}".encode()).hexdigest()[:12]  # noqa: S324
 
-    return Trail(
+    return TrailResponse(
         trail_id=trail_id,
         name=name,
         difficulty="Unknown",  # GPX doesn't typically have difficulty
         length_km=round(length_km, 2),
         status=status,
-        coordinates_map=simplified_coords,
+        coordinates_map=[Coordinate(lat=lat, lng=lng) for lat, lng in simplified_coords],
         bounds=bounds,
         center=center,
         source=source,
@@ -112,8 +113,8 @@ def gpx_track_to_trail(
 
 def load_trails_from_gpx_data(
     gpx_data: gpxpy.gpx.GPX | None, source: str, existing_statuses: dict[int, str] | None = None
-) -> list[Trail]:
-    """Convert GPX data to list of Trail objects.
+) -> list[TrailResponse]:
+    """Convert GPX data to list of TrailResponse objects.
 
     Args:
         gpx_data: Parsed GPX data
@@ -121,7 +122,7 @@ def load_trails_from_gpx_data(
         existing_statuses: Optional dict mapping track index to status
 
     Returns:
-        List of Trail objects
+        List of TrailResponse objects
     """
     if not gpx_data:
         return []

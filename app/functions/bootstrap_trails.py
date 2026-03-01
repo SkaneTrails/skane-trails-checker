@@ -5,9 +5,9 @@ from pathlib import Path
 import gpxpy
 import gpxpy.gpx
 
-from app.functions.firestore_client import get_collection
+from api.storage.firestore_client import get_collection
+from api.storage.trail_storage import save_trail
 from app.functions.trail_converter import gpx_track_to_trail
-from app.functions.trail_storage import save_trail
 
 
 def bootstrap_planned_trails(gpx_file_path: Path | str) -> tuple[int, str]:

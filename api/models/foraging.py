@@ -47,6 +47,11 @@ class ForagingTypeResponse(BaseModel):
     name: str
     icon: str = ""
     color: str = ""
+    swedish_name: str = ""
+    description: str = ""
+    season: str = ""
+    usage: str = ""
+    image_file: str = ""
 
 
 class ForagingTypeCreate(BaseModel):
@@ -55,3 +60,8 @@ class ForagingTypeCreate(BaseModel):
     name: str = Field(min_length=1, max_length=100)
     icon: str = Field(min_length=1, max_length=10)
     color: str = ""
+    swedish_name: str = ""
+    description: str = ""
+    season: str = ""
+    usage: str = ""
+    image_file: str = ""

@@ -11,7 +11,7 @@ except ModuleNotFoundError:
 logger = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
-    from app.functions.trail_models import Trail
+    from api.models.trail import TrailResponse as Trail
 
 # Constants
 MIN_POINTS_FOR_SIMPLIFICATION = 2  # Minimum points needed for RDP algorithm

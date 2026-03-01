@@ -2,6 +2,7 @@
 
 import pytest
 
+from api.models.trail import Coordinate, TrailBounds, TrailResponse
 from app.functions.tracks import (
     TrackInfo,
     calculate_track_distance,
@@ -9,7 +10,6 @@ from app.functions.tracks import (
     get_distance_range,
     simplify_track_coordinates,
 )
-from app.functions.trail_models import Trail, TrailBounds, TrailCenter
 
 
 @pytest.fixture
@@ -146,54 +146,54 @@ def test_simplify_track_coordinates_single_point() -> None:
 
 
 @pytest.fixture
-def sample_trail_objects() -> list[Trail]:
+def sample_trail_objects() -> list[TrailResponse]:
     """Sample Trail objects for filtering tests."""
     return [
-        Trail(
+        TrailResponse(
             trail_id="trail-1",
             name="Söderåsen Trail North",
             difficulty="medium",
             length_km=5.0,
             status="To Explore",
-            coordinates_map=[(56.0, 13.0), (56.1, 13.1)],
+            coordinates_map=[Coordinate(lat=56.0, lng=13.0), Coordinate(lat=56.1, lng=13.1)],
             bounds=TrailBounds(north=56.1, south=56.0, east=13.1, west=13.0),
-            center=TrailCenter(lat=56.05, lng=13.05),
+            center=Coordinate(lat=56.05, lng=13.05),
             source="other_trails",
             last_updated="2024-01-01T00:00:00Z",
         ),
-        Trail(
+        TrailResponse(
             trail_id="trail-2",
             name="Kullaberg Coastal Path",
             difficulty="hard",
             length_km=12.5,
             status="Explored!",
-            coordinates_map=[(56.2, 12.4), (56.3, 12.5)],
+            coordinates_map=[Coordinate(lat=56.2, lng=12.4), Coordinate(lat=56.3, lng=12.5)],
             bounds=TrailBounds(north=56.3, south=56.2, east=12.5, west=12.4),
-            center=TrailCenter(lat=56.25, lng=12.45),
+            center=Coordinate(lat=56.25, lng=12.45),
             source="other_trails",
             last_updated="2024-01-01T00:00:00Z",
         ),
-        Trail(
+        TrailResponse(
             trail_id="trail-3",
             name="Skåneleden Stage 1",
             difficulty="easy",
             length_km=20.0,
             status="To Explore",
-            coordinates_map=[(55.9, 13.0), (56.0, 13.0)],
+            coordinates_map=[Coordinate(lat=55.9, lng=13.0), Coordinate(lat=56.0, lng=13.0)],
             bounds=TrailBounds(north=56.0, south=55.9, east=13.0, west=13.0),
-            center=TrailCenter(lat=55.95, lng=13.0),
+            center=Coordinate(lat=55.95, lng=13.0),
             source="planned_hikes",  # This is the Skåneleden source
             last_updated="2024-01-01T00:00:00Z",
         ),
-        Trail(
+        TrailResponse(
             trail_id="trail-4",
             name="Short Beach Walk",
             difficulty="easy",
             length_km=2.0,
             status="Explored!",
-            coordinates_map=[(55.5, 12.9), (55.6, 12.9)],
+            coordinates_map=[Coordinate(lat=55.5, lng=12.9), Coordinate(lat=55.6, lng=12.9)],
             bounds=TrailBounds(north=55.6, south=55.5, east=12.9, west=12.9),
-            center=TrailCenter(lat=55.55, lng=12.9),
+            center=Coordinate(lat=55.55, lng=12.9),
             source="world_wide_hikes",
             last_updated="2024-01-01T00:00:00Z",
         ),

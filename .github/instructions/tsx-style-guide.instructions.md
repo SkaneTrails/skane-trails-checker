@@ -103,10 +103,26 @@ export const useTrailFilter = (initialSource?: TrailSource) => {
 
 ### Theme & Styling
 
-- **Always use theme constants** — never hardcode colors, spacing, sizes, or layout dimensions
-- Use a centralized theme system (`lib/theme/` or equivalent)
+- **All visual properties via theme tokens** — zero hardcoded colors, spacing, sizes, radii, shadows, or font values anywhere in component code
+- **No inline magic numbers** — every numeric style value must reference a token (`spacing.md`, `borderRadius.sm`, `fontSize.lg`, etc.)
 - `StyleSheet.create()` at bottom of file for React Native — no large inline style objects
 - Dynamic styles: use style arrays `[styles.card, { opacity: isActive ? 1 : 0.5 }]`
+
+**Theming engine architecture** (matching meal-planner pattern):
+
+- `lib/theme/colors.ts` — `ColorTokens` interface with semantic groups (primary, text, surface, button, border, content, trail status colors)
+- `lib/theme/layout.ts` — spacing scale, border radii, icon sizes, shadows, animation constants (all `as const`)
+- `lib/theme/typography.ts` — font sizes, weights, line heights, per-theme font families
+- `lib/theme/styles.ts` — composed style helpers created from tokens
+- `lib/theme/theme-context.tsx` — `ThemeProvider` + `useTheme()` hook providing resolved tokens
+- `lib/theme/themes/` — one file per theme, self-contained `ThemeDefinition`; registry auto-collects
+- `lib/theme.ts` — public API surface, re-exports only consumer-facing types and values
+
+**Theme rules:**
+
+- Components read from `useTheme()` — never branch on theme name/id
+- Themes define behavior via config tokens (`ButtonDisplayConfig`, `StyleOverrides`, `VisibilityTokens`) not string checks
+- Start with one "outdoor" light theme; the architecture must support adding themes by adding a single file
 
 **Pre-flight checklist before writing any style value:**
 
@@ -125,6 +141,13 @@ Before writing any new visual element:
 1. **Never hand-roll** a pattern that a shared component already covers — even "just this once." Inline one-offs drift from the design system and break theme consistency
 
 Violations are a **blocking review issue**, same as hardcoded colors.
+
+### Map Components
+
+- `MapView` — base map component (react-leaflet `MapContainer` + tile layer), consumes theme tokens for styling
+- `TrailOverlay` — reusable polyline renderer, takes trail data + theme-derived status colors
+- `MarkerLayer` — reusable for POI pins, foraging emoji markers, trail start points
+- Map colors (trail status, marker fills) come from theme tokens, not hardcoded hex values
 
 ## Error Handling
 

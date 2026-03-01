@@ -63,9 +63,10 @@ def list_foraging_types() -> list[ForagingTypeResponse]:
 @router.post("/types", status_code=201)
 def create_foraging_type(body: ForagingTypeCreate) -> ForagingTypeResponse:
     """Create or update a foraging type."""
-    type_data = {"icon": body.icon, "color": body.color}
+    type_data = body.model_dump(exclude={"name"}, exclude_defaults=True)
+    type_data["icon"] = body.icon
     foraging_storage.save_foraging_type(body.name, type_data)
-    return ForagingTypeResponse(name=body.name, icon=body.icon, color=body.color)
+    return ForagingTypeResponse(name=body.name, **body.model_dump(exclude={"name"}))
 
 
 @router.delete("/types/{type_name}", status_code=204)
