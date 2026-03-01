@@ -131,7 +131,7 @@ resource "google_cloud_scheduler_job" "weekly_backup" {
   description = "Triggers weekly Firestore backup to Cloud Storage"
   region      = var.scheduler_region
 
-  # Run every Sunday at 3:00 AM UTC
+  # Run nightly at 3:00 AM UTC
   schedule  = var.backup_schedule
   time_zone = "UTC"
 

@@ -43,18 +43,23 @@ resource "google_project_iam_custom_role" "infrastructure_manager" {
     "storage.buckets.get",
     "storage.buckets.list",
     "storage.buckets.update",
-    "storage.buckets.update",
     "storage.objects.create",
     "storage.objects.delete",
     "storage.objects.get",
     "storage.objects.list",
 
-    # Cloud Run permissions (future deployment)
+    # Cloud Run permissions
     "run.services.create",
     "run.services.delete",
     "run.services.get",
     "run.services.list",
     "run.services.update",
+
+    # Artifact Registry permissions
+    "artifactregistry.repositories.create",
+    "artifactregistry.repositories.delete",
+    "artifactregistry.repositories.get",
+    "artifactregistry.repositories.list",
 
     # IAM permissions (to manage user access)
     "iam.roles.get",
@@ -106,7 +111,6 @@ resource "google_project_iam_custom_role" "app_user" {
 
     # Cloud Run invoke
     "run.services.get",
-    "run.services.list",
     "run.routes.invoke",
 
     # Basic project info

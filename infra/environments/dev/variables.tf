@@ -19,6 +19,49 @@ variable "firestore_database_name" {
   default     = "skane-trails-db"
 }
 
+# Firebase and Auth
+variable "firebase_authorized_domains" {
+  description = "Additional authorized domains for Firebase OAuth (e.g., Cloud Run URLs)"
+  type        = list(string)
+  default     = []
+}
+
+variable "hosting_site_id" {
+  description = "Firebase Hosting site ID (must be globally unique, becomes <site-id>.web.app)"
+  type        = string
+}
+
+variable "oauth_secrets_exist" {
+  description = "Whether OAuth secrets exist in Secret Manager (set to true after running create-oauth-client script)"
+  type        = bool
+  default     = false
+}
+
+# GitHub repository info for Workload Identity Federation
+variable "github_repository_owner" {
+  description = "GitHub repository owner (organization or user)"
+  type        = string
+  default     = "SkaneTrails"
+}
+
+variable "github_repository" {
+  description = "Full GitHub repository path (owner/repo)"
+  type        = string
+  default     = "SkaneTrails/skane-trails-checker"
+}
+
+# Deployment
+variable "image_tag" {
+  description = "Docker image tag for Cloud Run (default: latest for local dev, CI passes git SHA)"
+  type        = string
+  default     = "latest"
+}
+
+variable "tfstate_bucket_name" {
+  description = "GCS bucket name for Terraform state (must be globally unique)"
+  type        = string
+}
+
 # Backup configuration
 variable "backup_bucket_name" {
   description = "Name for the Cloud Storage bucket to store Firestore backups (must be globally unique)"
@@ -38,12 +81,7 @@ variable "backup_retention_days" {
 }
 
 variable "backup_schedule" {
-  description = "Cron schedule for Firestore backups (default: Sundays at 3 AM UTC)"
+  description = "Cron schedule for Firestore backups (default: nightly at 3 AM UTC)"
   type        = string
-  default     = "0 3 * * 0"
-}
-
-variable "firestore_database_names" {
-  description = "List of Firestore database names to backup"
-  type        = list(string)
+  default     = "0 3 * * *"
 }
