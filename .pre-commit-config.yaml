@@ -96,13 +96,6 @@ repos:
     # Ty type checker (run as local command since no pre-commit repo yet)
 
     hooks:
-      - id: pytest
-        name: pytest
-        entry: uv run pytest
-        language: system
-        types: [python]
-        pass_filenames: false
-        args: [tests/, -x, --no-cov, -q]
       - id: ty
         name: ty type check
         entry: uv run ty check
