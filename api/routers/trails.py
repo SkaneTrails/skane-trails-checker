@@ -3,8 +3,9 @@
 import logging
 from typing import Annotated
 
-from fastapi import APIRouter, HTTPException, Query, UploadFile
+from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile
 
+from api.auth import AuthenticatedUser, require_auth
 from api.models.trail import TrailDetailsResponse, TrailResponse, TrailUpdate
 from api.services.gpx_parser import parse_gpx_upload
 from api.storage import trail_storage
@@ -62,7 +63,9 @@ def get_trail_details(trail_id: str) -> TrailDetailsResponse:
 
 
 @router.patch("/{trail_id}")
-def update_trail(trail_id: str, body: TrailUpdate) -> TrailResponse:
+def update_trail(
+    trail_id: str, body: TrailUpdate, _user: Annotated[AuthenticatedUser, Depends(require_auth)]
+) -> TrailResponse:
     """Update trail fields (name, status, difficulty)."""
     existing = trail_storage.get_trail(trail_id)
     if not existing:
@@ -81,7 +84,7 @@ def update_trail(trail_id: str, body: TrailUpdate) -> TrailResponse:
 
 
 @router.delete("/{trail_id}", status_code=204)
-def delete_trail(trail_id: str) -> None:
+def delete_trail(trail_id: str, _user: Annotated[AuthenticatedUser, Depends(require_auth)]) -> None:
     """Delete a trail and its details."""
     existing = trail_storage.get_trail(trail_id)
     if not existing:
@@ -93,6 +96,7 @@ def delete_trail(trail_id: str) -> None:
 @router.post("/upload", status_code=201)
 def upload_gpx(
     file: UploadFile,
+    _user: Annotated[AuthenticatedUser, Depends(require_auth)],
     source: Annotated[
         str,
         Query(
