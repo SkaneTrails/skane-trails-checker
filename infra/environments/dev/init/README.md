@@ -100,6 +100,7 @@ You should see the `google_storage_bucket.tfstate` resource.
 After running `terraform apply`, the following files are created in the parent directory:
 
 - `backend.tf` - Terraform backend configuration
+- `tfstate.auto.tfvars` - State bucket name variable (auto-loaded by Terraform)
 - `import_tfstate_bucket.sh` - Import script for Linux/macOS
 - `import_tfstate_bucket.ps1` - Import script for Windows
 
@@ -138,8 +139,4 @@ Run `terraform init` first to download provider plugins.
 
 ## Next Steps
 
-After bootstrap is complete, you can proceed to set up the main infrastructure:
-
-1. Firestore database
-1. Cloud Storage buckets for GPX files
-1. Cloud Run service for the Streamlit app
+After bootstrap is complete, return to the parent directory and continue with the [Development Environment Setup Guide](../README.md) (Step 5 onwards).

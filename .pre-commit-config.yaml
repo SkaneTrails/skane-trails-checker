@@ -9,11 +9,11 @@ default_language_version:
   python: python3.14
 repos:
   - repo: https://github.com/tox-dev/pyproject-fmt
-    rev: "v2.11.1"
+    rev: "v2.16.2"
     hooks:
       - id: pyproject-fmt
   - repo: https://github.com/abravalheri/validate-pyproject
-    rev: v0.24.1
+    rev: v0.25
     hooks:
       - id: validate-pyproject
   # Fast YAML formatter (Go-based) - run early since it may change line endings
@@ -21,6 +21,7 @@ repos:
     rev: v0.21.0
     hooks:
       - id: yamlfmt
+        exclude: pnpm-lock\.yaml$
         args:
           - -formatter
           - line_ending=lf,retain_line_breaks=true,max_empty_lines=2
@@ -44,24 +45,30 @@ repos:
       - id: check-ast
       - id: check-added-large-files
         args: [--maxkb=150]
+        exclude: pnpm-lock\.yaml$
       - id: detect-private-key
       - id: debug-statements
   - repo: https://github.com/rhysd/actionlint
     # Validate GitHub Actions workflows
 
-    rev: v1.7.10
+    rev: v1.7.11
     hooks:
       - id: actionlint
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.14.14
+    rev: v0.15.4
     hooks:
       - id: ruff
         args: [--fix, --exit-non-zero-on-fix]
       - id: ruff-format
-  - repo: https://github.com/fpgmaas/deptry
-    rev: 0.24.0
+  # Deptry - check for missing/unused dependencies (runs from uv venv)
+  - repo: local
     hooks:
       - id: deptry
+        name: deptry
+        entry: uv run deptry .
+        language: system
+        types: [python]
+        pass_filenames: false
   # Fast Markdown formatter (Python)
   - repo: https://github.com/executablebooks/mdformat
     rev: 0.7.22
@@ -70,18 +77,14 @@ repos:
         additional_dependencies:
           - mdformat-gfm # GitHub Flavored Markdown
           - mdformat-tables
-  # Keep prettier only for JSON and TOML
   - repo: https://github.com/pre-commit/mirrors-prettier
-    # TOML formatting - using prettier for now (taplo pre-commit hook not available)
-
-    # YAML, JSON, and Markdown are the main performance bottlenecks anyway
     rev: "v4.0.0-alpha.8"
     hooks:
       - id: prettier
         files: \.(json|toml)$
-        exclude: ^renovate\.json$
+        exclude: ^(renovate\.json)$
   - repo: https://github.com/astral-sh/uv-pre-commit
-    rev: 0.9.28
+    rev: 0.10.7
     hooks:
       - id: uv-lock
       - id: uv-sync

@@ -12,7 +12,7 @@ on:
 
 permissions:
   contents: read
-  security-events: write # For uploading SARIF to GitHub Security
+  # security-events: write # Re-enable with Trivy for SARIF upload
 
 jobs:
   license-scan:
@@ -23,7 +23,7 @@ jobs:
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
       - name: Set up uv
-        uses: astral-sh/setup-uv@803947b9bd8e9f986429fa0c5a41c367cd732b41 # v7.2.1
+        uses: astral-sh/setup-uv@eac588ad8def6316056a12d4907a9d4d84ff7a3b # v7.3.0
         with:
           enable-cache: true
           cache-dependency-glob: "uv.lock"
@@ -73,77 +73,7 @@ jobs:
             licenses.json
           retention-days: 30
 
-  trivy-scan:
-    name: Trivy Vulnerability Scan
-    runs-on: ubuntu-latest
-    env:
-      TRIVY_DB_REPOSITORY: public.ecr.aws/aquasecurity/trivy-db:2
-      TRIVY_JAVA_DB_REPOSITORY: public.ecr.aws/aquasecurity/trivy-java-db:1
-      TRIVY_CACHE_DIR: ${{ github.workspace }}/.cache/trivy
-    steps:
-      - name: Checkout
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
-
-      - name: Install Trivy
-        uses: aquasecurity/setup-trivy@3fb12ec12f41e471780db15c232d5dd185dcb514 # v0.2.5
-        with:
-          cache: true
-
-      - name: Create cache directory
-        run: mkdir -p ${{ env.TRIVY_CACHE_DIR }}
-
-      - name: Get current date
-        id: date
-        run: echo "date=$(date +'%Y-%m-%d')" >> "$GITHUB_OUTPUT"
-
-      - name: Restore Trivy cache
-        uses: actions/cache@cdf6c1fa76f9f475f3d7449005a359c84ca0f306 # v5.0.3
-        with:
-          path: ${{ env.TRIVY_CACHE_DIR }}
-          key: cache-trivy-${{ steps.date.outputs.date }}
-          restore-keys: cache-trivy-
-
-      - name: Run Trivy vulnerability scan
-        run: |
-          trivy --version
-          echo "Scanning Python dependencies for vulnerabilities..."
-          trivy fs \
-            --format json \
-            --output trivy-results.json \
-            --severity CRITICAL,HIGH,MEDIUM \
-            --exit-code 0 \
-            --cache-dir ${{ env.TRIVY_CACHE_DIR }} \
-            --scanners vuln,secret,misconfig \
-            .
-
-      - name: Check results
-        run: |
-          if [ "$(jq '[.Results[]? | select(.Vulnerabilities) | .Vulnerabilities | length] | add // 0' trivy-results.json)" -gt "0" ]; then
-            echo "⚠️ Vulnerabilities found"
-            trivy fs --format table .
-            # Don't fail on vulnerabilities, just report them
-          else
-            echo "✅ No vulnerabilities found"
-          fi
-
-      - name: Generate SARIF report
-        run: |
-          trivy convert --format sarif --output trivy-results.sarif trivy-results.json
-
-      - name: Upload Trivy results to GitHub Security
-        if: always()
-        continue-on-error: true # May fail on repos without code scanning enabled
-        uses: github/codeql-action/upload-sarif@45cbd0c69e560cd9e7cd7f8c32362050c9b7ded2 # v4.32.2
-        with:
-          sarif_file: trivy-results.sarif
-          category: trivy-scan
-
-      - name: Upload Trivy results as artifact
-        if: always()
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
-        with:
-          name: trivy-scan-results
-          path: |
-            trivy-results.json
-            trivy-results.sarif
-          retention-days: 30
+  # TODO: Re-enable when aquasecurity/trivy repo has releases again
+  # trivy-scan:
+  #   name: Trivy Vulnerability Scan
+  #   ...

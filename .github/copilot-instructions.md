@@ -10,11 +10,47 @@ You are collaborating with a human who may make changes between your edits:
 - **Verify suggestions** - when given review comments or suggestions, verify they are correct against actual code before applying. If a suggestion is incorrect, point that out rather than blindly applying it
 - **Compare alternatives** - when the user suggests a different approach, analyze both options and explain the tradeoffs before implementing. Don't assume the user's suggestion is better - justify the choice
 - **Troubleshoot step-by-step** - when debugging or troubleshooting, suggest one fix at a time and wait for the result before suggesting the next step. Don't overwhelm with multiple suggestions at once
-- **Plan before large changes** - for complex changes (3+ files, new infrastructure, architectural changes), propose a high-level plan first and wait for approval before implementing
+- **Exploratory questions → answer only** - when asked "how", "why", or "what would the changes be", answer the question only. NEVER start implementing. Wait for explicit instruction to proceed
+- **Plan before non-trivial changes** - before implementing any non-trivial change, present a plan and save it to `.copilot-tasks.md`. If information is missing, ask — don't assume. Trivial changes (e.g., renaming a label, fixing a typo) can proceed directly. A change is non-trivial when it affects multiple consumers, alters component interfaces, introduces new patterns, or has side effects beyond the immediate target
+- **State side effects and consequences** - the plan must include any side effects or consequences that aren't obvious. If adding Feature A changes Feature B's behavior or removes Feature C, state that explicitly. Examples: adding a prop to a shared component affects all consumers; changing a model field requires storage layer and API updates
 - **Prefer standard git tools** - use `git` commands and `gh` CLI over GitKraken MCP tools. GitKraken tools should only be used when explicitly requested or when they provide functionality not available through standard tools
 - **Solve the actual problem** - when hitting obstacles (permissions, cross-repo dependencies, missing APIs), do not suggest workarounds that avoid the problem instead of solving it. If the goal is "validate X" and validation requires extra permissions, the answer is "add the permissions" not "skip validation." Never present a workaround as equivalent to a real solution.
 - **Consider alternatives early** - if fixing an issue seems difficult, time-consuming, or impossible due to fundamental limitations (library constraints, architectural issues, external dependencies), proactively offer to explore alternative approaches or tools. Don't spend excessive time patching around a root cause that can't be solved. Ask: "Should we look for alternatives?" before investing heavily in workarounds.
 - **Never work directly on main** - Always create a feature branch for changes. Use conventional commit prefixes (feat:, fix:, chore:, etc.) in branch names (e.g., `feat/add-feature`, `fix/bug-name`, `chore/update-deps`)
+- **Before editing Copilot config** - read `copilot-self-improvement` skill before modifying `copilot-instructions.md`, `*.instructions.md`, skills, or `copilot-references.md`
+- **Never run inline Python in PowerShell** - NEVER use `python -c "..."` or `uv run python -c "..."` in the terminal. PowerShell mangles parentheses, quotes, and special characters inside string arguments, causing `SyntaxError: '(' was never closed` and similar parse errors. **Always** write the code to a temporary `.py` file (in `tmp/`) and execute it with `python tmp/script.py`. Delete the file afterward if it was single-use.
+
+## Documentation Standards
+
+**All documentation targets a junior developer** unfamiliar with Terraform, GCP, and related tools. Assume they can clone a repo, run a script, and follow step-by-step instructions.
+
+### Keeping Documentation Current
+
+> **BLOCKING REQUIREMENT: Update docs BEFORE pushing.**
+
+When making changes that affect setup, infrastructure, scripts, or workflows:
+
+- [ ] **Infrastructure changes** → Update `infra/environments/dev/README.md`
+- [ ] **New/changed scripts** → Update script headers + README
+- [ ] **New variables** → Update `terraform.tfvars.example` + variables table in README
+- [ ] **New modules** → Update "Modules Used" in environment README
+- [ ] **Architecture changes** → Update `copilot-instructions.md` Architecture section
+- [ ] **New skills** → Add to skills table in `copilot-instructions.md`
+
+### Automation over Manual Steps
+
+- **Never require manual file creation** for setup. Use scripts or `.example` template files that the user copies
+- **Consolidate scripts** — prefer one script with subcommands or flags over many single-purpose scripts
+- **Scripts must be idempotent** — safe to run multiple times, skip already-completed steps
+- **Error messages must guide the user** — on failure, explain what went wrong AND what to do next
+- **Provide both `.sh` and `.ps1`** for cross-platform support
+
+### Script Design Principles
+
+- Check prerequisites at the start (authenticated? CLI installed? files exist?)
+- Use colored output to distinguish success (green), warnings (yellow), errors (red)
+- Show progress: what step is running, what was created/skipped
+- Never silently succeed or fail — always confirm the outcome
 
 ## Documentation Research Guidelines
 
@@ -475,6 +511,16 @@ uv run ptw -- --cov=app
   - No manual creation via console or gcloud CLI
   - Document resource limits and costs in terraform comments
 - **Test with real data** - When modifying track parsing, test with actual Garmin GPX files to ensure compatibility
+
+## Skills (AI Agent Instructions)
+
+Skills in `.github/skills/` provide domain-specific instructions:
+
+| Skill                       | Purpose                                                         |
+| --------------------------- | --------------------------------------------------------------- |
+| `copilot-self-improvement/` | Meta-skill for maintaining Copilot config, skills, instructions |
+| `pr-review-workflow/`       | Handle PR creation, review comments, CI status using GitHub CLI |
+| `working-context/`          | Track tasks and discovered issues across conversations          |
 
 ## Code Quality Principles
 

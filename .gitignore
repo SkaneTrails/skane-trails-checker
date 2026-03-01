@@ -20,6 +20,7 @@ __pycache__
 .pytest_cache
 .coverage
 htmlcov/
+coverage/
 coverage.xml
 *.cover
 .cache/
@@ -33,6 +34,9 @@ coverage.xml
 
 # Streamlit
 .streamlit/secrets.toml
+
+# Terraform build artifacts
+infra/modules/backup/*.zip
 
 # Terraform
 *.tfstate
@@ -78,5 +82,9 @@ app/tracks_status/*
 # Debugging logs
 app_debug.log
 
+# Temporary/debug scripts
+tmp/
+
 # Copilot working context (local only)
 .copilot-todo.md
+infra/environments/dev/access/superusers.txt

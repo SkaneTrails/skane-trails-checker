@@ -1,0 +1,30 @@
+# Skåne Trails Checker - Development Environment Variables
+# Copy this file to terraform.tfvars and fill in your values
+# terraform.tfvars is gitignored and must never be committed
+
+# GCP project (shared with meal-planner)
+project = "your-project-id"
+region  = "europe-north1"
+
+# Firestore
+firestore_location = "eur3"
+# firestore_database_name = "skane-trails-db"  # default
+
+# Firebase Hosting
+hosting_site_id = "your-unique-site-id"  # becomes <site-id>.web.app
+
+# Firebase OAuth (set to true after running create-oauth-client script)
+# oauth_secrets_exist = false  # default
+
+# GitHub (for Workload Identity Federation)
+# github_repository_owner = "SkaneTrails"  # default
+# github_repository = "SkaneTrails/skane-trails-checker"  # default
+
+# Terraform state bucket
+tfstate_bucket_name = "your-unique-tfstate-bucket-name"
+
+# Backup configuration
+backup_bucket_name = "your-unique-backup-bucket-name"
+# backup_bucket_location = "EU"  # default
+# backup_retention_days = 30  # default
+# backup_schedule = "0 3 * * *"  # default: nightly at 3 AM UTC
