@@ -6,8 +6,8 @@ ______________________________________________________________________
 
 ## Database Configuration
 
-- **Database name**: `skane-trails` (NOT `(default)`)
-- **Location**: `europe-west1`
+- **Database name**: `skane-trails-db` (NOT `(default)`)
+- **Location**: `eur3`
 - **Project ID**: Read from env var `FIRESTORE_PROJECT_ID` or `GOOGLE_CLOUD_PROJECT`
 - **Database ID**: Read from env var `FIRESTORE_DATABASE_ID` or `FIRESTORE_DATABASE`
 
@@ -31,7 +31,7 @@ ______________________________________________________________________
 | `elevation_gain`  | `float`                      | ❌       | Total elevation gain in meters                               |
 | `elevation_loss`  | `float`                      | ❌       | Total elevation loss in meters                               |
 
-**Document ID**: Auto-generated or trail slug.
+**Document ID**: Must equal `trail_id` (same ID used by app/API via `document(trail_id)`).
 
 ### `trail_details` — Full trail data (single trail view)
 
