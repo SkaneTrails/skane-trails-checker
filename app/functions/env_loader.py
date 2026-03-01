@@ -18,7 +18,7 @@ def load_env_if_needed() -> None:  # pragma: no cover
     """
     # Check if we already have key environment variables set
     # (indicates we're running in a deployment environment or .env was already loaded)
-    if os.getenv("GCP_PROJECT_ID") or os.getenv("FIRESTORE_DATABASE"):
+    if os.getenv("FIRESTORE_DATABASE_ID") or os.getenv("FIRESTORE_DATABASE"):
         return
 
     # Try to load from .env file (local development)
