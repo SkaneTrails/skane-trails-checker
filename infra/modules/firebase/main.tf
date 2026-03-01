@@ -150,7 +150,7 @@ resource "google_secret_manager_secret" "github_expo_public_api_url" {
 
 resource "google_secret_manager_secret_version" "github_expo_public_api_url" {
   secret      = google_secret_manager_secret.github_expo_public_api_url.id
-  secret_data = coalesce(nullif(var.api_url, ""), "PLACEHOLDER_UNTIL_CLOUD_RUN_DEPLOYS")
+  secret_data = var.api_url != "" ? var.api_url : "PLACEHOLDER_UNTIL_CLOUD_RUN_DEPLOYS"
 }
 
 resource "google_secret_manager_secret" "github_expo_public_firebase_api_key" {
