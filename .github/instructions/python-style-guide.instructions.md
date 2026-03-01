@@ -201,12 +201,12 @@ def parse_ingredients(text: str, servings: int = 4) -> list[str]:
 
 ### Coverage Standards
 
-Every file in `api/` must maintain ≥95% coverage. The overall threshold is enforced by `fail_under` in `pyproject.toml`, but per-file coverage requires manual review of `--cov-report=term-missing` output.
+Every file in `app/` and `api/` must maintain high coverage. The overall threshold is enforced by `fail_under` in `pyproject.toml`, but per-file coverage requires manual review of `--cov-report=term-missing` output.
 
 After adding new code, always run:
 
 ```bash
-uv run pytest --cov=api --cov-report=term-missing
+uv run pytest --cov=app --cov=api --cov-report=term-missing
 ```
 
 Check both overall percentage AND individual file percentages. No file gets a pass for "bringing the average down."

@@ -86,5 +86,5 @@ app_debug.log
 tmp/
 
 # Copilot working context (local only)
-.copilot-todo.md
+.copilot-tasks.md
 infra/environments/dev/access/superusers.txt
