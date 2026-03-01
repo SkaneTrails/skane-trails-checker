@@ -1,12 +1,14 @@
+import logging
 import tempfile
 from pathlib import Path
 from typing import Any, TypedDict
 
 import gpxpy
-import streamlit as st
 
+from api.storage.trail_storage import save_trail
 from app.functions.trail_converter import gpx_track_to_trail
-from app.functions.trail_storage import save_trail
+
+logger = logging.getLogger(__name__)
 
 
 class TrackData(TypedDict):
@@ -47,28 +49,23 @@ def load_additional_gpx_files(directory: Path | str) -> list[dict]:
 
                     if track_data["segments"]:
                         additional_tracks.append(track_data)
-        except Exception as e:
-            st.warning(f"Error loading additional GPX file {file_path}: {e}")
+        except Exception:
+            logger.exception("Error loading additional GPX file %s", file_path)
 
     return additional_tracks
 
 
-# Function to handle upload of new GPX files
-def handle_uploaded_gpx(
-    uploaded_file: Any,  # st.runtime.uploaded_file_manager.UploadedFile
-    *,
-    is_world_wide: bool = False,
-) -> tuple[bool, str]:
+def handle_uploaded_gpx(uploaded_file: Any, *, is_world_wide: bool = False) -> tuple[bool, str]:
     """Upload GPX file and save trails to Firestore (no disk storage).
 
     Args:
-        uploaded_file: Streamlit uploaded file object
+        uploaded_file: File-like object with name and getvalue() method
         is_world_wide: Whether this is a world-wide hike or local trail
 
     Returns:
         Tuple of (success, message)
     """
-    print(f"[Upload] Processing GPX file: {uploaded_file.name}")
+    logger.info("Processing GPX file: %s", uploaded_file.name)
     tmp_file_path = None  # Initialize to None for cleanup in except block
     try:
         # Create a temporary file
@@ -82,14 +79,14 @@ def handle_uploaded_gpx(
             gpx_string = test_file.read()
             gpx_data = gpxpy.parse(gpx_string)  # This will raise an exception if the file is invalid
 
-        print(f"[Upload] GPX valid, found {len(gpx_data.tracks)} tracks")
+        logger.info("GPX valid, found %d tracks", len(gpx_data.tracks))
 
         # Clean up temporary file
         tmp_file_path.unlink()
 
         # Save trails to Firestore (no longer saving to disk)
         source = "world_wide_hikes" if is_world_wide else "other_trails"
-        print(f"[Upload] Saving to Firestore with source: {source}")
+        logger.info("Saving to Firestore with source: %s", source)
 
         # Extract metadata from GPX file (activity date/time)
         gpx_metadata = {}
@@ -107,21 +104,16 @@ def handle_uploaded_gpx(
                 save_trail(trail)
                 saved_count += 1
 
-                # Note: TrailDetails with full coordinates NOT saved due to Firestore 1MB document limit
-
-            except Exception as e:
-                # Continue processing other tracks even if one fails
-                st.warning(f"Failed to save track '{track.name}' to Firestore: {e}")
-                print(f"[Upload] ERROR: Failed to save track '{track.name}': {e}")
+            except Exception:
+                logger.exception("Failed to save track '%s' to Firestore", track.name)
 
         msg = f"Successfully uploaded {uploaded_file.name} and saved {saved_count} trail(s) to Firestore"
-        print(f"[Upload] {msg}")
+        logger.info(msg)
         return True, msg
 
     except Exception as e:
         msg = f"Error uploading file: {e}"
-        print(f"[Upload] ERROR: {msg}")
+        logger.exception(msg)
         if tmp_file_path and tmp_file_path.exists():
             tmp_file_path.unlink()  # Clean up temp file if it exists
         return False, msg
-        return False, f"Error uploading file: {e}"

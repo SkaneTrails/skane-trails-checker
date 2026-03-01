@@ -16,6 +16,8 @@ from api.storage.trail_storage import (
     get_all_trails,
     get_trail,
     get_trail_details,
+    save_trail,
+    save_trail_details,
     update_trail,
     update_trail_name,
     update_trail_status,
@@ -286,3 +288,136 @@ class TestDeleteTrail:
         assert len(calls) == 2
         assert calls[0].args == ("t1",)
         assert calls[1].args == ("t1",)
+
+
+class TestSaveTrail:
+    """Tests for save_trail — saves a TrailResponse to Firestore."""
+
+    @patch("api.storage.trail_storage.datetime")
+    def test_saves_trail_with_timestamp(self, mock_dt, mock_collection) -> None:
+        fixed = datetime(2026, 6, 15, 10, 0, 0, tzinfo=UTC)
+        mock_dt.now.return_value = fixed
+
+        trail = TrailResponse(
+            trail_id="t1",
+            name="Test Trail",
+            difficulty="easy",
+            length_km=5.0,
+            status="To Explore",
+            coordinates_map=[Coordinate(lat=56.0, lng=13.0)],
+            bounds=TrailBounds(north=56.1, south=55.9, east=13.1, west=12.9),
+            center=Coordinate(lat=56.0, lng=13.0),
+            source="other_trails",
+            last_updated="old-timestamp",
+        )
+
+        save_trail(trail)
+
+        mock_collection.document.assert_called_once_with("t1")
+        saved_data = mock_collection.document.return_value.set.call_args[0][0]
+        assert saved_data["trail_id"] == "t1"
+        assert saved_data["name"] == "Test Trail"
+        assert saved_data["last_updated"] == fixed.isoformat()
+        assert saved_data["coordinates_map"] == [{"lat": 56.0, "lng": 13.0}]
+
+
+class TestSaveTrailDetails:
+    """Tests for save_trail_details — saves TrailDetailsResponse to Firestore."""
+
+    def test_saves_details(self, mock_collection) -> None:
+        details = TrailDetailsResponse(
+            trail_id="t1",
+            coordinates_full=[Coordinate(lat=56.0, lng=13.0), Coordinate(lat=56.1, lng=13.1)],
+            elevation_profile=[100.0, 150.0],
+        )
+
+        save_trail_details(details)
+
+        mock_collection.document.assert_called_once_with("t1")
+        saved_data = mock_collection.document.return_value.set.call_args[0][0]
+        assert saved_data["trail_id"] == "t1"
+        assert len(saved_data["coordinates_full"]) == 2
+        assert saved_data["elevation_profile"] == [100.0, 150.0]
+
+
+class TestTrailResponseToDict:
+    """Tests for TrailResponse.to_dict() method."""
+
+    def test_full_trail_to_dict(self) -> None:
+        trail = TrailResponse(
+            trail_id="t1",
+            name="Test Trail",
+            difficulty="medium",
+            length_km=10.5,
+            status="Explored!",
+            coordinates_map=[Coordinate(lat=56.0, lng=13.0), Coordinate(lat=56.1, lng=13.1)],
+            bounds=TrailBounds(north=56.1, south=56.0, east=13.1, west=13.0),
+            center=Coordinate(lat=56.05, lng=13.05),
+            source="other_trails",
+            last_updated="2026-01-01",
+            activity_date="2025-12-15",
+            activity_type="hiking",
+            elevation_gain=120.5,
+            elevation_loss=115.0,
+        )
+
+        result = trail.to_dict()
+
+        assert result["trail_id"] == "t1"
+        assert result["coordinates_map"] == [{"lat": 56.0, "lng": 13.0}, {"lat": 56.1, "lng": 13.1}]
+        assert result["bounds"] == {"north": 56.1, "south": 56.0, "east": 13.1, "west": 13.0}
+        assert result["center"] == {"lat": 56.05, "lng": 13.05}
+        assert result["activity_date"] == "2025-12-15"
+        assert result["elevation_gain"] == 120.5
+
+    def test_minimal_trail_to_dict_omits_optional_fields(self) -> None:
+        trail = TrailResponse(
+            trail_id="t2",
+            name="Minimal",
+            difficulty="easy",
+            length_km=1.0,
+            status="To Explore",
+            coordinates_map=[],
+            bounds=TrailBounds(north=0, south=0, east=0, west=0),
+            center=Coordinate(lat=0, lng=0),
+            source="other_trails",
+            last_updated="2026-01-01",
+        )
+
+        result = trail.to_dict()
+
+        assert "activity_date" not in result
+        assert "activity_type" not in result
+        assert "elevation_gain" not in result
+        assert "elevation_loss" not in result
+
+
+class TestTrailDetailsToDict:
+    """Tests for TrailDetailsResponse.to_dict() method."""
+
+    def test_full_details_to_dict(self) -> None:
+        details = TrailDetailsResponse(
+            trail_id="t1",
+            coordinates_full=[Coordinate(lat=56.0, lng=13.0)],
+            elevation_profile=[100.0],
+            waypoints=[{"name": "Start"}],
+            statistics={"total_km": 5.0},
+        )
+
+        result = details.to_dict()
+
+        assert result["trail_id"] == "t1"
+        assert result["coordinates_full"] == [{"lat": 56.0, "lng": 13.0}]
+        assert result["elevation_profile"] == [100.0]
+        assert result["waypoints"] == [{"name": "Start"}]
+        assert result["statistics"] == {"total_km": 5.0}
+
+    def test_minimal_details_to_dict(self) -> None:
+        details = TrailDetailsResponse(trail_id="t2", coordinates_full=[])
+
+        result = details.to_dict()
+
+        assert result["trail_id"] == "t2"
+        assert "elevation_profile" not in result
+        assert "waypoints" not in result
+        assert "statistics" not in result

@@ -23,8 +23,8 @@ import gpxpy
 # Add project root to path
 sys.path.insert(0, str(Path(__file__).parent.parent.absolute()))
 
+from api.storage.trail_storage import get_all_trails, update_trail
 from app.functions.env_loader import load_env_if_needed
-from app.functions.trail_storage import get_all_trails, update_trail
 
 # Load environment
 load_env_if_needed()

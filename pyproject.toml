@@ -5,7 +5,7 @@ requires = [ "uv-build" ]
 [project]
 name = "skane-trails-checker"
 version = "0.1.0"
-description = "A Streamlit app for tracking hiking trails and foraging spots in Skåne, Sweden"
+description = "A FastAPI + Expo app for tracking hiking trails and foraging spots in Skåne, Sweden"
 readme = "README.md"
 license = { text = "MIT" }
 requires-python = ">=3.14.2"
@@ -16,20 +16,15 @@ classifiers = [
 ]
 dependencies = [
   "fastapi>=0.115.0",
-  "folium>=0.15.0",
   "geopy>=2.4.0",
   "google-cloud-firestore>=2.19.0",
   "google-cloud-secret-manager>=2.20.0",
   "gpxpy>=1.6.0",
-  "pandas>=2.1.0",
-  "plotly>=5.18.0",
   "pydantic>=2.10.0",
   "python-dotenv>=1.0.0",
   "pyyaml>=6.0.0",
   "rdp>=0.8",
   "requests>=2.32.5",
-  "streamlit>=1.28.0",
-  "streamlit-folium>=0.15.0",
   "uvicorn>=0.34.0",
 ]
 optional-dependencies.dev = [
@@ -70,17 +65,17 @@ lint.select = [
   "ALL", # include all the rules, including new ones
 ]
 lint.ignore = [
-  "ANN401",  # Any type (acceptable for Streamlit UploadedFile and similar dynamic types)
-  "BLE001",  # Blind exception (acceptable with st.warning/st.error for user-facing messages)
+  "ANN401",  # Any type (acceptable for dynamic types like UploadedFile)
+  "BLE001",  # Blind exception (acceptable with logger.warning for user-facing messages)
   "COM812",  # Trailing comma conflicts with formatter
   "D",       # Docstring rules (too verbose for now)
   "DTZ007",  # Datetime without timezone (not critical for this use case)
   "E501",    # Line too long (handled by formatter)
-  "INP001",  # Implicit namespace package (Streamlit pages pattern)
+  "INP001",  # Implicit namespace package (dev-tools pattern)
   "PLC0415", # Import not at top-level (needed for optional dependencies like rdp/numpy)
   "S113",    # Request without timeout (not critical for weather API)
   "S311",    # Random for non-crypto (not used for security purposes)
-  "T201",    # Print statements (used for logging/debugging in Streamlit)
+  "T201",    # Print statements (used in dev-tools scripts)
   "TRY300",  # Consider else block (style preference)
 ]
 lint.per-file-ignores."tests/**/*.py" = [
