@@ -22,12 +22,12 @@ ______________________________________________________________________
 
 ## Step 1: GCP Authentication
 
-ADC from `gcloud auth application-default login` causes `CONSUMER_INVALID` errors. **Service account impersonation is required.**
+Standard ADC via `gcloud auth application-default login` is the default auth method. If you encounter `CONSUMER_INVALID` errors, service account impersonation may be required.
 
 ### Automated (recommended)
 
 ```bash
-./dev-tools/setup_env.py
+uv run python dev-tools/setup_env.py
 ```
 
 The script reads `dev-tools/secret_mappings.yaml` and populates `.env` from GCP Secret Manager.
@@ -36,7 +36,7 @@ The script reads `dev-tools/secret_mappings.yaml` and populates `.env` from GCP 
 
 ```bash
 gcloud auth application-default login \
-  --impersonate-service-account=local-dev@<PROJECT_ID>.iam.gserviceaccount.com
+  --impersonate-service-account=st-local-dev@<PROJECT_ID>.iam.gserviceaccount.com
 ```
 
 Tokens expire after 1 hour — re-run to refresh.
@@ -52,7 +52,7 @@ Required variables:
 ```
 GOOGLE_CLOUD_PROJECT=<project-id>
 FIRESTORE_PROJECT_ID=<project-id>
-FIRESTORE_DATABASE_ID=skane-trails
+FIRESTORE_DATABASE_ID=skane-trails-db
 ALLOWED_ORIGINS=http://localhost:8081,http://localhost:3000
 ```
 
