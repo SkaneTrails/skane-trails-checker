@@ -1,9 +1,12 @@
 """Firestore storage adapter for places/POIs."""
 
+import logging
 from datetime import UTC, datetime
 
 from app.functions.firestore_client import get_collection
 from app.functions.place_models import Place
+
+logger = logging.getLogger(__name__)
 
 
 def get_all_places() -> list[Place]:
@@ -12,7 +15,7 @@ def get_all_places() -> list[Place]:
     Returns:
         List of Place objects for map display
     """
-    print("[Firestore] Loading all places...")
+    logger.info("Loading all places...")
     collection = get_collection("places")
     docs = collection.stream()
 
@@ -22,7 +25,7 @@ def get_all_places() -> list[Place]:
         if data:
             places.append(Place.from_dict(data))
 
-    print(f"[Firestore] Loaded {len(places)} places")
+    logger.info("Loaded %d places", len(places))
     return places
 
 
@@ -35,7 +38,7 @@ def get_places_by_category(category_slug: str) -> list[Place]:
     Returns:
         List of Place objects matching the category
     """
-    print(f"[Firestore] Loading places for category: {category_slug}")
+    logger.info("Loading places for category: %s", category_slug)
     collection = get_collection("places")
     docs = collection.where("categories", "array_contains", {"slug": category_slug}).stream()
 
@@ -45,7 +48,7 @@ def get_places_by_category(category_slug: str) -> list[Place]:
         if data:
             places.append(Place.from_dict(data))
 
-    print(f"[Firestore] Loaded {len(places)} places for category: {category_slug}")
+    logger.info("Loaded %d places for category: %s", len(places), category_slug)
     return places
 
 
@@ -95,9 +98,9 @@ def save_places_batch(places: list[Place], batch_size: int = 500) -> int:
 
         batch.commit()
         saved_count += len(batch_places)
-        print(f"[Firestore] Saved batch {i // batch_size + 1}: {saved_count}/{len(places)} places")
+        logger.info("Saved batch %d: %d/%d places", i // batch_size + 1, saved_count, len(places))
 
-    print(f"[Firestore] Saved {saved_count} places total")
+    logger.info("Saved %d places total", saved_count)
     return saved_count
 
 
@@ -116,7 +119,7 @@ def delete_all_places() -> int:
     Returns:
         Number of places deleted
     """
-    print("[Firestore] Deleting all places...")
+    logger.info("Deleting all places...")
     collection = get_collection("places")
     docs = collection.stream()
 
@@ -125,7 +128,7 @@ def delete_all_places() -> int:
         doc.reference.delete()
         deleted_count += 1
 
-    print(f"[Firestore] Deleted {deleted_count} places")
+    logger.info("Deleted %d places", deleted_count)
     return deleted_count
 
 

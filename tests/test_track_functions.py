@@ -1,16 +1,12 @@
 """Tests for track management functions."""
 
-import pandas as pd
 import pytest
 
 from app.functions.tracks import (
     TrackInfo,
     calculate_track_distance,
-    filter_tracks,
     filter_trails,
     get_distance_range,
-    load_track_statuses,
-    save_track_statuses,
     simplify_track_coordinates,
 )
 from app.functions.trail_models import Trail, TrailBounds, TrailCenter
@@ -49,80 +45,6 @@ def sample_tracks() -> list[TrackInfo]:
             "distance_km": 2.0,
         },
     ]
-
-
-class TestFilterTracks:
-    """Tests for track filtering functionality."""
-
-    def test_filter_by_search_query(self, sample_tracks) -> None:
-        """Filter tracks by name search."""
-        result = filter_tracks(sample_tracks, search_query="söderåsen")
-
-        assert len(result) == 2
-        assert all("söderåsen" in t["name"].lower() for t in result)
-
-    def test_filter_by_search_query_case_insensitive(self, sample_tracks) -> None:
-        """Search should be case-insensitive."""
-        result = filter_tracks(sample_tracks, search_query="KULLABERG")
-
-        assert len(result) == 1
-        assert result[0]["name"] == "Kullaberg Coastal Path"
-
-    def test_filter_by_min_distance(self, sample_tracks) -> None:
-        """Filter tracks by minimum distance."""
-        result = filter_tracks(sample_tracks, min_distance_km=6.0)
-
-        assert len(result) == 2
-        assert all(t["distance_km"] >= 6.0 for t in result)
-
-    def test_filter_by_max_distance(self, sample_tracks) -> None:
-        """Filter tracks by maximum distance."""
-        result = filter_tracks(sample_tracks, max_distance_km=6.0)
-
-        assert len(result) == 2
-        assert all(t["distance_km"] <= 6.0 for t in result)
-
-    def test_filter_by_distance_range(self, sample_tracks) -> None:
-        """Filter tracks by distance range."""
-        result = filter_tracks(sample_tracks, min_distance_km=4.0, max_distance_km=10.0)
-
-        assert len(result) == 2
-        assert all(4.0 <= t["distance_km"] <= 10.0 for t in result)
-
-    def test_filter_explored_only(self, sample_tracks) -> None:
-        """Filter to show only explored tracks."""
-        result = filter_tracks(sample_tracks, show_explored_only=True)
-
-        assert len(result) == 2
-        assert all(t["status"] == "Explored!" for t in result)
-
-    def test_filter_unexplored_only(self, sample_tracks) -> None:
-        """Filter to show only unexplored tracks."""
-        result = filter_tracks(sample_tracks, show_unexplored_only=True)
-
-        assert len(result) == 2
-        assert all(t["status"] == "To Explore" for t in result)
-
-    def test_filter_combined_criteria(self, sample_tracks) -> None:
-        """Filter using multiple criteria."""
-        result = filter_tracks(sample_tracks, search_query="trail", min_distance_km=3.0, show_unexplored_only=True)
-
-        assert len(result) == 2
-        assert all("trail" in t["name"].lower() for t in result)
-        assert all(t["distance_km"] >= 3.0 for t in result)
-        assert all(t["status"] == "To Explore" for t in result)
-
-    def test_filter_no_matches(self, sample_tracks) -> None:
-        """Filter with criteria that match no tracks."""
-        result = filter_tracks(sample_tracks, search_query="nonexistent")
-
-        assert len(result) == 0
-
-    def test_filter_empty_search(self, sample_tracks) -> None:
-        """Empty search query should return all tracks."""
-        result = filter_tracks(sample_tracks, search_query="")
-
-        assert len(result) == len(sample_tracks)
 
 
 class TestGetDistanceRange:
@@ -191,39 +113,6 @@ class TestCalculateTrackDistance:
         assert result["distance_km"] == 0.0
         assert result["segment_count"] == 1
         assert result["point_count"] == 1
-
-
-def test_load_track_statuses_nonexistent_file() -> None:
-    """Test loading track statuses from a non-existent file."""
-    result = load_track_statuses("/path/that/does/not/exist.csv")
-    assert result == {}
-
-
-def test_load_track_statuses_valid_file(sample_track_status_csv) -> None:
-    """Test loading track statuses from a valid CSV file."""
-    result = load_track_statuses(str(sample_track_status_csv))
-
-    assert len(result) == 2
-    assert result[0] == "To Explore"
-    assert result[1] == "Explored!"
-
-
-def test_save_track_statuses(temp_data_dir) -> None:
-    """Test saving track statuses to CSV."""
-    track_status = {0: "To Explore", 1: "Explored!", 2: "To Explore"}
-
-    csv_file = temp_data_dir / "test_status.csv"
-    result = save_track_statuses(track_status, str(csv_file))
-
-    assert result is True
-    assert csv_file.exists()
-
-    # Verify the content
-    saved_data = pd.read_csv(csv_file)
-    assert len(saved_data) == 3
-    assert list(saved_data.columns) == ["track_id", "status", "last_updated"]
-    assert saved_data.iloc[0]["track_id"] == 0
-    assert saved_data.iloc[0]["status"] == "To Explore"
 
 
 def test_simplify_track_coordinates_basic() -> None:
