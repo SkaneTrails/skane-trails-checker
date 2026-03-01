@@ -1,5 +1,31 @@
 # Skåne Trails Checker - AI Coding Agent Instructions
 
+## ⚠️ FIRST: Read Working Context
+
+**At conversation start, ALWAYS:**
+
+1. Read `.copilot-tasks.md` using `read_file`
+1. Check for active tasks on current branch
+1. Skim Failure Tracking table for patterns relevant to current topic
+1. Acknowledge what you found before proceeding
+
+This file is gitignored (local-only, never committed). Ignoring it loses track of work.
+
+**On failure:** Log to Failure Tracking table in `.copilot-tasks.md`; when count reaches 3, promote to permanent documentation.
+
+### ⚠️ Two Todo Systems — Do NOT Confuse Them
+
+|                    | `.copilot-tasks.md`                               | `manage_todo_list` tool                            |
+| ------------------ | ------------------------------------------------- | -------------------------------------------------- |
+| **Purpose**        | Persistent project backlog across conversations   | Ephemeral progress tracker within a single session |
+| **Lifetime**       | Permanent — local file (gitignored)               | Gone when conversation ends                        |
+| **Content**        | Open issues, deferred work, failure tracking      | Steps for the current task only                    |
+| **When to update** | Branch changes, tasks complete, issues discovered | Breaking down multi-step work in progress          |
+
+**Never** use `manage_todo_list` as a substitute for updating `.copilot-tasks.md`. They serve completely different purposes.
+
+______________________________________________________________________
+
 ## Important: Collaboration Guidelines
 
 You are collaborating with a human who may make changes between your edits:
@@ -11,14 +37,28 @@ You are collaborating with a human who may make changes between your edits:
 - **Compare alternatives** - when the user suggests a different approach, analyze both options and explain the tradeoffs before implementing. Don't assume the user's suggestion is better - justify the choice
 - **Troubleshoot step-by-step** - when debugging or troubleshooting, suggest one fix at a time and wait for the result before suggesting the next step. Don't overwhelm with multiple suggestions at once
 - **Exploratory questions → answer only** - when asked "how", "why", or "what would the changes be", answer the question only. NEVER start implementing. Wait for explicit instruction to proceed
+- **Assess test coverage for bugs** - when a bug is reported, assess whether a test should be added to catch it. Explain why existing tests missed it (e.g., mocking strategy, missing coverage) and propose a targeted test if appropriate
+- **Track iterations** - when a command/approach fails, IMMEDIATELY log to Failure Tracking table in `.copilot-tasks.md` BEFORE retrying with a different approach
 - **Plan before non-trivial changes** - before implementing any non-trivial change, present a plan and save it to `.copilot-tasks.md`. If information is missing, ask — don't assume. Trivial changes (e.g., renaming a label, fixing a typo) can proceed directly. A change is non-trivial when it affects multiple consumers, alters component interfaces, introduces new patterns, or has side effects beyond the immediate target
 - **State side effects and consequences** - the plan must include any side effects or consequences that aren't obvious. If adding Feature A changes Feature B's behavior or removes Feature C, state that explicitly. Examples: adding a prop to a shared component affects all consumers; changing a model field requires storage layer and API updates
+- **Communicate scope decisions** - if splitting work (e.g., backend-first, then mobile), state the plan upfront and ask if the approach works before starting. Never silently defer work and present it as complete
 - **Prefer standard git tools** - use `git` commands and `gh` CLI over GitKraken MCP tools. GitKraken tools should only be used when explicitly requested or when they provide functionality not available through standard tools
 - **Solve the actual problem** - when hitting obstacles (permissions, cross-repo dependencies, missing APIs), do not suggest workarounds that avoid the problem instead of solving it. If the goal is "validate X" and validation requires extra permissions, the answer is "add the permissions" not "skip validation." Never present a workaround as equivalent to a real solution.
 - **Consider alternatives early** - if fixing an issue seems difficult, time-consuming, or impossible due to fundamental limitations (library constraints, architectural issues, external dependencies), proactively offer to explore alternative approaches or tools. Don't spend excessive time patching around a root cause that can't be solved. Ask: "Should we look for alternatives?" before investing heavily in workarounds.
 - **Never work directly on main** - Always create a feature branch for changes. Use conventional commit prefixes (feat:, fix:, chore:, etc.) in branch names (e.g., `feat/add-feature`, `fix/bug-name`, `chore/update-deps`)
+- **Avoid parallel branches that touch the same files** - Before creating a new branch, check for open PRs (`gh pr list`). If an open PR modifies the same high-churn files, either stack the new branch on top of that PR's branch or wait for it to merge. See `pr-review-workflow` skill for details
 - **Before editing Copilot config** - read `copilot-self-improvement` skill before modifying `copilot-instructions.md`, `*.instructions.md`, skills, or `copilot-references.md`
+- **After pulling from main** - check `git diff HEAD@{1} --name-only` for changes to `.github/copilot-instructions.md`, `.github/skills/**`, `*.instructions.md`, or `.copilot-tasks.md`. If any changed, re-read them before continuing work — they may contain updated instructions, new skills, or task state changes from another session
+- **Never use `--no-verify`** - NEVER pass `--no-verify` or `-n` to `git commit` or `git push`. Pre-commit hooks exist for a reason — bypassing them lets broken code, lint violations, and security issues slip through. If hooks fail, fix the underlying issue
+- **Never use `git commit --amend` after hook failure** - When a pre-commit hook fails and auto-fixes files (e.g., Ruff), the original `git commit` never creates a commit. Running `--amend` then modifies the *previous* commit (often a merge commit), corrupting history. Instead: `git add -A && git commit -m "style: apply auto-fixes"` as a separate commit. To avoid the issue entirely, run formatters before committing: `uv run ruff format .`
+- **Before committing** - quick security scan: grep staged files for API keys (`AIzaSy`, `sk-`, `ghp_`), emails (`@gmail.com`, `@outlook.com`), project IDs. If found, read `security` skill before proceeding
+- **Update `.copilot-tasks.md` as you work** - mark tasks complete immediately, don't batch updates
 - **Never run inline Python in PowerShell** - NEVER use `python -c "..."` or `uv run python -c "..."` in the terminal. PowerShell mangles parentheses, quotes, and special characters inside string arguments, causing `SyntaxError: '(' was never closed` and similar parse errors. **Always** write the code to a temporary `.py` file (in `tmp/`) and execute it with `python tmp/script.py`. Delete the file afterward if it was single-use.
+- **Never fabricate project IDs or secrets** - NEVER guess or invent GCP project IDs, API keys, or other environment values. Always read from `.env` (`GOOGLE_CLOUD_PROJECT`) or ask the user. Fabricated IDs waste time and erode trust
+- **Use existing scripts first** - before writing inline Python or ad-hoc commands, check `dev-tools/` and skill documentation for existing tools that do what you need
+- **PowerShell backtick escaping** - NEVER include backtick characters in ANY `gh` CLI string argument — not just `--body`, but also `-f "body=..."`, `-f "query=..."`, commit messages, or any inline string. PowerShell interprets `` ` `` as escape characters, causing `Unicode escape sequence is not valid` errors. **Workarounds:** (1) Write content to a temp file, use `-F "body=@file.md"` or `--body-file`, then delete the file. (2) For short replies without markdown formatting, just omit backticks entirely
+- **PowerShell pipeline commands hang** - NEVER use `Get-ChildItem | ForEach-Object`, `Select-String` pipelines, or nested PowerShell commands for workspace scanning — they hang indefinitely on Windows. Use `grep_search`, `file_search`, `list_dir`, or `semantic_search` tools instead
+- **Zero tolerance for errors** - There is no such thing as a "pre-existing" error. If you encounter a compile error, type error, lint violation, or any other issue — fix it immediately, regardless of when it was introduced. A merge to main must never contain known bugs. Never dismiss an error as "not related to my changes" or "pre-existing." If you see it, you own it. **After `get_errors`:** never triage results into "my errors" vs "other errors" — every error in the output is your responsibility. Do not proceed to commit until the list is clean (excluding errors in `node_modules/` or other vendored/external code).
 
 ## Documentation Standards
 
@@ -519,7 +559,9 @@ Skills in `.github/skills/` provide domain-specific instructions:
 | Skill                       | Purpose                                                         |
 | --------------------------- | --------------------------------------------------------------- |
 | `copilot-self-improvement/` | Meta-skill for maintaining Copilot config, skills, instructions |
+| `local-development/`        | GCP secrets, .env setup, starting servers, troubleshooting      |
 | `pr-review-workflow/`       | Handle PR creation, review comments, CI status using GitHub CLI |
+| `security/`                 | Security best practices and preventing sensitive data leaks     |
 | `working-context/`          | Track tasks and discovered issues across conversations          |
 
 ## Code Quality Principles
@@ -542,3 +584,21 @@ Skills in `.github/skills/` provide domain-specific instructions:
 - Fix issues at their source, not with configuration bandaids
 - Test coverage targets 70%+ for business logic
 - Exception paths must be tested
+
+### Coverage Standards
+
+- **Overall threshold**: Enforced by `fail_under` in `pyproject.toml` — pytest-cov will fail the run if coverage drops below this
+- **Per-file minimum**: Every file in `app/` and `api/` must maintain high coverage — no file gets a pass for "bringing the average down"
+- **`# pragma: no cover`**: Use for code that would only test mock wiring, not real logic (see `python-style-guide.instructions.md` Testing section for categories). Never use pragma to hide untested logic
+
+### Pre-Commit Checklist
+
+Before committing changes that add new functionality:
+
+- [ ] **Zero compile/type errors** across the codebase — not just in files you touched
+- [ ] Storage layer: Do mapping functions (`_doc_to_*`) include the new fields?
+- [ ] Are those mappings tested with explicit assertions?
+- [ ] Does coverage pass? (`uv run pytest --cov=app --cov=api` — threshold enforced by `pyproject.toml`)
+- [ ] No single file dropped below the coverage threshold? (check `--cov-report=term-missing` output)
+
+**Exceptions:** Terraform, config files, pure Streamlit UI styling.

@@ -122,6 +122,9 @@ Before writing any new visual element:
 1. **Can an existing shared component do this?** Check `components/` first
 1. **Can an existing component be extended?** Add a prop rather than creating a duplicate
 1. **Create a new shared component** only when (1) and (2) fail
+1. **Never hand-roll** a pattern that a shared component already covers — even "just this once." Inline one-offs drift from the design system and break theme consistency
+
+Violations are a **blocking review issue**, same as hardcoded colors.
 
 ## Error Handling
 

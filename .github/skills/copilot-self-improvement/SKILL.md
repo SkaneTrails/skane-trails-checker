@@ -220,3 +220,25 @@ This skill must verify `copilot-instructions.md` contains:
 1. Skill entry in the skills table
 
 If missing, add them before making other changes.
+
+______________________________________________________________________
+
+## Knowledge Gaps
+
+| Trigger                            | Action                                                |
+| ---------------------------------- | ----------------------------------------------------- |
+| Uncertain about current syntax/API | Check `copilot-references.md`                         |
+| User provides corrective link      | Add to `copilot-references.md` with category and date |
+| Repeated procedure (3x)            | Create a skill                                        |
+| Instructions over size limit       | Extract to skill or `*.instructions.md`               |
+
+______________________________________________________________________
+
+## Self-Registration
+
+This skill must verify `copilot-instructions.md` contains:
+
+1. Trigger rule in Collaboration Guidelines: "Before editing Copilot config — read copilot-self-improvement skill"
+1. Skill entry in the skills table
+
+If missing, add them before making other changes.
