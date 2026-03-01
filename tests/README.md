@@ -46,8 +46,9 @@ pytest tests/test_gpx_functions.py -v
 tests/
 ├── conftest.py              # Shared fixtures for all tests
 ├── test_gpx_functions.py    # Tests for GPX file loading and parsing
-├── test_track_functions.py  # Tests for track status management
-└── test_foraging_functions.py # Tests for foraging data management
+├── test_track_functions.py  # Tests for track filtering, distance, simplification
+├── test_exception_paths.py  # Tests for error handling paths
+└── ...                      # Storage and API tests
 ```
 
 ## Key Fixtures (in conftest.py)
@@ -55,8 +56,6 @@ tests/
 - `temp_data_dir` - Temporary directory for test files
 - `sample_gpx_content` - Valid GPX XML content
 - `sample_gpx_file` - Complete GPX file in temp directory
-- `sample_track_status_csv` - Sample track status CSV
-- `sample_foraging_csv` - Sample foraging data CSV
 
 ## Writing New Tests
 
