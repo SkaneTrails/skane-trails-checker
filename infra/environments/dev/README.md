@@ -137,7 +137,6 @@ After the first successful CI build:
 
    ```hcl
    oauth_secrets_exist = true
-   firebase_authorized_domains = ["skane-trails-api-XXXXX-ew.a.run.app"]
    ```
 
 1. Re-apply: `terraform apply`
@@ -179,36 +178,34 @@ dev/
 
 ## Variables
 
-| Name                          | Description                                       | Default                            | Required |
-| ----------------------------- | ------------------------------------------------- | ---------------------------------- | -------- |
-| `project`                     | GCP project ID                                    | —                                  | Yes      |
-| `region`                      | GCP region                                        | —                                  | Yes      |
-| `firestore_location`          | Firestore location (e.g., `eur3`)                 | —                                  | Yes      |
-| `firestore_database_name`     | Firestore database name                           | `skane-trails-db`                  | No       |
-| `hosting_site_id`             | Firebase Hosting site ID (becomes `<id>.web.app`) | —                                  | Yes      |
-| `tfstate_bucket_name`         | State bucket name (from bootstrap)                | —                                  | Yes      |
-| `backup_bucket_name`          | Backup bucket name (globally unique)              | —                                  | Yes      |
-| `backup_bucket_location`      | Backup bucket location                            | `EU`                               | No       |
-| `backup_retention_days`       | Days to keep backups                              | `30`                               | No       |
-| `backup_schedule`             | Cron schedule for backups                         | `0 3 * * *`                        | No       |
-| `oauth_secrets_exist`         | Set `true` after running OAuth script             | `false`                            | No       |
-| `firebase_authorized_domains` | Cloud Run URLs for OAuth                          | `[]`                               | No       |
-| `github_repository_owner`     | GitHub org/user                                   | `SkaneTrails`                      | No       |
-| `github_repository`           | Full repo path                                    | `SkaneTrails/skane-trails-checker` | No       |
-| `image_tag`                   | Docker image tag                                  | `latest`                           | No       |
+| Name                      | Description                                       | Default                            | Required |
+| ------------------------- | ------------------------------------------------- | ---------------------------------- | -------- |
+| `project`                 | GCP project ID                                    | —                                  | Yes      |
+| `region`                  | GCP region                                        | —                                  | Yes      |
+| `firestore_location`      | Firestore location (e.g., `eur3`)                 | —                                  | Yes      |
+| `firestore_database_name` | Firestore database name                           | `skane-trails-db`                  | No       |
+| `hosting_site_id`         | Firebase Hosting site ID (becomes `<id>.web.app`) | —                                  | Yes      |
+| `tfstate_bucket_name`     | State bucket name (from bootstrap)                | —                                  | Yes      |
+| `backup_bucket_name`      | Backup bucket name (globally unique)              | —                                  | Yes      |
+| `backup_bucket_location`  | Backup bucket location                            | `EU`                               | No       |
+| `backup_retention_days`   | Days to keep backups                              | `30`                               | No       |
+| `backup_schedule`         | Cron schedule for backups                         | `0 3 * * *`                        | No       |
+| `oauth_secrets_exist`     | Set `true` after running OAuth script             | `false`                            | No       |
+| `github_repository_owner` | GitHub org/user                                   | `SkaneTrails`                      | No       |
+| `github_repository`       | Full repo path                                    | `SkaneTrails/skane-trails-checker` | No       |
 
 ## Free Tier Compliance
 
 All resources stay within GCP free tier limits:
 
-| Resource            | Free Tier Limit              | Our Usage                |
-| ------------------- | ---------------------------- | ------------------------ |
-| Cloud Run           | 2M requests, 360K GB-s/month | Minimal (personal app)   |
-| Firestore           | 1 GB, 50K reads/day          | < 100 MB                 |
-| Cloud Storage       | 5 GB                         | < 1 MB (state + backups) |
-| Secret Manager      | 6 active versions            | ~10 versions             |
-| Artifact Registry   | 500 MB                       | ~200 MB (Docker images)  |
-| API enablement, IAM | No cost                      | —                        |
+| Resource            | Free Tier Limit              | Our Usage                                      |
+| ------------------- | ---------------------------- | ---------------------------------------------- |
+| Cloud Run           | 2M requests, 360K GB-s/month | Minimal (personal app)                         |
+| Firestore           | 1 GB, 50K reads/day          | < 100 MB                                       |
+| Cloud Storage       | 5 GB                         | < 1 MB (state + backups)                       |
+| Secret Manager      | 6 active versions            | ~10 versions (exceeds free tier, minimal cost) |
+| Artifact Registry   | 500 MB                       | ~200 MB (Docker images)                        |
+| API enablement, IAM | No cost                      | —                                              |
 
 ## Troubleshooting
 

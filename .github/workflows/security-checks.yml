@@ -85,7 +85,7 @@ jobs:
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
       - name: Install Trivy
-        uses: aquasecurity/setup-trivy@e6c2c5e321ed9123bda567646e2f96565e34abe1 # v0.2.4
+        uses: aquasecurity/setup-trivy@3fb12ec12f41e471780db15c232d5dd185dcb514 # v0.2.5
         with:
           cache: true
 
@@ -128,12 +128,33 @@ jobs:
 
       - name: Generate SARIF report
         run: |
-          trivy convert --format sarif --output trivy-results.sarif trivy-results.json
+          # Only scan secret/misconfig for SARIF — vuln results lack file-level
+          # artifact locations which causes GitHub's SARIF processor to reject
+          # the file with "expected artifact location". Vulnerability results
+          # are still captured in the JSON scan above.
+          trivy fs \
+            --format sarif \
+            --output trivy-results.sarif \
+            --severity CRITICAL,HIGH,MEDIUM \
+            --exit-code 0 \
+            --cache-dir ${{ env.TRIVY_CACHE_DIR }} \
+            --scanners secret,misconfig \
+            .
+
+          # Trivy sometimes emits results with empty artifact URIs (e.g. for
+          # misconfigs it can't pin to a specific file). GitHub's SARIF processor
+          # rejects the entire file if any result has an empty URI. Remove them.
+          jq '(.runs[].results) |= map(
+            select(
+              .locations[0].physicalLocation.artifactLocation.uri != ""
+            )
+          )' trivy-results.sarif > trivy-results-clean.sarif
+          mv trivy-results-clean.sarif trivy-results.sarif
 
       - name: Upload Trivy results to GitHub Security
         if: always()
         continue-on-error: true # May fail on repos without code scanning enabled
-        uses: github/codeql-action/upload-sarif@45cbd0c69e560cd9e7cd7f8c32362050c9b7ded2 # v4.32.2
+        uses: github/codeql-action/upload-sarif@89a39a4e59826350b863aa6b6252a07ad50cf83e # v4.32.4
         with:
           sarif_file: trivy-results.sarif
           category: trivy-scan

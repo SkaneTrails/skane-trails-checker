@@ -16,15 +16,9 @@ hosting_site_id = "your-unique-site-id"  # becomes <site-id>.web.app
 # Firebase OAuth (set to true after running create-oauth-client script)
 # oauth_secrets_exist = false  # default
 
-# Firebase authorized domains (add Cloud Run URL after first deployment)
-# firebase_authorized_domains = ["skane-trails-api-abc123-ew.a.run.app"]
-
 # GitHub (for Workload Identity Federation)
 # github_repository_owner = "SkaneTrails"  # default
 # github_repository = "SkaneTrails/skane-trails-checker"  # default
-
-# Deployment
-# image_tag = "latest"  # default, CI passes git SHA
 
 # Terraform state bucket
 tfstate_bucket_name = "your-unique-tfstate-bucket-name"

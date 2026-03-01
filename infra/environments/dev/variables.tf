@@ -19,13 +19,6 @@ variable "firestore_database_name" {
   default     = "skane-trails-db"
 }
 
-# Firebase and Auth
-variable "firebase_authorized_domains" {
-  description = "Additional authorized domains for Firebase OAuth (e.g., Cloud Run URLs)"
-  type        = list(string)
-  default     = []
-}
-
 variable "hosting_site_id" {
   description = "Firebase Hosting site ID (must be globally unique, becomes <site-id>.web.app)"
   type        = string
