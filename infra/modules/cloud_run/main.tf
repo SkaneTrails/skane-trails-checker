@@ -65,8 +65,14 @@ resource "google_cloud_run_v2_service" "api" {
         value = var.project
       }
 
+      # Firestore client expects FIRESTORE_PROJECT_ID and FIRESTORE_DATABASE_ID
       env {
-        name  = "FIRESTORE_DATABASE"
+        name  = "FIRESTORE_PROJECT_ID"
+        value = var.project
+      }
+
+      env {
+        name  = "FIRESTORE_DATABASE_ID"
         value = var.firestore_database
       }
 
