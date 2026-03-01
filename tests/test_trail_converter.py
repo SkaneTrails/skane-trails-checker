@@ -5,8 +5,8 @@ from unittest.mock import MagicMock
 import gpxpy.gpx
 import pytest
 
+from api.models.trail import TrailResponse
 from app.functions.trail_converter import gpx_track_to_trail, load_trails_from_gpx_data
-from app.functions.trail_models import Trail
 
 
 class TestGpxTrackToTrail:
@@ -31,7 +31,7 @@ class TestGpxTrackToTrail:
 
         result = gpx_track_to_trail(mock_track, source="test_source", index=0)
 
-        assert isinstance(result, Trail)
+        assert isinstance(result, TrailResponse)
         assert result.name == "Test Trail"
         assert result.source == "test_source"
         assert result.status == "To Explore"

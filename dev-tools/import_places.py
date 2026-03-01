@@ -1,7 +1,7 @@
 """Import places/POIs from Skåneleden API to Firestore.
 
 This script fetches all places from the Skåneleden API and imports them
-into Firestore for use in the Streamlit app. By default, places are
+into Firestore for use in the app. By default, places are
 upserted (created or replaced if they already exist).
 
 Usage:
@@ -25,9 +25,9 @@ import requests
 # Add project root to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
+from api.models.place import PLACE_CATEGORIES, PlaceCategoryResponse, PlaceResponse
+from api.storage.places_storage import delete_all_places, get_place_count, save_places_batch
 from app.functions.env_loader import load_env_if_needed
-from app.functions.place_models import PLACE_CATEGORIES, Place, PlaceCategory
-from app.functions.places_storage import delete_all_places, get_place_count, save_places_batch
 
 # Load environment variables
 load_env_if_needed()
@@ -101,14 +101,14 @@ def fetch_all_places() -> list[dict]:
     return list(all_places.values())
 
 
-def convert_to_place(raw_place: dict) -> Place | None:
-    """Convert raw API data to Place model.
+def convert_to_place(raw_place: dict) -> PlaceResponse | None:
+    """Convert raw API data to PlaceResponse model.
 
     Args:
         raw_place: Dictionary from Skåneleden API
 
     Returns:
-        Place object or None if invalid
+        PlaceResponse object or None if invalid
     """
     place_id = raw_place.get("id")
     name = raw_place.get("name", "")
@@ -128,10 +128,10 @@ def convert_to_place(raw_place: dict) -> Place | None:
         # Use our display mapping if available
         display = PLACE_CATEGORIES.get(cat_slug, {})
         categories.append(
-            PlaceCategory(name=display.get("name") or cat_name, slug=cat_slug, icon=display.get("icon") or "📍")
+            PlaceCategoryResponse(name=display.get("name") or cat_name, slug=cat_slug, icon=display.get("icon") or "📍")
         )
 
-    return Place(
+    return PlaceResponse(
         place_id=place_id,
         name=name,
         lat=float(lat),
@@ -144,7 +144,7 @@ def convert_to_place(raw_place: dict) -> Place | None:
     )
 
 
-def filter_poi_places(places: list[Place]) -> list[Place]:
+def filter_poi_places(places: list[PlaceResponse]) -> list[PlaceResponse]:
     """Filter places to only include hiking-relevant POI categories.
 
     Args:
@@ -156,7 +156,7 @@ def filter_poi_places(places: list[Place]) -> list[Place]:
     return [place for place in places if any(slug in POI_CATEGORY_SLUGS for slug in place.category_slugs)]
 
 
-def print_category_summary(places: list[Place]) -> None:
+def print_category_summary(places: list[PlaceResponse]) -> None:
     """Print summary of places by category."""
     cat_counts: Counter[str] = Counter()
     for place in places:

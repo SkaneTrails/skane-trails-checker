@@ -59,12 +59,17 @@ ______________________________________________________________________
 
 ### `foraging_types` — Foraging type definitions
 
-| Field   | Type  | Required | Description             |
-| ------- | ----- | -------- | ----------------------- |
-| `icon`  | `str` | ✅       | Emoji icon for the type |
-| `color` | `str` | ❌       | Display color           |
+| Field          | Type  | Required | Description                                 |
+| -------------- | ----- | -------- | ------------------------------------------- |
+| `icon`         | `str` | ✅       | Emoji icon for the type                     |
+| `color`        | `str` | ❌       | Display color                               |
+| `swedish_name` | `str` | ❌       | Swedish name (e.g., `"Kantarell"`)          |
+| `description`  | `str` | ❌       | Rich description for educational display    |
+| `season`       | `str` | ❌       | Season range (e.g., `"July to October"`)    |
+| `usage`        | `str` | ❌       | How to prepare/use the foraged item         |
+| `image_file`   | `str` | ❌       | Asset filename in `mobile/assets/foraging/` |
 
-**Document ID**: Type name (e.g., `"Blueberry"`, `"Chanterelle"`).
+**Document ID**: Type name (e.g., `"Blueberries"`, `"Chanterelle Mushroom"`).
 
 ### `places` — Points of interest (Skåneleden)
 

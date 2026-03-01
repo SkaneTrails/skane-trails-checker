@@ -37,6 +37,35 @@ class TrailResponse(BaseModel):
     elevation_gain: float | None = None
     elevation_loss: float | None = None
 
+    def to_dict(self) -> dict:
+        """Convert to dictionary for Firestore storage."""
+        data = {
+            "trail_id": self.trail_id,
+            "name": self.name,
+            "difficulty": self.difficulty,
+            "length_km": float(self.length_km),
+            "status": self.status,
+            "coordinates_map": [{"lat": float(c.lat), "lng": float(c.lng)} for c in self.coordinates_map],
+            "bounds": {
+                "north": float(self.bounds.north),
+                "south": float(self.bounds.south),
+                "east": float(self.bounds.east),
+                "west": float(self.bounds.west),
+            },
+            "center": {"lat": float(self.center.lat), "lng": float(self.center.lng)},
+            "source": self.source,
+            "last_updated": self.last_updated,
+        }
+        if self.activity_date is not None:
+            data["activity_date"] = self.activity_date
+        if self.activity_type is not None:
+            data["activity_type"] = self.activity_type
+        if self.elevation_gain is not None:
+            data["elevation_gain"] = float(self.elevation_gain)
+        if self.elevation_loss is not None:
+            data["elevation_loss"] = float(self.elevation_loss)
+        return data
+
 
 class TrailDetailsResponse(BaseModel):
     """Detailed trail data for single trail view."""
@@ -46,6 +75,20 @@ class TrailDetailsResponse(BaseModel):
     elevation_profile: list[float] | None = None
     waypoints: list[dict] | None = None
     statistics: dict | None = None
+
+    def to_dict(self) -> dict:
+        """Convert to dictionary for Firestore storage."""
+        data = {
+            "trail_id": self.trail_id,
+            "coordinates_full": [{"lat": float(c.lat), "lng": float(c.lng)} for c in self.coordinates_full],
+        }
+        if self.elevation_profile is not None:
+            data["elevation_profile"] = [float(x) for x in self.elevation_profile]
+        if self.waypoints is not None:
+            data["waypoints"] = self.waypoints
+        if self.statistics is not None:
+            data["statistics"] = self.statistics
+        return data
 
 
 class TrailStatusUpdate(BaseModel):

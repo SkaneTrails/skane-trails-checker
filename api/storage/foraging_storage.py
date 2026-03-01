@@ -70,7 +70,18 @@ def get_foraging_types() -> list[ForagingTypeResponse]:
     for doc in docs:
         data = doc.to_dict()
         if data:
-            types.append(ForagingTypeResponse(name=doc.id, icon=data.get("icon", ""), color=data.get("color", "")))
+            types.append(
+                ForagingTypeResponse(
+                    name=doc.id,
+                    icon=data.get("icon", ""),
+                    color=data.get("color", ""),
+                    swedish_name=data.get("swedish_name", ""),
+                    description=data.get("description", ""),
+                    season=data.get("season", ""),
+                    usage=data.get("usage", ""),
+                    image_file=data.get("image_file", ""),
+                )
+            )
 
     return types
 

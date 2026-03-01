@@ -65,6 +65,19 @@ def get_all_trails(source: str | None = None) -> list[TrailResponse]:
     return trails
 
 
+def save_trail(trail: TrailResponse) -> None:
+    """Save or update a trail in Firestore."""
+    logger.info("Saving trail: %s (ID: %s, Source: %s)", trail.name, trail.trail_id, trail.source)
+    trail.last_updated = datetime.now(UTC).isoformat()
+    get_collection("trails").document(trail.trail_id).set(trail.to_dict())
+
+
+def save_trail_details(details: TrailDetailsResponse) -> None:
+    """Save or update trail details in Firestore."""
+    logger.info("Saving trail details for: %s", details.trail_id)
+    get_collection("trail_details").document(details.trail_id).set(details.to_dict())
+
+
 def get_trail(trail_id: str) -> TrailResponse | None:
     """Get a single trail by ID."""
     doc = get_collection("trails").document(trail_id).get()
