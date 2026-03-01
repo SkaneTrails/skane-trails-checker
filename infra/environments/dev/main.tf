@@ -89,11 +89,10 @@ module "artifact_registry" {
 module "cloud_run" {
   source = "../../modules/cloud_run"
 
-  project      = var.project
-  region       = var.region
-  service_name = "skane-trails-api"
-  # Bootstrap: uncomment image_url after first CI build pushes a real image to Artifact Registry
-  # image_url        = "${module.artifact_registry.repository_url}/skane-trails-api:latest"
+  project            = var.project
+  region             = var.region
+  service_name       = "skane-trails-api"
+  image_url          = "${module.artifact_registry.repository_url}/skane-trails-api:${var.image_tag}"
   firestore_database = var.firestore_database_name
   allowed_origins = join(",", [
     module.firebase.hosting_url,
