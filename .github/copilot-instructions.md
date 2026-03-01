@@ -124,7 +124,7 @@ ______________________________________________________________________
 ### Map Rendering
 
 - react-leaflet with OpenStreetMap tiles (zero cost, no API key)
-- Status colors: "Explored!" = dark green, "To Explore" = orange (planned = blue)
+- Status colors: "Explored!" = blue (#4169E1), "To Explore" / Skåneleden = orange (#FF8000)
 - Trail polylines from `coordinates_map` array; full detail from `trail_details`
 
 ### Trail Sources
