@@ -5,6 +5,19 @@ import { trailsApi } from '@/lib/api';
 import { trailCache } from '@/lib/storage/trail-cache';
 import type { Trail, TrailUpdate } from '@/lib/types';
 
+/**
+ * Sort trails so uploaded trails appear before planned ones.
+ * Within each group, sort alphabetically by name.
+ */
+export function sortTrails(trails: Trail[]): Trail[] {
+  return [...trails].sort((a, b) => {
+    const aPlanned = a.source === 'planned_hikes' ? 1 : 0;
+    const bPlanned = b.source === 'planned_hikes' ? 1 : 0;
+    if (aPlanned !== bPlanned) return aPlanned - bPlanned;
+    return a.name.localeCompare(b.name);
+  });
+}
+
 export const trailKeys = {
   all: ['trails'] as const,
   list: (filters: TrailFilters) => ['trails', 'list', filters] as const,
@@ -41,6 +54,7 @@ export function useTrails(filters: TrailFilters = {}) {
   const query = useQuery({
     queryKey,
     queryFn: () => trailsApi.getTrails(filters),
+    select: sortTrails,
     // For unfiltered queries, disable the automatic fetch until sync decides
     // whether a full fetch is actually needed (saves Firestore reads).
     // Filtered queries always fetch directly (no cache for those).
