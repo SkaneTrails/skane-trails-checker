@@ -1,11 +1,11 @@
-import { Platform, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Platform, StyleSheet, Text, View } from 'react-native';
 import { EmptyState, ScreenLayout } from '@/components';
 import { TrailMap } from '@/components/TrailMap';
 import { useTrails } from '@/lib/hooks';
 import { borderRadius, fontSize, spacing, useTheme } from '@/lib/theme';
 
 export default function MapScreen() {
-  const { data: trails, isLoading, error } = useTrails();
+  const { data: trails, isFetching, error } = useTrails();
   const { colors } = useTheme();
 
   if (Platform.OS !== 'web') {
@@ -24,16 +24,9 @@ export default function MapScreen() {
     <ScreenLayout>
       <View style={styles.container}>
         <TrailMap trails={trails ?? []} />
-        {isLoading && (
-          <View style={styles.overlay}>
-            <Text
-              style={[
-                styles.overlayText,
-                { backgroundColor: colors.overlay, color: colors.overlayText },
-              ]}
-            >
-              Loading trails...
-            </Text>
+        {isFetching && (
+          <View style={[styles.spinner, { backgroundColor: colors.overlay }]}>
+            <ActivityIndicator size="small" color={colors.overlayText} />
           </View>
         )}
         {error && (
@@ -56,6 +49,14 @@ export default function MapScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+  },
+  spinner: {
+    position: 'absolute',
+    top: spacing.md,
+    right: spacing.md,
+    borderRadius: borderRadius.pill,
+    padding: spacing.sm,
+    pointerEvents: 'none',
   },
   overlay: {
     position: 'absolute',
