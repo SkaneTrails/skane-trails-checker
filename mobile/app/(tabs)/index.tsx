@@ -1,33 +1,55 @@
 import { Platform, StyleSheet, Text, View } from 'react-native';
+import { EmptyState, ScreenLayout } from '@/components';
 import { TrailMap } from '@/components/TrailMap';
 import { useTrails } from '@/lib/hooks';
+import { borderRadius, fontSize, spacing, useTheme } from '@/lib/theme';
 
 export default function MapScreen() {
   const { data: trails, isLoading, error } = useTrails();
+  const { colors } = useTheme();
 
   if (Platform.OS !== 'web') {
     return (
-      <View style={styles.center}>
-        <Text>Map is currently available on web only.</Text>
-        <Text>Use the Trails tab to see your trails.</Text>
-      </View>
+      <ScreenLayout>
+        <EmptyState
+          emoji="🗺️"
+          title="Map is currently available on web only"
+          subtitle="Use the Trails tab to see your trails."
+        />
+      </ScreenLayout>
     );
   }
 
   return (
-    <View style={styles.container}>
-      <TrailMap trails={trails ?? []} />
-      {isLoading && (
-        <View style={styles.overlay}>
-          <Text style={styles.overlayText}>Loading trails...</Text>
-        </View>
-      )}
-      {error && (
-        <View style={styles.overlay}>
-          <Text style={styles.overlayText}>Could not connect to API — showing empty map</Text>
-        </View>
-      )}
-    </View>
+    <ScreenLayout>
+      <View style={styles.container}>
+        <TrailMap trails={trails ?? []} />
+        {isLoading && (
+          <View style={styles.overlay}>
+            <Text
+              style={[
+                styles.overlayText,
+                { backgroundColor: colors.overlay, color: colors.overlayText },
+              ]}
+            >
+              Loading trails...
+            </Text>
+          </View>
+        )}
+        {error && (
+          <View style={styles.overlay}>
+            <Text
+              style={[
+                styles.overlayText,
+                { backgroundColor: colors.overlay, color: colors.overlayText },
+              ]}
+            >
+              Could not connect to API — showing empty map
+            </Text>
+          </View>
+        )}
+      </View>
+    </ScreenLayout>
   );
 }
 
@@ -35,27 +57,19 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
-  center: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 20,
-  },
   overlay: {
     position: 'absolute',
-    top: 10,
+    top: spacing.md,
     left: 0,
     right: 0,
     alignItems: 'center',
     pointerEvents: 'none',
   },
   overlayText: {
-    backgroundColor: 'rgba(0,0,0,0.6)',
-    color: '#fff',
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
-    fontSize: 14,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.sm,
+    borderRadius: borderRadius.pill,
+    fontSize: fontSize.md,
     overflow: 'hidden',
   },
 });

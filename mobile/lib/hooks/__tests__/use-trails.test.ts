@@ -1,7 +1,7 @@
 import { renderHook, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { createQueryWrapper } from '@/test/helpers';
-import { useTrail, useTrails, useUpdateTrail } from '../use-trails';
+import { useDeleteTrail, useTrail, useTrails, useUpdateTrail, useUploadGpx } from '../use-trails';
 
 vi.mock('@/lib/api', () => ({
   trailsApi: {
@@ -10,6 +10,7 @@ vi.mock('@/lib/api', () => ({
     getTrailDetails: vi.fn(),
     updateTrail: vi.fn(),
     deleteTrail: vi.fn(),
+    uploadGpx: vi.fn(),
   },
 }));
 
@@ -89,5 +90,44 @@ describe('useUpdateTrail', () => {
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
     expect(mockTrailsApi.updateTrail).toHaveBeenCalledWith('abc123', { status: 'Explored!' });
+  });
+});
+
+describe('useDeleteTrail', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('calls deleteTrail API', async () => {
+    mockTrailsApi.deleteTrail.mockResolvedValue(undefined);
+    const wrapper = createQueryWrapper();
+
+    const { result } = renderHook(() => useDeleteTrail(), { wrapper });
+
+    result.current.mutate('abc123');
+
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+    expect(mockTrailsApi.deleteTrail).toHaveBeenCalledWith('abc123');
+  });
+});
+
+describe('useUploadGpx', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('calls uploadGpx API with file and source', async () => {
+    const uploadedTrail = { ...sampleTrail, trail_id: 'new1', name: 'Uploaded Trail' };
+    mockTrailsApi.uploadGpx.mockResolvedValue([uploadedTrail]);
+    const wrapper = createQueryWrapper();
+
+    const { result } = renderHook(() => useUploadGpx(), { wrapper });
+
+    const mockFile = new File(['gpx content'], 'test.gpx', { type: 'application/gpx+xml' });
+    result.current.mutate({ file: mockFile, source: 'other_trails' });
+
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+    expect(result.current.data).toEqual([uploadedTrail]);
+    expect(mockTrailsApi.uploadGpx).toHaveBeenCalledWith(mockFile, 'other_trails');
   });
 });

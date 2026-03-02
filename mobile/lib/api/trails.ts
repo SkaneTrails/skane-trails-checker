@@ -20,6 +20,8 @@ function buildQuery(filters: TrailFilters): string {
   return qs ? `?${qs}` : '';
 }
 
+const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:8000';
+
 export const trailsApi = {
   getTrails(filters: TrailFilters = {}): Promise<Trail[]> {
     return apiRequest<Trail[]>(`/api/v1/trails${buildQuery(filters)}`);
@@ -44,5 +46,23 @@ export const trailsApi = {
     return apiRequest<void>(`/api/v1/trails/${id}`, {
       method: 'DELETE',
     });
+  },
+
+  async uploadGpx(file: File, source: string = 'other_trails'): Promise<Trail[]> {
+    const formData = new FormData();
+    formData.append('file', file);
+
+    const url = `${API_BASE_URL}/api/v1/trails/upload?source=${encodeURIComponent(source)}`;
+    const response = await fetch(url, {
+      method: 'POST',
+      body: formData,
+    });
+
+    if (!response.ok) {
+      const text = await response.text().catch(() => 'Unknown error');
+      throw new Error(`Upload failed (${response.status}): ${text}`);
+    }
+
+    return response.json() as Promise<Trail[]>;
   },
 };

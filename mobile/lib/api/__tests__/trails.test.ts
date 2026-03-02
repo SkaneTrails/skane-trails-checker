@@ -73,4 +73,41 @@ describe('trailsApi', () => {
       });
     });
   });
+
+  describe('uploadGpx', () => {
+    const mockFetch = vi.fn();
+
+    beforeEach(() => {
+      vi.stubGlobal('fetch', mockFetch);
+      mockFetch.mockReset();
+    });
+
+    it('sends POST with FormData and returns trails', async () => {
+      const uploaded = [{ trail_id: 'new1', name: 'Uploaded' }];
+      mockFetch.mockResolvedValue({
+        ok: true,
+        json: () => Promise.resolve(uploaded),
+      });
+
+      const file = new File(['<gpx/>'], 'test.gpx', { type: 'application/gpx+xml' });
+      const result = await trailsApi.uploadGpx(file, 'other_trails');
+
+      expect(result).toEqual(uploaded);
+      expect(mockFetch).toHaveBeenCalledWith(
+        expect.stringContaining('/api/v1/trails/upload?source=other_trails'),
+        expect.objectContaining({ method: 'POST' }),
+      );
+    });
+
+    it('throws on non-ok response', async () => {
+      mockFetch.mockResolvedValue({
+        ok: false,
+        status: 400,
+        text: () => Promise.resolve('Bad request'),
+      });
+
+      const file = new File(['<gpx/>'], 'test.gpx');
+      await expect(trailsApi.uploadGpx(file)).rejects.toThrow('Upload failed (400): Bad request');
+    });
+  });
 });

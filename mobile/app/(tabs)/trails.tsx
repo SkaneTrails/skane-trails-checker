@@ -1,166 +1,179 @@
 import { useRouter } from 'expo-router';
-import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
+import { useState } from 'react';
+import { FlatList, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Chip, ContentCard, EmptyState, ScreenLayout, StatusBadge } from '@/components';
+import type { TrailFilters } from '@/lib/api';
 import { useTrails } from '@/lib/hooks';
+import { borderRadius, fontSize, fontWeight, spacing, useTheme } from '@/lib/theme';
 import type { Trail } from '@/lib/types';
+
+const STATUS_OPTIONS = [
+  { label: 'All', value: undefined },
+  { label: 'Explored', value: 'Explored!' },
+  { label: 'To Explore', value: 'To Explore' },
+] as const;
 
 function TrailItem({ trail }: { trail: Trail }) {
   const router = useRouter();
+  const { colors } = useTheme();
 
   return (
-    <Pressable style={styles.card} onPress={() => router.push(`/trail/${trail.trail_id}`)}>
-      <View style={styles.cardHeader}>
-        <Text style={styles.trailName} numberOfLines={1}>
-          {trail.name}
-        </Text>
-        <View
-          style={[
-            styles.statusBadge,
-            trail.status === 'Explored!' ? styles.explored : styles.toExplore,
-          ]}
-        >
-          <Text style={styles.statusText}>{trail.status}</Text>
+    <Pressable onPress={() => router.push(`/trail/${trail.trail_id}`)}>
+      <ContentCard>
+        <View style={styles.cardHeader}>
+          <Text style={[styles.trailName, { color: colors.text.primary }]} numberOfLines={1}>
+            {trail.name}
+          </Text>
+          <StatusBadge status={trail.status} />
         </View>
-      </View>
-      <View style={styles.cardMeta}>
-        <Text style={styles.metaText}>📏 {trail.length_km.toFixed(1)} km</Text>
-        {trail.difficulty && <Text style={styles.metaText}>⛰️ {trail.difficulty}</Text>}
-        <Text style={styles.metaText}>📂 {trail.source.replace(/_/g, ' ')}</Text>
-      </View>
+        <View style={styles.cardMeta}>
+          <Text style={[styles.metaText, { color: colors.text.secondary }]}>
+            📏 {trail.length_km.toFixed(1)} km
+          </Text>
+          {trail.difficulty && (
+            <Text style={[styles.metaText, { color: colors.text.secondary }]}>
+              ⛰️ {trail.difficulty}
+            </Text>
+          )}
+          <Text style={[styles.metaText, { color: colors.text.secondary }]}>
+            📂 {trail.source.replace(/_/g, ' ')}
+          </Text>
+        </View>
+      </ContentCard>
     </Pressable>
   );
 }
 
 export default function TrailsScreen() {
-  const { data: trails, isLoading, error, refetch } = useTrails();
+  const { colors } = useTheme();
+  const [search, setSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState<string | undefined>();
 
-  if (isLoading) {
-    return (
-      <View style={styles.center}>
-        <Text>Loading trails...</Text>
-      </View>
-    );
-  }
+  const filters: TrailFilters = {
+    ...(search.trim() ? { search: search.trim() } : {}),
+    ...(statusFilter ? { status: statusFilter } : {}),
+  };
 
-  if (error) {
-    return (
-      <View style={styles.center}>
-        <Text style={styles.error}>Failed to load trails</Text>
-        <Pressable style={styles.retryButton} onPress={() => refetch()}>
-          <Text style={styles.retryText}>Retry</Text>
-        </Pressable>
-      </View>
-    );
-  }
+  const { data: trails, isLoading, error, refetch } = useTrails(filters);
 
   const explored = trails?.filter((t) => t.status === 'Explored!').length ?? 0;
   const total = trails?.length ?? 0;
 
+  if (error) {
+    return (
+      <ScreenLayout>
+        <EmptyState
+          emoji="⚠️"
+          title="Failed to load trails"
+          actionLabel="Retry"
+          onAction={() => refetch()}
+        />
+      </ScreenLayout>
+    );
+  }
+
   return (
-    <View style={styles.container}>
-      <View style={styles.summary}>
-        <Text style={styles.summaryText}>
+    <ScreenLayout>
+      <View style={[styles.summary, { backgroundColor: colors.primary }]}>
+        <Text style={[styles.summaryText, { color: colors.text.inverse }]}>
           🥾 {explored} / {total} explored
         </Text>
       </View>
-      <FlatList
-        data={trails}
-        keyExtractor={(item) => item.trail_id}
-        renderItem={({ item }) => <TrailItem trail={item} />}
-        contentContainerStyle={styles.list}
-        ListEmptyComponent={
-          <View style={styles.center}>
-            <Text>No trails found</Text>
-          </View>
-        }
-      />
-    </View>
+
+      <View
+        style={[
+          styles.filterBar,
+          { backgroundColor: colors.surface, borderBottomColor: colors.borderLight },
+        ]}
+      >
+        <TextInput
+          style={[
+            styles.searchInput,
+            {
+              backgroundColor: colors.background,
+              borderColor: colors.border,
+              color: colors.text.primary,
+            },
+          ]}
+          placeholder="Search trails..."
+          placeholderTextColor={colors.text.muted}
+          value={search}
+          onChangeText={setSearch}
+        />
+        <View style={styles.chipRow}>
+          {STATUS_OPTIONS.map((opt) => (
+            <Chip
+              key={opt.label}
+              label={opt.label}
+              selected={statusFilter === opt.value}
+              onPress={() => setStatusFilter(opt.value)}
+            />
+          ))}
+        </View>
+      </View>
+
+      {isLoading ? (
+        <EmptyState emoji="⏳" title="Loading trails..." />
+      ) : (
+        <FlatList
+          data={trails}
+          keyExtractor={(item) => item.trail_id}
+          renderItem={({ item }) => <TrailItem trail={item} />}
+          contentContainerStyle={styles.list}
+          ListEmptyComponent={<EmptyState emoji="🥾" title="No trails found" />}
+        />
+      )}
+    </ScreenLayout>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#f5f5f5',
-  },
-  center: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 20,
-  },
   summary: {
-    backgroundColor: '#1a5e2a',
-    padding: 12,
+    padding: spacing.md,
     alignItems: 'center',
   },
   summaryText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
+    fontSize: fontSize.lg,
+    fontWeight: fontWeight.semibold,
+  },
+  filterBar: {
+    padding: spacing.sm,
+    gap: spacing.sm,
+    borderBottomWidth: 1,
+  },
+  searchInput: {
+    borderWidth: 1,
+    borderRadius: borderRadius.sm,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    fontSize: fontSize.md,
+  },
+  chipRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.sm - 2,
   },
   list: {
-    padding: 12,
-    gap: 10,
-  },
-  card: {
-    backgroundColor: '#fff',
-    borderRadius: 10,
-    padding: 14,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 3,
-    elevation: 2,
+    padding: spacing.md,
+    gap: spacing.md,
   },
   cardHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 8,
+    marginBottom: spacing.sm,
   },
   trailName: {
-    fontSize: 16,
-    fontWeight: '600',
+    fontSize: fontSize.lg,
+    fontWeight: fontWeight.semibold,
     flex: 1,
-    marginRight: 8,
-  },
-  statusBadge: {
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 12,
-  },
-  explored: {
-    backgroundColor: '#d4edda',
-  },
-  toExplore: {
-    backgroundColor: '#f8d7da',
-  },
-  statusText: {
-    fontSize: 12,
-    fontWeight: '600',
+    marginRight: spacing.sm,
   },
   cardMeta: {
     flexDirection: 'row',
-    gap: 16,
+    gap: spacing.lg,
   },
   metaText: {
-    fontSize: 13,
-    color: '#666',
-  },
-  error: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#c00',
-    marginBottom: 12,
-  },
-  retryButton: {
-    backgroundColor: '#1a5e2a',
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-    borderRadius: 8,
-  },
-  retryText: {
-    color: '#fff',
-    fontWeight: '600',
+    fontSize: fontSize.sm,
   },
 });

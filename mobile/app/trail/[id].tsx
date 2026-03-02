@@ -1,30 +1,40 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { useTrail, useTrailDetails, useUpdateTrail } from '@/lib/hooks';
+import { useState } from 'react';
+import { Alert, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Button, EmptyState, FormField, ScreenLayout, StatCard, StatusBadge } from '@/components';
+import { useDeleteTrail, useTrail, useTrailDetails, useUpdateTrail } from '@/lib/hooks';
+import { borderRadius, fontSize, fontWeight, spacing, useTheme } from '@/lib/theme';
 
 export default function TrailDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
+  const { colors } = useTheme();
   const { data: trail, isLoading: trailLoading } = useTrail(id);
   const { data: details, isLoading: detailsLoading } = useTrailDetails(id);
   const updateTrail = useUpdateTrail();
+  const deleteTrail = useDeleteTrail();
+
+  const [isEditing, setIsEditing] = useState(false);
+  const [editName, setEditName] = useState('');
 
   if (trailLoading || detailsLoading) {
     return (
-      <View style={styles.center}>
-        <Text>Loading trail...</Text>
-      </View>
+      <ScreenLayout>
+        <EmptyState emoji="⏳" title="Loading trail..." />
+      </ScreenLayout>
     );
   }
 
   if (!trail) {
     return (
-      <View style={styles.center}>
-        <Text style={styles.error}>Trail not found</Text>
-        <Pressable style={styles.button} onPress={() => router.back()}>
-          <Text style={styles.buttonText}>Go Back</Text>
-        </Pressable>
-      </View>
+      <ScreenLayout>
+        <EmptyState
+          emoji="🔍"
+          title="Trail not found"
+          actionLabel="Go Back"
+          onAction={() => router.back()}
+        />
+      </ScreenLayout>
     );
   }
 
@@ -34,174 +44,211 @@ export default function TrailDetailScreen() {
     updateTrail.mutate({ id, data: { status: newStatus } });
   };
 
+  const startEditing = () => {
+    setEditName(trail.name);
+    setIsEditing(true);
+  };
+
+  const saveRename = () => {
+    if (!id || !editName.trim()) return;
+    updateTrail.mutate(
+      { id, data: { name: editName.trim() } },
+      { onSuccess: () => setIsEditing(false) },
+    );
+  };
+
+  const confirmDelete = () => {
+    if (!id) return;
+    if (Platform.OS === 'web') {
+      if (window.confirm(`Delete "${trail.name}"? This cannot be undone.`)) {
+        deleteTrail.mutate(id, { onSuccess: () => router.back() });
+      }
+    } else {
+      Alert.alert('Delete Trail', `Delete "${trail.name}"? This cannot be undone.`, [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: () => deleteTrail.mutate(id, { onSuccess: () => router.back() }),
+        },
+      ]);
+    }
+  };
+
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-      <Text style={styles.title}>{trail.name}</Text>
+    <ScreenLayout>
+      <ScrollView contentContainerStyle={styles.content}>
+        {isEditing ? (
+          <View style={styles.editSection}>
+            <FormField label="Trail Name" value={editName} onChangeText={setEditName} />
+            <View style={styles.editButtons}>
+              <Button
+                title="Save"
+                onPress={saveRename}
+                disabled={!editName.trim() || updateTrail.isPending}
+              />
+              <Button title="Cancel" variant="secondary" onPress={() => setIsEditing(false)} />
+            </View>
+          </View>
+        ) : (
+          <Pressable onLongPress={startEditing}>
+            <Text style={[styles.title, { color: colors.primary }]}>{trail.name}</Text>
+          </Pressable>
+        )}
 
-      <View style={styles.statsRow}>
-        <View style={styles.stat}>
-          <Text style={styles.statLabel}>Distance</Text>
-          <Text style={styles.statValue}>{trail.length_km.toFixed(1)} km</Text>
+        <View style={styles.statsRow}>
+          <StatCard label="Distance" value={`${trail.length_km.toFixed(1)} km`} />
+          {trail.elevation_gain != null && (
+            <StatCard label="Elevation Gain" value={`${Math.round(trail.elevation_gain)} m`} />
+          )}
+          {trail.elevation_loss != null && (
+            <StatCard label="Elevation Loss" value={`${Math.round(trail.elevation_loss)} m`} />
+          )}
+          {trail.difficulty && <StatCard label="Difficulty" value={trail.difficulty} />}
         </View>
-        {trail.elevation_gain != null && (
-          <View style={styles.stat}>
-            <Text style={styles.statLabel}>Elevation Gain</Text>
-            <Text style={styles.statValue}>{Math.round(trail.elevation_gain)} m</Text>
-          </View>
-        )}
-        {trail.elevation_loss != null && (
-          <View style={styles.stat}>
-            <Text style={styles.statLabel}>Elevation Loss</Text>
-            <Text style={styles.statValue}>{Math.round(trail.elevation_loss)} m</Text>
-          </View>
-        )}
-        {trail.difficulty && (
-          <View style={styles.stat}>
-            <Text style={styles.statLabel}>Difficulty</Text>
-            <Text style={styles.statValue}>{trail.difficulty}</Text>
-          </View>
-        )}
-      </View>
 
-      <View style={styles.statusSection}>
-        <Pressable
-          style={[
-            styles.statusButton,
-            trail.status === 'Explored!' ? styles.exploredButton : styles.toExploreButton,
-          ]}
-          onPress={toggleStatus}
-          disabled={updateTrail.isPending}
-        >
-          <Text style={styles.statusButtonText}>
-            {updateTrail.isPending
-              ? 'Updating...'
-              : trail.status === 'Explored!'
-                ? '✅ Explored!'
-                : '🔴 Mark as Explored'}
-          </Text>
-        </Pressable>
-      </View>
+        <View style={styles.statusSection}>
+          <Pressable
+            style={[
+              styles.statusButton,
+              {
+                backgroundColor:
+                  trail.status === 'Explored!'
+                    ? colors.status.exploredBg
+                    : colors.status.toExploreBg,
+              },
+            ]}
+            onPress={toggleStatus}
+            disabled={updateTrail.isPending}
+          >
+            <Text style={[styles.statusButtonText, { color: colors.text.primary }]}>
+              {updateTrail.isPending
+                ? 'Updating...'
+                : trail.status === 'Explored!'
+                  ? '✅ Explored!'
+                  : '🔴 Mark as Explored'}
+            </Text>
+          </Pressable>
+        </View>
 
-      <View style={styles.infoSection}>
-        <Text style={styles.sectionTitle}>Info</Text>
-        <Text style={styles.infoText}>Source: {trail.source.replace(/_/g, ' ')}</Text>
-        {trail.last_updated && (
-          <Text style={styles.infoText}>
-            Last updated: {new Date(trail.last_updated).toLocaleDateString()}
-          </Text>
-        )}
-        {trail.activity_date && (
-          <Text style={styles.infoText}>
-            Activity date: {new Date(trail.activity_date).toLocaleDateString()}
-          </Text>
-        )}
-        {trail.activity_type && (
-          <Text style={styles.infoText}>Activity: {trail.activity_type}</Text>
-        )}
-        {details && (
-          <Text style={styles.infoText}>Track points: {details.coordinates_full.length}</Text>
-        )}
-      </View>
-    </ScrollView>
+        <View style={[styles.infoSection, { backgroundColor: colors.surface }]}>
+          <Text style={[styles.sectionTitle, { color: colors.text.primary }]}>Info</Text>
+          <View style={styles.infoRow}>
+            <Text style={[styles.infoLabel, { color: colors.text.muted }]}>Source</Text>
+            <Text style={[styles.infoText, { color: colors.text.secondary }]}>
+              {trail.source.replace(/_/g, ' ')}
+            </Text>
+          </View>
+          <View style={styles.infoRow}>
+            <Text style={[styles.infoLabel, { color: colors.text.muted }]}>Status</Text>
+            <StatusBadge status={trail.status} />
+          </View>
+          {trail.last_updated && (
+            <View style={styles.infoRow}>
+              <Text style={[styles.infoLabel, { color: colors.text.muted }]}>Updated</Text>
+              <Text style={[styles.infoText, { color: colors.text.secondary }]}>
+                {new Date(trail.last_updated).toLocaleDateString()}
+              </Text>
+            </View>
+          )}
+          {trail.activity_date && (
+            <View style={styles.infoRow}>
+              <Text style={[styles.infoLabel, { color: colors.text.muted }]}>Activity</Text>
+              <Text style={[styles.infoText, { color: colors.text.secondary }]}>
+                {new Date(trail.activity_date).toLocaleDateString()}
+              </Text>
+            </View>
+          )}
+          {trail.activity_type && (
+            <View style={styles.infoRow}>
+              <Text style={[styles.infoLabel, { color: colors.text.muted }]}>Type</Text>
+              <Text style={[styles.infoText, { color: colors.text.secondary }]}>
+                {trail.activity_type}
+              </Text>
+            </View>
+          )}
+          {details && (
+            <View style={styles.infoRow}>
+              <Text style={[styles.infoLabel, { color: colors.text.muted }]}>Track Points</Text>
+              <Text style={[styles.infoText, { color: colors.text.secondary }]}>
+                {details.coordinates_full.length}
+              </Text>
+            </View>
+          )}
+        </View>
+
+        <View style={styles.actions}>
+          <Button title="✏️ Rename" variant="secondary" onPress={startEditing} />
+          <Button
+            title="🗑️ Delete"
+            variant="danger"
+            onPress={confirmDelete}
+            disabled={deleteTrail.isPending}
+          />
+        </View>
+      </ScrollView>
+    </ScreenLayout>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#f5f5f5',
-  },
   content: {
-    padding: 16,
-  },
-  center: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 20,
+    padding: spacing.lg,
   },
   title: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    marginBottom: 16,
-    color: '#1a5e2a',
+    fontSize: fontSize.xxl,
+    fontWeight: fontWeight.bold,
+    marginBottom: spacing.lg,
   },
   statsRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 12,
-    marginBottom: 20,
-  },
-  stat: {
-    backgroundColor: '#fff',
-    borderRadius: 10,
-    padding: 14,
-    minWidth: 100,
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.08,
-    shadowRadius: 2,
-    elevation: 1,
-  },
-  statLabel: {
-    fontSize: 12,
-    color: '#888',
-    marginBottom: 4,
-  },
-  statValue: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#333',
+    gap: spacing.md,
+    marginBottom: spacing.xl,
   },
   statusSection: {
-    marginBottom: 20,
+    marginBottom: spacing.xl,
   },
   statusButton: {
-    padding: 16,
-    borderRadius: 10,
+    padding: spacing.lg,
+    borderRadius: borderRadius.md,
     alignItems: 'center',
   },
-  exploredButton: {
-    backgroundColor: '#d4edda',
-  },
-  toExploreButton: {
-    backgroundColor: '#f8d7da',
-  },
   statusButtonText: {
-    fontSize: 18,
-    fontWeight: '600',
+    fontSize: fontSize.xl,
+    fontWeight: fontWeight.semibold,
   },
   infoSection: {
-    backgroundColor: '#fff',
-    borderRadius: 10,
-    padding: 16,
+    borderRadius: borderRadius.md,
+    padding: spacing.lg,
+    marginBottom: spacing.xl,
   },
   sectionTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    marginBottom: 10,
-    color: '#333',
+    fontSize: fontSize.xl,
+    fontWeight: fontWeight.semibold,
+    marginBottom: spacing.md,
+  },
+  infoRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: spacing.sm,
+  },
+  infoLabel: {
+    fontSize: fontSize.sm,
   },
   infoText: {
-    fontSize: 14,
-    color: '#555',
-    marginBottom: 6,
+    fontSize: fontSize.md,
   },
-  error: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#c00',
-    marginBottom: 12,
+  editSection: {
+    marginBottom: spacing.lg,
   },
-  button: {
-    backgroundColor: '#1a5e2a',
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-    borderRadius: 8,
+  editButtons: {
+    flexDirection: 'row',
+    gap: spacing.sm,
   },
-  buttonText: {
-    color: '#fff',
-    fontWeight: '600',
+  actions: {
+    flexDirection: 'row',
+    gap: spacing.sm,
   },
 });
