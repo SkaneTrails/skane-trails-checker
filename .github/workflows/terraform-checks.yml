@@ -7,13 +7,6 @@ on:
       - "infra/**/*.tfvars.example"
       - ".github/workflows/terraform-checks.yml"
       - ".tflint.hcl"
-  push:
-    branches: [main]
-    paths:
-      - "infra/**/*.tf"
-      - "infra/**/*.tfvars.example"
-      - ".github/workflows/terraform-checks.yml"
-      - ".tflint.hcl"
   workflow_dispatch:
 
 permissions:
