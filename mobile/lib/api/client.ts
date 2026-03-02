@@ -10,6 +10,20 @@ export class ApiClientError extends Error {
   }
 }
 
+type TokenGetter = () => Promise<string | null>;
+type UnauthorizedCallback = (hadToken: boolean) => void;
+
+let authTokenGetter: TokenGetter | null = null;
+let onUnauthorized: UnauthorizedCallback | null = null;
+
+export function setAuthTokenGetter(getter: TokenGetter | null): void {
+  authTokenGetter = getter;
+}
+
+export function setOnUnauthorized(callback: UnauthorizedCallback | null): void {
+  onUnauthorized = callback;
+}
+
 export async function apiRequest<T>(path: string, options: RequestInit = {}): Promise<T> {
   const url = `${API_BASE_URL}${path}`;
 
@@ -18,10 +32,29 @@ export async function apiRequest<T>(path: string, options: RequestInit = {}): Pr
     headers['Content-Type'] = headers['Content-Type'] ?? 'application/json';
   }
 
+  let hadToken = false;
+  if (authTokenGetter) {
+    try {
+      const token = await authTokenGetter();
+      if (token) {
+        headers.Authorization = `Bearer ${token}`;
+        hadToken = true;
+      }
+    } catch {
+      // Token fetch failed (e.g. Firebase transient error) — proceed without auth
+    }
+  }
+
   const response = await fetch(url, {
     ...options,
     headers,
   });
+
+  if (response.status === 401) {
+    onUnauthorized?.(hadToken);
+    const text = await response.text().catch(() => 'Unauthorized');
+    throw new ApiClientError(401, text);
+  }
 
   if (!response.ok) {
     const text = await response.text().catch(() => 'Unknown error');

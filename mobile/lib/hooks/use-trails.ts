@@ -1,5 +1,5 @@
-import { useEffect, useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useEffect, useRef, useState } from 'react';
 import type { TrailFilters } from '@/lib/api';
 import { trailsApi } from '@/lib/api';
 import { trailCache } from '@/lib/storage/trail-cache';
@@ -32,7 +32,11 @@ export function useTrails(filters: TrailFilters = {}) {
   const queryKey = trailKeys.list(filters);
 
   const isUnfilteredQuery =
-    !filters.source && !filters.search && !filters.min_distance_km && !filters.max_distance_km && !filters.status;
+    !filters.source &&
+    !filters.search &&
+    !filters.min_distance_km &&
+    !filters.max_distance_km &&
+    !filters.status;
 
   const query = useQuery({
     queryKey,
@@ -52,7 +56,7 @@ export function useTrails(filters: TrailFilters = {}) {
     if (!isUnfilteredQuery) return;
 
     syncTrails(queryClient, queryKey).finally(() => setSyncDone(true));
-  }, [queryClient, filters, queryKey, isUnfilteredQuery]);
+  }, [queryClient, queryKey, isUnfilteredQuery]);
 
   return query;
 }
@@ -90,7 +94,10 @@ async function syncTrails(
     if (cached.lastSyncTime && cached.trails.length > 0) {
       const newTrails = await trailsApi.getTrails({ since: cached.lastSyncTime });
       if (newTrails.length > 0) {
-        const merged = await trailCache.merge(newTrails, syncMeta.last_modified ?? new Date().toISOString());
+        const merged = await trailCache.merge(
+          newTrails,
+          syncMeta.last_modified ?? new Date().toISOString(),
+        );
         queryClient.setQueryData(queryKey, merged);
       } else {
         // Metadata changed but no new trails by created_at filter:
@@ -137,9 +144,7 @@ export function useUpdateTrail() {
       // Update persistent cache with the full server response so
       // server-computed fields (last_updated, modified_at) stay current.
       trailCache.get().then(({ trails, lastSyncTime }) => {
-        const updated = trails.map((t) =>
-          t.trail_id === id ? (updatedTrail as Trail) : t,
-        );
+        const updated = trails.map((t) => (t.trail_id === id ? (updatedTrail as Trail) : t));
         trailCache.set(updated, lastSyncTime ?? new Date().toISOString());
       });
     },
