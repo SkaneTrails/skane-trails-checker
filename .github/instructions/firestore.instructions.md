@@ -26,6 +26,8 @@ ______________________________________________________________________
 | `center`          | `{lat, lng}`                 | ✅       | Center point for map positioning                             |
 | `source`          | `str`                        | ✅       | `"planned_hikes"`, `"other_trails"`, or `"world_wide_hikes"` |
 | `last_updated`    | `str`                        | ✅       | ISO timestamp                                                |
+| `created_at`      | `str`                        | ❌       | ISO timestamp — set once on first save, used for delta sync  |
+| `modified_at`     | `str`                        | ❌       | ISO timestamp — reserved for future trail editing            |
 | `activity_date`   | `str`                        | ❌       | Date of hiking activity                                      |
 | `activity_type`   | `str`                        | ❌       | Type of activity (hiking, running, etc.)                     |
 | `elevation_gain`  | `float`                      | ❌       | Total elevation gain in meters                               |
@@ -43,6 +45,17 @@ ______________________________________________________________________
 | `statistics`        | `dict`             | ❌       | Computed trail statistics          |
 
 **Document ID**: Same as corresponding `trails` document.
+
+### `_meta` — Internal metadata (sync tracking)
+
+**Document: `trails_sync`**
+
+| Field           | Type  | Required | Description                                                               |
+| --------------- | ----- | -------- | ------------------------------------------------------------------------- |
+| `count`         | `int` | ✅       | Total number of trail documents                                           |
+| `last_modified` | `str` | ❌       | ISO timestamp of last trail create/update/delete (null before first sync) |
+
+Updated automatically on trail save/delete. Used by clients to detect changes efficiently (1 Firestore read per app open).
 
 ### `foraging_spots` — Foraging locations
 
