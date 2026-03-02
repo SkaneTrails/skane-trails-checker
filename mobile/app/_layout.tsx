@@ -1,4 +1,5 @@
 import { Stack } from 'expo-router';
+import { AuthProvider } from '@/lib/hooks/use-auth';
 import { QueryProvider } from '@/lib/query-provider';
 import { defaultThemeId, getTheme, ThemeProvider, useTheme } from '@/lib/theme';
 
@@ -13,6 +14,7 @@ function AppStack() {
         headerTitleStyle: { fontWeight: 'bold' },
       }}
     >
+      <Stack.Screen name="sign-in" options={{ headerShown: false, animation: 'fade' }} />
       <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
       <Stack.Screen
         name="trail/[id]"
@@ -36,10 +38,12 @@ export default function RootLayout() {
   const theme = getTheme(defaultThemeId);
 
   return (
-    <QueryProvider>
-      <ThemeProvider theme={theme}>
-        <AppStack />
-      </ThemeProvider>
-    </QueryProvider>
+    <ThemeProvider theme={theme}>
+      <AuthProvider>
+        <QueryProvider>
+          <AppStack />
+        </QueryProvider>
+      </AuthProvider>
+    </ThemeProvider>
   );
 }

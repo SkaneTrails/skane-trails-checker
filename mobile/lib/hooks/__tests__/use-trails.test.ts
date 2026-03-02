@@ -138,10 +138,7 @@ describe('useTrails', () => {
     await waitFor(() => {
       expect(mockTrailsApi.getTrails).toHaveBeenCalledWith({});
     });
-    expect(mockTrailCache.set).toHaveBeenCalledWith(
-      [editedTrail],
-      '2025-07-01T00:00:00Z',
-    );
+    expect(mockTrailCache.set).toHaveBeenCalledWith([editedTrail], '2025-07-01T00:00:00Z');
   });
 
   it('performs full refetch when server count < local count (deletion)', async () => {
