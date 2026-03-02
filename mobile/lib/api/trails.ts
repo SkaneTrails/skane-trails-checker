@@ -1,5 +1,5 @@
 import type { Trail, TrailDetails, TrailUpdate } from '@/lib/types';
-import { apiRequest } from './client';
+import { API_BASE_URL, ApiClientError, apiRequest } from './client';
 
 export interface TrailFilters {
   source?: string;
@@ -19,8 +19,6 @@ function buildQuery(filters: TrailFilters): string {
   const qs = params.toString();
   return qs ? `?${qs}` : '';
 }
-
-const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:8000';
 
 export const trailsApi = {
   getTrails(filters: TrailFilters = {}): Promise<Trail[]> {
@@ -60,7 +58,7 @@ export const trailsApi = {
 
     if (!response.ok) {
       const text = await response.text().catch(() => 'Unknown error');
-      throw new Error(`Upload failed (${response.status}): ${text}`);
+      throw new ApiClientError(response.status, text);
     }
 
     return response.json() as Promise<Trail[]>;

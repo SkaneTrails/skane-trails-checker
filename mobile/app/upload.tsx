@@ -6,7 +6,7 @@
  */
 
 import { useRouter } from 'expo-router';
-import { useRef, useState } from 'react';
+import { type ChangeEvent, useRef, useState } from 'react';
 import { Platform, StyleSheet, Text, View } from 'react-native';
 import { Button, Chip, ContentCard, EmptyState, ScreenLayout } from '@/components';
 import { useUploadGpx } from '@/lib/hooks';
@@ -41,7 +41,7 @@ export default function UploadScreen() {
     );
   }
 
-  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
       setSelectedFile(file);

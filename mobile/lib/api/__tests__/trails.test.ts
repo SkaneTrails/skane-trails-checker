@@ -1,8 +1,18 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { trailsApi } from '../trails';
 
 vi.mock('../client', () => ({
   apiRequest: vi.fn(),
+  ApiClientError: class ApiClientError extends Error {
+    constructor(
+      public status: number,
+      public reason: string,
+    ) {
+      super(`API Error ${status}: ${reason}`);
+      this.name = 'ApiClientError';
+    }
+  },
+  API_BASE_URL: 'http://localhost:8000',
 }));
 
 import { apiRequest } from '../client';
@@ -82,6 +92,10 @@ describe('trailsApi', () => {
       mockFetch.mockReset();
     });
 
+    afterEach(() => {
+      vi.unstubAllGlobals();
+    });
+
     it('sends POST with FormData and returns trails', async () => {
       const uploaded = [{ trail_id: 'new1', name: 'Uploaded' }];
       mockFetch.mockResolvedValue({
@@ -107,7 +121,7 @@ describe('trailsApi', () => {
       });
 
       const file = new File(['<gpx/>'], 'test.gpx');
-      await expect(trailsApi.uploadGpx(file)).rejects.toThrow('Upload failed (400): Bad request');
+      await expect(trailsApi.uploadGpx(file)).rejects.toThrow('API Error 400: Bad request');
     });
   });
 });
