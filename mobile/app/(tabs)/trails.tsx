@@ -60,7 +60,7 @@ export default function TrailsScreen() {
   const explored = trails?.filter((t) => t.status === 'Explored!').length ?? 0;
   const total = trails?.length ?? 0;
 
-  if (error) {
+  if (error && !trails?.length) {
     return (
       <ScreenLayout>
         <EmptyState

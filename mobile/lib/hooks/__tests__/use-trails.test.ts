@@ -243,7 +243,6 @@ describe('useUploadGpx', () => {
 
     const uploadedTrail = { ...sampleTrail, trail_id: 'new1', name: 'Uploaded Trail' };
     mockTrailsApi.uploadGpx.mockResolvedValue([uploadedTrail]);
-    mockTrailCache.merge.mockResolvedValue([...existingTrails, uploadedTrail]);
     const wrapper = createQueryWrapper();
 
     const { result } = renderHook(() => useUploadGpx(), { wrapper });
@@ -253,10 +252,16 @@ describe('useUploadGpx', () => {
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
 
-    // Must use the server-issued lastSyncTime, not a client Date(),
-    // so the next delta sync uses the correct baseline timestamp.
+    // Must use a single get+set (no double-read via merge), preserving the
+    // server-issued lastSyncTime so the next delta sync uses the correct baseline.
     await waitFor(() => {
-      expect(mockTrailCache.merge).toHaveBeenCalledWith([uploadedTrail], serverSyncTime);
+      expect(mockTrailCache.set).toHaveBeenCalledWith(
+        expect.arrayContaining([
+          expect.objectContaining({ trail_id: sampleTrail.trail_id }),
+          expect.objectContaining({ trail_id: 'new1' }),
+        ]),
+        serverSyncTime,
+      );
     });
   });
 });

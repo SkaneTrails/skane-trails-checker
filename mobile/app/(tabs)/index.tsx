@@ -29,7 +29,7 @@ export default function MapScreen() {
             <ActivityIndicator size="small" color={colors.overlayText} />
           </View>
         )}
-        {error && (
+        {error && !trails?.length && (
           <View style={styles.overlay}>
             <Text
               style={[
@@ -37,7 +37,7 @@ export default function MapScreen() {
                 { backgroundColor: colors.overlay, color: colors.overlayText },
               ]}
             >
-              Could not connect to API — showing empty map
+              Could not connect to API
             </Text>
           </View>
         )}
