@@ -10,10 +10,12 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from api.models.trail import Coordinate, TrailBounds, TrailDetailsResponse, TrailResponse
+from api.models.trail import Coordinate, SyncMetadata, TrailBounds, TrailDetailsResponse, TrailResponse
 from api.storage.trail_storage import (
+    _update_sync_metadata,
     delete_trail,
     get_all_trails,
+    get_sync_metadata,
     get_trail,
     get_trail_details,
     save_trail,
@@ -51,6 +53,8 @@ SAMPLE_TRAIL = {
     "center": {"lat": 56.05, "lng": 13.05},
     "source": "other_trails",
     "last_updated": "2026-01-01T00:00:00Z",
+    "created_at": "2026-01-01T00:00:00Z",
+    "modified_at": "2026-01-01T00:00:00Z",
     "activity_date": "2025-12-15",
     "activity_type": "hiking",
     "elevation_gain": 120.5,
@@ -92,6 +96,8 @@ class TestDocToTrail:
         assert isinstance(trail.center, Coordinate)
         assert trail.center.lat == 56.05
         assert trail.source == "other_trails"
+        assert trail.created_at == "2026-01-01T00:00:00Z"
+        assert trail.modified_at == "2026-01-01T00:00:00Z"
         assert trail.activity_date == "2025-12-15"
         assert trail.activity_type == "hiking"
         assert trail.elevation_gain == 120.5
@@ -114,6 +120,8 @@ class TestDocToTrail:
         assert trail.bounds.north == 0.0
         assert trail.center.lat == 0.0
         assert trail.source == ""
+        assert trail.created_at is None
+        assert trail.modified_at is None
         assert trail.activity_date is None
         assert trail.activity_type is None
         assert trail.elevation_gain is None
@@ -153,6 +161,29 @@ class TestGetAllTrails:
         mock_collection.stream.return_value = [_make_doc({"trail_id": "t1", "name": "Trail A"}), _make_doc(None)]
 
         assert len(get_all_trails()) == 1
+
+    def test_filters_by_since(self, mock_collection) -> None:
+        mock_collection.where.return_value.stream.return_value = [
+            _make_doc({"trail_id": "t1", "name": "New Trail", "created_at": "2026-03-01T12:00:00Z"})
+        ]
+
+        result = get_all_trails(since="2026-03-01T00:00:00Z")
+
+        assert len(result) == 1
+        mock_collection.where.assert_called_once_with("created_at", ">=", "2026-03-01T00:00:00Z")
+
+    def test_filters_by_source_and_since(self, mock_collection) -> None:
+        where_source = MagicMock()
+        where_both = MagicMock()
+        mock_collection.where.return_value = where_source
+        where_source.where.return_value = where_both
+        where_both.stream.return_value = [_make_doc({"trail_id": "t1", "name": "Trail A", "source": "planned_hikes"})]
+
+        result = get_all_trails(source="planned_hikes", since="2026-03-01T00:00:00Z")
+
+        assert len(result) == 1
+        mock_collection.where.assert_called_once_with("source", "==", "planned_hikes")
+        where_source.where.assert_called_once_with("created_at", ">=", "2026-03-01T00:00:00Z")
 
 
 class TestGetTrail:
@@ -279,7 +310,8 @@ class TestUpdateTrail:
 class TestDeleteTrail:
     """Tests for delete_trail — deletes both trail and trail_details."""
 
-    def test_deletes_trail_and_details(self, mock_collection) -> None:
+    @patch("api.storage.trail_storage._update_sync_metadata")
+    def test_deletes_trail_and_details(self, mock_sync, mock_collection) -> None:
         delete_trail("t1")
 
         # Should call get_collection twice (trails + trail_details)
@@ -288,13 +320,15 @@ class TestDeleteTrail:
         assert len(calls) == 2
         assert calls[0].args == ("t1",)
         assert calls[1].args == ("t1",)
+        mock_sync.assert_called_once()
 
 
 class TestSaveTrail:
     """Tests for save_trail — saves a TrailResponse to Firestore."""
 
+    @patch("api.storage.trail_storage._update_sync_metadata")
     @patch("api.storage.trail_storage.datetime")
-    def test_saves_trail_with_timestamp(self, mock_dt, mock_collection) -> None:
+    def test_saves_trail_with_timestamp(self, mock_dt, mock_sync, mock_collection) -> None:
         fixed = datetime(2026, 6, 15, 10, 0, 0, tzinfo=UTC)
         mock_dt.now.return_value = fixed
 
@@ -318,7 +352,35 @@ class TestSaveTrail:
         assert saved_data["trail_id"] == "t1"
         assert saved_data["name"] == "Test Trail"
         assert saved_data["last_updated"] == fixed.isoformat()
+        assert saved_data["created_at"] == fixed.isoformat()
         assert saved_data["coordinates_map"] == [{"lat": 56.0, "lng": 13.0}]
+        mock_sync.assert_called_once()
+
+    @patch("api.storage.trail_storage._update_sync_metadata")
+    @patch("api.storage.trail_storage.datetime")
+    def test_preserves_existing_created_at(self, mock_dt, mock_sync, mock_collection) -> None:
+        fixed = datetime(2026, 6, 15, 10, 0, 0, tzinfo=UTC)
+        mock_dt.now.return_value = fixed
+
+        trail = TrailResponse(
+            trail_id="t1",
+            name="Test Trail",
+            difficulty="easy",
+            length_km=5.0,
+            status="To Explore",
+            coordinates_map=[],
+            bounds=TrailBounds(north=0, south=0, east=0, west=0),
+            center=Coordinate(lat=0, lng=0),
+            source="other_trails",
+            last_updated="old",
+            created_at="2026-01-01T00:00:00Z",
+        )
+
+        save_trail(trail)
+
+        saved_data = mock_collection.document.return_value.set.call_args[0][0]
+        assert saved_data["created_at"] == "2026-01-01T00:00:00Z"
+        assert saved_data["last_updated"] == fixed.isoformat()
 
 
 class TestSaveTrailDetails:
@@ -355,6 +417,8 @@ class TestTrailResponseToDict:
             center=Coordinate(lat=56.05, lng=13.05),
             source="other_trails",
             last_updated="2026-01-01",
+            created_at="2026-01-01T00:00:00Z",
+            modified_at="2026-01-01T00:00:00Z",
             activity_date="2025-12-15",
             activity_type="hiking",
             elevation_gain=120.5,
@@ -367,6 +431,8 @@ class TestTrailResponseToDict:
         assert result["coordinates_map"] == [{"lat": 56.0, "lng": 13.0}, {"lat": 56.1, "lng": 13.1}]
         assert result["bounds"] == {"north": 56.1, "south": 56.0, "east": 13.1, "west": 13.0}
         assert result["center"] == {"lat": 56.05, "lng": 13.05}
+        assert result["created_at"] == "2026-01-01T00:00:00Z"
+        assert result["modified_at"] == "2026-01-01T00:00:00Z"
         assert result["activity_date"] == "2025-12-15"
         assert result["elevation_gain"] == 120.5
 
@@ -388,6 +454,8 @@ class TestTrailResponseToDict:
 
         assert "activity_date" not in result
         assert "activity_type" not in result
+        assert "created_at" not in result
+        assert "modified_at" not in result
         assert "elevation_gain" not in result
         assert "elevation_loss" not in result
 
@@ -421,3 +489,51 @@ class TestTrailDetailsToDict:
         assert "elevation_profile" not in result
         assert "waypoints" not in result
         assert "statistics" not in result
+
+
+class TestGetSyncMetadata:
+    """Tests for get_sync_metadata."""
+
+    def test_returns_metadata_from_doc(self, mock_collection) -> None:
+        mock_collection.document.return_value.get.return_value = _make_doc(
+            {"count": 42, "last_modified": "2026-03-01T12:00:00Z"}
+        )
+
+        result = get_sync_metadata()
+
+        assert isinstance(result, SyncMetadata)
+        assert result.count == 42
+        assert result.last_modified == "2026-03-01T12:00:00Z"
+
+    def test_returns_defaults_when_doc_missing(self, mock_collection) -> None:
+        mock_collection.document.return_value.get.return_value = _make_doc(None, exists=False)
+
+        result = get_sync_metadata()
+
+        assert result.count == 0
+        assert result.last_modified is None
+
+    def test_returns_defaults_when_data_is_none(self, mock_collection) -> None:
+        mock_collection.document.return_value.get.return_value = _make_doc(None, exists=True)
+
+        result = get_sync_metadata()
+
+        assert result.count == 0
+        assert result.last_modified is None
+
+
+class TestUpdateSyncMetadata:
+    """Tests for _update_sync_metadata."""
+
+    @patch("api.storage.trail_storage.datetime")
+    def test_counts_trails_and_sets_timestamp(self, mock_dt, mock_collection) -> None:
+        fixed = datetime(2026, 3, 1, 12, 0, 0, tzinfo=UTC)
+        mock_dt.now.return_value = fixed
+
+        mock_collection.stream.return_value = [MagicMock(), MagicMock(), MagicMock()]
+
+        _update_sync_metadata()
+
+        set_call = mock_collection.document.return_value.set.call_args[0][0]
+        assert set_call["count"] == 3
+        assert set_call["last_modified"] == fixed.isoformat()

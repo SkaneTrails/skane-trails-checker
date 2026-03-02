@@ -3,7 +3,7 @@
 import logging
 from datetime import UTC, datetime
 
-from api.models.trail import Coordinate, TrailBounds, TrailDetailsResponse, TrailResponse
+from api.models.trail import Coordinate, SyncMetadata, TrailBounds, TrailDetailsResponse, TrailResponse
 from api.storage.firestore_client import get_collection
 
 logger = logging.getLogger(__name__)
@@ -30,6 +30,8 @@ def _doc_to_trail(data: dict) -> TrailResponse:
         center=Coordinate(lat=center_data.get("lat", 0.0), lng=center_data.get("lng", 0.0)),
         source=data.get("source", ""),
         last_updated=data.get("last_updated", ""),
+        created_at=data.get("created_at"),
+        modified_at=data.get("modified_at"),
         activity_date=data.get("activity_date"),
         activity_type=data.get("activity_type"),
         elevation_gain=data.get("elevation_gain"),
@@ -48,12 +50,22 @@ def _doc_to_trail_details(data: dict) -> TrailDetailsResponse:
     )
 
 
-def get_all_trails(source: str | None = None) -> list[TrailResponse]:
-    """Get all trails, optionally filtered by source."""
-    logger.info("Loading trails (source=%s)", source)
+def get_all_trails(source: str | None = None, since: str | None = None) -> list[TrailResponse]:
+    """Get all trails, optionally filtered by source and/or created_at timestamp.
+
+    Args:
+        source: Filter by trail source (planned_hikes, other_trails, world_wide_hikes).
+        since: ISO timestamp — return only trails with created_at >= this value.
+    """
+    logger.info("Loading trails (source=%s, since=%s)", source, since)
     collection = get_collection("trails")
 
-    docs = collection.where("source", "==", source).stream() if source else collection.stream()
+    query = collection.where("source", "==", source) if source else collection
+
+    if since:
+        query = query.where("created_at", ">=", since)
+
+    docs = query.stream()
 
     trails = []
     for doc in docs:
@@ -68,8 +80,12 @@ def get_all_trails(source: str | None = None) -> list[TrailResponse]:
 def save_trail(trail: TrailResponse) -> None:
     """Save or update a trail in Firestore."""
     logger.info("Saving trail: %s (ID: %s, Source: %s)", trail.name, trail.trail_id, trail.source)
-    trail.last_updated = datetime.now(UTC).isoformat()
+    now = datetime.now(UTC).isoformat()
+    trail.last_updated = now
+    if not trail.created_at:
+        trail.created_at = now
     get_collection("trails").document(trail.trail_id).set(trail.to_dict())
+    _update_sync_metadata()
 
 
 def save_trail_details(details: TrailDetailsResponse) -> None:
@@ -122,3 +138,30 @@ def delete_trail(trail_id: str) -> None:
     logger.info("Deleting trail %s", trail_id)
     get_collection("trails").document(trail_id).delete()
     get_collection("trail_details").document(trail_id).delete()
+    _update_sync_metadata()
+
+
+def get_sync_metadata() -> SyncMetadata:
+    """Get trail sync metadata (count + last_modified).
+
+    Reads from the _meta/trails_sync document. Cost: 1 Firestore read.
+    """
+    doc = get_collection("_meta").document("trails_sync").get()
+    if not doc.exists:
+        return SyncMetadata(count=0, last_modified=None)
+    data = doc.to_dict()
+    if not data:
+        return SyncMetadata(count=0, last_modified=None)
+    return SyncMetadata(count=data.get("count", 0), last_modified=data.get("last_modified"))
+
+
+def _update_sync_metadata() -> None:
+    """Recalculate and update the trail sync metadata document.
+
+    Counts all trails and records the current timestamp.
+    Called after trail create or delete.
+    """
+    now = datetime.now(UTC).isoformat()
+    collection = get_collection("trails")
+    count = sum(1 for _ in collection.stream())
+    get_collection("_meta").document("trails_sync").set({"count": count, "last_modified": now})

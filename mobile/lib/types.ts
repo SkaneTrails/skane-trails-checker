@@ -25,6 +25,8 @@ export interface Trail {
   bounds: TrailBounds;
   center: Coordinate;
   last_updated: string;
+  created_at?: string | null;
+  modified_at?: string | null;
   activity_date?: string | null;
   activity_type?: string | null;
   elevation_gain?: number | null;
@@ -45,6 +47,12 @@ export interface TrailUpdate {
   name?: string;
   status?: 'To Explore' | 'Explored!';
   difficulty?: string;
+}
+
+// Sync metadata for delta trail fetching
+export interface SyncMetadata {
+  count: number;
+  last_modified: string | null;
 }
 
 // Foraging spot
