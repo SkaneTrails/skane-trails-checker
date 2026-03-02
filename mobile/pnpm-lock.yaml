@@ -32,6 +32,9 @@ importers:
       leaflet:
         specifier: ^1.9.4
         version: 1.9.4
+      leaflet.locatecontrol:
+        specifier: ^0.88.0
+        version: 0.88.0
       react:
         specifier: 19.2.4
         version: 19.2.4
@@ -2669,6 +2672,9 @@ packages:
   lan-network@0.2.0:
     resolution: {integrity: sha512-EZgbsXMrGS+oK+Ta12mCjzBFse+SIewGdwrSTr5g+MSymnjpox2x05ceI20PQejJOFvOgzcXrfDk/SdY7dSCtw==}
     hasBin: true
+
+  leaflet.locatecontrol@0.88.0:
+    resolution: {integrity: sha512-9c+06VDCWyJIFWpVTS33RpcifXpNIRLQ5TJkK6bGUPoftEhA0cGGIAwV8iYBAhYPlr+aEsL2ZLMpQZBDSOUaTQ==}
 
   leaflet@1.9.4:
     resolution: {integrity: sha512-nxS1ynzJOmOlHp+iL3FyWqK89GtNL8U8rvlMOsQdTTssxZwCXh8N2NB3GDQOL+YR3XnWyZAxwQixURb+FA74PA==}
@@ -6869,6 +6875,8 @@ snapshots:
   kleur@3.0.3: {}
 
   lan-network@0.2.0: {}
+
+  leaflet.locatecontrol@0.88.0: {}
 
   leaflet@1.9.4: {}
 

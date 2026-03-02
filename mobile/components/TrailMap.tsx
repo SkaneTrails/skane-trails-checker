@@ -12,6 +12,16 @@ function loadLeafletCSS() {
   document.head.appendChild(link);
 }
 
+function loadLocateControlCSS() {
+  if (typeof document === 'undefined') return;
+  if (document.getElementById('leaflet-locate-css')) return;
+  const link = document.createElement('link');
+  link.id = 'leaflet-locate-css';
+  link.rel = 'stylesheet';
+  link.href = 'https://unpkg.com/leaflet.locatecontrol@0.88.0/dist/L.Control.Locate.min.css';
+  document.head.appendChild(link);
+}
+
 interface TrailMapProps {
   trails: Trail[];
 }
@@ -26,12 +36,14 @@ export function TrailMap({ trails }: TrailMapProps) {
 
   useEffect(() => {
     loadLeafletCSS();
+    loadLocateControlCSS();
 
     // Dynamically import leaflet (web only)
     let cancelled = false;
 
     async function initMap() {
       const L = await import('leaflet');
+      const { LocateControl } = await import('leaflet.locatecontrol');
 
       if (cancelled || !mapRef.current) return;
 
@@ -46,6 +58,21 @@ export function TrailMap({ trails }: TrailMapProps) {
       L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         attribution: '&copy; OpenStreetMap contributors',
         maxZoom: 18,
+      }).addTo(map);
+
+      // User location control — shows a "locate me" button on the map
+      new LocateControl({
+        position: 'topleft',
+        setView: 'untilPan',
+        keepCurrentZoomLevel: true,
+        flyTo: true,
+        drawCircle: true,
+        drawMarker: true,
+        showCompass: true,
+        showPopup: false,
+        metric: true,
+        strings: { title: 'Show my location' },
+        locateOptions: { enableHighAccuracy: true },
       }).addTo(map);
 
       // Add trail polylines
