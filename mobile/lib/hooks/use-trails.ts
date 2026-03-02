@@ -105,10 +105,10 @@ async function syncTrails(
           // fall back to a full refetch to capture edits to existing trails.
           await fullRefetch(queryClient, queryKey, syncMeta.last_modified);
         }
-      } catch {
+      } catch (error) {
         // Delta fetch failed (e.g. invalid timestamp format) — recover
         // via full refetch so the user still sees all trails.
-        console.warn('Trail delta fetch failed, falling back to full refetch');
+        console.warn('Trail delta fetch failed, falling back to full refetch', error);
         await fullRefetch(queryClient, queryKey, syncMeta.last_modified);
       }
       return;

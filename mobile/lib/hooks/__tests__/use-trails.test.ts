@@ -164,7 +164,7 @@ describe('useTrails', () => {
     const allTrails = [sampleTrail, { ...sampleTrail, trail_id: 'other1', name: 'Other' }];
     mockTrailCache.get.mockResolvedValue({
       trails: [sampleTrail],
-      lastSyncTime: '2025-06-01T00:00:00.123Z', // millisecond timestamp (was rejected by API)
+      lastSyncTime: '2025-06-01T00:00:00.123Z', // millisecond timestamp used to simulate a 422 delta-fetch failure
     });
     mockTrailsApi.getSyncMetadata.mockResolvedValue({
       count: 2,
@@ -186,6 +186,7 @@ describe('useTrails', () => {
     expect(mockTrailCache.set).toHaveBeenCalledWith(allTrails, '2025-07-01T00:00:00Z');
     expect(warnSpy).toHaveBeenCalledWith(
       'Trail delta fetch failed, falling back to full refetch',
+      expect.any(Error),
     );
     warnSpy.mockRestore();
   });
