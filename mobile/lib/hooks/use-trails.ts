@@ -25,9 +25,10 @@ export const trailKeys = {
 export function useTrails(filters: TrailFilters = {}) {
   const queryClient = useQueryClient();
   const hasSynced = useRef(false);
+  const queryKey = trailKeys.list(filters);
 
   const query = useQuery({
-    queryKey: trailKeys.list(filters),
+    queryKey,
     queryFn: () => trailsApi.getTrails(filters),
   });
 
@@ -42,8 +43,8 @@ export function useTrails(filters: TrailFilters = {}) {
     // Only sync for the unfiltered query to avoid double-syncing
     if (!isUnfilteredQuery) return;
 
-    syncTrails(queryClient, trailKeys.list(filters));
-  }, [queryClient, filters]);
+    syncTrails(queryClient, queryKey);
+  }, [queryClient, filters, queryKey]);
 
   return query;
 }
@@ -92,8 +93,12 @@ async function syncTrails(
 
     // First load — no cache: will populate from the useQuery result
     // Store whatever useQuery fetches
+    const queryKeyHash = JSON.stringify(queryKey);
     const unsubscribe = queryClient.getQueryCache().subscribe((event) => {
-      if (event.type === 'updated' && event.query.queryKey === queryKey) {
+      if (
+        event.type === 'updated' &&
+        JSON.stringify(event.query.queryKey) === queryKeyHash
+      ) {
         const data = event.query.state.data as Trail[] | undefined;
         if (data && data.length > 0) {
           const now = syncMeta.last_modified ?? new Date().toISOString();
@@ -129,9 +134,15 @@ export function useUpdateTrail() {
   return useMutation({
     mutationFn: ({ id, data }: { id: string; data: TrailUpdate }) =>
       trailsApi.updateTrail(id, data),
-    onSuccess: () => {
+    onSuccess: (_result, { id, data }) => {
       queryClient.invalidateQueries({ queryKey: trailKeys.all });
-      // Cache will be refreshed on next sync
+      // Update persistent cache so changes aren't lost on next app open
+      trailCache.get().then(({ trails, lastSyncTime }) => {
+        const updated = trails.map((t) =>
+          t.trail_id === id ? { ...t, ...data } : t,
+        );
+        trailCache.set(updated, lastSyncTime ?? new Date().toISOString());
+      });
     },
   });
 }

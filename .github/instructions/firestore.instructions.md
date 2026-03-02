@@ -50,10 +50,10 @@ ______________________________________________________________________
 
 **Document: `trails_sync`**
 
-| Field           | Type  | Required | Description                               |
-| --------------- | ----- | -------- | ----------------------------------------- |
-| `count`         | `int` | ✅       | Total number of trail documents           |
-| `last_modified` | `str` | ✅       | ISO timestamp of last trail create/delete |
+| Field           | Type  | Required | Description                                                               |
+| --------------- | ----- | -------- | ------------------------------------------------------------------------- |
+| `count`         | `int` | ✅       | Total number of trail documents                                           |
+| `last_modified` | `str` | ❌       | ISO timestamp of last trail create/update/delete (null before first sync) |
 
 Updated automatically on trail save/delete. Used by clients to detect changes efficiently (1 Firestore read per app open).
 
