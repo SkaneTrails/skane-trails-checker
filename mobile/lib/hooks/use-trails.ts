@@ -175,10 +175,15 @@ export function useUploadGpx() {
       trailsApi.uploadGpx(file, source),
     onSuccess: (newTrails) => {
       queryClient.invalidateQueries({ queryKey: trailKeys.all });
-      // Add new trails to cache immediately
+      // Add new trails to cache immediately, preserving the server-issued
+      // lastSyncTime so the next delta sync uses the correct baseline.
+      // Using client Date() here would mismatch the server's last_modified,
+      // forcing unnecessary full refetches or — if the API is temporarily
+      // unreachable — leaving the cache with only the uploaded trail(s).
       if (newTrails.length > 0) {
-        const now = new Date().toISOString();
-        trailCache.merge(newTrails, now);
+        trailCache.get().then(({ lastSyncTime }) => {
+          trailCache.merge(newTrails, lastSyncTime ?? new Date().toISOString());
+        });
       }
     },
   });
