@@ -1,23 +1,12 @@
 import { useEffect, useRef } from 'react';
 import type { Trail } from '@/lib/types';
 
-// Leaflet CSS is loaded dynamically to avoid SSR/RN issues
-function loadLeafletCSS() {
-  if (typeof document === 'undefined') return;
-  if (document.getElementById('leaflet-css')) return;
-  const link = document.createElement('link');
-  link.id = 'leaflet-css';
-  link.rel = 'stylesheet';
-  link.href = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css';
-  document.head.appendChild(link);
-}
-
 interface TrailMapProps {
   trails: Trail[];
 }
 
-// Default center: Southern Sweden (Skåne)
-const DEFAULT_CENTER: [number, number] = [56.0, 13.5];
+// Default center: Skåne, Sweden
+const DEFAULT_CENTER: [number, number] = [55.95, 13.4];
 const DEFAULT_ZOOM = 9;
 
 export function TrailMap({ trails }: TrailMapProps) {
@@ -25,13 +14,16 @@ export function TrailMap({ trails }: TrailMapProps) {
   const mapInstanceRef = useRef<L.Map | null>(null);
 
   useEffect(() => {
-    loadLeafletCSS();
-
-    // Dynamically import leaflet (web only)
+    // Dynamically import leaflet and its CSS (web only)
     let cancelled = false;
 
     async function initMap() {
-      const L = await import('leaflet');
+      const [L, { LocateControl }] = await Promise.all([
+        import('leaflet'),
+        import('leaflet.locatecontrol'),
+        import('leaflet/dist/leaflet.css'),
+        import('leaflet.locatecontrol/dist/L.Control.Locate.min.css'),
+      ]);
 
       if (cancelled || !mapRef.current) return;
 
@@ -48,8 +40,22 @@ export function TrailMap({ trails }: TrailMapProps) {
         maxZoom: 18,
       }).addTo(map);
 
+      // User location control — shows a "locate me" button on the map
+      new LocateControl({
+        position: 'topleft',
+        setView: 'untilPan',
+        keepCurrentZoomLevel: true,
+        flyTo: true,
+        drawCircle: true,
+        drawMarker: true,
+        showCompass: true,
+        showPopup: false,
+        metric: true,
+        strings: { title: 'Show my location' },
+        locateOptions: { enableHighAccuracy: true },
+      }).addTo(map);
+
       // Add trail polylines
-      const bounds: L.LatLngBounds[] = [];
       for (const trail of trails) {
         if (!trail.coordinates_map || trail.coordinates_map.length === 0) continue;
 
@@ -64,17 +70,6 @@ export function TrailMap({ trails }: TrailMapProps) {
         polyline.bindPopup(
           `<b>${trail.name}</b><br/>${trail.length_km?.toFixed(1) ?? '?'} km<br/>${trail.status}`,
         );
-
-        bounds.push(polyline.getBounds());
-      }
-
-      // Fit map to show all trails
-      if (bounds.length > 0) {
-        const combined = bounds[0];
-        for (let i = 1; i < bounds.length; i++) {
-          combined.extend(bounds[i]);
-        }
-        map.fitBounds(combined, { padding: [30, 30] });
       }
     }
 
