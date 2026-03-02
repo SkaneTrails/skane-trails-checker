@@ -144,13 +144,17 @@
       "description": "Only allow Python patch updates"
     },
     {
-      "rangeStrategy": "bump",
+      "groupName": "Python runtime",
+      "groupSlug": "python-runtime",
       "matchPackageNames": [
         "python"
       ],
       "matchManagers": [
-        "pep621"
-      ]
+        "pep621",
+        "pyenv"
+      ],
+      "rangeStrategy": "bump",
+      "description": "Group pyproject.toml requires-python and .python-version updates together"
     }
   ],
   "lockFileMaintenance": {
