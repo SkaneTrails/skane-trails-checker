@@ -6,7 +6,7 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile
 
 from api.auth import AuthenticatedUser, require_auth
-from api.models.trail import TrailDetailsResponse, TrailResponse, TrailUpdate
+from api.models.trail import SyncMetadata, TrailDetailsResponse, TrailFilterParams, TrailResponse, TrailUpdate
 from api.services.gpx_parser import parse_gpx_upload
 from api.storage import trail_storage
 
@@ -15,31 +15,33 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/trails", tags=["trails"])
 
 
-@router.get("")
-def list_trails(
-    source: Annotated[
-        str | None, Query(description="Filter by source: planned_hikes, other_trails, world_wide_hikes")
-    ] = None,
-    search: Annotated[str | None, Query(description="Search trail names (case-insensitive)")] = None,
-    min_distance_km: Annotated[float | None, Query(ge=0, description="Minimum distance in km")] = None,
-    max_distance_km: Annotated[float | None, Query(ge=0, description="Maximum distance in km")] = None,
-    status: Annotated[str | None, Query(pattern=r"^(To Explore|Explored!)$", description="Filter by status")] = None,
-) -> list[TrailResponse]:
-    """List all trails with optional filtering."""
-    trails = trail_storage.get_all_trails(source=source)
+@router.get("/sync")
+def get_sync_metadata() -> SyncMetadata:
+    """Get trail sync metadata (count + last_modified).
 
-    if search:
-        query_lower = search.lower()
+    Costs 1 Firestore read. Clients compare against local cache
+    to decide whether a full or delta fetch is needed.
+    """
+    return trail_storage.get_sync_metadata()
+
+
+@router.get("")
+def list_trails(filters: Annotated[TrailFilterParams, Query()]) -> list[TrailResponse]:
+    """List all trails with optional filtering."""
+    trails = trail_storage.get_all_trails(source=filters.source, since=filters.since)
+
+    if filters.search:
+        query_lower = filters.search.lower()
         trails = [t for t in trails if query_lower in t.name.lower()]
 
-    if min_distance_km is not None:
-        trails = [t for t in trails if t.length_km >= min_distance_km]
+    if filters.min_distance_km is not None:
+        trails = [t for t in trails if t.length_km >= filters.min_distance_km]
 
-    if max_distance_km is not None:
-        trails = [t for t in trails if t.length_km <= max_distance_km]
+    if filters.max_distance_km is not None:
+        trails = [t for t in trails if t.length_km <= filters.max_distance_km]
 
-    if status:
-        trails = [t for t in trails if t.status == status]
+    if filters.status:
+        trails = [t for t in trails if t.status == filters.status]
 
     return trails
 

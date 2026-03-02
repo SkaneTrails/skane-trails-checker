@@ -32,6 +32,8 @@ class TrailResponse(BaseModel):
     center: Coordinate
     source: str = Field(description="'planned_hikes', 'other_trails', or 'world_wide_hikes'")
     last_updated: str
+    created_at: str | None = None
+    modified_at: str | None = None
     activity_date: str | None = None
     activity_type: str | None = None
     elevation_gain: float | None = None
@@ -60,6 +62,10 @@ class TrailResponse(BaseModel):
             data["activity_date"] = self.activity_date
         if self.activity_type is not None:
             data["activity_type"] = self.activity_type
+        if self.created_at is not None:
+            data["created_at"] = self.created_at
+        if self.modified_at is not None:
+            data["modified_at"] = self.modified_at
         if self.elevation_gain is not None:
             data["elevation_gain"] = float(self.elevation_gain)
         if self.elevation_loss is not None:
@@ -119,3 +125,11 @@ class TrailFilterParams(BaseModel):
     min_distance_km: float | None = None
     max_distance_km: float | None = None
     status: str | None = Field(default=None, pattern=r"^(To Explore|Explored!)$")
+    since: str | None = None
+
+
+class SyncMetadata(BaseModel):
+    """Sync metadata for delta trail fetching."""
+
+    count: int = Field(description="Total number of trails")
+    last_modified: str | None = Field(default=None, description="ISO timestamp of last trail change")

@@ -11,6 +11,16 @@ vi.mock('@/lib/api', () => ({
     updateTrail: vi.fn(),
     deleteTrail: vi.fn(),
     uploadGpx: vi.fn(),
+    getSyncMetadata: vi.fn(),
+  },
+}));
+
+vi.mock('@/lib/storage/trail-cache', () => ({
+  trailCache: {
+    get: vi.fn().mockResolvedValue({ trails: [], lastSyncTime: null }),
+    set: vi.fn().mockResolvedValue(undefined),
+    merge: vi.fn().mockResolvedValue([]),
+    clear: vi.fn().mockResolvedValue(undefined),
   },
 }));
 

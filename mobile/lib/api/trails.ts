@@ -1,4 +1,4 @@
-import type { Trail, TrailDetails, TrailUpdate } from '@/lib/types';
+import type { SyncMetadata, Trail, TrailDetails, TrailUpdate } from '@/lib/types';
 import { API_BASE_URL, ApiClientError, apiRequest } from './client';
 
 export interface TrailFilters {
@@ -7,6 +7,7 @@ export interface TrailFilters {
   min_distance_km?: number;
   max_distance_km?: number;
   status?: string;
+  since?: string;
 }
 
 function buildQuery(filters: TrailFilters): string {
@@ -31,6 +32,10 @@ export const trailsApi = {
 
   getTrailDetails(id: string): Promise<TrailDetails> {
     return apiRequest<TrailDetails>(`/api/v1/trails/${id}/details`);
+  },
+
+  getSyncMetadata(): Promise<SyncMetadata> {
+    return apiRequest<SyncMetadata>('/api/v1/trails/sync');
   },
 
   updateTrail(id: string, data: TrailUpdate): Promise<Trail> {
