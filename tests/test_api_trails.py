@@ -112,6 +112,14 @@ class TestListTrails:
         assert response.status_code == 200
         mock_get_all.assert_called_once_with(source="planned_hikes", since="2026-03-01T00:00:00Z")
 
+    @patch("api.routers.trails.trail_storage.get_all_trails")
+    def test_list_trails_with_since_milliseconds(self, mock_get_all):
+        mock_get_all.return_value = [SAMPLE_TRAIL]
+        response = client.get("/api/v1/trails?since=2026-03-01T00:00:00.123Z")
+        assert response.status_code == 200
+        assert len(response.json()) == 1
+        mock_get_all.assert_called_once_with(source=None, since="2026-03-01T00:00:00.123Z")
+
     def test_list_trails_rejects_invalid_since_format(self):
         response = client.get("/api/v1/trails?since=2026-03-01")
         assert response.status_code == 422

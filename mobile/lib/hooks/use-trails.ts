@@ -78,10 +78,7 @@ async function syncTrails(
 
     // Deletion detected: server has fewer trails → full refetch
     if (syncMeta.count < cached.trails.length) {
-      const allTrails = await trailsApi.getTrails({});
-      const now = new Date().toISOString();
-      await trailCache.set(allTrails, now);
-      queryClient.setQueryData(queryKey, allTrails);
+      await fullRefetch(queryClient, queryKey, syncMeta.last_modified);
       return;
     }
 
@@ -90,31 +87,50 @@ async function syncTrails(
       return;
     }
 
-    // Delta fetch: get only new trails since last sync
+    // Delta fetch: get only new trails since last sync.
+    // Wrapped in its own try/catch so that validation errors (e.g.
+    // millisecond timestamps rejected by the API) fall back to a
+    // full refetch instead of aborting the entire sync.
     if (cached.lastSyncTime && cached.trails.length > 0) {
-      const newTrails = await trailsApi.getTrails({ since: cached.lastSyncTime });
-      if (newTrails.length > 0) {
-        const merged = await trailCache.merge(
-          newTrails,
-          syncMeta.last_modified ?? new Date().toISOString(),
-        );
-        queryClient.setQueryData(queryKey, merged);
-      } else {
-        // Metadata changed but no new trails by created_at filter:
-        // fall back to a full refetch to capture edits to existing trails.
-        const allTrails = await trailsApi.getTrails({});
-        const now = syncMeta.last_modified ?? new Date().toISOString();
-        await trailCache.set(allTrails, now);
-        queryClient.setQueryData(queryKey, allTrails);
+      try {
+        const newTrails = await trailsApi.getTrails({ since: cached.lastSyncTime });
+        if (newTrails.length > 0) {
+          const merged = await trailCache.merge(
+            newTrails,
+            syncMeta.last_modified ?? new Date().toISOString(),
+          );
+          queryClient.setQueryData(queryKey, merged);
+        } else {
+          // Metadata changed but no new trails by created_at filter:
+          // fall back to a full refetch to capture edits to existing trails.
+          await fullRefetch(queryClient, queryKey, syncMeta.last_modified);
+        }
+      } catch {
+        // Delta fetch failed (e.g. invalid timestamp format) — recover
+        // via full refetch so the user still sees all trails.
+        console.warn('Trail delta fetch failed, falling back to full refetch');
+        await fullRefetch(queryClient, queryKey, syncMeta.last_modified);
       }
       return;
     }
 
     // First load — no cache: let useQuery do the full fetch
     // (enabled becomes true when syncDone is set)
-  } catch {
+  } catch (error) {
+    console.warn('Trail sync failed:', error);
     // Sync failure is non-fatal — useQuery still fetches from API
   }
+}
+
+async function fullRefetch(
+  queryClient: ReturnType<typeof useQueryClient>,
+  queryKey: readonly unknown[],
+  lastModified: string | null | undefined,
+): Promise<void> {
+  const allTrails = await trailsApi.getTrails({});
+  const syncTime = lastModified ?? new Date().toISOString();
+  await trailCache.set(allTrails, syncTime);
+  queryClient.setQueryData(queryKey, allTrails);
 }
 
 export function useTrail(id: string) {

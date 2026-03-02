@@ -127,8 +127,8 @@ class TrailFilterParams(BaseModel):
     status: str | None = Field(default=None, pattern=r"^(To Explore|Explored!)$")
     since: str | None = Field(
         default=None,
-        pattern=r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$",
-        description="ISO timestamp (e.g. 2024-01-01T12:34:56Z) for created_at filtering",
+        pattern=r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?Z$",
+        description="ISO timestamp (e.g. 2024-01-01T12:34:56Z or 2024-01-01T12:34:56.789Z) for created_at filtering",
     )
 
 
