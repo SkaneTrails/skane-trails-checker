@@ -13,4 +13,5 @@ export {
   useTrailDetails,
   useTrails,
   useUpdateTrail,
+  useUploadGpx,
 } from './use-trails';
