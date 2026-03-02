@@ -1,27 +1,6 @@
 import { useEffect, useRef } from 'react';
 import type { Trail } from '@/lib/types';
 
-// Leaflet CSS is loaded dynamically to avoid SSR/RN issues
-function loadLeafletCSS() {
-  if (typeof document === 'undefined') return;
-  if (document.getElementById('leaflet-css')) return;
-  const link = document.createElement('link');
-  link.id = 'leaflet-css';
-  link.rel = 'stylesheet';
-  link.href = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css';
-  document.head.appendChild(link);
-}
-
-function loadLocateControlCSS() {
-  if (typeof document === 'undefined') return;
-  if (document.getElementById('leaflet-locate-css')) return;
-  const link = document.createElement('link');
-  link.id = 'leaflet-locate-css';
-  link.rel = 'stylesheet';
-  link.href = 'https://unpkg.com/leaflet.locatecontrol@0.88.0/dist/L.Control.Locate.min.css';
-  document.head.appendChild(link);
-}
-
 interface TrailMapProps {
   trails: Trail[];
 }
@@ -35,15 +14,16 @@ export function TrailMap({ trails }: TrailMapProps) {
   const mapInstanceRef = useRef<L.Map | null>(null);
 
   useEffect(() => {
-    loadLeafletCSS();
-    loadLocateControlCSS();
-
-    // Dynamically import leaflet (web only)
+    // Dynamically import leaflet and its CSS (web only)
     let cancelled = false;
 
     async function initMap() {
-      const L = await import('leaflet');
-      const { LocateControl } = await import('leaflet.locatecontrol');
+      const [L, { LocateControl }] = await Promise.all([
+        import('leaflet'),
+        import('leaflet.locatecontrol'),
+        import('leaflet/dist/leaflet.css'),
+        import('leaflet.locatecontrol/dist/L.Control.Locate.min.css'),
+      ]);
 
       if (cancelled || !mapRef.current) return;
 
@@ -76,7 +56,6 @@ export function TrailMap({ trails }: TrailMapProps) {
       }).addTo(map);
 
       // Add trail polylines
-      const bounds: L.LatLngBounds[] = [];
       for (const trail of trails) {
         if (!trail.coordinates_map || trail.coordinates_map.length === 0) continue;
 
@@ -91,8 +70,6 @@ export function TrailMap({ trails }: TrailMapProps) {
         polyline.bindPopup(
           `<b>${trail.name}</b><br/>${trail.length_km?.toFixed(1) ?? '?'} km<br/>${trail.status}`,
         );
-
-        bounds.push(polyline.getBounds());
       }
     }
 
