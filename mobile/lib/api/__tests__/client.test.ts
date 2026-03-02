@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { ApiClientError, apiRequest } from '../client';
+import { ApiClientError, apiRequest, setAuthTokenGetter, setOnUnauthorized } from '../client';
 
 // Mock global fetch
 const mockFetch = vi.fn();
@@ -8,6 +8,9 @@ global.fetch = mockFetch;
 describe('apiRequest', () => {
   beforeEach(() => {
     mockFetch.mockReset();
+    // Reset auth state between tests
+    setAuthTokenGetter(null);
+    setOnUnauthorized(null);
   });
 
   it('makes a GET request and returns JSON', async () => {
@@ -68,5 +71,88 @@ describe('apiRequest', () => {
         body: '{"type":"Mushrooms"}',
       }),
     );
+  });
+
+  it('attaches Authorization header when token getter is set', async () => {
+    setAuthTokenGetter(async () => 'test-firebase-token');
+
+    mockFetch.mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: () => Promise.resolve({ id: '1' }),
+    });
+
+    await apiRequest('/api/v1/trails');
+
+    expect(mockFetch).toHaveBeenCalledWith(
+      expect.any(String),
+      expect.objectContaining({
+        headers: expect.objectContaining({
+          Authorization: 'Bearer test-firebase-token',
+        }),
+      }),
+    );
+  });
+
+  it('does not attach Authorization header when token getter returns null', async () => {
+    setAuthTokenGetter(async () => null);
+
+    mockFetch.mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: () => Promise.resolve([]),
+    });
+
+    await apiRequest('/api/v1/trails');
+
+    const callHeaders = mockFetch.mock.calls[0][1].headers;
+    expect(callHeaders).not.toHaveProperty('Authorization');
+  });
+
+  it('proceeds without auth when token getter throws', async () => {
+    setAuthTokenGetter(async () => {
+      throw new Error('Firebase transient failure');
+    });
+
+    mockFetch.mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: () => Promise.resolve({ id: '1' }),
+    });
+
+    const result = await apiRequest('/api/v1/trails');
+
+    expect(result).toEqual({ id: '1' });
+    const callHeaders = mockFetch.mock.calls[0][1].headers;
+    expect(callHeaders).not.toHaveProperty('Authorization');
+  });
+
+  it('calls onUnauthorized with hadToken=true on 401 when token was sent', async () => {
+    const onUnauthorized = vi.fn();
+    setAuthTokenGetter(async () => 'valid-token');
+    setOnUnauthorized(onUnauthorized);
+
+    mockFetch.mockResolvedValue({
+      ok: false,
+      status: 401,
+      text: () => Promise.resolve('Unauthorized'),
+    });
+
+    await expect(apiRequest('/api/v1/trails')).rejects.toThrow(ApiClientError);
+    expect(onUnauthorized).toHaveBeenCalledWith(true);
+  });
+
+  it('calls onUnauthorized with hadToken=false on 401 when no token available', async () => {
+    const onUnauthorized = vi.fn();
+    setOnUnauthorized(onUnauthorized);
+
+    mockFetch.mockResolvedValue({
+      ok: false,
+      status: 401,
+      text: () => Promise.resolve('Unauthorized'),
+    });
+
+    await expect(apiRequest('/api/v1/trails')).rejects.toThrow(ApiClientError);
+    expect(onUnauthorized).toHaveBeenCalledWith(false);
   });
 });

@@ -1,7 +1,7 @@
 import 'fake-indexeddb/auto';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { trailCache } from '../../storage/trail-cache';
 import type { Trail } from '@/lib/types';
+import { trailCache } from '../../storage/trail-cache';
 
 const sampleTrail: Trail = {
   trail_id: 'abc123',
