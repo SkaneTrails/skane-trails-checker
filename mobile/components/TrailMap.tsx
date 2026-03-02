@@ -26,8 +26,8 @@ interface TrailMapProps {
   trails: Trail[];
 }
 
-// Default center: Southern Sweden (Skåne)
-const DEFAULT_CENTER: [number, number] = [56.0, 13.5];
+// Default center: Skåne, Sweden
+const DEFAULT_CENTER: [number, number] = [55.95, 13.4];
 const DEFAULT_ZOOM = 9;
 
 export function TrailMap({ trails }: TrailMapProps) {
@@ -93,15 +93,6 @@ export function TrailMap({ trails }: TrailMapProps) {
         );
 
         bounds.push(polyline.getBounds());
-      }
-
-      // Fit map to show all trails
-      if (bounds.length > 0) {
-        const combined = bounds[0];
-        for (let i = 1; i < bounds.length; i++) {
-          combined.extend(bounds[i]);
-        }
-        map.fitBounds(combined, { padding: [30, 30] });
       }
     }
 
