@@ -1,60 +1,60 @@
 import { useState } from 'react';
-import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
+import { FlatList, StyleSheet, Text, View } from 'react-native';
+import { Chip, ContentCard, EmptyState, ScreenLayout } from '@/components';
 import { useForagingSpots, useForagingTypes } from '@/lib/hooks';
+import { borderRadius, fontSize, fontWeight, spacing, useTheme } from '@/lib/theme';
 import type { ForagingSpot } from '@/lib/types';
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
 function SpotItem({ spot }: { spot: ForagingSpot }) {
+  const { colors } = useTheme();
+
   return (
-    <View style={styles.card}>
+    <ContentCard>
       <View style={styles.cardHeader}>
-        <Text style={styles.spotType}>{spot.type}</Text>
-        <Text style={styles.spotMonth}>{spot.month}</Text>
+        <Text style={[styles.spotType, { color: colors.text.primary }]}>{spot.type}</Text>
+        <Text style={[styles.spotMonth, { color: colors.text.secondary }]}>{spot.month}</Text>
       </View>
-      {spot.notes ? <Text style={styles.notes}>{spot.notes}</Text> : null}
-      <Text style={styles.coords}>
+      {spot.notes ? (
+        <Text style={[styles.notes, { color: colors.text.secondary }]}>{spot.notes}</Text>
+      ) : null}
+      <Text style={[styles.coords, { color: colors.text.muted }]}>
         📍 {spot.lat.toFixed(4)}, {spot.lng.toFixed(4)}
       </Text>
-    </View>
+    </ContentCard>
   );
 }
 
 export default function ForagingScreen() {
+  const { colors } = useTheme();
   const [selectedMonth, setSelectedMonth] = useState<string | undefined>();
   const { data: spots, isLoading, error } = useForagingSpots(selectedMonth);
   const { data: types } = useForagingTypes();
 
   return (
-    <View style={styles.container}>
-      <View style={styles.monthBar}>
-        <Pressable
-          style={[styles.monthChip, !selectedMonth && styles.monthChipActive]}
-          onPress={() => setSelectedMonth(undefined)}
-        >
-          <Text style={[styles.monthText, !selectedMonth && styles.monthTextActive]}>All</Text>
-        </Pressable>
+    <ScreenLayout>
+      <View
+        style={[
+          styles.monthBar,
+          { backgroundColor: colors.surface, borderBottomColor: colors.borderLight },
+        ]}
+      >
+        <Chip label="All" selected={!selectedMonth} onPress={() => setSelectedMonth(undefined)} />
         {MONTHS.map((m) => (
-          <Pressable
+          <Chip
             key={m}
-            style={[styles.monthChip, selectedMonth === m && styles.monthChipActive]}
+            label={m}
+            selected={selectedMonth === m}
             onPress={() => setSelectedMonth(m === selectedMonth ? undefined : m)}
-          >
-            <Text style={[styles.monthText, selectedMonth === m && styles.monthTextActive]}>
-              {m}
-            </Text>
-          </Pressable>
+          />
         ))}
       </View>
 
       {isLoading ? (
-        <View style={styles.center}>
-          <Text>Loading spots...</Text>
-        </View>
+        <EmptyState emoji="⏳" title="Loading spots..." />
       ) : error ? (
-        <View style={styles.center}>
-          <Text style={styles.error}>Failed to load foraging spots</Text>
-        </View>
+        <EmptyState emoji="⚠️" title="Failed to load foraging spots" />
       ) : (
         <FlatList
           data={spots}
@@ -65,113 +65,70 @@ export default function ForagingScreen() {
             types && types.length > 0 ? (
               <View style={styles.typesRow}>
                 {types.map((t) => (
-                  <Text key={t.name} style={styles.typeTag}>
+                  <Text
+                    key={t.name}
+                    style={[
+                      styles.typeTag,
+                      {
+                        backgroundColor: colors.tag.foragingBg,
+                        color: colors.tag.foragingText,
+                      },
+                    ]}
+                  >
                     {t.icon} {t.name}
                   </Text>
                 ))}
               </View>
             ) : null
           }
-          ListEmptyComponent={
-            <View style={styles.center}>
-              <Text>No foraging spots found</Text>
-            </View>
-          }
+          ListEmptyComponent={<EmptyState emoji="🍄" title="No foraging spots found" />}
         />
       )}
-    </View>
+    </ScreenLayout>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#f5f5f5',
-  },
-  center: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 20,
-  },
   monthBar: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    padding: 8,
-    gap: 6,
-    backgroundColor: '#fff',
+    padding: spacing.sm,
+    gap: spacing.sm - 2,
     borderBottomWidth: 1,
-    borderBottomColor: '#eee',
-  },
-  monthChip: {
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 16,
-    backgroundColor: '#eee',
-  },
-  monthChipActive: {
-    backgroundColor: '#1a5e2a',
-  },
-  monthText: {
-    fontSize: 13,
-    color: '#333',
-  },
-  monthTextActive: {
-    color: '#fff',
-    fontWeight: '600',
   },
   list: {
-    padding: 12,
-    gap: 10,
+    padding: spacing.md,
+    gap: spacing.md,
   },
   typesRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 8,
-    marginBottom: 12,
+    gap: spacing.sm,
+    marginBottom: spacing.md,
   },
   typeTag: {
-    fontSize: 13,
-    backgroundColor: '#e8f5e9',
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 12,
-  },
-  card: {
-    backgroundColor: '#fff',
-    borderRadius: 10,
-    padding: 14,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 3,
-    elevation: 2,
+    fontSize: fontSize.sm,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs,
+    borderRadius: borderRadius.lg - 4,
   },
   cardHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: 6,
+    marginBottom: spacing.sm - 2,
   },
   spotType: {
-    fontSize: 15,
-    fontWeight: '600',
+    fontSize: fontSize.lg - 1,
+    fontWeight: fontWeight.semibold,
   },
   spotMonth: {
-    fontSize: 13,
-    color: '#666',
+    fontSize: fontSize.sm,
   },
   notes: {
-    fontSize: 14,
-    color: '#444',
-    marginBottom: 6,
+    fontSize: fontSize.md,
+    marginBottom: spacing.sm - 2,
   },
   coords: {
-    fontSize: 12,
-    color: '#999',
-  },
-  error: {
-    fontSize: 16,
-    color: '#c00',
-    fontWeight: 'bold',
+    fontSize: fontSize.xs,
   },
 });

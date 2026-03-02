@@ -55,3 +55,15 @@ export function useDeleteTrail() {
     },
   });
 }
+
+export function useUploadGpx() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ file, source }: { file: File; source?: string }) =>
+      trailsApi.uploadGpx(file, source),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: trailKeys.all });
+    },
+  });
+}
