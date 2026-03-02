@@ -1,5 +1,5 @@
 import type { SyncMetadata, Trail, TrailDetails, TrailUpdate } from '@/lib/types';
-import { API_BASE_URL, ApiClientError, apiRequest } from './client';
+import { apiRequest } from './client';
 
 export interface TrailFilters {
   source?: string;
@@ -51,21 +51,13 @@ export const trailsApi = {
     });
   },
 
-  async uploadGpx(file: File, source: string = 'other_trails'): Promise<Trail[]> {
+  uploadGpx(file: File, source: string = 'other_trails'): Promise<Trail[]> {
     const formData = new FormData();
     formData.append('file', file);
 
-    const url = `${API_BASE_URL}/api/v1/trails/upload?source=${encodeURIComponent(source)}`;
-    const response = await fetch(url, {
-      method: 'POST',
-      body: formData,
-    });
-
-    if (!response.ok) {
-      const text = await response.text().catch(() => 'Unknown error');
-      throw new ApiClientError(response.status, text);
-    }
-
-    return response.json() as Promise<Trail[]>;
+    return apiRequest<Trail[]>(
+      `/api/v1/trails/upload?source=${encodeURIComponent(source)}`,
+      { method: 'POST', body: formData },
+    );
   },
 };
