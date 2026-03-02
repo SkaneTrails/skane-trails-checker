@@ -175,10 +175,21 @@ export function useUploadGpx() {
       trailsApi.uploadGpx(file, source),
     onSuccess: (newTrails) => {
       queryClient.invalidateQueries({ queryKey: trailKeys.all });
-      // Add new trails to cache immediately
+      // Merge new trails into cache in a single read-then-write to avoid
+      // the double-read that trailCache.merge() would introduce. Preserves
+      // the server-issued lastSyncTime so the next delta sync uses the
+      // correct baseline (client Date() would mismatch last_modified).
       if (newTrails.length > 0) {
-        const now = new Date().toISOString();
-        trailCache.merge(newTrails, now);
+        trailCache.get().then(({ trails, lastSyncTime }) => {
+          const merged = new Map(trails.map((t) => [t.trail_id, t]));
+          for (const trail of newTrails) {
+            merged.set(trail.trail_id, trail);
+          }
+          trailCache.set(
+            Array.from(merged.values()),
+            lastSyncTime ?? new Date().toISOString(),
+          );
+        });
       }
     },
   });

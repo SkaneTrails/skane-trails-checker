@@ -1,6 +1,6 @@
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
-import { FlatList, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, FlatList, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { Chip, ContentCard, EmptyState, ScreenLayout, StatusBadge } from '@/components';
 import type { TrailFilters } from '@/lib/api';
 import { useTrails } from '@/lib/hooks';
@@ -55,12 +55,12 @@ export default function TrailsScreen() {
     ...(statusFilter ? { status: statusFilter } : {}),
   };
 
-  const { data: trails, isLoading, error, refetch } = useTrails(filters);
+  const { data: trails, isLoading, isFetching, error, refetch } = useTrails(filters);
 
   const explored = trails?.filter((t) => t.status === 'Explored!').length ?? 0;
   const total = trails?.length ?? 0;
 
-  if (error) {
+  if (error && !trails?.length) {
     return (
       <ScreenLayout>
         <EmptyState
@@ -76,9 +76,14 @@ export default function TrailsScreen() {
   return (
     <ScreenLayout>
       <View style={[styles.summary, { backgroundColor: colors.primary }]}>
-        <Text style={[styles.summaryText, { color: colors.text.inverse }]}>
-          🥾 {explored} / {total} explored
-        </Text>
+        <View style={styles.summaryLeft}>
+          <Text style={[styles.summaryText, { color: colors.text.inverse }]}>
+            🥾 {explored} / {total} explored
+          </Text>
+          {isFetching && (
+            <ActivityIndicator size="small" color={colors.text.inverse} />
+          )}
+        </View>
         <Pressable style={styles.uploadButton} onPress={() => router.push('/upload')}>
           <Text style={[styles.uploadButtonText, { color: colors.text.inverse }]}>
             📤 Upload GPX
@@ -118,7 +123,7 @@ export default function TrailsScreen() {
         </View>
       </View>
 
-      {isLoading ? (
+      {isLoading && !trails?.length ? (
         <EmptyState emoji="⏳" title="Loading trails..." />
       ) : (
         <FlatList
@@ -139,6 +144,11 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     padding: spacing.md,
+  },
+  summaryLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
   },
   summaryText: {
     fontSize: fontSize.lg,
