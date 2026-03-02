@@ -155,4 +155,23 @@ describe('apiRequest', () => {
     await expect(apiRequest('/api/v1/trails')).rejects.toThrow(ApiClientError);
     expect(onUnauthorized).toHaveBeenCalledWith(false);
   });
+
+  it('does not set Content-Type for FormData body', async () => {
+    mockFetch.mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: () => Promise.resolve([]),
+    });
+
+    const formData = new FormData();
+    formData.append('file', new Blob(['gpx-data']), 'trail.gpx');
+
+    await apiRequest('/api/v1/trails/upload', {
+      method: 'POST',
+      body: formData,
+    });
+
+    const callHeaders = mockFetch.mock.calls[0][1].headers;
+    expect(callHeaders).not.toHaveProperty('Content-Type');
+  });
 });

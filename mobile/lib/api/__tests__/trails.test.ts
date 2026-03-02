@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { trailsApi } from '../trails';
 
 vi.mock('../client', () => ({
@@ -94,40 +94,25 @@ describe('trailsApi', () => {
   });
 
   describe('uploadGpx', () => {
-    const mockFetch = vi.fn();
-
-    beforeEach(() => {
-      vi.stubGlobal('fetch', mockFetch);
-      mockFetch.mockReset();
-    });
-
-    afterEach(() => {
-      vi.unstubAllGlobals();
-    });
-
     it('sends POST with FormData and returns trails', async () => {
       const uploaded = [{ trail_id: 'new1', name: 'Uploaded' }];
-      mockFetch.mockResolvedValue({
-        ok: true,
-        json: () => Promise.resolve(uploaded),
-      });
+      mockApiRequest.mockResolvedValue(uploaded);
 
       const file = new File(['<gpx/>'], 'test.gpx', { type: 'application/gpx+xml' });
       const result = await trailsApi.uploadGpx(file, 'other_trails');
 
       expect(result).toEqual(uploaded);
-      expect(mockFetch).toHaveBeenCalledWith(
-        expect.stringContaining('/api/v1/trails/upload?source=other_trails'),
-        expect.objectContaining({ method: 'POST' }),
+      expect(mockApiRequest).toHaveBeenCalledWith(
+        '/api/v1/trails/upload?source=other_trails',
+        expect.objectContaining({
+          method: 'POST',
+          body: expect.any(FormData),
+        }),
       );
     });
 
-    it('throws on non-ok response', async () => {
-      mockFetch.mockResolvedValue({
-        ok: false,
-        status: 400,
-        text: () => Promise.resolve('Bad request'),
-      });
+    it('throws on API error', async () => {
+      mockApiRequest.mockRejectedValue(new Error('API Error 400: Bad request'));
 
       const file = new File(['<gpx/>'], 'test.gpx');
       await expect(trailsApi.uploadGpx(file)).rejects.toThrow('API Error 400: Bad request');

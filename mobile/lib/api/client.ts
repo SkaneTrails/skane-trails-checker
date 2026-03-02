@@ -28,7 +28,7 @@ export async function apiRequest<T>(path: string, options: RequestInit = {}): Pr
   const url = `${API_BASE_URL}${path}`;
 
   const headers: Record<string, string> = { ...(options.headers as Record<string, string>) };
-  if (options.body) {
+  if (options.body && !(options.body instanceof FormData)) {
     headers['Content-Type'] = headers['Content-Type'] ?? 'application/json';
   }
 
