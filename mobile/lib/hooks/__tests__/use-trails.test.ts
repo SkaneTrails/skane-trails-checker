@@ -232,4 +232,36 @@ describe('useUploadGpx', () => {
     expect(result.current.data).toEqual([uploadedTrail]);
     expect(mockTrailsApi.uploadGpx).toHaveBeenCalledWith(mockFile, 'other_trails');
   });
+
+  it('preserves server lastSyncTime when merging uploaded trails into cache', async () => {
+    const serverSyncTime = '2025-06-15T10:00:00Z';
+    const existingTrails = [sampleTrail];
+    mockTrailCache.get.mockResolvedValue({
+      trails: existingTrails,
+      lastSyncTime: serverSyncTime,
+    });
+
+    const uploadedTrail = { ...sampleTrail, trail_id: 'new1', name: 'Uploaded Trail' };
+    mockTrailsApi.uploadGpx.mockResolvedValue([uploadedTrail]);
+    const wrapper = createQueryWrapper();
+
+    const { result } = renderHook(() => useUploadGpx(), { wrapper });
+
+    const mockFile = new File(['gpx content'], 'test.gpx', { type: 'application/gpx+xml' });
+    result.current.mutate({ file: mockFile });
+
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+
+    // Must use a single get+set (no double-read via merge), preserving the
+    // server-issued lastSyncTime so the next delta sync uses the correct baseline.
+    await waitFor(() => {
+      expect(mockTrailCache.set).toHaveBeenCalledWith(
+        expect.arrayContaining([
+          expect.objectContaining({ trail_id: sampleTrail.trail_id }),
+          expect.objectContaining({ trail_id: 'new1' }),
+        ]),
+        serverSyncTime,
+      );
+    });
+  });
 });
