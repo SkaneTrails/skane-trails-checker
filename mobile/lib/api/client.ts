@@ -16,11 +16,11 @@ type UnauthorizedCallback = (hadToken: boolean) => void;
 let authTokenGetter: TokenGetter | null = null;
 let onUnauthorized: UnauthorizedCallback | null = null;
 
-export function setAuthTokenGetter(getter: TokenGetter): void {
+export function setAuthTokenGetter(getter: TokenGetter | null): void {
   authTokenGetter = getter;
 }
 
-export function setOnUnauthorized(callback: UnauthorizedCallback): void {
+export function setOnUnauthorized(callback: UnauthorizedCallback | null): void {
   onUnauthorized = callback;
 }
 
@@ -34,10 +34,14 @@ export async function apiRequest<T>(path: string, options: RequestInit = {}): Pr
 
   let hadToken = false;
   if (authTokenGetter) {
-    const token = await authTokenGetter();
-    if (token) {
-      headers.Authorization = `Bearer ${token}`;
-      hadToken = true;
+    try {
+      const token = await authTokenGetter();
+      if (token) {
+        headers.Authorization = `Bearer ${token}`;
+        hadToken = true;
+      }
+    } catch {
+      // Token fetch failed (e.g. Firebase transient error) — proceed without auth
     }
   }
 

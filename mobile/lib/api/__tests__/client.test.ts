@@ -9,8 +9,8 @@ describe('apiRequest', () => {
   beforeEach(() => {
     mockFetch.mockReset();
     // Reset auth state between tests
-    setAuthTokenGetter(null as unknown as () => Promise<string | null>);
-    setOnUnauthorized(null as unknown as (hadToken: boolean) => void);
+    setAuthTokenGetter(null);
+    setOnUnauthorized(null);
   });
 
   it('makes a GET request and returns JSON', async () => {
@@ -105,6 +105,24 @@ describe('apiRequest', () => {
 
     await apiRequest('/api/v1/trails');
 
+    const callHeaders = mockFetch.mock.calls[0][1].headers;
+    expect(callHeaders).not.toHaveProperty('Authorization');
+  });
+
+  it('proceeds without auth when token getter throws', async () => {
+    setAuthTokenGetter(async () => {
+      throw new Error('Firebase transient failure');
+    });
+
+    mockFetch.mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: () => Promise.resolve({ id: '1' }),
+    });
+
+    const result = await apiRequest('/api/v1/trails');
+
+    expect(result).toEqual({ id: '1' });
     const callHeaders = mockFetch.mock.calls[0][1].headers;
     expect(callHeaders).not.toHaveProperty('Authorization');
   });
