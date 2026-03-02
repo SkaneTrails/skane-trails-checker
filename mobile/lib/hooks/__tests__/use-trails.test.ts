@@ -50,6 +50,7 @@ describe('useTrails', () => {
 
   it('fetches trails on mount', async () => {
     mockTrailsApi.getTrails.mockResolvedValue([sampleTrail]);
+    mockTrailsApi.getSyncMetadata.mockResolvedValue({ count: 0, last_modified: null });
     const wrapper = createQueryWrapper();
 
     const { result } = renderHook(() => useTrails(), { wrapper });
@@ -114,6 +115,33 @@ describe('useTrails', () => {
       );
     });
     expect(mockTrailCache.merge).toHaveBeenCalled();
+  });
+
+  it('falls back to full refetch when delta returns empty (edit case)', async () => {
+    const editedTrail = { ...sampleTrail, name: 'Edited Name' };
+    mockTrailCache.get.mockResolvedValue({
+      trails: [sampleTrail],
+      lastSyncTime: '2025-06-01T00:00:00Z',
+    });
+    mockTrailsApi.getSyncMetadata.mockResolvedValue({
+      count: 1,
+      last_modified: '2025-07-01T00:00:00Z',
+    });
+    mockTrailsApi.getTrails.mockImplementation((filters) => {
+      if (filters.since) return Promise.resolve([]);
+      return Promise.resolve([editedTrail]);
+    });
+    const wrapper = createQueryWrapper();
+
+    renderHook(() => useTrails(), { wrapper });
+
+    await waitFor(() => {
+      expect(mockTrailsApi.getTrails).toHaveBeenCalledWith({});
+    });
+    expect(mockTrailCache.set).toHaveBeenCalledWith(
+      [editedTrail],
+      '2025-07-01T00:00:00Z',
+    );
   });
 
   it('performs full refetch when server count < local count (deletion)', async () => {

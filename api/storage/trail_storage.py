@@ -77,15 +77,23 @@ def get_all_trails(source: str | None = None, since: str | None = None) -> list[
     return trails
 
 
-def save_trail(trail: TrailResponse) -> None:
-    """Save or update a trail in Firestore."""
+def save_trail(trail: TrailResponse, *, update_sync: bool = True) -> None:
+    """Save or update a trail in Firestore.
+
+    Args:
+        trail: The trail to save.
+        update_sync: Whether to update sync metadata. Set to False during
+            bulk imports (e.g. GPX upload) and call _update_sync_metadata()
+            once after the loop.
+    """
     logger.info("Saving trail: %s (ID: %s, Source: %s)", trail.name, trail.trail_id, trail.source)
     now = _utc_now_z()
     trail.last_updated = now
     if not trail.created_at:
         trail.created_at = now
     get_collection("trails").document(trail.trail_id).set(trail.to_dict())
-    _update_sync_metadata()
+    if update_sync:
+        _update_sync_metadata()
 
 
 def save_trail_details(details: TrailDetailsResponse) -> None:
@@ -157,6 +165,15 @@ def get_sync_metadata() -> SyncMetadata:
 def _utc_now_z() -> str:
     """Return current UTC time as ISO string with Z suffix (not +00:00)."""
     return datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+
+def update_sync_metadata() -> None:
+    """Public wrapper for sync metadata update.
+
+    Use after bulk operations (e.g. GPX upload) where
+    individual save_trail calls use update_sync=False.
+    """
+    _update_sync_metadata()
 
 
 def _update_sync_metadata() -> None:

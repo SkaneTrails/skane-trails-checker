@@ -20,6 +20,7 @@ from api.storage.trail_storage import (
     get_trail_details,
     save_trail,
     save_trail_details,
+    update_sync_metadata,
     update_trail,
     update_trail_name,
     update_trail_status,
@@ -368,6 +369,27 @@ class TestSaveTrail:
         assert saved_data["created_at"] == "2026-01-01T00:00:00Z"
         assert saved_data["last_updated"] == "2026-06-15T10:00:00Z"
 
+    @patch("api.storage.trail_storage._update_sync_metadata")
+    def test_skips_sync_when_update_sync_false(self, mock_sync, mock_collection) -> None:
+        trail = TrailResponse(
+            trail_id="t1",
+            name="Bulk Trail",
+            difficulty="easy",
+            length_km=5.0,
+            status="To Explore",
+            coordinates_map=[],
+            bounds=TrailBounds(north=0, south=0, east=0, west=0),
+            center=Coordinate(lat=0, lng=0),
+            source="other_trails",
+            last_updated="old",
+        )
+
+        with patch("api.storage.trail_storage._utc_now_z", return_value="2026-06-15T10:00:00Z"):
+            save_trail(trail, update_sync=False)
+
+        mock_collection.document.return_value.set.assert_called_once()
+        mock_sync.assert_not_called()
+
 
 class TestSaveTrailDetails:
     """Tests for save_trail_details — saves TrailDetailsResponse to Firestore."""
@@ -522,6 +544,11 @@ class TestUpdateSyncMetadata:
         set_call = mock_collection.document.return_value.set.call_args[0][0]
         assert set_call["count"] == 3
         assert set_call["last_modified"] == "2026-03-01T12:00:00Z"
+
+    @patch("api.storage.trail_storage._update_sync_metadata")
+    def test_public_wrapper_delegates(self, mock_internal) -> None:
+        update_sync_metadata()
+        mock_internal.assert_called_once()
 
 
 class TestUtcNowZ:

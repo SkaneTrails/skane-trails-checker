@@ -125,7 +125,11 @@ class TrailFilterParams(BaseModel):
     min_distance_km: float | None = None
     max_distance_km: float | None = None
     status: str | None = Field(default=None, pattern=r"^(To Explore|Explored!)$")
-    since: str | None = None
+    since: str | None = Field(
+        default=None,
+        pattern=r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$",
+        description="ISO timestamp (e.g. 2024-01-01T12:34:56Z) for created_at filtering",
+    )
 
 
 class SyncMetadata(BaseModel):
