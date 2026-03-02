@@ -138,9 +138,10 @@ class TestParseGpxUpload:
 
 
 class TestUploadGpxEndpoint:
+    @patch("api.routers.trails.trail_storage.update_sync_metadata")
     @patch("api.routers.trails.trail_storage.save_trail")
     @patch("api.routers.trails.parse_gpx_upload")
-    def test_upload_valid_gpx(self, mock_parse, mock_save, authenticated_client):
+    def test_upload_valid_gpx(self, mock_parse, mock_save, mock_sync, authenticated_client):
         mock_parse.return_value = [SAMPLE_TRAIL]
         mock_save.return_value = None
 
@@ -153,11 +154,13 @@ class TestUploadGpxEndpoint:
         assert len(data) == 1
         assert data[0]["name"] == "Test Trail"
         assert data[0]["status"] == "Explored!"
-        mock_save.assert_called_once_with(SAMPLE_TRAIL)
+        mock_save.assert_called_once_with(SAMPLE_TRAIL, update_sync=False)
+        mock_sync.assert_called_once()
 
+    @patch("api.routers.trails.trail_storage.update_sync_metadata")
     @patch("api.routers.trails.trail_storage.save_trail")
     @patch("api.routers.trails.parse_gpx_upload")
-    def test_upload_with_source_param(self, mock_parse, mock_save, authenticated_client):
+    def test_upload_with_source_param(self, mock_parse, mock_save, mock_sync, authenticated_client):
         mock_parse.return_value = [SAMPLE_TRAIL]
         mock_save.return_value = None
 
@@ -207,9 +210,10 @@ class TestUploadGpxEndpoint:
         assert response.status_code == 400
         assert "Invalid GPX file" in response.json()["detail"]
 
+    @patch("api.routers.trails.trail_storage.update_sync_metadata")
     @patch("api.routers.trails.trail_storage.save_trail")
     @patch("api.routers.trails.parse_gpx_upload")
-    def test_upload_multiple_tracks(self, mock_parse, mock_save, authenticated_client):
+    def test_upload_multiple_tracks(self, mock_parse, mock_save, mock_sync, authenticated_client):
         trail2 = SAMPLE_TRAIL.model_copy(update={"trail_id": "def456", "name": "Trail Two"})
         mock_parse.return_value = [SAMPLE_TRAIL, trail2]
         mock_save.return_value = None
@@ -221,6 +225,7 @@ class TestUploadGpxEndpoint:
         assert response.status_code == 201
         assert len(response.json()) == 2
         assert mock_save.call_count == 2
+        mock_sync.assert_called_once()
 
     @patch("api.routers.trails.parse_gpx_upload")
     def test_upload_gpx_no_valid_tracks(self, mock_parse, authenticated_client):

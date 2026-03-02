@@ -112,6 +112,10 @@ class TestListTrails:
         assert response.status_code == 200
         mock_get_all.assert_called_once_with(source="planned_hikes", since="2026-03-01T00:00:00Z")
 
+    def test_list_trails_rejects_invalid_since_format(self):
+        response = client.get("/api/v1/trails?since=2026-03-01")
+        assert response.status_code == 422
+
 
 class TestGetSyncMetadata:
     @patch("api.routers.trails.trail_storage.get_sync_metadata")

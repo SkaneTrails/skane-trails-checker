@@ -129,7 +129,10 @@ def upload_gpx(
         raise HTTPException(status_code=400, detail=str(e)) from e
 
     for trail in trails:
-        trail_storage.save_trail(trail)
+        trail_storage.save_trail(trail, update_sync=False)
+
+    # Update sync metadata once after bulk save (not per-trail)
+    trail_storage.update_sync_metadata()
 
     logger.info("Uploaded %d trail(s) from %s", len(trails), file.filename)
     return trails

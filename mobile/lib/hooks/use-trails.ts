@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { TrailFilters } from '@/lib/api';
 import { trailsApi } from '@/lib/api';
@@ -16,20 +16,31 @@ export const trailKeys = {
 /**
  * Sync-on-mount trail hook.
  *
- * 1. Load cached trails from IndexedDB → render immediately
+ * 1. Load cached trails from IndexedDB → seed React Query immediately
  * 2. Background-check sync metadata endpoint (1 Firestore read)
  * 3. If server count < local count → full refetch (deletion case)
  * 4. If server has newer data → delta fetch (since=lastSyncTime)
  * 5. Merge new trails into cache + React Query
+ *
+ * useQuery is disabled until sync completes (or fails) so the default
+ * full-fetch only runs when there's no cached data to work from.
  */
 export function useTrails(filters: TrailFilters = {}) {
   const queryClient = useQueryClient();
   const hasSynced = useRef(false);
+  const [syncDone, setSyncDone] = useState(false);
   const queryKey = trailKeys.list(filters);
+
+  const isUnfilteredQuery =
+    !filters.source && !filters.search && !filters.min_distance_km && !filters.max_distance_km && !filters.status;
 
   const query = useQuery({
     queryKey,
     queryFn: () => trailsApi.getTrails(filters),
+    // For unfiltered queries, disable the automatic fetch until sync decides
+    // whether a full fetch is actually needed (saves Firestore reads).
+    // Filtered queries always fetch directly (no cache for those).
+    enabled: !isUnfilteredQuery || syncDone,
   });
 
   // Sync-on-mount: seed cache, then background delta sync
@@ -37,14 +48,11 @@ export function useTrails(filters: TrailFilters = {}) {
     if (hasSynced.current) return;
     hasSynced.current = true;
 
-    const isUnfilteredQuery =
-      !filters.source && !filters.search && !filters.min_distance_km && !filters.max_distance_km && !filters.status;
-
     // Only sync for the unfiltered query to avoid double-syncing
     if (!isUnfilteredQuery) return;
 
-    syncTrails(queryClient, queryKey);
-  }, [queryClient, filters, queryKey]);
+    syncTrails(queryClient, queryKey).finally(() => setSyncDone(true));
+  }, [queryClient, filters, queryKey, isUnfilteredQuery]);
 
   return query;
 }
@@ -85,28 +93,18 @@ async function syncTrails(
         const merged = await trailCache.merge(newTrails, syncMeta.last_modified ?? new Date().toISOString());
         queryClient.setQueryData(queryKey, merged);
       } else {
-        // Update sync time even if no new trails (metadata changed)
-        await trailCache.set(cached.trails, syncMeta.last_modified ?? cached.lastSyncTime);
+        // Metadata changed but no new trails by created_at filter:
+        // fall back to a full refetch to capture edits to existing trails.
+        const allTrails = await trailsApi.getTrails({});
+        const now = syncMeta.last_modified ?? new Date().toISOString();
+        await trailCache.set(allTrails, now);
+        queryClient.setQueryData(queryKey, allTrails);
       }
       return;
     }
 
-    // First load — no cache: will populate from the useQuery result
-    // Store whatever useQuery fetches
-    const queryKeyHash = JSON.stringify(queryKey);
-    const unsubscribe = queryClient.getQueryCache().subscribe((event) => {
-      if (
-        event.type === 'updated' &&
-        JSON.stringify(event.query.queryKey) === queryKeyHash
-      ) {
-        const data = event.query.state.data as Trail[] | undefined;
-        if (data && data.length > 0) {
-          const now = syncMeta.last_modified ?? new Date().toISOString();
-          trailCache.set(data, now);
-          unsubscribe();
-        }
-      }
-    });
+    // First load — no cache: let useQuery do the full fetch
+    // (enabled becomes true when syncDone is set)
   } catch {
     // Sync failure is non-fatal — useQuery still fetches from API
   }
@@ -134,12 +132,13 @@ export function useUpdateTrail() {
   return useMutation({
     mutationFn: ({ id, data }: { id: string; data: TrailUpdate }) =>
       trailsApi.updateTrail(id, data),
-    onSuccess: (_result, { id, data }) => {
+    onSuccess: (updatedTrail, { id }) => {
       queryClient.invalidateQueries({ queryKey: trailKeys.all });
-      // Update persistent cache so changes aren't lost on next app open
+      // Update persistent cache with the full server response so
+      // server-computed fields (last_updated, modified_at) stay current.
       trailCache.get().then(({ trails, lastSyncTime }) => {
         const updated = trails.map((t) =>
-          t.trail_id === id ? { ...t, ...data } : t,
+          t.trail_id === id ? (updatedTrail as Trail) : t,
         );
         trailCache.set(updated, lastSyncTime ?? new Date().toISOString());
       });
