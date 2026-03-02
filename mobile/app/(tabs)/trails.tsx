@@ -46,6 +46,7 @@ function TrailItem({ trail }: { trail: Trail }) {
 
 export default function TrailsScreen() {
   const { colors } = useTheme();
+  const router = useRouter();
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<string | undefined>();
 
@@ -78,6 +79,11 @@ export default function TrailsScreen() {
         <Text style={[styles.summaryText, { color: colors.text.inverse }]}>
           🥾 {explored} / {total} explored
         </Text>
+        <Pressable style={styles.uploadButton} onPress={() => router.push('/upload')}>
+          <Text style={[styles.uploadButtonText, { color: colors.text.inverse }]}>
+            📤 Upload GPX
+          </Text>
+        </Pressable>
       </View>
 
       <View
@@ -129,11 +135,24 @@ export default function TrailsScreen() {
 
 const styles = StyleSheet.create({
   summary: {
-    padding: spacing.md,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
+    padding: spacing.md,
   },
   summaryText: {
     fontSize: fontSize.lg,
+    fontWeight: fontWeight.semibold,
+  },
+  uploadButton: {
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm - 2,
+    borderRadius: borderRadius.sm,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.4)',
+  },
+  uploadButtonText: {
+    fontSize: fontSize.sm,
     fontWeight: fontWeight.semibold,
   },
   filterBar: {
