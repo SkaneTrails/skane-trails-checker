@@ -23,8 +23,8 @@ const sampleTrail2: Trail = {
   name: 'Second Trail',
 };
 
-// fake-indexeddb is not available, so we test the module's
-// graceful fallback behavior when IndexedDB is unavailable.
+// Use fake-indexeddb/auto so we can exercise real IndexedDB-backed
+// caching behavior and error handling in a consistent test environment.
 
 describe('trailCache', () => {
   beforeEach(async () => {

@@ -80,7 +80,7 @@ def get_all_trails(source: str | None = None, since: str | None = None) -> list[
 def save_trail(trail: TrailResponse) -> None:
     """Save or update a trail in Firestore."""
     logger.info("Saving trail: %s (ID: %s, Source: %s)", trail.name, trail.trail_id, trail.source)
-    now = datetime.now(UTC).isoformat()
+    now = _utc_now_z()
     trail.last_updated = now
     if not trail.created_at:
         trail.created_at = now
@@ -115,22 +115,21 @@ def get_trail_details(trail_id: str) -> TrailDetailsResponse | None:
 def update_trail_status(trail_id: str, status: str) -> None:
     """Update the status of a trail."""
     logger.info("Updating trail %s status to: %s", trail_id, status)
-    get_collection("trails").document(trail_id).update(
-        {"status": status, "last_updated": datetime.now(UTC).isoformat()}
-    )
+    get_collection("trails").document(trail_id).update({"status": status, "last_updated": _utc_now_z()})
 
 
 def update_trail_name(trail_id: str, name: str) -> None:
     """Update the name of a trail."""
     logger.info("Updating trail %s name to: %s", trail_id, name)
-    get_collection("trails").document(trail_id).update({"name": name, "last_updated": datetime.now(UTC).isoformat()})
+    get_collection("trails").document(trail_id).update({"name": name, "last_updated": _utc_now_z()})
 
 
 def update_trail(trail_id: str, updates: dict) -> None:
     """Update multiple fields of a trail."""
     logger.info("Updating trail %s with fields: %s", trail_id, list(updates.keys()))
-    updates["last_updated"] = datetime.now(UTC).isoformat()
+    updates["last_updated"] = _utc_now_z()
     get_collection("trails").document(trail_id).update(updates)
+    _update_sync_metadata()
 
 
 def delete_trail(trail_id: str) -> None:
@@ -155,13 +154,20 @@ def get_sync_metadata() -> SyncMetadata:
     return SyncMetadata(count=data.get("count", 0), last_modified=data.get("last_modified"))
 
 
+def _utc_now_z() -> str:
+    """Return current UTC time as ISO string with Z suffix (not +00:00)."""
+    return datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+
 def _update_sync_metadata() -> None:
     """Recalculate and update the trail sync metadata document.
 
-    Counts all trails and records the current timestamp.
-    Called after trail create or delete.
+    Uses a Firestore aggregation query to count documents server-side,
+    avoiding O(N) client reads from streaming the entire collection.
+    Called after trail create, update, or delete.
     """
-    now = datetime.now(UTC).isoformat()
+    now = _utc_now_z()
     collection = get_collection("trails")
-    count = sum(1 for _ in collection.stream())
+    count_result = collection.count().get()
+    count = count_result[0][0].value
     get_collection("_meta").document("trails_sync").set({"count": count, "last_modified": now})

@@ -132,4 +132,6 @@ class SyncMetadata(BaseModel):
     """Sync metadata for delta trail fetching."""
 
     count: int = Field(description="Total number of trails")
-    last_modified: str | None = Field(default=None, description="ISO timestamp of last trail change")
+    last_modified: str | None = Field(
+        default=None, description="ISO timestamp of last trail create/update/delete (Z-suffix UTC)"
+    )
