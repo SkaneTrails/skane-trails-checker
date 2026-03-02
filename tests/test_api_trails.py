@@ -5,7 +5,7 @@ from unittest.mock import patch
 from fastapi.testclient import TestClient
 
 from api.main import app
-from api.models.trail import Coordinate, TrailBounds, TrailDetailsResponse, TrailResponse
+from api.models.trail import Coordinate, SyncMetadata, TrailBounds, TrailDetailsResponse, TrailResponse
 
 client = TestClient(app)
 
@@ -53,7 +53,7 @@ class TestListTrails:
         assert len(data) == 2
         assert data[0]["trail_id"] == "abc123"
         assert data[1]["trail_id"] == "def456"
-        mock_get_all.assert_called_once_with(source=None)
+        mock_get_all.assert_called_once_with(source=None, since=None)
 
     @patch("api.routers.trails.trail_storage.get_all_trails")
     def test_list_trails_filter_by_source(self, mock_get_all):
@@ -61,7 +61,7 @@ class TestListTrails:
         response = client.get("/api/v1/trails?source=planned_hikes")
         assert response.status_code == 200
         assert len(response.json()) == 1
-        mock_get_all.assert_called_once_with(source="planned_hikes")
+        mock_get_all.assert_called_once_with(source="planned_hikes", since=None)
 
     @patch("api.routers.trails.trail_storage.get_all_trails")
     def test_list_trails_filter_by_search(self, mock_get_all):
@@ -96,6 +96,45 @@ class TestListTrails:
         response = client.get("/api/v1/trails")
         assert response.status_code == 200
         assert response.json() == []
+
+    @patch("api.routers.trails.trail_storage.get_all_trails")
+    def test_list_trails_with_since(self, mock_get_all):
+        mock_get_all.return_value = [SAMPLE_TRAIL]
+        response = client.get("/api/v1/trails?since=2026-03-01T00:00:00Z")
+        assert response.status_code == 200
+        assert len(response.json()) == 1
+        mock_get_all.assert_called_once_with(source=None, since="2026-03-01T00:00:00Z")
+
+    @patch("api.routers.trails.trail_storage.get_all_trails")
+    def test_list_trails_with_source_and_since(self, mock_get_all):
+        mock_get_all.return_value = [SAMPLE_TRAIL]
+        response = client.get("/api/v1/trails?source=planned_hikes&since=2026-03-01T00:00:00Z")
+        assert response.status_code == 200
+        mock_get_all.assert_called_once_with(source="planned_hikes", since="2026-03-01T00:00:00Z")
+
+    def test_list_trails_rejects_invalid_since_format(self):
+        response = client.get("/api/v1/trails?since=2026-03-01")
+        assert response.status_code == 422
+
+
+class TestGetSyncMetadata:
+    @patch("api.routers.trails.trail_storage.get_sync_metadata")
+    def test_get_sync_metadata(self, mock_get_sync):
+        mock_get_sync.return_value = SyncMetadata(count=42, last_modified="2026-03-01T12:00:00Z")
+        response = client.get("/api/v1/trails/sync")
+        assert response.status_code == 200
+        data = response.json()
+        assert data["count"] == 42
+        assert data["last_modified"] == "2026-03-01T12:00:00Z"
+
+    @patch("api.routers.trails.trail_storage.get_sync_metadata")
+    def test_get_sync_metadata_empty(self, mock_get_sync):
+        mock_get_sync.return_value = SyncMetadata(count=0, last_modified=None)
+        response = client.get("/api/v1/trails/sync")
+        assert response.status_code == 200
+        data = response.json()
+        assert data["count"] == 0
+        assert data["last_modified"] is None
 
 
 class TestGetTrail:
