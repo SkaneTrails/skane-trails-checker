@@ -2,6 +2,7 @@ import { renderHook, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { createQueryWrapper } from '@/test/helpers';
 import { useDeleteTrail, useTrail, useTrails, useUpdateTrail, useUploadGpx } from '../use-trails';
+import { sortTrails } from '../use-trails';
 
 vi.mock('@/lib/api', () => ({
   trailsApi: {
@@ -294,5 +295,48 @@ describe('useUploadGpx', () => {
         serverSyncTime,
       );
     });
+  });
+});
+
+describe('sortTrails', () => {
+  const makeTrail = (overrides: Partial<typeof sampleTrail>) => ({
+    ...sampleTrail,
+    ...overrides,
+  });
+
+  it('places uploaded trails before planned trails', () => {
+    const planned = makeTrail({ trail_id: 'p1', name: 'Planned', source: 'planned_hikes' });
+    const uploaded = makeTrail({ trail_id: 'u1', name: 'Uploaded', source: 'other_trails' });
+
+    const result = sortTrails([planned, uploaded]);
+
+    expect(result.map((t) => t.trail_id)).toEqual(['u1', 'p1']);
+  });
+
+  it('sorts alphabetically within each group', () => {
+    const plannedB = makeTrail({ trail_id: 'p2', name: 'Zeta', source: 'planned_hikes' });
+    const plannedA = makeTrail({ trail_id: 'p1', name: 'Alpha', source: 'planned_hikes' });
+    const uploadedB = makeTrail({ trail_id: 'u2', name: 'Omega', source: 'other_trails' });
+    const uploadedA = makeTrail({ trail_id: 'u1', name: 'Beta', source: 'world_wide_hikes' });
+
+    const result = sortTrails([plannedB, uploadedB, plannedA, uploadedA]);
+
+    expect(result.map((t) => t.trail_id)).toEqual(['u1', 'u2', 'p1', 'p2']);
+  });
+
+  it('does not mutate the original array', () => {
+    const trails = [
+      makeTrail({ trail_id: 'p1', name: 'Planned', source: 'planned_hikes' }),
+      makeTrail({ trail_id: 'u1', name: 'Uploaded', source: 'other_trails' }),
+    ];
+    const original = [...trails];
+
+    sortTrails(trails);
+
+    expect(trails).toEqual(original);
+  });
+
+  it('returns empty array for empty input', () => {
+    expect(sortTrails([])).toEqual([]);
   });
 });
