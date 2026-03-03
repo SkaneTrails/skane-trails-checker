@@ -51,9 +51,70 @@ class TestListTrails:
         assert response.status_code == 200
         data = response.json()
         assert len(data) == 2
-        assert data[0]["trail_id"] == "abc123"
-        assert data[1]["trail_id"] == "def456"
+        # Uploaded trails (other_trails) sorted before planned_hikes
+        assert data[0]["trail_id"] == "def456"
+        assert data[1]["trail_id"] == "abc123"
         mock_get_all.assert_called_once_with(source=None, since=None)
+
+    @patch("api.routers.trails.trail_storage.get_all_trails")
+    def test_list_trails_sorts_uploaded_before_planned(self, mock_get_all):
+        """Uploaded trails (other_trails, world_wide_hikes) appear before planned_hikes."""
+        planned_a = TrailResponse(
+            trail_id="p1",
+            name="Alpha Planned",
+            difficulty="Easy",
+            length_km=3.0,
+            status="To Explore",
+            coordinates_map=[Coordinate(lat=56.0, lng=13.0)],
+            bounds=TrailBounds(north=56.0, south=56.0, east=13.0, west=13.0),
+            center=Coordinate(lat=56.0, lng=13.0),
+            source="planned_hikes",
+            last_updated="2026-01-01T00:00:00",
+        )
+        planned_b = TrailResponse(
+            trail_id="p2",
+            name="Beta Planned",
+            difficulty="Easy",
+            length_km=4.0,
+            status="To Explore",
+            coordinates_map=[Coordinate(lat=56.0, lng=13.0)],
+            bounds=TrailBounds(north=56.0, south=56.0, east=13.0, west=13.0),
+            center=Coordinate(lat=56.0, lng=13.0),
+            source="planned_hikes",
+            last_updated="2026-01-01T00:00:00",
+        )
+        uploaded_a = TrailResponse(
+            trail_id="u1",
+            name="Zeta Upload",
+            difficulty="Hard",
+            length_km=10.0,
+            status="Explored!",
+            coordinates_map=[Coordinate(lat=57.0, lng=14.0)],
+            bounds=TrailBounds(north=57.0, south=57.0, east=14.0, west=14.0),
+            center=Coordinate(lat=57.0, lng=14.0),
+            source="other_trails",
+            last_updated="2026-01-15T00:00:00",
+        )
+        uploaded_b = TrailResponse(
+            trail_id="u2",
+            name="Alpha Upload",
+            difficulty="Medium",
+            length_km=8.0,
+            status="Explored!",
+            coordinates_map=[Coordinate(lat=57.0, lng=14.0)],
+            bounds=TrailBounds(north=57.0, south=57.0, east=14.0, west=14.0),
+            center=Coordinate(lat=57.0, lng=14.0),
+            source="world_wide_hikes",
+            last_updated="2026-01-20T00:00:00",
+        )
+        # Return in arbitrary order from storage
+        mock_get_all.return_value = [planned_b, uploaded_a, planned_a, uploaded_b]
+        response = client.get("/api/v1/trails")
+        assert response.status_code == 200
+        data = response.json()
+        ids = [t["trail_id"] for t in data]
+        # Uploaded first (alphabetically), then planned (alphabetically)
+        assert ids == ["u2", "u1", "p1", "p2"]
 
     @patch("api.routers.trails.trail_storage.get_all_trails")
     def test_list_trails_filter_by_source(self, mock_get_all):

@@ -43,6 +43,10 @@ def list_trails(filters: Annotated[TrailFilterParams, Query()]) -> list[TrailRes
     if filters.status:
         trails = [t for t in trails if t.status == filters.status]
 
+    # Sort: uploaded trails first (non-planned), planned hikes last.
+    # Within each group, sort alphabetically by name.
+    trails.sort(key=lambda t: (t.source == "planned_hikes", t.name.lower()))
+
     return trails
 
 
