@@ -314,12 +314,12 @@ describe('sortTrails', () => {
   });
 
   it('sorts alphabetically within each group', () => {
-    const planned_b = makeTrail({ trail_id: 'p2', name: 'Zeta', source: 'planned_hikes' });
-    const planned_a = makeTrail({ trail_id: 'p1', name: 'Alpha', source: 'planned_hikes' });
-    const uploaded_b = makeTrail({ trail_id: 'u2', name: 'Omega', source: 'other_trails' });
-    const uploaded_a = makeTrail({ trail_id: 'u1', name: 'Beta', source: 'world_wide_hikes' });
+    const plannedB = makeTrail({ trail_id: 'p2', name: 'Zeta', source: 'planned_hikes' });
+    const plannedA = makeTrail({ trail_id: 'p1', name: 'Alpha', source: 'planned_hikes' });
+    const uploadedB = makeTrail({ trail_id: 'u2', name: 'Omega', source: 'other_trails' });
+    const uploadedA = makeTrail({ trail_id: 'u1', name: 'Beta', source: 'world_wide_hikes' });
 
-    const result = sortTrails([planned_b, uploaded_b, planned_a, uploaded_a]);
+    const result = sortTrails([plannedB, uploadedB, plannedA, uploadedA]);
 
     expect(result.map((t) => t.trail_id)).toEqual(['u1', 'u2', 'p1', 'p2']);
   });
