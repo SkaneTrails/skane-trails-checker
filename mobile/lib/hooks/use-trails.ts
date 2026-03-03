@@ -14,7 +14,9 @@ export function sortTrails(trails: Trail[]): Trail[] {
     const aPlanned = a.source === 'planned_hikes' ? 1 : 0;
     const bPlanned = b.source === 'planned_hikes' ? 1 : 0;
     if (aPlanned !== bPlanned) return aPlanned - bPlanned;
-    return a.name.localeCompare(b.name);
+    const aName = a.name.toLocaleLowerCase('en-US');
+    const bName = b.name.toLocaleLowerCase('en-US');
+    return aName.localeCompare(bName, 'en-US');
   });
 }
 
