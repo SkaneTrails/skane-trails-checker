@@ -1,12 +1,17 @@
+import { useRouter } from 'expo-router';
+import { useState } from 'react';
 import { ActivityIndicator, Platform, StyleSheet, Text, View } from 'react-native';
-import { EmptyState, ScreenLayout } from '@/components';
+import { EmptyState, ScreenLayout, TrailCard } from '@/components';
 import { TrailMap } from '@/components/TrailMap';
 import { useTrails } from '@/lib/hooks';
 import { borderRadius, fontSize, spacing, useTheme } from '@/lib/theme';
+import type { Trail } from '@/lib/types';
 
 export default function MapScreen() {
   const { data: trails, isFetching, error } = useTrails();
   const { colors } = useTheme();
+  const router = useRouter();
+  const [selectedTrail, setSelectedTrail] = useState<Trail | null>(null);
 
   if (Platform.OS !== 'web') {
     return (
@@ -20,10 +25,23 @@ export default function MapScreen() {
     );
   }
 
+  const handleViewDetails = (trail: Trail) => {
+    router.push(`/trail/${trail.trail_id}`);
+  };
+
   return (
     <ScreenLayout>
       <View style={styles.container}>
-        <TrailMap trails={trails ?? []} />
+        <TrailMap trails={trails ?? []} onTrailSelect={setSelectedTrail} />
+        {selectedTrail && (
+          <View style={styles.cardOverlay}>
+            <TrailCard
+              trail={selectedTrail}
+              onViewDetails={handleViewDetails}
+              onClose={() => setSelectedTrail(null)}
+            />
+          </View>
+        )}
         {isFetching && (
           <View style={[styles.spinner, { backgroundColor: colors.overlay }]}>
             <ActivityIndicator size="small" color={colors.overlayText} />
@@ -49,6 +67,14 @@ export default function MapScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+  },
+  cardOverlay: {
+    position: 'absolute',
+    bottom: spacing.lg,
+    left: spacing.lg,
+    right: spacing.lg,
+    alignItems: 'center',
+    pointerEvents: 'box-none',
   },
   spinner: {
     position: 'absolute',

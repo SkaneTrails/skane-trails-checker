@@ -3,13 +3,14 @@ import type { Trail } from '@/lib/types';
 
 interface TrailMapProps {
   trails: Trail[];
+  onTrailSelect?: (trail: Trail) => void;
 }
 
 // Default center: Skåne, Sweden
 const DEFAULT_CENTER: [number, number] = [55.95, 13.4];
 const DEFAULT_ZOOM = 9;
 
-export function TrailMap({ trails }: TrailMapProps) {
+export function TrailMap({ trails, onTrailSelect }: TrailMapProps) {
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<L.Map | null>(null);
 
@@ -73,9 +74,13 @@ export function TrailMap({ trails }: TrailMapProps) {
           opacity: 0.8,
         }).addTo(map);
 
-        polyline.bindPopup(
-          `<b>${trail.name}</b><br/>${trail.length_km?.toFixed(1) ?? '?'} km<br/>${trail.status}`,
-        );
+        if (onTrailSelect) {
+          polyline.on('click', () => onTrailSelect(trail));
+        } else {
+          polyline.bindPopup(
+            `<b>${trail.name}</b><br/>${trail.length_km?.toFixed(1) ?? '?'} km<br/>${trail.status}`,
+          );
+        }
       }
     }
 
