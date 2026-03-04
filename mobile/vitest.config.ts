@@ -26,6 +26,7 @@ export default defineConfig({
   resolve: {
     alias: {
       '@': path.resolve(__dirname, '.'),
+      'react-native': path.resolve(__dirname, 'test/react-native-mock.tsx'),
     },
   },
 });

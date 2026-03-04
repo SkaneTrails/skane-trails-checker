@@ -1,22 +1,6 @@
 // Global test setup
-// Mock react-native modules for jsdom environment
+// react-native is aliased to test/react-native-mock.tsx in vitest.config.ts
 import '@testing-library/jest-dom';
-
-// Minimal RN mock for web testing
-vi.mock('react-native', () => ({
-  Platform: { OS: 'web', select: (obj: Record<string, unknown>) => obj.web ?? obj.default },
-  StyleSheet: {
-    create: <T extends Record<string, unknown>>(styles: T): T => styles,
-    flatten: (style: unknown) => style,
-  },
-  Alert: { alert: vi.fn() },
-  View: 'View',
-  Text: 'Text',
-  TextInput: 'TextInput',
-  FlatList: 'FlatList',
-  Pressable: 'Pressable',
-  ScrollView: 'ScrollView',
-}));
 
 // Mock expo-router
 vi.mock('expo-router', () => ({
