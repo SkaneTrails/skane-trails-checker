@@ -4,6 +4,7 @@ export { ContentCard } from './ContentCard';
 export { EmptyState } from './EmptyState';
 export { FormField } from './FormField';
 export { GoogleLogo } from './GoogleLogo';
+export { MapInfoCard } from './MapInfoCard';
 export { ScreenLayout } from './ScreenLayout';
 export { StatCard } from './StatCard';
 export { StatusBadge } from './StatusBadge';

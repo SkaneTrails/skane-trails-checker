@@ -74,6 +74,7 @@ const styles = StyleSheet.create({
     left: spacing.lg,
     right: spacing.lg,
     alignItems: 'center',
+    zIndex: 1000,
   },
   spinner: {
     position: 'absolute',

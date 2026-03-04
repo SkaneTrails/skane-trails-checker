@@ -1,12 +1,13 @@
 /**
- * Compact trail info card for map overlay.
- * Shows trail name, status, distance, difficulty, source,
- * with a "View Details" link and a close button.
+ * Trail-specific content for the map info card.
+ * Renders status, distance, difficulty, source, and elevation
+ * inside a MapInfoCard shell.
  */
 
-import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { borderRadius, fontSize, fontWeight, spacing, useTheme } from '@/lib/theme';
+import { StyleSheet, Text, View } from 'react-native';
+import { fontSize, spacing, useTheme } from '@/lib/theme';
 import type { Trail } from '@/lib/types';
+import { MapInfoCard } from './MapInfoCard';
 import { StatusBadge } from './StatusBadge';
 
 interface TrailCardProps {
@@ -16,19 +17,14 @@ interface TrailCardProps {
 }
 
 export const TrailCard = ({ trail, onViewDetails, onClose }: TrailCardProps) => {
-  const { colors, shadows } = useTheme();
+  const { colors } = useTheme();
 
   return (
-    <View style={[styles.card, { backgroundColor: colors.surface }, shadows.card]}>
-      <View style={styles.header}>
-        <Text style={[styles.name, { color: colors.text.primary }]} numberOfLines={1}>
-          {trail.name}
-        </Text>
-        <Pressable onPress={onClose} style={styles.closeButton} accessibilityLabel="Close">
-          <Text style={[styles.closeText, { color: colors.text.muted }]}>✕</Text>
-        </Pressable>
-      </View>
-
+    <MapInfoCard
+      title={trail.name}
+      onClose={onClose}
+      action={{ label: 'View Details', onPress: () => onViewDetails(trail) }}
+    >
       <View style={styles.badgeRow}>
         <StatusBadge status={trail.status} />
       </View>
@@ -61,45 +57,11 @@ export const TrailCard = ({ trail, onViewDetails, onClose }: TrailCardProps) => 
           )}
         </View>
       )}
-
-      <Pressable
-        style={[styles.detailsButton, { backgroundColor: colors.primary }]}
-        onPress={() => onViewDetails(trail)}
-      >
-        <Text style={[styles.detailsButtonText, { color: colors.text.inverse }]}>
-          View Details
-        </Text>
-      </Pressable>
-    </View>
+    </MapInfoCard>
   );
 };
 
 const styles = StyleSheet.create({
-  card: {
-    borderRadius: borderRadius.md,
-    padding: spacing.lg - 2,
-    maxWidth: 340,
-    width: '100%',
-  },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: spacing.xs,
-  },
-  name: {
-    fontSize: fontSize.lg,
-    fontWeight: fontWeight.semibold,
-    flex: 1,
-    marginRight: spacing.sm,
-  },
-  closeButton: {
-    padding: spacing.xs,
-  },
-  closeText: {
-    fontSize: fontSize.lg,
-    lineHeight: fontSize.lg,
-  },
   badgeRow: {
     flexDirection: 'row',
     marginBottom: spacing.sm,
@@ -111,15 +73,5 @@ const styles = StyleSheet.create({
   },
   metaText: {
     fontSize: fontSize.sm,
-  },
-  detailsButton: {
-    alignItems: 'center',
-    paddingVertical: spacing.sm,
-    borderRadius: borderRadius.sm,
-    marginTop: spacing.xs,
-  },
-  detailsButtonText: {
-    fontSize: fontSize.sm,
-    fontWeight: fontWeight.semibold,
   },
 });
