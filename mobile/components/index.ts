@@ -7,4 +7,5 @@ export { GoogleLogo } from './GoogleLogo';
 export { ScreenLayout } from './ScreenLayout';
 export { StatCard } from './StatCard';
 export { StatusBadge } from './StatusBadge';
+export { TrailCard } from './TrailCard';
 export { TrailMap } from './TrailMap';
