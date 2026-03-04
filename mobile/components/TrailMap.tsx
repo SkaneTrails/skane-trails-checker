@@ -55,15 +55,21 @@ export function TrailMap({ trails }: TrailMapProps) {
         locateOptions: { enableHighAccuracy: true },
       }).addTo(map);
 
-      // Add trail polylines
-      for (const trail of trails) {
+      // Add trail polylines in two passes:
+      // 1. "To Explore" trails (orange) rendered first → bottom layer
+      // 2. Explored trails (blue) rendered second → painted on top
+      const toExplore = trails.filter((t) => t.status !== 'Explored!');
+      const explored = trails.filter((t) => t.status === 'Explored!');
+
+      for (const trail of [...toExplore, ...explored]) {
         if (!trail.coordinates_map || trail.coordinates_map.length === 0) continue;
 
         const latlngs = trail.coordinates_map.map((c) => [c.lat, c.lng] as [number, number]);
-        const color = trail.status === 'Explored!' ? '#4169E1' : '#FF8000';
+        const isExplored = trail.status === 'Explored!';
+        const color = isExplored ? '#4169E1' : '#FF8000';
         const polyline = L.polyline(latlngs, {
           color,
-          weight: 3,
+          weight: isExplored ? 4 : 3,
           opacity: 0.8,
         }).addTo(map);
 
