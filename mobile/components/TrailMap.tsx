@@ -13,6 +13,8 @@ const DEFAULT_ZOOM = 9;
 export function TrailMap({ trails, onTrailSelect }: TrailMapProps) {
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<L.Map | null>(null);
+  const onTrailSelectRef = useRef(onTrailSelect);
+  onTrailSelectRef.current = onTrailSelect;
 
   useEffect(() => {
     // Dynamically import leaflet and its CSS (web only)
@@ -74,13 +76,11 @@ export function TrailMap({ trails, onTrailSelect }: TrailMapProps) {
           opacity: 0.8,
         }).addTo(map);
 
-        if (onTrailSelect) {
-          polyline.on('click', () => onTrailSelect(trail));
-        } else {
-          polyline.bindPopup(
-            `<b>${trail.name}</b><br/>${trail.length_km?.toFixed(1) ?? '?'} km<br/>${trail.status}`,
-          );
-        }
+        polyline.on('click', () => {
+          if (onTrailSelectRef.current) {
+            onTrailSelectRef.current(trail);
+          }
+        });
       }
     }
 

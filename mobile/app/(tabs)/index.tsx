@@ -34,7 +34,7 @@ export default function MapScreen() {
       <View style={styles.container}>
         <TrailMap trails={trails ?? []} onTrailSelect={setSelectedTrail} />
         {selectedTrail && (
-          <View style={styles.cardOverlay}>
+          <View style={styles.cardOverlay} pointerEvents="box-none">
             <TrailCard
               trail={selectedTrail}
               onViewDetails={handleViewDetails}
@@ -74,7 +74,6 @@ const styles = StyleSheet.create({
     left: spacing.lg,
     right: spacing.lg,
     alignItems: 'center',
-    pointerEvents: 'box-none',
   },
   spinner: {
     position: 'absolute',
