@@ -84,7 +84,7 @@ repos:
         files: \.(json|toml)$
         exclude: ^(renovate\.json)$
   - repo: https://github.com/astral-sh/uv-pre-commit
-    rev: 0.10.8
+    rev: 0.10.9
     hooks:
       - id: uv-lock
       - id: uv-sync
