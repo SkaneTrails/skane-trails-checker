@@ -5,8 +5,8 @@
 This project uses **pytest** for testing. Tests are organized to cover three layers:
 
 1. **Unit tests** - Pure business logic functions (GPX parsing, data management)
-1. **Integration tests** - Streamlit components (planned)
-1. **End-to-end tests** - Full page workflows (planned)
+1. **API tests** - FastAPI endpoint and storage layer tests
+1. **End-to-end tests** - Full workflow tests (planned)
 
 ## Running Tests
 
@@ -91,21 +91,15 @@ def test_save_data(temp_data_dir):
     # Verify content
 ```
 
-## Testing Streamlit Components
+## Testing API Endpoints
 
-For testing Streamlit components, we'll use `AppTest` (Streamlit 1.28+):
+API tests use FastAPI's `TestClient` with fixtures from `conftest.py`:
 
 ```python
-from streamlit.testing.v1 import AppTest
-
-def test_streamlit_page():
-    """Test a Streamlit page."""
-    at = AppTest.from_file("app/pages/1_🥾_Hikes_map.py")
-    at.run()
-
-    # Check for elements
-    assert not at.exception
-    assert len(at.button) > 0
+def test_get_trails(authenticated_client):
+    """Test listing trails."""
+    response = authenticated_client.get("/api/v1/trails")
+    assert response.status_code == 200
 ```
 
 ## Coverage Goals
@@ -115,7 +109,7 @@ Current coverage focus:
 - ✅ `app/functions/gpx.py` - GPX file handling
 - ✅ `app/functions/tracks.py` - Track status management
 - ✅ `app/functions/foraging.py` - Foraging data management
-- ⏳ `app/pages/*.py` - Streamlit pages (integration tests)
+- ⏳ `api/routers/*.py` - API endpoint tests
 - ⏳ Full workflow tests (E2E)
 
 ## CI/CD Integration

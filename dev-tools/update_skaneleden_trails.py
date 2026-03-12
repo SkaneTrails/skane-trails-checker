@@ -473,7 +473,10 @@ def main() -> None:
     print(f"✓ Merged into {track_count} tracks")
     print(f"✓ Simplified to {final_points:,} points ({final_size:.2f} MB)")
     print(f"\nOutput: {output_file}")
-    print("\nNext: Run the Streamlit app to bootstrap trails to Firestore")
+    print("\nNext: Run bootstrap to load trails into Firestore:")
+    print(
+        "  uv run python -c \"from app.functions.bootstrap_trails import bootstrap_planned_trails; bootstrap_planned_trails('app/tracks_gpx/planned_hikes/all-skane-trails.gpx')\""
+    )
 
 
 if __name__ == "__main__":

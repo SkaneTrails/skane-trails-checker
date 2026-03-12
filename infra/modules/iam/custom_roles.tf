@@ -79,7 +79,7 @@ resource "google_project_iam_custom_role" "infrastructure_manager" {
 }
 
 # App User Role
-# Grants permissions needed to run the Streamlit app and access data
+# Grants permissions needed to access data and invoke Cloud Run services
 resource "google_project_iam_custom_role" "app_user" {
   role_id     = "skaneTrailsAppUser"
   title       = "Skåne Trails App User"

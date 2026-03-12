@@ -273,43 +273,6 @@ uv run pre-commit run --all-files
 
 See [TROUBLESHOOTING.md](TROUBLESHOOTING.md) for common issues.
 
-### Streamlit Debug Mode
-
-```bash
-streamlit run app/_Home_.py --logger.level=debug
-```
-
-### Check Debug Log
-
-The app creates `app_debug.log` with:
-
-- Python version
-- Working directory
-- Streamlit version
-- Error tracebacks
-
-See [TROUBLESHOOTING.md](TROUBLESHOOTING.md) for common issues.
-
-## Performance Considerations
-
-### GPX Coordinate Simplification
-
-- Use RDP algorithm to reduce point density
-- Default tolerance: 0.0001 (balance accuracy vs performance)
-- Apply before map rendering: `simplify_track_coordinates()`
-
-### Map Rendering
-
-- Generate map only when needed (state changes)
-- Use unique keys for `st_folium()` to prevent unnecessary re-renders
-- Limit number of tracks displayed simultaneously
-
-### Session State
-
-- Minimize data stored in session state
-- Use lazy loading where possible
-- Clear unused state variables
-
 ## Dependency Management
 
 ### Adding Dependencies

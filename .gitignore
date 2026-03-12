@@ -32,7 +32,7 @@ coverage.xml
 *.swo
 *~
 
-# Streamlit
+# Legacy config (safe to keep)
 .streamlit/secrets.toml
 
 # Terraform build artifacts

@@ -215,10 +215,10 @@ ______________________________________________________________________
 
 ## 7. Skåne Trails project context
 
-For this project (Skåne Trails Streamlit app on GCP free tier):
+For this project (Skåne Trails on GCP free tier):
 
-- **Streamlit multi-page app**: Many PRs change UI behavior and page interactions (`app/_Home_.py`, `app/pages/`). When reviewing, consider both code quality and user experience impacts.
-- **Firestore + Cloud Run on GCP free tier**: All data persistence uses Firestore and the app runs on Cloud Run. PR changes must respect free-tier limits (reads/writes, requests, CPU/memory) and avoid introducing costly polling or chatty database patterns.
+- **FastAPI + Expo/React Native app**: PRs may change API endpoints, mobile UI, or both. When reviewing, consider both code quality and user experience impacts.
+- **Firestore + Cloud Run on GCP free tier**: All data persistence uses Firestore and the API runs on Cloud Run. PR changes must respect free-tier limits (reads/writes, requests, CPU/memory) and avoid introducing costly polling or chatty database patterns.
 - **Infrastructure via Terraform only**: Any change that affects GCP resources must be implemented in `infra/` with Terraform. Do not suggest or approve manual console or `gcloud`-only changes.
 - **Security and CI workflows**: CI runs Trivy scans, SBOM and license checks, and tests via GitHub Actions. When reviewing PRs, ensure new dependencies, workflows, or patterns align with these existing checks and keep the project zero-cost and public-repo safe.
 - **Pre-commit hooks** may auto-format files — always run `git diff` after committing to verify the actual changes.
