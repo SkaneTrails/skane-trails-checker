@@ -89,3 +89,24 @@ class TestSecurityHeaders:
         assert response.headers["X-Frame-Options"] == "DENY"
         assert response.headers["Referrer-Policy"] == "strict-origin-when-cross-origin"
         assert "camera=()" in response.headers["Permissions-Policy"]
+
+
+class TestGlobalExceptionHandler:
+    @patch("api.routers.places.places_storage.get_all_places")
+    def test_unhandled_exception_returns_500(self, mock_get_all):
+        mock_get_all.side_effect = RuntimeError("unexpected")
+        error_client = TestClient(app, raise_server_exceptions=False)
+        response = error_client.get("/api/v1/places")
+        assert response.status_code == 500
+        assert response.json() == {"detail": "Internal server error"}
+
+
+class TestInvalidDocumentIdHandler:
+    @patch("api.routers.trails.trail_storage.get_trail")
+    def test_invalid_document_id_returns_400(self, mock_get_trail):
+        from api.storage.validation import InvalidDocumentIdError
+
+        mock_get_trail.side_effect = InvalidDocumentIdError("Invalid trail_id: contains invalid characters")
+        response = client.get("/api/v1/trails/bad-id")
+        assert response.status_code == 400
+        assert "invalid characters" in response.json()["detail"]

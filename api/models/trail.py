@@ -114,14 +114,14 @@ class TrailUpdate(BaseModel):
 
     name: str | None = Field(default=None, min_length=1, max_length=200)
     status: str | None = Field(default=None, pattern=r"^(To Explore|Explored!)$")
-    difficulty: str | None = None
+    difficulty: str | None = Field(default=None, max_length=50)
 
 
 class TrailFilterParams(BaseModel):
     """Query parameters for filtering trails."""
 
-    source: str | None = None
-    search: str | None = None
+    source: str | None = Field(default=None, max_length=50)
+    search: str | None = Field(default=None, max_length=200)
     min_distance_km: float | None = None
     max_distance_km: float | None = None
     status: str | None = Field(default=None, pattern=r"^(To Explore|Explored!)$")

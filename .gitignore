@@ -69,7 +69,6 @@ credentials.json
 key.json
 
 # Docker
-.dockerignore
 
 # Personal Tracks - Block all files but allow README.md
 app/tracks_gpx/other_trails/*

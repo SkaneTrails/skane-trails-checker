@@ -237,3 +237,12 @@ class TestUploadGpxEndpoint:
         )
         assert response.status_code == 400
         assert "No valid tracks" in response.json()["detail"]
+
+    def test_upload_gpx_too_large(self, authenticated_client):
+        oversized = b"x" * (10 * 1024 * 1024 + 1)
+        response = authenticated_client.post(
+            "/api/v1/trails/upload", files={"file": ("huge.gpx", io.BytesIO(oversized), "application/gpx+xml")}
+        )
+        assert response.status_code == 413
+        assert "too large" in response.json()["detail"]
+        assert "bytes" in response.json()["detail"]
