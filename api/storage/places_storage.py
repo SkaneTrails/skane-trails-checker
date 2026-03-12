@@ -5,6 +5,7 @@ from datetime import UTC, datetime
 
 from api.models.place import PlaceCategoryResponse, PlaceResponse
 from api.storage.firestore_client import get_collection, get_firestore_client
+from api.storage.validation import validate_document_id
 
 logger = logging.getLogger(__name__)
 
@@ -99,6 +100,7 @@ def save_places_batch(places: list[PlaceResponse], batch_size: int = 500) -> int
 
 def delete_place(place_id: str) -> None:
     """Delete a place from Firestore."""
+    validate_document_id(place_id, field_name="place_id")
     get_collection("places").document(place_id).delete()
 
 

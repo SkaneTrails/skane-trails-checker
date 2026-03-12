@@ -1,13 +1,17 @@
 """FastAPI application entry point for Skåne Trails API."""
 
+import logging
 import os
 from collections.abc import Awaitable, Callable
 
 from dotenv import load_dotenv
 from fastapi import FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 
 from api.routers import foraging, places, trails
+
+logger = logging.getLogger(__name__)
 
 load_dotenv()
 
@@ -20,22 +24,26 @@ app = FastAPI(
     openapi_url="/api/openapi.json",
 )
 
-ALLOWED_ORIGINS = os.getenv(
-    "ALLOWED_ORIGINS",
-    "http://localhost:3000,http://localhost:8080,http://localhost:8081,http://localhost:8082,http://localhost:19006",
-).split(",")
+ALLOWED_ORIGINS = os.getenv("ALLOWED_ORIGINS", "").split(",") if os.getenv("ALLOWED_ORIGINS") else []
 
 app.add_middleware(
     CORSMiddleware,  # type: ignore[arg-type]
     allow_origins=ALLOWED_ORIGINS,
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "PATCH", "DELETE", "OPTIONS"],
+    allow_headers=["Authorization", "Content-Type"],
 )
 
 app.include_router(trails.router, prefix="/api/v1")
 app.include_router(foraging.router, prefix="/api/v1")
 app.include_router(places.router, prefix="/api/v1")
+
+
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception) -> JSONResponse:  # noqa: ARG001
+    """Catch unhandled exceptions and return a generic error response."""
+    logger.exception("Unhandled error on %s %s", request.method, request.url.path)
+    return JSONResponse(status_code=500, content={"detail": "Internal server error"})
 
 
 @app.middleware("http")

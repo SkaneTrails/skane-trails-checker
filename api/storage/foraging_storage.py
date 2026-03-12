@@ -5,6 +5,7 @@ from datetime import UTC, datetime
 
 from api.models.foraging import ForagingSpotResponse, ForagingTypeResponse
 from api.storage.firestore_client import get_collection
+from api.storage.validation import validate_document_id
 
 logger = logging.getLogger(__name__)
 
@@ -52,12 +53,14 @@ def save_foraging_spot(spot_data: dict) -> str:
 
 def update_foraging_spot(spot_id: str, spot_data: dict) -> None:
     """Update a foraging spot."""
+    validate_document_id(spot_id, field_name="spot_id")
     spot_data["last_updated"] = datetime.now(UTC).isoformat()
     get_collection("foraging_spots").document(spot_id).update(spot_data)
 
 
 def delete_foraging_spot(spot_id: str) -> None:
     """Delete a foraging spot."""
+    validate_document_id(spot_id, field_name="spot_id")
     get_collection("foraging_spots").document(spot_id).delete()
 
 
@@ -88,9 +91,11 @@ def get_foraging_types() -> list[ForagingTypeResponse]:
 
 def save_foraging_type(type_name: str, type_data: dict) -> None:
     """Save or update a foraging type."""
+    validate_document_id(type_name, field_name="type_name")
     get_collection("foraging_types").document(type_name).set(type_data)
 
 
 def delete_foraging_type(type_name: str) -> None:
     """Delete a foraging type."""
+    validate_document_id(type_name, field_name="type_name")
     get_collection("foraging_types").document(type_name).delete()

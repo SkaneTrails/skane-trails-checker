@@ -12,6 +12,8 @@ from api.storage import trail_storage
 
 logger = logging.getLogger(__name__)
 
+MAX_GPX_SIZE = 10 * 1024 * 1024  # 10 MB (~5x largest Skåneleden GPX)
+
 router = APIRouter(prefix="/trails", tags=["trails"])
 
 
@@ -127,10 +129,17 @@ def upload_gpx(
     if not content:
         raise HTTPException(status_code=400, detail="Uploaded file is empty")
 
+    if len(content) > MAX_GPX_SIZE:
+        size_mb = len(content) / (1024 * 1024)
+        raise HTTPException(status_code=413, detail=f"GPX file too large ({size_mb:.1f} MB). Maximum size is 10 MB.")
+
     try:
         trails = parse_gpx_upload(content, source=source)
     except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e)) from e
+        detail = str(e)
+        if "Invalid GPX file:" in detail:
+            detail = "Invalid GPX file: the file could not be parsed"
+        raise HTTPException(status_code=400, detail=detail) from e
 
     for trail in trails:
         trail_storage.save_trail(trail, update_sync=False)

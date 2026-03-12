@@ -89,3 +89,13 @@ class TestSecurityHeaders:
         assert response.headers["X-Frame-Options"] == "DENY"
         assert response.headers["Referrer-Policy"] == "strict-origin-when-cross-origin"
         assert "camera=()" in response.headers["Permissions-Policy"]
+
+
+class TestGlobalExceptionHandler:
+    @patch("api.routers.places.places_storage.get_all_places")
+    def test_unhandled_exception_returns_500(self, mock_get_all):
+        mock_get_all.side_effect = RuntimeError("unexpected")
+        error_client = TestClient(app, raise_server_exceptions=False)
+        response = error_client.get("/api/v1/places")
+        assert response.status_code == 500
+        assert response.json() == {"detail": "Internal server error"}

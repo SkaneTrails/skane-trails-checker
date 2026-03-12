@@ -5,6 +5,7 @@ from datetime import UTC, datetime
 
 from api.models.trail import Coordinate, SyncMetadata, TrailBounds, TrailDetailsResponse, TrailResponse
 from api.storage.firestore_client import get_collection
+from api.storage.validation import validate_document_id
 
 logger = logging.getLogger(__name__)
 
@@ -104,6 +105,7 @@ def save_trail_details(details: TrailDetailsResponse) -> None:
 
 def get_trail(trail_id: str) -> TrailResponse | None:
     """Get a single trail by ID."""
+    validate_document_id(trail_id, field_name="trail_id")
     doc = get_collection("trails").document(trail_id).get()
     if not doc.exists:
         return None
@@ -113,6 +115,7 @@ def get_trail(trail_id: str) -> TrailResponse | None:
 
 def get_trail_details(trail_id: str) -> TrailDetailsResponse | None:
     """Get detailed trail data for a specific trail."""
+    validate_document_id(trail_id, field_name="trail_id")
     doc = get_collection("trail_details").document(trail_id).get()
     if not doc.exists:
         return None
@@ -122,18 +125,21 @@ def get_trail_details(trail_id: str) -> TrailDetailsResponse | None:
 
 def update_trail_status(trail_id: str, status: str) -> None:
     """Update the status of a trail."""
+    validate_document_id(trail_id, field_name="trail_id")
     logger.info("Updating trail %s status to: %s", trail_id, status)
     get_collection("trails").document(trail_id).update({"status": status, "last_updated": _utc_now_z()})
 
 
 def update_trail_name(trail_id: str, name: str) -> None:
     """Update the name of a trail."""
+    validate_document_id(trail_id, field_name="trail_id")
     logger.info("Updating trail %s name to: %s", trail_id, name)
     get_collection("trails").document(trail_id).update({"name": name, "last_updated": _utc_now_z()})
 
 
 def update_trail(trail_id: str, updates: dict) -> None:
     """Update multiple fields of a trail."""
+    validate_document_id(trail_id, field_name="trail_id")
     logger.info("Updating trail %s with fields: %s", trail_id, list(updates.keys()))
     updates["last_updated"] = _utc_now_z()
     get_collection("trails").document(trail_id).update(updates)
@@ -142,6 +148,7 @@ def update_trail(trail_id: str, updates: dict) -> None:
 
 def delete_trail(trail_id: str) -> None:
     """Delete a trail and its details from Firestore."""
+    validate_document_id(trail_id, field_name="trail_id")
     logger.info("Deleting trail %s", trail_id)
     get_collection("trails").document(trail_id).delete()
     get_collection("trail_details").document(trail_id).delete()
