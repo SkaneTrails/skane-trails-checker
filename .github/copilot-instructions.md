@@ -64,7 +64,7 @@ ______________________________________________________________________
 
 ## Project Overview
 
-A Streamlit multi-page app (migrating to FastAPI + Expo/React Native) for tracking hiking trails and foraging spots in Skåne, Sweden. Processes GPX files, manages trail statuses, provides interactive maps.
+A FastAPI + Expo/React Native app for tracking hiking trails and foraging spots in Skåne, Sweden. Processes GPX files, manages trail statuses, provides interactive maps.
 
 **ZERO-COST REQUIREMENT**: GitHub Free + GCP Free Tier only. ALL suggestions must stay within these constraints.
 

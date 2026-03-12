@@ -152,32 +152,6 @@ uv run ruff format
 - Improve test coverage
 - Update documentation
 
-## Development Tips
-
-### Running the App Locally
-
-```bash
-uv run streamlit run app/_Home_.py
-```
-
-The app opens at `http://localhost:8501`
-
-### Debugging
-
-- Enable debug logging in the code
-- Check `app_debug.log` for error details
-- Use `streamlit run app/_Home_.py --logger.level=debug` for verbose output
-- See [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md) for common issues
-
-### Project Architecture
-
-See [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) for:
-
-- Project structure
-- Data flow patterns
-- Key functions and modules
-- Performance considerations
-
 ## Code of Conduct
 
 - Be respectful and inclusive

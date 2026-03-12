@@ -293,8 +293,8 @@ Examples:
     # Success message
     print(f"\n{Colors.GREEN}{Colors.BOLD}🎉 Setup complete!{Colors.RESET}")
     print("\n📋 Next steps:")
-    print("   1. Start the app: uv run streamlit run app/_Home_.py")
-    print("   2. Verify connection: App should connect to Firestore")
+    print("   1. Start the API: uv run uvicorn api.main:app --reload --port 8000")
+    print("   2. Verify connection: Visit http://localhost:8000/health")
     print("\n💡 Useful commands:")
     print("   Check .env:  uv run python dev-tools/setup_env.py --check")
     print("   Refresh:     uv run python dev-tools/setup_env.py --force")

@@ -64,15 +64,6 @@ ______________________________________________________________________
 
 ## Step 3: Start Services
 
-### Streamlit App
-
-```bash
-uv sync
-uv run streamlit run app/_Home_.py
-```
-
-Must run from project root. Streamlit auto-discovers pages in `app/pages/`.
-
 ### FastAPI Backend
 
 ```bash
@@ -144,4 +135,3 @@ ______________________________________________________________________
 | `.env` not loading              | Check `env_loader.py` — needs `FIRESTORE_DATABASE_ID` unset for dev mode         |
 | Impersonation token expired     | Re-run `gcloud auth application-default login --impersonate-service-account=...` |
 | Port already in use             | `netstat -ano \| findstr :8000` then `taskkill /PID <pid> /F` (Windows)          |
-| Streamlit pages not showing     | Must run from project root, pages auto-discovered from `app/pages/`              |

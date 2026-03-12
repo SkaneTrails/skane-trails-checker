@@ -182,6 +182,45 @@ All endpoints are prefixed with `/api/v1`.
 | ------ | --------- | ---- | ------------ |
 | `GET`  | `/health` | No   | Health check |
 
+## Seeding Trail Data
+
+After deploying infrastructure, Firestore is empty. There are two ways to add trails:
+
+### Skåneleden Trails (Bootstrap)
+
+The repo includes a bundled GPX file with all 169 Skåneleden etapps at `app/tracks_gpx/planned_hikes/all-skane-trails.gpx`. To seed them into Firestore:
+
+```bash
+uv run python -c "from app.functions.bootstrap_trails import bootstrap_planned_trails; bootstrap_planned_trails('app/tracks_gpx/planned_hikes/all-skane-trails.gpx')"
+```
+
+This is idempotent — it skips if `planned_hikes` trails already exist in Firestore.
+
+To refresh the bundled GPX file from the official Skåneleden website:
+
+```bash
+uv run python dev-tools/update_skaneleden_trails.py
+```
+
+Then re-bootstrap after clearing old data:
+
+```bash
+uv run python dev-tools/delete_planned_trails.py
+```
+
+### Custom Trails (GPX Upload)
+
+Upload GPX files through the app's upload screen, or via the API:
+
+```bash
+curl -X POST http://localhost:8000/api/v1/trails/upload \
+  -H "Authorization: Bearer <token>" \
+  -F "file=@my-trail.gpx" \
+  -F "source=other_trails"
+```
+
+See [dev-tools/README.md](../dev-tools/README.md) for additional data import and management scripts.
+
 ## Authentication
 
 The API uses Firebase Auth with Google Sign-In:
@@ -233,43 +272,6 @@ uv run pre-commit run --all-files
 ## Troubleshooting
 
 See [TROUBLESHOOTING.md](TROUBLESHOOTING.md) for common issues.
-
-### Streamlit Debug Mode
-
-```bash
-streamlit run app/_Home_.py --logger.level=debug
-```
-
-### Check Debug Log
-
-The app creates `app_debug.log` with:
-
-- Python version
-- Working directory
-- Streamlit version
-- Error tracebacks
-
-See [TROUBLESHOOTING.md](TROUBLESHOOTING.md) for common issues.
-
-## Performance Considerations
-
-### GPX Coordinate Simplification
-
-- Use RDP algorithm to reduce point density
-- Default tolerance: 0.0001 (balance accuracy vs performance)
-- Apply before map rendering: `simplify_track_coordinates()`
-
-### Map Rendering
-
-- Generate map only when needed (state changes)
-- Use unique keys for `st_folium()` to prevent unnecessary re-renders
-- Limit number of tracks displayed simultaneously
-
-### Session State
-
-- Minimize data stored in session state
-- Use lazy loading where possible
-- Clear unused state variables
 
 ## Dependency Management
 

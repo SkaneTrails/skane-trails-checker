@@ -265,7 +265,7 @@ Prefer TDD for new modules, complex logic, and bug fixes:
 
 For **bug fixes**: run existing tests first. If they don't catch it, write a failing test that reproduces the bug, then fix. Every bug fix must include a regression test.
 
-TDD is **not required** for: Streamlit UI code, trivial wrappers, exploratory spikes (add tests before merging).
+TDD is **not required** for: trivial wrappers, exploratory spikes (add tests before merging).
 
 ## Code Smells to Avoid
 
