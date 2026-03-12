@@ -63,6 +63,7 @@ def get_places_by_category(category_slug: str) -> list[PlaceResponse]:
 
 def save_place(place: PlaceResponse) -> None:
     """Save or update a place in Firestore."""
+    validate_document_id(place.place_id, field_name="place_id")
     place.last_updated = datetime.now(UTC).isoformat()
     get_collection("places").document(place.place_id).set(place.to_dict())
 
@@ -86,6 +87,7 @@ def save_places_batch(places: list[PlaceResponse], batch_size: int = 500) -> int
         batch_places = places[i : i + batch_size]
 
         for place in batch_places:
+            validate_document_id(place.place_id, field_name="place_id")
             place.last_updated = timestamp
             doc_ref = collection.document(place.place_id)
             batch.set(doc_ref, place.to_dict())

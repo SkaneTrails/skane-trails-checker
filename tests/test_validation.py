@@ -2,7 +2,7 @@
 
 import pytest
 
-from api.storage.validation import validate_document_id
+from api.storage.validation import InvalidDocumentIdError, validate_document_id
 
 
 class TestValidateDocumentId:
@@ -22,32 +22,32 @@ class TestValidateDocumentId:
         assert validate_document_id("trail (variant)") == "trail (variant)"
 
     def test_empty_string_raises(self):
-        with pytest.raises(ValueError, match="must not be empty"):
+        with pytest.raises(InvalidDocumentIdError, match="must not be empty"):
             validate_document_id("")
 
     def test_whitespace_only_raises(self):
-        with pytest.raises(ValueError, match="must not be empty"):
+        with pytest.raises(InvalidDocumentIdError, match="must not be empty"):
             validate_document_id("   ")
 
     def test_single_dot_raises(self):
-        with pytest.raises(ValueError, match="reserved name"):
+        with pytest.raises(InvalidDocumentIdError, match="reserved name"):
             validate_document_id(".")
 
     def test_double_dot_raises(self):
-        with pytest.raises(ValueError, match="reserved name"):
+        with pytest.raises(InvalidDocumentIdError, match="reserved name"):
             validate_document_id("..")
 
     def test_forward_slash_raises(self):
-        with pytest.raises(ValueError, match="path separators"):
+        with pytest.raises(InvalidDocumentIdError, match="path separators"):
             validate_document_id("a/b")
 
     def test_backslash_raises(self):
-        with pytest.raises(ValueError, match="path separators"):
+        with pytest.raises(InvalidDocumentIdError, match="path separators"):
             validate_document_id("a\\b")
 
     def test_too_long_raises(self):
         long_id = "a" * 1501
-        with pytest.raises(ValueError, match="exceeds maximum length"):
+        with pytest.raises(InvalidDocumentIdError, match="exceeds maximum length"):
             validate_document_id(long_id)
 
     def test_max_length_accepted(self):
@@ -55,9 +55,9 @@ class TestValidateDocumentId:
         assert validate_document_id(max_id) == max_id
 
     def test_invalid_characters_raises(self):
-        with pytest.raises(ValueError, match="invalid characters"):
+        with pytest.raises(InvalidDocumentIdError, match="invalid characters"):
             validate_document_id("id<script>")
 
     def test_custom_field_name_in_error(self):
-        with pytest.raises(ValueError, match="Invalid spot_id"):
+        with pytest.raises(InvalidDocumentIdError, match="Invalid spot_id"):
             validate_document_id("", field_name="spot_id")

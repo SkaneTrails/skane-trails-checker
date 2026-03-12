@@ -245,3 +245,4 @@ class TestUploadGpxEndpoint:
         )
         assert response.status_code == 413
         assert "too large" in response.json()["detail"]
+        assert "bytes" in response.json()["detail"]

@@ -130,8 +130,15 @@ def upload_gpx(
         raise HTTPException(status_code=400, detail="Uploaded file is empty")
 
     if len(content) > MAX_GPX_SIZE:
-        size_mb = len(content) / (1024 * 1024)
-        raise HTTPException(status_code=413, detail=f"GPX file too large ({size_mb:.1f} MB). Maximum size is 10 MB.")
+        size_mib = len(content) / (1024 * 1024)
+        max_mib = MAX_GPX_SIZE / (1024 * 1024)
+        raise HTTPException(
+            status_code=413,
+            detail=(
+                f"GPX file too large ({len(content)} bytes, {size_mib:.2f} MiB). "
+                f"Maximum size is {MAX_GPX_SIZE} bytes ({max_mib:.2f} MiB)."
+            ),
+        )
 
     try:
         trails = parse_gpx_upload(content, source=source)

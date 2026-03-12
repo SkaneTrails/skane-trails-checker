@@ -10,6 +10,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from api.routers import foraging, places, trails
+from api.storage.validation import InvalidDocumentIdError
 
 logger = logging.getLogger(__name__)
 
@@ -24,7 +25,7 @@ app = FastAPI(
     openapi_url="/api/openapi.json",
 )
 
-ALLOWED_ORIGINS = os.getenv("ALLOWED_ORIGINS", "").split(",") if os.getenv("ALLOWED_ORIGINS") else []
+ALLOWED_ORIGINS = [o.strip() for o in os.getenv("ALLOWED_ORIGINS", "").split(",") if o.strip()]
 
 app.add_middleware(
     CORSMiddleware,  # type: ignore[arg-type]
@@ -37,6 +38,13 @@ app.add_middleware(
 app.include_router(trails.router, prefix="/api/v1")
 app.include_router(foraging.router, prefix="/api/v1")
 app.include_router(places.router, prefix="/api/v1")
+
+
+@app.exception_handler(InvalidDocumentIdError)
+async def invalid_document_id_handler(request: Request, exc: InvalidDocumentIdError) -> JSONResponse:
+    """Return 400 for invalid Firestore document IDs."""
+    logger.warning("Invalid document ID on %s %s: %s", request.method, request.url.path, exc)
+    return JSONResponse(status_code=400, content={"detail": str(exc)})
 
 
 @app.exception_handler(Exception)

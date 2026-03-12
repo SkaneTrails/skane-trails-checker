@@ -87,6 +87,7 @@ def save_trail(trail: TrailResponse, *, update_sync: bool = True) -> None:
             bulk imports (e.g. GPX upload) and call _update_sync_metadata()
             once after the loop.
     """
+    validate_document_id(trail.trail_id, field_name="trail_id")
     logger.info("Saving trail: %s (ID: %s, Source: %s)", trail.name, trail.trail_id, trail.source)
     now = _utc_now_z()
     trail.last_updated = now
@@ -99,6 +100,7 @@ def save_trail(trail: TrailResponse, *, update_sync: bool = True) -> None:
 
 def save_trail_details(details: TrailDetailsResponse) -> None:
     """Save or update trail details in Firestore."""
+    validate_document_id(details.trail_id, field_name="trail_id")
     logger.info("Saving trail details for: %s", details.trail_id)
     get_collection("trail_details").document(details.trail_id).set(details.to_dict())
 
