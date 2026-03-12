@@ -1,24 +1,26 @@
 import { useEffect, useRef } from 'react';
-import type { Trail } from '@/lib/types';
+import type { ForagingSpot, ForagingType } from '@/lib/types';
 import { injectLeafletCSS } from '@/lib/inject-css';
 
-interface TrailMapProps {
-  trails: Trail[];
-  onTrailSelect?: (trail: Trail) => void;
+interface ForagingMapProps {
+  spots: ForagingSpot[];
+  types: ForagingType[];
+  onSpotSelect?: (spot: ForagingSpot) => void;
+  onMapClick?: (lat: number, lng: number) => void;
 }
 
-// Default center: Skåne, Sweden
 const DEFAULT_CENTER: [number, number] = [55.95, 13.4];
 const DEFAULT_ZOOM = 9;
 
-export function TrailMap({ trails, onTrailSelect }: TrailMapProps) {
+export function ForagingMap({ spots, types, onSpotSelect, onMapClick }: ForagingMapProps) {
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<L.Map | null>(null);
-  const onTrailSelectRef = useRef(onTrailSelect);
-  onTrailSelectRef.current = onTrailSelect;
+  const onSpotSelectRef = useRef(onSpotSelect);
+  const onMapClickRef = useRef(onMapClick);
+  onSpotSelectRef.current = onSpotSelect;
+  onMapClickRef.current = onMapClick;
 
   useEffect(() => {
-    // Dynamically import leaflet and its CSS (web only)
     let cancelled = false;
 
     async function initMap() {
@@ -30,7 +32,6 @@ export function TrailMap({ trails, onTrailSelect }: TrailMapProps) {
 
       if (cancelled || !mapRef.current) return;
 
-      // Don't re-init if already created
       if (mapInstanceRef.current) {
         mapInstanceRef.current.remove();
       }
@@ -43,7 +44,6 @@ export function TrailMap({ trails, onTrailSelect }: TrailMapProps) {
         maxZoom: 18,
       }).addTo(map);
 
-      // User location control — shows a "locate me" button on the map
       new LocateControl({
         position: 'topleft',
         setView: 'untilPan',
@@ -58,30 +58,29 @@ export function TrailMap({ trails, onTrailSelect }: TrailMapProps) {
         locateOptions: { enableHighAccuracy: true },
       }).addTo(map);
 
-      // Add trail polylines in two passes:
-      // 1. "To Explore" trails (orange) rendered first → bottom layer
-      // 2. Explored trails (blue) rendered second → painted on top
-      const toExplore = trails.filter((t) => t.status !== 'Explored!');
-      const explored = trails.filter((t) => t.status === 'Explored!');
+      const typeMap = new Map(types.map((t) => [t.name, t]));
 
-      for (const trail of [...toExplore, ...explored]) {
-        if (!trail.coordinates_map || trail.coordinates_map.length === 0) continue;
+      for (const spot of spots) {
+        const typeInfo = typeMap.get(spot.type);
+        const emoji = typeInfo?.icon ?? '📍';
 
-        const latlngs = trail.coordinates_map.map((c) => [c.lat, c.lng] as [number, number]);
-        const isExplored = trail.status === 'Explored!';
-        const color = isExplored ? '#4169E1' : '#FF8000';
-        const polyline = L.polyline(latlngs, {
-          color,
-          weight: isExplored ? 4 : 3,
-          opacity: 0.8,
-        }).addTo(map);
+        const icon = L.divIcon({
+          html: `<span style="font-size:24px;line-height:1;cursor:pointer">${emoji}</span>`,
+          className: 'foraging-marker',
+          iconSize: [28, 28],
+          iconAnchor: [14, 14],
+        });
 
-        polyline.on('click', () => {
-          if (onTrailSelectRef.current) {
-            onTrailSelectRef.current(trail);
-          }
+        const marker = L.marker([spot.lat, spot.lng], { icon }).addTo(map);
+
+        marker.on('click', () => {
+          onSpotSelectRef.current?.(spot);
         });
       }
+
+      map.on('click', (e: L.LeafletMouseEvent) => {
+        onMapClickRef.current?.(e.latlng.lat, e.latlng.lng);
+      });
     }
 
     initMap();
@@ -93,7 +92,7 @@ export function TrailMap({ trails, onTrailSelect }: TrailMapProps) {
         mapInstanceRef.current = null;
       }
     };
-  }, [trails]);
+  }, [spots, types]);
 
   return <div ref={mapRef} style={{ width: '100%', height: '100%', minHeight: 400 }} />;
 }

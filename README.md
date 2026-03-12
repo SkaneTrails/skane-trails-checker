@@ -10,7 +10,7 @@ Fork this repo, create a GCP project, and follow the [infrastructure guide](infr
 
 Browse all 169 Skåneleden etapps (~1,000 km) on an interactive map. Upload your own GPX files from Garmin, Strava, or any GPS device to add regional or worldwide hikes. Mark trails as explored, filter by distance, difficulty, or status.
 
-### 🌿 Foraging Guide - Coming soon!
+### 🌿 Foraging Guide
 
 Track seasonal foraging locations — mushrooms, berries, herbs — on a map with monthly filtering. Add custom foraging types with icons, colors, and Swedish names.
 
