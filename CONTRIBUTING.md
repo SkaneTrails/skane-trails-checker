@@ -1,27 +1,31 @@
 # Contributing to Skåne Trails Checker
 
-Thank you for your interest in contributing! This document explains how to contribute to the project.
+Thank you for your interest in contributing! This document covers the development
+workflow. For local setup and environment configuration, see
+[docs/DEVELOPMENT.md](docs/DEVELOPMENT.md).
 
 ## Getting Started
 
 ### Prerequisites
 
-- Python 3.14+
-- [UV package manager](https://github.com/astral-sh/uv)
-- Git
+- Python 3.14+ and [UV](https://github.com/astral-sh/uv)
+- Node.js 20+ and [pnpm](https://pnpm.io/) (for mobile/web app)
+- Git and [gh CLI](https://cli.github.com/) (for PRs)
 
 ### Setup
 
 ```bash
-# Fork the repository on GitHub, then clone your fork
+# Clone or fork
 git clone https://github.com/YOUR-USERNAME/skane-trails-checker.git
 cd skane-trails-checker
 
-# Install dependencies
-uv sync
-
-# Install pre-commit hooks
+# API dependencies
+uv sync --extra dev
 uv run pre-commit install
+
+# Mobile dependencies
+cd mobile
+pnpm install
 ```
 
 ## Making Changes
@@ -31,133 +35,85 @@ uv run pre-commit install
 Always create a new branch from `main`:
 
 ```bash
-git checkout main
+git switch main
 git pull
-git checkout -b feat/your-feature-name
+git switch -c feat/your-feature-name
 ```
 
 **Branch naming conventions:**
 
-- `feat/feature-name` - New features
-- `fix/bug-description` - Bug fixes
-- `chore/task-description` - Maintenance tasks
-- `docs/description` - Documentation changes
+- `feat/feature-name` — New features
+- `fix/bug-description` — Bug fixes
+- `chore/task-description` — Maintenance tasks
+- `docs/description` — Documentation changes
 
-### 2. Make Your Changes
+### 2. Write Tests First
 
-- Write clear, self-documenting code
-- Add tests for new functionality (aim for 70%+ coverage)
-- Update documentation if needed
-- Follow the code style guidelines below
-
-### 3. Test Your Changes
+All API and mobile changes should have corresponding tests.
 
 ```bash
-# Run tests
-uv run pytest
+# API tests (pytest)
+uv run pytest --cov=app --cov=api --cov-report=term-missing
 
-# Check coverage
-uv run pytest --cov=app --cov-report=html
-
-# Run linting
-uv run ruff check --fix
-uv run ruff format
+# Mobile tests (Vitest)
+cd mobile && pnpm test
 ```
 
-### 4. Commit Your Changes
+**Exceptions:** Terraform, config files, pure UI styling.
 
-We follow [Conventional Commits](https://www.conventionalcommits.org/) specification:
+### 3. Commit Your Changes
+
+We follow [Conventional Commits](https://www.conventionalcommits.org/):
 
 ```
 <type>: <description>
-
-[optional body]
-
-[optional footer]
 ```
 
 **Commit types:**
 
-- `feat:` - New feature
-- `fix:` - Bug fix
-- `docs:` - Documentation only
-- `chore:` - Maintenance (dependencies, config)
-- `refactor:` - Code refactoring (no behavior change)
-- `test:` - Adding or updating tests
-- `ci:` - CI/CD changes
-- `perf:` - Performance improvements
+- `feat:` — New feature
+- `fix:` — Bug fix
+- `docs:` — Documentation only
+- `chore:` — Maintenance (dependencies, config)
+- `refactor:` — Code refactoring (no behavior change)
+- `test:` — Adding or updating tests
+- `ci:` — CI/CD changes
+- `perf:` — Performance improvements
 
-**Examples:**
-
-```bash
-git commit -m "feat: add CSV export for foraging spots"
-git commit -m "fix: map not rendering after GPX upload"
-git commit -m "docs: update installation instructions"
-```
-
-### 5. Push and Create Pull Request
+### 4. Push and Create Pull Request
 
 ```bash
-git push -u origin feat/your-feature-name
-
-# Create PR using GitHub CLI
+git push origin feat/your-feature-name
 gh pr create
-
-# Or create PR via GitHub web interface
 ```
 
-## Code Quality Standards
+## Code Style
 
-### Code Style
+### Python
 
-We use **Ruff** for linting and formatting:
-
-- Line length: 120 characters
-- Target: Python 3.13+
-- Self-documenting code preferred (avoid inline comments unless explaining complex logic)
+- **Formatter/Linter**: Ruff (configured in `pyproject.toml`)
+- **Line length**: 120 characters
+- **Type hints**: Use modern syntax (`list[str]` not `List[str]`)
+- **Models**: Dataclasses with `@dataclass` decorator
+- **Self-documenting code**: Avoid inline comments
 
 ```bash
-# Check and fix issues
 uv run ruff check --fix
-
-# Format code
 uv run ruff format
 ```
 
-### Pre-commit Hooks
+### TypeScript/React
 
-Pre-commit hooks run automatically on every commit:
+- **Components**: Arrow function components
+- **Hooks**: Custom hooks in `lib/hooks/`, tested in `__tests__/`
+- **Styling**: NativeWind (Tailwind for React Native)
 
-- `ruff` - Lint and format Python code
-- `prettier` - Format JSON/YAML/Markdown
-- `deptry` - Check for unused dependencies
-- `actionlint` - Lint GitHub Actions workflows
-
-Run manually:
-
-```bash
-uv run pre-commit run --all-files
-```
-
-### Testing Requirements
+## Testing Requirements
 
 - **All new methods and modified functions must have tests**
-- Target: 70%+ coverage for business logic
+- Coverage threshold: 85% (enforced by `fail_under` in `pyproject.toml`)
 - Test both success and failure paths
 - Use descriptive test names: `test_function_name_when_condition_then_expected_result`
-
-Example:
-
-```python
-def test_parse_gpx_file_when_valid_then_returns_tracks(tmp_path):
-    gpx_file = tmp_path / "test.gpx"
-    gpx_file.write_text(VALID_GPX_CONTENT)
-
-    tracks = parse_gpx_file(str(gpx_file))
-
-    assert len(tracks) > 0
-    assert tracks[0].name == "Expected Track Name"
-```
 
 ## Pull Request Process
 
@@ -184,19 +140,10 @@ def test_parse_gpx_file_when_valid_then_returns_tracks(tmp_path):
 
 1. **Squash and merge** (preferred) once approved
 
-## What to Contribute
+## Further Reading
 
-### Good First Issues
-
-Look for issues labeled `good first issue` in the [issue tracker](https://github.com/SkaneTrails/skane-trails-checker/issues).
-
-### Ideas for Contributions
-
-- **Bug fixes** - Report or fix issues you encounter
-- **Documentation** - Improve README, guides, or inline documentation
-- **Tests** - Add tests for uncovered code
-- **Features** - See [GitHub Issues](https://github.com/SkaneTrails/skane-trails-checker/issues) for planned features
-- **Performance** - Optimize GPX parsing, map rendering, or data loading
+- [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) — Environment setup, API endpoints, project structure
+- [infra/environments/dev/README.md](infra/environments/dev/README.md) — Infrastructure bootstrap, CI/CD, Terraform
 
 ### Not Sure Where to Start?
 
