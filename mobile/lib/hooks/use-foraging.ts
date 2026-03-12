@@ -8,17 +8,19 @@ export const foragingKeys = {
   types: ['foraging', 'types'] as const,
 };
 
-export function useForagingSpots(month?: string) {
+export function useForagingSpots(month?: string, options?: { enabled?: boolean }) {
   return useQuery({
     queryKey: foragingKeys.spots(month),
     queryFn: () => foragingApi.getSpots(month),
+    enabled: options?.enabled,
   });
 }
 
-export function useForagingTypes() {
+export function useForagingTypes(options?: { enabled?: boolean }) {
   return useQuery({
     queryKey: foragingKeys.types,
     queryFn: () => foragingApi.getTypes(),
+    enabled: options?.enabled,
   });
 }
 

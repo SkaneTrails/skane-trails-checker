@@ -36,8 +36,15 @@ export const Pressable = React.forwardRef<HTMLButtonElement, React.ButtonHTMLAtt
 );
 Pressable.displayName = 'Pressable';
 
-export const TextInput = React.forwardRef<HTMLInputElement, React.InputHTMLAttributes<HTMLInputElement>>(
-  (props, ref) => React.createElement('input', { ...props, ref }),
+export const TextInput = React.forwardRef<HTMLInputElement, React.InputHTMLAttributes<HTMLInputElement> & { onChangeText?: (text: string) => void }>(
+  ({ onChangeText, ...props }, ref) =>
+    React.createElement('input', {
+      ...props,
+      onChange: onChangeText
+        ? (e: React.ChangeEvent<HTMLInputElement>) => onChangeText(e.target.value)
+        : undefined,
+      ref,
+    }),
 );
 TextInput.displayName = 'TextInput';
 
