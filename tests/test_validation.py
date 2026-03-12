@@ -29,6 +29,14 @@ class TestValidateDocumentId:
         with pytest.raises(InvalidDocumentIdError, match="must not be empty"):
             validate_document_id("   ")
 
+    def test_leading_whitespace_raises(self):
+        with pytest.raises(InvalidDocumentIdError, match="leading or trailing whitespace"):
+            validate_document_id(" trail")
+
+    def test_trailing_whitespace_raises(self):
+        with pytest.raises(InvalidDocumentIdError, match="leading or trailing whitespace"):
+            validate_document_id("trail ")
+
     def test_single_dot_raises(self):
         with pytest.raises(InvalidDocumentIdError, match="reserved name"):
             validate_document_id(".")

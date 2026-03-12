@@ -23,6 +23,10 @@ def validate_document_id(doc_id: str, *, field_name: str = "document ID") -> str
         msg = f"Invalid {field_name}: must not be empty"
         raise InvalidDocumentIdError(msg)
 
+    if doc_id != doc_id.strip():
+        msg = f"Invalid {field_name}: must not have leading or trailing whitespace"
+        raise InvalidDocumentIdError(msg)
+
     if doc_id in (".", ".."):
         msg = f"Invalid {field_name}: reserved name"
         raise InvalidDocumentIdError(msg)
