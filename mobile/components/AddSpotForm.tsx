@@ -42,17 +42,24 @@ export function AddSpotForm({
     if (initialLng !== undefined) setLng(initialLng.toString());
   }, [initialLng]);
 
+  const parsedLat = parseFloat(lat);
+  const parsedLng = parseFloat(lng);
+  const coordinatesAreValid =
+    !Number.isNaN(parsedLat) &&
+    !Number.isNaN(parsedLng) &&
+    parsedLat >= -90 &&
+    parsedLat <= 90 &&
+    parsedLng >= -180 &&
+    parsedLng <= 180;
+
   const canSubmit =
     selectedType !== '' &&
     selectedMonth !== '' &&
-    lat !== '' &&
-    lng !== '' &&
+    coordinatesAreValid &&
     !isSubmitting;
 
   const handleSubmit = () => {
-    const parsedLat = parseFloat(lat);
-    const parsedLng = parseFloat(lng);
-    if (isNaN(parsedLat) || isNaN(parsedLng)) return;
+    if (!coordinatesAreValid) return;
     onSubmit({ type: selectedType, lat: parsedLat, lng: parsedLng, notes, month: selectedMonth });
   };
 

@@ -12,8 +12,9 @@ const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', '
 export default function ForagingScreen() {
   const { colors, shadows } = useTheme();
   const [selectedMonth, setSelectedMonth] = useState<string | undefined>();
-  const { data: spots, isFetching, error } = useForagingSpots(selectedMonth);
-  const { data: types } = useForagingTypes();
+  const isWeb = Platform.OS === 'web';
+  const { data: spots, isFetching, error } = useForagingSpots(selectedMonth, { enabled: isWeb });
+  const { data: types } = useForagingTypes({ enabled: isWeb });
   const createSpot = useCreateForagingSpot();
 
   const [selectedSpot, setSelectedSpot] = useState<ForagingSpot | null>(null);

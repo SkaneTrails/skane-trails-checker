@@ -64,8 +64,12 @@ export function ForagingMap({ spots, types, onSpotSelect, onMapClick }: Foraging
         const typeInfo = typeMap.get(spot.type);
         const emoji = typeInfo?.icon ?? '📍';
 
+        const span = document.createElement('span');
+        span.textContent = emoji;
+        span.style.cssText = 'font-size:24px;line-height:1;cursor:pointer';
+
         const icon = L.divIcon({
-          html: `<span style="font-size:24px;line-height:1;cursor:pointer">${emoji}</span>`,
+          html: span.outerHTML,
           className: 'foraging-marker',
           iconSize: [28, 28],
           iconAnchor: [14, 14],
