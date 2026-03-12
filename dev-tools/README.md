@@ -157,13 +157,17 @@ This script performs three steps automatically:
 
 #### After Running
 
-Run the Streamlit app to bootstrap the new trails into Firestore:
+Bootstrap the new trails into Firestore:
 
 ```bash
-uv run streamlit run app/_Home_.py
+# Clear old planned trails first
+uv run python dev-tools/delete_planned_trails.py
+
+# Re-bootstrap from updated GPX
+uv run python -c "from app.functions.bootstrap_trails import bootstrap_planned_trails; bootstrap_planned_trails('app/tracks_gpx/planned_hikes/all-skane-trails.gpx')"
 ```
 
-The app will automatically detect that no `planned_hikes` trails exist and load them from the GPX file.
+The bootstrap function is idempotent — it skips if `planned_hikes` trails already exist.
 
 #### Notes
 
