@@ -27,10 +27,11 @@ def list_foraging_spots(
 
 @router.post("/spots", status_code=201)
 def create_foraging_spot(
-    body: ForagingSpotCreate, _user: Annotated[AuthenticatedUser, Depends(require_auth)]
+    body: ForagingSpotCreate, user: Annotated[AuthenticatedUser, Depends(require_auth)]
 ) -> ForagingSpotResponse:
     """Create a new foraging spot."""
     spot_data = body.model_dump()
+    spot_data["created_by"] = user.uid
     doc_id = foraging_storage.save_foraging_spot(spot_data)
 
     spots = foraging_storage.get_foraging_spots()
@@ -43,9 +44,16 @@ def create_foraging_spot(
 
 @router.patch("/spots/{spot_id}", status_code=204)
 def update_foraging_spot(
-    spot_id: str, body: ForagingSpotUpdate, _user: Annotated[AuthenticatedUser, Depends(require_auth)]
+    spot_id: str, body: ForagingSpotUpdate, user: Annotated[AuthenticatedUser, Depends(require_auth)]
 ) -> None:
     """Update a foraging spot."""
+    existing = foraging_storage.get_foraging_spot(spot_id)
+    if not existing:
+        raise HTTPException(status_code=404, detail="Foraging spot not found")
+
+    if existing.created_by and existing.created_by != user.uid:
+        raise HTTPException(status_code=403, detail="Not authorized to modify this foraging spot")
+
     updates = body.model_dump(exclude_none=True)
     if not updates:
         raise HTTPException(status_code=400, detail="No fields to update")
@@ -54,8 +62,15 @@ def update_foraging_spot(
 
 
 @router.delete("/spots/{spot_id}", status_code=204)
-def delete_foraging_spot(spot_id: str, _user: Annotated[AuthenticatedUser, Depends(require_auth)]) -> None:
+def delete_foraging_spot(spot_id: str, user: Annotated[AuthenticatedUser, Depends(require_auth)]) -> None:
     """Delete a foraging spot."""
+    existing = foraging_storage.get_foraging_spot(spot_id)
+    if not existing:
+        raise HTTPException(status_code=404, detail="Foraging spot not found")
+
+    if existing.created_by and existing.created_by != user.uid:
+        raise HTTPException(status_code=403, detail="Not authorized to delete this foraging spot")
+
     foraging_storage.delete_foraging_spot(spot_id)
 
 

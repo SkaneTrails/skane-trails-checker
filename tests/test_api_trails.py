@@ -284,6 +284,25 @@ class TestUpdateTrail:
         response = authenticated_client.patch("/api/v1/trails/abc123", json={"status": "Bad Status"})
         assert response.status_code == 422
 
+    @patch("api.routers.trails.trail_storage.get_trail")
+    def test_update_trail_forbidden_when_not_owner(self, mock_get, authenticated_client):
+        owned_by_other = SAMPLE_TRAIL.model_copy(update={"created_by": "other-user"})
+        mock_get.return_value = owned_by_other
+        response = authenticated_client.patch("/api/v1/trails/abc123", json={"name": "Stolen"})
+        assert response.status_code == 403
+        assert "Not authorized" in response.json()["detail"]
+
+    @patch("api.routers.trails.trail_storage.get_trail")
+    @patch("api.routers.trails.trail_storage.update_trail")
+    def test_update_trail_allowed_when_owner(self, mock_update, mock_get, authenticated_client):
+        owned = SAMPLE_TRAIL.model_copy(update={"created_by": "test-user"})
+        updated = owned.model_copy(update={"name": "My Trail"})
+        mock_get.side_effect = [owned, updated]
+        mock_update.return_value = None
+        response = authenticated_client.patch("/api/v1/trails/abc123", json={"name": "My Trail"})
+        assert response.status_code == 200
+        assert response.json()["name"] == "My Trail"
+
 
 class TestDeleteTrail:
     @patch("api.routers.trails.trail_storage.get_trail")
@@ -301,3 +320,20 @@ class TestDeleteTrail:
         mock_get.return_value = None
         response = authenticated_client.delete("/api/v1/trails/nonexistent")
         assert response.status_code == 404
+
+    @patch("api.routers.trails.trail_storage.get_trail")
+    def test_delete_trail_forbidden_when_not_owner(self, mock_get, authenticated_client):
+        owned_by_other = SAMPLE_TRAIL.model_copy(update={"created_by": "other-user"})
+        mock_get.return_value = owned_by_other
+        response = authenticated_client.delete("/api/v1/trails/abc123")
+        assert response.status_code == 403
+        assert "Not authorized" in response.json()["detail"]
+
+    @patch("api.routers.trails.trail_storage.get_trail")
+    @patch("api.routers.trails.trail_storage.delete_trail")
+    def test_delete_trail_allowed_when_no_created_by(self, mock_delete, mock_get, authenticated_client):
+        """Legacy trails without created_by can be deleted by any authenticated user."""
+        mock_get.return_value = SAMPLE_TRAIL  # created_by=None
+        mock_delete.return_value = None
+        response = authenticated_client.delete("/api/v1/trails/abc123")
+        assert response.status_code == 204

@@ -127,6 +127,17 @@ class TestDocToTrail:
         assert trail.activity_type is None
         assert trail.elevation_gain is None
         assert trail.elevation_loss is None
+        assert trail.created_by is None
+
+    def test_maps_created_by(self, mock_collection) -> None:
+        doc_with_owner = {**SAMPLE_TRAIL, "created_by": "user-1"}
+        mock_doc = MagicMock()
+        mock_doc.to_dict.return_value = doc_with_owner
+        mock_collection.stream.return_value = [mock_doc]
+
+        trail = get_all_trails()[0]
+
+        assert trail.created_by == "user-1"
 
 
 class TestGetAllTrails:

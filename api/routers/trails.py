@@ -72,12 +72,15 @@ def get_trail_details(trail_id: str) -> TrailDetailsResponse:
 
 @router.patch("/{trail_id}")
 def update_trail(
-    trail_id: str, body: TrailUpdate, _user: Annotated[AuthenticatedUser, Depends(require_auth)]
+    trail_id: str, body: TrailUpdate, user: Annotated[AuthenticatedUser, Depends(require_auth)]
 ) -> TrailResponse:
     """Update trail fields (name, status, difficulty)."""
     existing = trail_storage.get_trail(trail_id)
     if not existing:
         raise HTTPException(status_code=404, detail="Trail not found")
+
+    if existing.created_by and existing.created_by != user.uid:
+        raise HTTPException(status_code=403, detail="Not authorized to modify this trail")
 
     updates = body.model_dump(exclude_none=True)
     if not updates:
@@ -92,11 +95,14 @@ def update_trail(
 
 
 @router.delete("/{trail_id}", status_code=204)
-def delete_trail(trail_id: str, _user: Annotated[AuthenticatedUser, Depends(require_auth)]) -> None:
+def delete_trail(trail_id: str, user: Annotated[AuthenticatedUser, Depends(require_auth)]) -> None:
     """Delete a trail and its details."""
     existing = trail_storage.get_trail(trail_id)
     if not existing:
         raise HTTPException(status_code=404, detail="Trail not found")
+
+    if existing.created_by and existing.created_by != user.uid:
+        raise HTTPException(status_code=403, detail="Not authorized to delete this trail")
 
     trail_storage.delete_trail(trail_id)
 
@@ -104,7 +110,7 @@ def delete_trail(trail_id: str, _user: Annotated[AuthenticatedUser, Depends(requ
 @router.post("/upload", status_code=201)
 def upload_gpx(
     file: UploadFile,
-    _user: Annotated[AuthenticatedUser, Depends(require_auth)],
+    user: Annotated[AuthenticatedUser, Depends(require_auth)],
     source: Annotated[
         str,
         Query(
@@ -149,6 +155,7 @@ def upload_gpx(
         raise HTTPException(status_code=400, detail=detail) from e
 
     for trail in trails:
+        trail.created_by = user.uid
         trail_storage.save_trail(trail, update_sync=False)
 
     # Update sync metadata once after bulk save (not per-trail)

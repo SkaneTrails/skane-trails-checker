@@ -37,6 +37,7 @@ def _doc_to_trail(data: dict) -> TrailResponse:
         activity_type=data.get("activity_type"),
         elevation_gain=data.get("elevation_gain"),
         elevation_loss=data.get("elevation_loss"),
+        created_by=data.get("created_by"),
     )
 
 

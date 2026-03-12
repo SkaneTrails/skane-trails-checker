@@ -141,6 +141,21 @@ class TestUploadGpxEndpoint:
     @patch("api.routers.trails.trail_storage.update_sync_metadata")
     @patch("api.routers.trails.trail_storage.save_trail")
     @patch("api.routers.trails.parse_gpx_upload")
+    def test_upload_sets_created_by(self, mock_parse, mock_save, mock_sync, authenticated_client):
+        trail = SAMPLE_TRAIL.model_copy()
+        mock_parse.return_value = [trail]
+        mock_save.return_value = None
+
+        authenticated_client.post(
+            "/api/v1/trails/upload",
+            files={"file": ("trail.gpx", io.BytesIO(VALID_GPX.encode()), "application/gpx+xml")},
+        )
+        saved_trail = mock_save.call_args[0][0]
+        assert saved_trail.created_by == "test-user"
+
+    @patch("api.routers.trails.trail_storage.update_sync_metadata")
+    @patch("api.routers.trails.trail_storage.save_trail")
+    @patch("api.routers.trails.parse_gpx_upload")
     def test_upload_valid_gpx(self, mock_parse, mock_save, mock_sync, authenticated_client):
         mock_parse.return_value = [SAMPLE_TRAIL]
         mock_save.return_value = None

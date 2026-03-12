@@ -32,6 +32,7 @@ ______________________________________________________________________
 | `activity_type`   | `str`                        | ❌       | Type of activity (hiking, running, etc.)                     |
 | `elevation_gain`  | `float`                      | ❌       | Total elevation gain in meters                               |
 | `elevation_loss`  | `float`                      | ❌       | Total elevation loss in meters                               |
+| `created_by`      | `str`                        | ❌       | UID of user who created the trail (null for legacy/seeded)   |
 
 **Document ID**: Must equal `trail_id` (same ID used by app/API via `document(trail_id)`).
 
@@ -69,6 +70,7 @@ Updated automatically on trail save/delete. Used by clients to detect changes ef
 | `date`         | `str`   | ❌       | Specific date                                        |
 | `created_at`   | `str`   | ✅       | ISO timestamp                                        |
 | `last_updated` | `str`   | ✅       | ISO timestamp                                        |
+| `created_by`   | `str`   | ❌       | UID of user who created the spot (null for legacy)   |
 
 ### `foraging_types` — Foraging type definitions
 
