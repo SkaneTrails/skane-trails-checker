@@ -15,6 +15,7 @@ class ForagingSpotResponse(BaseModel):
     date: str = ""
     created_at: str = ""
     last_updated: str = ""
+    created_by: str | None = Field(default=None, exclude=True)
 
 
 class ForagingSpotCreate(BaseModel):

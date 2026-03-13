@@ -38,6 +38,7 @@ class TrailResponse(BaseModel):
     activity_type: str | None = None
     elevation_gain: float | None = None
     elevation_loss: float | None = None
+    created_by: str | None = Field(default=None, exclude=True)
 
     def to_dict(self) -> dict:
         """Convert to dictionary for Firestore storage."""
@@ -70,6 +71,8 @@ class TrailResponse(BaseModel):
             data["elevation_gain"] = float(self.elevation_gain)
         if self.elevation_loss is not None:
             data["elevation_loss"] = float(self.elevation_loss)
+        if self.created_by is not None:
+            data["created_by"] = self.created_by
         return data
 
 

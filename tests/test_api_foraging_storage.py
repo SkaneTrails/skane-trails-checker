@@ -14,12 +14,14 @@ from api.models.foraging import ForagingSpotResponse, ForagingTypeResponse
 from api.storage.foraging_storage import (
     delete_foraging_spot,
     delete_foraging_type,
+    get_foraging_spot,
     get_foraging_spots,
     get_foraging_types,
     save_foraging_spot,
     save_foraging_type,
     update_foraging_spot,
 )
+from api.storage.validation import InvalidDocumentIdError
 
 
 @pytest.fixture
@@ -36,6 +38,45 @@ def _make_doc(doc_id: str, data: dict | None) -> MagicMock:
     doc.id = doc_id
     doc.to_dict.return_value = data
     return doc
+
+
+class TestGetForagingSpot:
+    """Tests for get_foraging_spot — returns single ForagingSpotResponse."""
+
+    def test_returns_spot_by_id(self, mock_collection) -> None:
+        mock_doc = MagicMock()
+        mock_doc.exists = True
+        mock_doc.id = "s1"
+        mock_doc.to_dict.return_value = {"type": "Mushroom", "lat": 56.0, "lng": 13.0, "created_by": "user-1"}
+        mock_collection.document.return_value.get.return_value = mock_doc
+
+        result = get_foraging_spot("s1")
+
+        assert result is not None
+        assert isinstance(result, ForagingSpotResponse)
+        assert result.id == "s1"
+        assert result.type == "Mushroom"
+        assert result.created_by == "user-1"
+        mock_collection.document.assert_called_once_with("s1")
+
+    def test_returns_none_when_not_found(self, mock_collection) -> None:
+        mock_doc = MagicMock()
+        mock_doc.exists = False
+        mock_collection.document.return_value.get.return_value = mock_doc
+
+        assert get_foraging_spot("nonexistent") is None
+
+    def test_returns_none_when_data_is_none(self, mock_collection) -> None:
+        mock_doc = MagicMock()
+        mock_doc.exists = True
+        mock_doc.to_dict.return_value = None
+        mock_collection.document.return_value.get.return_value = mock_doc
+
+        assert get_foraging_spot("bad-doc") is None
+
+    def test_rejects_invalid_id(self, mock_collection) -> None:
+        with pytest.raises(InvalidDocumentIdError, match="spot_id"):
+            get_foraging_spot("")
 
 
 class TestGetForagingSpots:
@@ -94,6 +135,15 @@ class TestGetForagingSpots:
         assert spot.lng == 0.0
         assert spot.notes == ""
         assert spot.month == ""
+
+    def test_maps_created_by(self, mock_collection) -> None:
+        mock_collection.stream.return_value = [
+            _make_doc("s1", {"type": "Mushroom", "lat": 56.0, "lng": 13.0, "created_by": "user-1"})
+        ]
+
+        result = get_foraging_spots()
+
+        assert result[0].created_by == "user-1"
 
 
 class TestSaveForagingSpot:

@@ -22,7 +22,18 @@ def _doc_to_foraging_spot(doc_id: str, data: dict) -> ForagingSpotResponse:
         date=data.get("date", ""),
         created_at=data.get("created_at", ""),
         last_updated=data.get("last_updated", ""),
+        created_by=data.get("created_by"),
     )
+
+
+def get_foraging_spot(spot_id: str) -> ForagingSpotResponse | None:
+    """Get a single foraging spot by ID."""
+    validate_document_id(spot_id, field_name="spot_id")
+    doc = get_collection("foraging_spots").document(spot_id).get()
+    if not doc.exists:
+        return None
+    data = doc.to_dict()
+    return _doc_to_foraging_spot(doc.id, data) if data else None
 
 
 def get_foraging_spots(month: str | None = None) -> list[ForagingSpotResponse]:
