@@ -4,8 +4,11 @@ import { ActivityIndicator, View } from 'react-native';
 import { AuthProvider, useAuth } from '@/lib/hooks/use-auth';
 import { useTranslation } from '@/lib/i18n';
 import { QueryProvider } from '@/lib/query-provider';
+import { registerServiceWorker } from '@/lib/register-sw';
 import { SettingsProvider } from '@/lib/settings-context';
 import { defaultThemeId, getTheme, ThemeProvider, useTheme } from '@/lib/theme';
+
+registerServiceWorker();
 
 function useProtectedRoute() {
   const { user, loading } = useAuth();
