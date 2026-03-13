@@ -1,9 +1,9 @@
 import { useCallback, useState } from 'react';
-import { ActivityIndicator, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Platform, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { Chip, EmptyState, MapInfoCard, ScreenLayout } from '@/components';
 import { AddSpotForm } from '@/components/AddSpotForm';
 import { ForagingMap } from '@/components/ForagingMap';
-import { useCreateForagingSpot, useForagingSpots, useForagingTypes } from '@/lib/hooks';
+import { useCreateForagingSpot, useDeleteForagingSpot, useForagingSpots, useForagingTypes, useUpdateForagingSpot } from '@/lib/hooks';
 import { useTranslation } from '@/lib/i18n';
 import { borderRadius, fontSize, fontWeight, spacing, useTheme } from '@/lib/theme';
 import type { ForagingSpot, ForagingSpotCreate } from '@/lib/types';
@@ -18,11 +18,47 @@ export default function ForagingScreen() {
   const { data: spots, isFetching, error } = useForagingSpots(selectedMonth, { enabled: isWeb });
   const { data: types } = useForagingTypes({ enabled: isWeb });
   const createSpot = useCreateForagingSpot();
+  const updateSpot = useUpdateForagingSpot();
+  const deleteSpot = useDeleteForagingSpot();
 
   const [selectedSpot, setSelectedSpot] = useState<ForagingSpot | null>(null);
   const [showAddForm, setShowAddForm] = useState(false);
   const [formLat, setFormLat] = useState<number | undefined>();
   const [formLng, setFormLng] = useState<number | undefined>();
+  const [editingSpot, setEditingSpot] = useState(false);
+  const [editNotes, setEditNotes] = useState('');
+  const [editMonth, setEditMonth] = useState('');
+
+  const startEditing = useCallback(() => {
+    if (!selectedSpot) return;
+    setEditNotes(selectedSpot.notes);
+    setEditMonth(selectedSpot.month);
+    setEditingSpot(true);
+  }, [selectedSpot]);
+
+  const handleSaveEdit = useCallback(() => {
+    if (!selectedSpot) return;
+    const updates: Record<string, string> = {};
+    if (editNotes !== selectedSpot.notes) updates.notes = editNotes;
+    if (editMonth !== selectedSpot.month) updates.month = editMonth;
+    if (Object.keys(updates).length === 0) {
+      setEditingSpot(false);
+      return;
+    }
+    updateSpot.mutate({ id: selectedSpot.id, data: updates }, {
+      onSuccess: () => {
+        setEditingSpot(false);
+        setSelectedSpot(null);
+      },
+    });
+  }, [selectedSpot, editNotes, editMonth, updateSpot]);
+
+  const handleDeleteSpot = useCallback(() => {
+    if (!selectedSpot) return;
+    deleteSpot.mutate(selectedSpot.id, {
+      onSuccess: () => setSelectedSpot(null),
+    });
+  }, [selectedSpot, deleteSpot]);
 
   const handleMapClick = useCallback(
     (lat: number, lng: number) => {
@@ -112,22 +148,82 @@ export default function ForagingScreen() {
           onMapClick={handleMapClick}
         />
 
-        {/* Spot info card */}
+        {/* Spot info / edit card */}
         {selectedSpot && !showAddForm && (
           <View style={styles.cardOverlay} pointerEvents="box-none">
-            <MapInfoCard title={selectedSpot.type} onClose={() => setSelectedSpot(null)}>
-              <Text style={[styles.spotMonth, { color: colors.text.secondary }]}>
-                📅 {selectedSpot.month}
-              </Text>
-              {selectedSpot.notes ? (
-                <Text style={[styles.spotNotes, { color: colors.text.primary }]}>
-                  {selectedSpot.notes}
+            {editingSpot ? (
+              <MapInfoCard title={selectedSpot.type} onClose={() => { setEditingSpot(false); setSelectedSpot(null); }}>
+                <View style={styles.editField}>
+                  <Text style={[styles.editLabel, { color: colors.text.secondary }]}>
+                    {t('foraging.monthLabel')}
+                  </Text>
+                  <View style={styles.monthChips}>
+                    {MONTHS.map((m) => (
+                      <Chip key={m} label={m} selected={editMonth === m} onPress={() => setEditMonth(m)} />
+                    ))}
+                  </View>
+                </View>
+                <View style={styles.editField}>
+                  <Text style={[styles.editLabel, { color: colors.text.secondary }]}>
+                    {t('foraging.notesLabel')}
+                  </Text>
+                  <TextInput
+                    style={[styles.editInput, { borderColor: colors.border, color: colors.text.primary, backgroundColor: colors.surface }]}
+                    value={editNotes}
+                    onChangeText={setEditNotes}
+                    placeholder={t('addSpot.notesPlaceholder')}
+                    placeholderTextColor={colors.text.muted}
+                    multiline
+                  />
+                </View>
+                <View style={styles.editButtons}>
+                  <Pressable
+                    style={[styles.editSecondary, { borderColor: colors.border }]}
+                    onPress={() => setEditingSpot(false)}
+                  >
+                    <Text style={{ color: colors.text.primary, fontSize: fontSize.sm }}>
+                      {t('common.cancel')}
+                    </Text>
+                  </Pressable>
+                  <Pressable
+                    style={[styles.editPrimary, { backgroundColor: colors.status.exploredBg }]}
+                    onPress={handleDeleteSpot}
+                    disabled={deleteSpot.isPending}
+                  >
+                    <Text style={{ color: colors.status.exploredText, fontSize: fontSize.sm }}>
+                      {t('common.delete')}
+                    </Text>
+                  </Pressable>
+                  <Pressable
+                    style={[styles.editPrimary, { backgroundColor: colors.primary }]}
+                    onPress={handleSaveEdit}
+                    disabled={updateSpot.isPending}
+                  >
+                    <Text style={{ color: colors.text.inverse, fontSize: fontSize.sm, fontWeight: fontWeight.semibold }}>
+                      {updateSpot.isPending ? t('common.saving') : t('common.save')}
+                    </Text>
+                  </Pressable>
+                </View>
+              </MapInfoCard>
+            ) : (
+              <MapInfoCard
+                title={selectedSpot.type}
+                onClose={() => setSelectedSpot(null)}
+                action={{ label: t('foraging.editSpot'), onPress: startEditing }}
+              >
+                <Text style={[styles.spotMonth, { color: colors.text.secondary }]}>
+                  📅 {selectedSpot.month}
                 </Text>
-              ) : null}
-              <Text style={[styles.spotCoords, { color: colors.text.muted }]}>
-                📍 {selectedSpot.lat.toFixed(4)}, {selectedSpot.lng.toFixed(4)}
-              </Text>
-            </MapInfoCard>
+                {selectedSpot.notes ? (
+                  <Text style={[styles.spotNotes, { color: colors.text.primary }]}>
+                    {selectedSpot.notes}
+                  </Text>
+                ) : null}
+                <Text style={[styles.spotCoords, { color: colors.text.muted }]}>
+                  📍 {selectedSpot.lat.toFixed(4)}, {selectedSpot.lng.toFixed(4)}
+                </Text>
+              </MapInfoCard>
+            )}
           </View>
         )}
 
@@ -221,6 +317,46 @@ const styles = StyleSheet.create({
   },
   spotCoords: {
     fontSize: fontSize.xs,
+  },
+  editField: {
+    marginBottom: spacing.sm,
+  },
+  editLabel: {
+    fontSize: fontSize.xs,
+    fontWeight: fontWeight.semibold,
+    marginBottom: spacing.xs,
+  },
+  monthChips: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.xs,
+  },
+  editInput: {
+    borderWidth: 1,
+    borderRadius: borderRadius.sm,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    fontSize: fontSize.sm,
+    minHeight: 60,
+    textAlignVertical: 'top',
+  },
+  editButtons: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+    marginTop: spacing.sm,
+  },
+  editSecondary: {
+    flex: 1,
+    alignItems: 'center',
+    paddingVertical: spacing.sm,
+    borderRadius: borderRadius.sm,
+    borderWidth: 1,
+  },
+  editPrimary: {
+    flex: 1,
+    alignItems: 'center',
+    paddingVertical: spacing.sm,
+    borderRadius: borderRadius.sm,
   },
   fab: {
     position: 'absolute',

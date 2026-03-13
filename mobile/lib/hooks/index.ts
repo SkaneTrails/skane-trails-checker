@@ -4,6 +4,8 @@ export {
   useDeleteForagingSpot,
   useForagingSpots,
   useForagingTypes,
+  useUpdateForagingSpot,
+  useUpdateForagingType,
 } from './use-foraging';
 export {
   hikeGroupKeys,

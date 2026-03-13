@@ -207,3 +207,45 @@ class TestDeleteForagingType:
         response = authenticated_client.delete("/api/v1/foraging/types/Mushrooms")
         assert response.status_code == 204
         mock_delete.assert_called_once_with("Mushrooms")
+
+
+class TestUpdateForagingType:
+    @patch("api.routers.foraging.foraging_storage.get_foraging_type")
+    @patch("api.routers.foraging.foraging_storage.update_foraging_type")
+    def test_update_type(self, mock_update, mock_get, authenticated_client):
+        updated_type = SAMPLE_TYPE.model_copy(update={"color": "#FF0000"})
+        mock_get.side_effect = [SAMPLE_TYPE, updated_type]
+        mock_update.return_value = None
+        response = authenticated_client.patch("/api/v1/foraging/types/Mushrooms", json={"color": "#FF0000"})
+        assert response.status_code == 200
+        data = response.json()
+        assert data["name"] == "Mushrooms"
+        assert data["color"] == "#FF0000"
+        mock_update.assert_called_once_with("Mushrooms", {"color": "#FF0000"})
+
+    @patch("api.routers.foraging.foraging_storage.get_foraging_type")
+    def test_update_type_not_found(self, mock_get, authenticated_client):
+        mock_get.return_value = None
+        response = authenticated_client.patch("/api/v1/foraging/types/Nonexistent", json={"color": "#FF0000"})
+        assert response.status_code == 404
+
+    @patch("api.routers.foraging.foraging_storage.get_foraging_type")
+    def test_update_type_no_fields(self, mock_get, authenticated_client):
+        mock_get.return_value = SAMPLE_TYPE
+        response = authenticated_client.patch("/api/v1/foraging/types/Mushrooms", json={})
+        assert response.status_code == 400
+        assert "No fields to update" in response.json()["detail"]
+
+    @patch("api.routers.foraging.foraging_storage.get_foraging_type")
+    @patch("api.routers.foraging.foraging_storage.update_foraging_type")
+    def test_update_type_multiple_fields(self, mock_update, mock_get, authenticated_client):
+        updated_type = SAMPLE_TYPE.model_copy(update={"icon": "🍁", "season": "Autumn"})
+        mock_get.side_effect = [SAMPLE_TYPE, updated_type]
+        mock_update.return_value = None
+        response = authenticated_client.patch(
+            "/api/v1/foraging/types/Mushrooms", json={"icon": "🍁", "season": "Autumn"}
+        )
+        assert response.status_code == 200
+        data = response.json()
+        assert data["icon"] == "🍁"
+        assert data["season"] == "Autumn"

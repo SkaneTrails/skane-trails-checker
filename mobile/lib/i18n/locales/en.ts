@@ -64,6 +64,10 @@ const en = {
     addSpot: '+ Add Spot',
     addSpotAccessibility: 'Add foraging spot',
     couldNotLoad: 'Could not load foraging spots',
+    editSpot: 'Edit',
+    notesLabel: 'Notes',
+    monthLabel: 'Month',
+    typeLabel: 'Type',
   },
 
   map: {
@@ -128,6 +132,7 @@ const en = {
 
   trailCard: {
     viewDetails: 'View Details',
+    edit: 'Edit',
     elevationGain: '↗ {{meters}} m',
     elevationLoss: '↘ {{meters}} m',
   },
