@@ -63,9 +63,32 @@ export interface ColorTokens {
     placeText: string;
   };
 
+  /** Map layer indicator colors (distinct from data marker colors) */
+  layer: {
+    trails: string;
+    foraging: string;
+    places: string;
+  };
+
   /** Overlay (map toasts, modals) */
   overlay: string;
   overlayText: string;
+
+  /** Lightweight backdrop for sheets / modals */
+  backdrop: string;
+
+  /** Web-only full-page background (CSS gradient or solid) */
+  webBackground: string;
+
+  /** Glass / translucent surfaces */
+  glass: {
+    background: string;
+    backgroundDark: string;
+    surface: string;
+    border: string;
+    borderSubtle: string;
+    activeHighlight: string;
+  };
 
   /** Shadow base color */
   shadow: string;

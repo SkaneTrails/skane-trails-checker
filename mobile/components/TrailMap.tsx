@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
-import type { Trail } from '@/lib/types';
 import { injectLeafletCSS } from '@/lib/inject-css';
+import { useTheme } from '@/lib/theme';
+import type { Trail } from '@/lib/types';
 
 interface TrailMapProps {
   trails: Trail[];
@@ -12,6 +13,7 @@ const DEFAULT_CENTER: [number, number] = [55.95, 13.4];
 const DEFAULT_ZOOM = 9;
 
 export function TrailMap({ trails, onTrailSelect }: TrailMapProps) {
+  const { colors } = useTheme();
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<L.Map | null>(null);
   const onTrailSelectRef = useRef(onTrailSelect);
@@ -22,7 +24,7 @@ export function TrailMap({ trails, onTrailSelect }: TrailMapProps) {
     let cancelled = false;
 
     async function initMap() {
-      injectLeafletCSS();
+      injectLeafletCSS(colors);
       const [L, { LocateControl }] = await Promise.all([
         import('leaflet'),
         import('leaflet.locatecontrol'),
@@ -69,7 +71,7 @@ export function TrailMap({ trails, onTrailSelect }: TrailMapProps) {
 
         const latlngs = trail.coordinates_map.map((c) => [c.lat, c.lng] as [number, number]);
         const isExplored = trail.status === 'Explored!';
-        const color = isExplored ? '#4169E1' : '#FF8000';
+        const color = isExplored ? '#5B8DEF' : '#FF8000';
         const polyline = L.polyline(latlngs, {
           color,
           weight: isExplored ? 4 : 3,

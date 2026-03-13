@@ -40,7 +40,7 @@ const styles = StyleSheet.create({
   badge: {
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.xs,
-    borderRadius: borderRadius.lg - 4,
+    borderRadius: borderRadius.full,
   },
   text: {
     fontSize: fontSize.xs,

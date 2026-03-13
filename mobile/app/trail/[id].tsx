@@ -1,15 +1,26 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useState } from 'react';
 import { Alert, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { Button, EmptyState, FormField, ScreenLayout, StatCard, StatusBadge } from '@/components';
+import { Button, EmptyState, FormField, StatCard, StatusBadge } from '@/components';
+import { TabIcon } from '@/components/TabIcon';
 import { useDeleteTrail, useTrail, useTrailDetails, useUpdateTrail } from '@/lib/hooks';
 import { useTranslation } from '@/lib/i18n';
-import { borderRadius, fontSize, fontWeight, spacing, useTheme } from '@/lib/theme';
+import {
+  animation,
+  borderRadius,
+  fontSize,
+  fontWeight,
+  letterSpacing,
+  sheet,
+  spacing,
+  useTheme,
+} from '@/lib/theme';
+import { cssShadow, glassSheet } from '@/lib/theme/styles';
 
 export default function TrailDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
-  const { colors } = useTheme();
+  const { colors, shadows } = useTheme();
   const { t } = useTranslation();
   const { data: trail, isLoading: trailLoading } = useTrail(id);
   const { data: details, isLoading: detailsLoading } = useTrailDetails(id);
@@ -21,22 +32,25 @@ export default function TrailDetailScreen() {
 
   if (trailLoading || detailsLoading) {
     return (
-      <ScreenLayout>
-        <EmptyState emoji="⏳" title={t('trail.loadingTrail')} />
-      </ScreenLayout>
+      <View style={[styles.backdrop, { backgroundColor: colors.backdrop }]}>
+        <View style={styles.cardWrap}>
+          <EmptyState title={t('trail.loadingTrail')} />
+        </View>
+      </View>
     );
   }
 
   if (!trail) {
     return (
-      <ScreenLayout>
-        <EmptyState
-          emoji="🔍"
-          title={t('trail.trailNotFound')}
-          actionLabel={t('common.goBack')}
-          onAction={() => router.back()}
-        />
-      </ScreenLayout>
+      <View style={[styles.backdrop, { backgroundColor: colors.backdrop }]}>
+        <View style={styles.cardWrap}>
+          <EmptyState
+            title={t('trail.trailNotFound')}
+            actionLabel={t('common.goBack')}
+            onAction={() => router.back()}
+          />
+        </View>
+      </View>
     );
   }
 
@@ -77,9 +91,44 @@ export default function TrailDetailScreen() {
     }
   };
 
+  const isWeb = Platform.OS === 'web';
+  const glass = glassSheet(colors.glass);
+
   return (
-    <ScreenLayout>
-      <ScrollView contentContainerStyle={styles.content}>
+    <View style={[styles.backdrop, { backgroundColor: colors.backdrop }]}>
+      <Pressable style={StyleSheet.absoluteFill} onPress={() => router.back()} />
+      <View
+        style={[
+          styles.cardWrap,
+          glass,
+          shadows.elevated,
+          isWeb &&
+            ({
+              boxShadow: cssShadow(shadows, 'elevated'),
+            } as any),
+        ]}
+      >
+        {/* Handle + close row */}
+        <View style={styles.handleContainer}>
+          <View style={[styles.handle, { backgroundColor: colors.text.muted, opacity: 0.3 }]} />
+        </View>
+        <View style={styles.headerRow}>
+          <Text style={[styles.headerTitle, { color: colors.text.primary }]}>
+            {t('trail.title')}
+          </Text>
+          <Pressable
+            onPress={() => router.back()}
+            style={styles.closeButton}
+            accessibilityLabel={t('common.cancel')}
+          >
+            <TabIcon name="close" color={colors.text.muted} size={20} strokeWidth={2} />
+          </Pressable>
+        </View>
+
+        <ScrollView
+          contentContainerStyle={styles.content}
+          showsVerticalScrollIndicator={false}
+        >
         {isEditing ? (
           <View style={styles.editSection}>
             <FormField label={t('trail.trailName')} value={editName} onChangeText={setEditName} />
@@ -89,7 +138,11 @@ export default function TrailDetailScreen() {
                 onPress={saveRename}
                 disabled={!editName.trim() || updateTrail.isPending}
               />
-              <Button title={t('common.cancel')} variant="secondary" onPress={() => setIsEditing(false)} />
+              <Button
+                title={t('common.cancel')}
+                variant="secondary"
+                onPress={() => setIsEditing(false)}
+              />
             </View>
           </View>
         ) : (
@@ -101,12 +154,20 @@ export default function TrailDetailScreen() {
         <View style={styles.statsRow}>
           <StatCard label={t('trail.distance')} value={`${trail.length_km.toFixed(1)} km`} />
           {trail.elevation_gain != null && (
-            <StatCard label={t('trail.elevationGain')} value={`${Math.round(trail.elevation_gain)} m`} />
+            <StatCard
+              label={t('trail.elevationGain')}
+              value={`${Math.round(trail.elevation_gain)} m`}
+            />
           )}
           {trail.elevation_loss != null && (
-            <StatCard label={t('trail.elevationLoss')} value={`${Math.round(trail.elevation_loss)} m`} />
+            <StatCard
+              label={t('trail.elevationLoss')}
+              value={`${Math.round(trail.elevation_loss)} m`}
+            />
           )}
-          {trail.difficulty && <StatCard label={t('trail.difficultyLabel')} value={trail.difficulty} />}
+          {trail.difficulty && (
+            <StatCard label={t('trail.difficultyLabel')} value={trail.difficulty} />
+          )}
         </View>
 
         <View style={styles.statusSection}>
@@ -133,21 +194,29 @@ export default function TrailDetailScreen() {
           </Pressable>
         </View>
 
-        <View style={[styles.infoSection, { backgroundColor: colors.surface }]}>
-          <Text style={[styles.sectionTitle, { color: colors.text.primary }]}>{t('trail.info')}</Text>
+        <View style={[styles.infoSection, { backgroundColor: colors.glass.background }]}>
+          <Text style={[styles.sectionTitle, { color: colors.text.primary }]}>
+            {t('trail.info')}
+          </Text>
           <View style={styles.infoRow}>
-            <Text style={[styles.infoLabel, { color: colors.text.muted }]}>{t('trail.sourceLabel')}</Text>
+            <Text style={[styles.infoLabel, { color: colors.text.muted }]}>
+              {t('trail.sourceLabel')}
+            </Text>
             <Text style={[styles.infoText, { color: colors.text.secondary }]}>
               {trail.source.replace(/_/g, ' ')}
             </Text>
           </View>
           <View style={styles.infoRow}>
-            <Text style={[styles.infoLabel, { color: colors.text.muted }]}>{t('trail.statusLabel')}</Text>
+            <Text style={[styles.infoLabel, { color: colors.text.muted }]}>
+              {t('trail.statusLabel')}
+            </Text>
             <StatusBadge status={trail.status} />
           </View>
           {trail.last_updated && (
             <View style={styles.infoRow}>
-              <Text style={[styles.infoLabel, { color: colors.text.muted }]}>{t('trail.updatedLabel')}</Text>
+              <Text style={[styles.infoLabel, { color: colors.text.muted }]}>
+                {t('trail.updatedLabel')}
+              </Text>
               <Text style={[styles.infoText, { color: colors.text.secondary }]}>
                 {new Date(trail.last_updated).toLocaleDateString()}
               </Text>
@@ -155,7 +224,9 @@ export default function TrailDetailScreen() {
           )}
           {trail.activity_date && (
             <View style={styles.infoRow}>
-              <Text style={[styles.infoLabel, { color: colors.text.muted }]}>{t('trail.activityLabel')}</Text>
+              <Text style={[styles.infoLabel, { color: colors.text.muted }]}>
+                {t('trail.activityLabel')}
+              </Text>
               <Text style={[styles.infoText, { color: colors.text.secondary }]}>
                 {new Date(trail.activity_date).toLocaleDateString()}
               </Text>
@@ -163,7 +234,9 @@ export default function TrailDetailScreen() {
           )}
           {trail.activity_type && (
             <View style={styles.infoRow}>
-              <Text style={[styles.infoLabel, { color: colors.text.muted }]}>{t('trail.typeLabel')}</Text>
+              <Text style={[styles.infoLabel, { color: colors.text.muted }]}>
+                {t('trail.typeLabel')}
+              </Text>
               <Text style={[styles.infoText, { color: colors.text.secondary }]}>
                 {trail.activity_type}
               </Text>
@@ -171,7 +244,9 @@ export default function TrailDetailScreen() {
           )}
           {details && (
             <View style={styles.infoRow}>
-              <Text style={[styles.infoLabel, { color: colors.text.muted }]}>{t('trail.trackPoints')}</Text>
+              <Text style={[styles.infoLabel, { color: colors.text.muted }]}>
+                {t('trail.trackPoints')}
+              </Text>
               <Text style={[styles.infoText, { color: colors.text.secondary }]}>
                 {details.coordinates_full.length}
               </Text>
@@ -188,19 +263,57 @@ export default function TrailDetailScreen() {
             disabled={deleteTrail.isPending}
           />
         </View>
-      </ScrollView>
-    </ScreenLayout>
+        </ScrollView>
+      </View>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
+  backdrop: {
+    flex: 1,
+  },
+  cardWrap: {
+    maxHeight: '85%',
+    borderBottomLeftRadius: borderRadius.xl,
+    borderBottomRightRadius: borderRadius.xl,
+    borderTopLeftRadius: 0,
+    borderTopRightRadius: 0,
+    overflow: 'hidden',
+  },
+  handleContainer: {
+    alignItems: 'center',
+    paddingTop: spacing.md,
+    paddingBottom: spacing.xs,
+  },
+  handle: {
+    width: sheet.handleWidth,
+    height: sheet.handleHeight,
+    borderRadius: borderRadius.full,
+  },
+  headerRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: spacing.xl,
+    paddingBottom: spacing.sm,
+  },
+  headerTitle: {
+    fontSize: fontSize.lg,
+    fontWeight: fontWeight.semibold,
+  },
+  closeButton: {
+    padding: spacing.xs,
+  },
   content: {
-    padding: spacing.lg,
+    padding: spacing.xl,
+    paddingTop: spacing.sm,
   },
   title: {
-    fontSize: fontSize.xxl,
+    fontSize: fontSize.title,
     fontWeight: fontWeight.bold,
-    marginBottom: spacing.lg,
+    letterSpacing: letterSpacing.tight,
+    marginBottom: spacing.xl,
   },
   statsRow: {
     flexDirection: 'row',
@@ -213,7 +326,7 @@ const styles = StyleSheet.create({
   },
   statusButton: {
     padding: spacing.lg,
-    borderRadius: borderRadius.md,
+    borderRadius: borderRadius.full,
     alignItems: 'center',
   },
   statusButtonText: {
@@ -221,8 +334,8 @@ const styles = StyleSheet.create({
     fontWeight: fontWeight.semibold,
   },
   infoSection: {
-    borderRadius: borderRadius.md,
-    padding: spacing.lg,
+    borderRadius: borderRadius.xl,
+    padding: spacing.xl,
     marginBottom: spacing.xl,
   },
   sectionTitle: {

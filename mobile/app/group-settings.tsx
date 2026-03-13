@@ -2,7 +2,7 @@
  * Group settings screen — manage group name and members.
  */
 
-import { useLocalSearchParams } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useState } from 'react';
 import {
   ActivityIndicator,
@@ -13,7 +13,8 @@ import {
   Text,
   View,
 } from 'react-native';
-import { Button, ContentCard, FormField, ScreenLayout } from '@/components';
+import { Button, ContentCard, FormField } from '@/components';
+import { TabIcon } from '@/components/TabIcon';
 import { useAuth } from '@/lib/hooks/use-auth';
 import {
   useAddMember,
@@ -22,12 +23,14 @@ import {
   useUpdateHikeGroup,
 } from '@/lib/hooks/use-hike-groups';
 import { useTranslation } from '@/lib/i18n';
-import { borderRadius, fontSize, fontWeight, spacing, useTheme } from '@/lib/theme';
+import { borderRadius, fontSize, fontWeight, sheet, spacing, useTheme } from '@/lib/theme';
+import { glassSheet } from '@/lib/theme/styles';
 
 export default function GroupSettingsScreen() {
-  const { colors } = useTheme();
+  const { colors, shadows } = useTheme();
   const { t } = useTranslation();
   const { id } = useLocalSearchParams<{ id: string }>();
+  const router = useRouter();
   const { user } = useAuth();
 
   const { data: group, isLoading } = useHikeGroup(id ?? '', { enabled: !!id });
@@ -41,17 +44,17 @@ export default function GroupSettingsScreen() {
 
   if (isLoading || !group) {
     return (
-      <ScreenLayout>
-        <View style={styles.center}>
-          <ActivityIndicator size="large" color={colors.primary} />
+      <View style={styles.backdrop}>
+        <View style={styles.cardWrap}>
+          <View style={styles.center}>
+            <ActivityIndicator size="large" color={colors.primary} />
+          </View>
         </View>
-      </ScreenLayout>
+      </View>
     );
   }
 
-  const isOwner = group.members.some(
-    (m) => m.role === 'owner' && m.email === user?.email,
-  );
+  const _isOwner = group.members.some((m) => m.role === 'owner' && m.email === user?.email);
 
   const handleSaveName = async () => {
     const trimmed = groupName.trim();
@@ -74,27 +77,52 @@ export default function GroupSettingsScreen() {
   };
 
   const handleRemoveMember = (memberEmail: string) => {
-    Alert.alert(
-      t('settings.removeMember'),
-      memberEmail,
-      [
-        { text: t('common.cancel'), style: 'cancel' },
-        {
-          text: t('settings.removeMember'),
-          style: 'destructive',
-          onPress: () =>
-            removeMemberMutation.mutate({
-              groupId: group.group_id,
-              memberEmail,
-            }),
-        },
-      ],
-    );
+    Alert.alert(t('settings.removeMember'), memberEmail, [
+      { text: t('common.cancel'), style: 'cancel' },
+      {
+        text: t('settings.removeMember'),
+        style: 'destructive',
+        onPress: () =>
+          removeMemberMutation.mutate({
+            groupId: group.group_id,
+            memberEmail,
+          }),
+      },
+    ]);
   };
 
+  const glass = glassSheet(colors.glass);
+
   return (
-    <ScreenLayout>
-      <ScrollView contentContainerStyle={styles.content}>
+    <View style={styles.backdrop}>
+      <Pressable style={StyleSheet.absoluteFill} onPress={() => router.back()} />
+      <View
+        style={[
+          styles.cardWrap,
+          glass,
+          shadows.elevated,
+          {
+            boxShadow: '0 8px 40px rgba(0,0,0,0.10), 0 2px 8px rgba(0,0,0,0.04)',
+          } as any,
+        ]}
+      >
+        <View style={styles.handleContainer}>
+          <View style={[styles.handle, { backgroundColor: colors.text.muted, opacity: 0.3 }]} />
+        </View>
+        <View style={styles.headerRow}>
+          <Text style={[styles.headerTitle, { color: colors.text.primary }]}>
+            {t('settings.groupSettings')}
+          </Text>
+          <Pressable
+            onPress={() => router.back()}
+            style={styles.closeButton}
+            accessibilityLabel={t('common.cancel')}
+          >
+            <TabIcon name="close" color={colors.text.muted} size={20} strokeWidth={2} />
+          </Pressable>
+        </View>
+
+        <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         {/* Group Name */}
         <Text style={[styles.sectionTitle, { color: colors.text.primary }]}>
           {t('settings.groupName')}
@@ -164,9 +192,7 @@ export default function GroupSettingsScreen() {
                     styles.roleBadge,
                     {
                       backgroundColor:
-                        member.role === 'owner'
-                          ? colors.status.exploredBg
-                          : colors.chip.bg,
+                        member.role === 'owner' ? colors.status.exploredBg : colors.chip.bg,
                     },
                   ]}
                 >
@@ -175,15 +201,11 @@ export default function GroupSettingsScreen() {
                       styles.roleText,
                       {
                         color:
-                          member.role === 'owner'
-                            ? colors.status.exploredText
-                            : colors.chip.text,
+                          member.role === 'owner' ? colors.status.exploredText : colors.chip.text,
                       },
                     ]}
                   >
-                    {member.role === 'owner'
-                      ? t('settings.owner')
-                      : t('settings.member')}
+                    {member.role === 'owner' ? t('settings.owner') : t('settings.member')}
                   </Text>
                 </View>
                 {member.role !== 'owner' && (
@@ -221,13 +243,51 @@ export default function GroupSettingsScreen() {
           </View>
         </ContentCard>
       </ScrollView>
-    </ScreenLayout>
+      </View>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
+  backdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.15)',
+  },
+  cardWrap: {
+    maxHeight: '85%',
+    borderBottomLeftRadius: borderRadius.xl,
+    borderBottomRightRadius: borderRadius.xl,
+    borderTopLeftRadius: 0,
+    borderTopRightRadius: 0,
+    overflow: 'hidden',
+  },
+  handleContainer: {
+    alignItems: 'center',
+    paddingTop: spacing.md,
+    paddingBottom: spacing.xs,
+  },
+  handle: {
+    width: sheet.handleWidth,
+    height: sheet.handleHeight,
+    borderRadius: borderRadius.full,
+  },
+  headerRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: spacing.xl,
+    paddingBottom: spacing.sm,
+  },
+  headerTitle: {
+    fontSize: fontSize.lg,
+    fontWeight: fontWeight.semibold,
+  },
+  closeButton: {
+    padding: spacing.xs,
+  },
   content: {
-    padding: spacing.lg,
+    padding: spacing.xl,
+    paddingTop: spacing.sm,
     gap: spacing.sm,
   },
   center: {

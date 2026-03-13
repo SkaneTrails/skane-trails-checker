@@ -55,9 +55,9 @@ export const trailsApi = {
     const formData = new FormData();
     formData.append('file', file);
 
-    return apiRequest<Trail[]>(
-      `/api/v1/trails/upload?source=${encodeURIComponent(source)}`,
-      { method: 'POST', body: formData },
-    );
+    return apiRequest<Trail[]>(`/api/v1/trails/upload?source=${encodeURIComponent(source)}`, {
+      method: 'POST',
+      body: formData,
+    });
   },
 };

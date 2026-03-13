@@ -25,26 +25,41 @@ export const View = React.forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDi
 );
 View.displayName = 'View';
 
-export const Text = React.forwardRef<HTMLSpanElement, React.HTMLAttributes<HTMLSpanElement> & { numberOfLines?: number }>(
-  ({ numberOfLines: _numberOfLines, ...props }, ref) => React.createElement('span', { ...props, ref }),
+export const Text = React.forwardRef<
+  HTMLSpanElement,
+  React.HTMLAttributes<HTMLSpanElement> & { numberOfLines?: number }
+>(({ numberOfLines: _numberOfLines, ...props }, ref) =>
+  React.createElement('span', { ...props, ref }),
 );
 Text.displayName = 'Text';
 
-export const Pressable = React.forwardRef<HTMLButtonElement, React.ButtonHTMLAttributes<HTMLButtonElement> & { onPress?: () => void; accessibilityLabel?: string }>(
-  ({ onPress, accessibilityLabel, ...props }, ref) =>
-    React.createElement('button', { ...props, onClick: onPress, 'aria-label': accessibilityLabel, ref }),
+export const Pressable = React.forwardRef<
+  HTMLButtonElement,
+  React.ButtonHTMLAttributes<HTMLButtonElement> & {
+    onPress?: () => void;
+    accessibilityLabel?: string;
+  }
+>(({ onPress, accessibilityLabel, ...props }, ref) =>
+  React.createElement('button', {
+    ...props,
+    onClick: onPress,
+    'aria-label': accessibilityLabel,
+    ref,
+  }),
 );
 Pressable.displayName = 'Pressable';
 
-export const TextInput = React.forwardRef<HTMLInputElement, React.InputHTMLAttributes<HTMLInputElement> & { onChangeText?: (text: string) => void }>(
-  ({ onChangeText, ...props }, ref) =>
-    React.createElement('input', {
-      ...props,
-      onChange: onChangeText
-        ? (e: React.ChangeEvent<HTMLInputElement>) => onChangeText(e.target.value)
-        : undefined,
-      ref,
-    }),
+export const TextInput = React.forwardRef<
+  HTMLInputElement,
+  React.InputHTMLAttributes<HTMLInputElement> & { onChangeText?: (text: string) => void }
+>(({ onChangeText, ...props }, ref) =>
+  React.createElement('input', {
+    ...props,
+    onChange: onChangeText
+      ? (e: React.ChangeEvent<HTMLInputElement>) => onChangeText(e.target.value)
+      : undefined,
+    ref,
+  }),
 );
 TextInput.displayName = 'TextInput';
 
@@ -53,9 +68,15 @@ export const ScrollView = React.forwardRef<HTMLDivElement, React.HTMLAttributes<
 );
 ScrollView.displayName = 'ScrollView';
 
-export const ActivityIndicator = () => React.createElement('div', { 'data-testid': 'activity-indicator' });
+export const ActivityIndicator = () =>
+  React.createElement('div', { 'data-testid': 'activity-indicator' });
 
-export const FlatList = ({ data, renderItem, ListEmptyComponent, keyExtractor }: {
+export const FlatList = ({
+  data,
+  renderItem,
+  ListEmptyComponent,
+  keyExtractor,
+}: {
   data?: unknown[];
   renderItem?: (info: { item: unknown; index: number }) => React.ReactNode;
   ListEmptyComponent?: React.ReactNode;
@@ -67,7 +88,11 @@ export const FlatList = ({ data, renderItem, ListEmptyComponent, keyExtractor }:
     'div',
     null,
     data.map((item, index) =>
-      React.createElement('div', { key: keyExtractor?.(item, index) ?? index }, renderItem?.({ item, index })),
+      React.createElement(
+        'div',
+        { key: keyExtractor?.(item, index) ?? index },
+        renderItem?.({ item, index }),
+      ),
     ),
   );
 };

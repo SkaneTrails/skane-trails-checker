@@ -1,8 +1,14 @@
 import { renderHook, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { createQueryWrapper } from '@/test/helpers';
-import { useDeleteTrail, useTrail, useTrails, useUpdateTrail, useUploadGpx } from '../use-trails';
-import { sortTrails } from '../use-trails';
+import {
+  sortTrails,
+  useDeleteTrail,
+  useTrail,
+  useTrails,
+  useUpdateTrail,
+  useUploadGpx,
+} from '../use-trails';
 
 vi.mock('@/lib/api', () => ({
   trailsApi: {

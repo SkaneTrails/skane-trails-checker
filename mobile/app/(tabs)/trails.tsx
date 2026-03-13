@@ -1,11 +1,21 @@
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
-import { ActivityIndicator, FlatList, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import {
+  ActivityIndicator,
+  FlatList,
+  Platform,
+  Pressable,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from 'react-native';
 import { Chip, ContentCard, EmptyState, ScreenLayout, StatusBadge } from '@/components';
 import type { TrailFilters } from '@/lib/api';
 import { useTrails } from '@/lib/hooks';
 import { useTranslation } from '@/lib/i18n';
-import { borderRadius, fontSize, fontWeight, spacing, useTheme } from '@/lib/theme';
+import { borderRadius, fontSize, fontWeight, letterSpacing, spacing, useTheme } from '@/lib/theme';
+import { glassPill } from '@/lib/theme/styles';
 import type { Trail } from '@/lib/types';
 
 function TrailItem({ trail }: { trail: Trail }) {
@@ -23,16 +33,20 @@ function TrailItem({ trail }: { trail: Trail }) {
           <StatusBadge status={trail.status} />
         </View>
         <View style={styles.cardMeta}>
-          <Text style={[styles.metaText, { color: colors.text.secondary }]}>
-            {t('trails.distance', { km: trail.length_km.toFixed(1) })}
-          </Text>
-          {trail.difficulty && (
-            <Text style={[styles.metaText, { color: colors.text.secondary }]}>
-              {t('trails.difficulty', { level: trail.difficulty })}
+          <View style={[styles.metaChip, { backgroundColor: colors.primaryLight }]}>
+            <Text style={[styles.metaChipText, { color: colors.primaryDark }]}>
+              {t('trails.distance', { km: trail.length_km.toFixed(1) })}
             </Text>
+          </View>
+          {trail.difficulty && (
+            <View style={[styles.metaChip, { backgroundColor: colors.status.toExploreBg }]}>
+              <Text style={[styles.metaChipText, { color: colors.status.toExploreText }]}>
+                {trail.difficulty}
+              </Text>
+            </View>
           )}
-          <Text style={[styles.metaText, { color: colors.text.secondary }]}>
-            {t('trails.source', { source: trail.source.replace(/_/g, ' ') })}
+          <Text style={[styles.sourceText, { color: colors.text.muted }]}>
+            {trail.source.replace(/_/g, ' ')}
           </Text>
         </View>
       </ContentCard>
@@ -65,9 +79,8 @@ export default function TrailsScreen() {
 
   if (error && trailCount === 0) {
     return (
-      <ScreenLayout>
+      <ScreenLayout title={t('tabs.trails')}>
         <EmptyState
-          emoji="⚠️"
           title={t('trails.failedToLoad')}
           actionLabel={t('common.retry')}
           onAction={() => refetch()}
@@ -77,37 +90,38 @@ export default function TrailsScreen() {
   }
 
   return (
-    <ScreenLayout>
-      <View style={[styles.summary, { backgroundColor: colors.primary }]}>
+    <ScreenLayout title={t('tabs.trails')}>
+      <View style={[styles.summary, glassPill(colors.glass)]}>
         <View style={styles.summaryLeft}>
-          <Text style={[styles.summaryText, { color: colors.text.inverse }]}>
-          {t('trails.exploredCount', { explored: String(explored), total: String(trailCount) })}
+          <Text style={[styles.summaryText, { color: colors.text.primary }]}>
+            {t('trails.exploredCount', { explored: String(explored), total: String(trailCount) })}
           </Text>
-          {isFetching && (
-            <ActivityIndicator size="small" color={colors.text.inverse} />
-          )}
+          {isFetching && <ActivityIndicator size="small" color={colors.primary} />}
         </View>
-        <Pressable style={styles.uploadButton} onPress={() => router.push('/upload')}>
+        <Pressable
+          style={[styles.uploadButton, { backgroundColor: colors.primary }]}
+          onPress={() => router.push('/upload')}
+        >
           <Text style={[styles.uploadButtonText, { color: colors.text.inverse }]}>
             {t('trails.uploadGpx')}
           </Text>
         </Pressable>
       </View>
 
-      <View
-        style={[
-          styles.filterBar,
-          { backgroundColor: colors.surface, borderBottomColor: colors.borderLight },
-        ]}
-      >
+      <View style={styles.filterBar}>
         <TextInput
           style={[
             styles.searchInput,
             {
-              backgroundColor: colors.background,
-              borderColor: colors.border,
+              backgroundColor: colors.glass.background,
+              borderColor: colors.glass.borderSubtle,
               color: colors.text.primary,
             },
+            Platform.OS === 'web' &&
+              ({
+                backdropFilter: 'blur(8px)',
+                WebkitBackdropFilter: 'blur(8px)',
+              } as any),
           ]}
           placeholder={t('trails.searchPlaceholder')}
           placeholderTextColor={colors.text.muted}
@@ -127,14 +141,14 @@ export default function TrailsScreen() {
       </View>
 
       {isLoading && trailCount === 0 ? (
-        <EmptyState emoji="⏳" title={t('trails.loadingTrails')} />
+        <EmptyState title={t('trails.loadingTrails')} />
       ) : (
         <FlatList
           data={trails}
           keyExtractor={(item) => item.trail_id}
           renderItem={({ item }) => <TrailItem trail={item} />}
           contentContainerStyle={styles.list}
-          ListEmptyComponent={<EmptyState emoji="🥾" title={t('trails.noTrailsFound')} />}
+          ListEmptyComponent={<EmptyState title={t('trails.noTrailsFound')} />}
         />
       )}
     </ScreenLayout>
@@ -146,7 +160,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    padding: spacing.md,
+    padding: spacing.lg,
+    margin: spacing.lg,
+    marginBottom: 0,
   },
   summaryLeft: {
     flexDirection: 'row',
@@ -156,38 +172,37 @@ const styles = StyleSheet.create({
   summaryText: {
     fontSize: fontSize.lg,
     fontWeight: fontWeight.semibold,
+    letterSpacing: letterSpacing.tight,
   },
   uploadButton: {
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm - 2,
-    borderRadius: borderRadius.sm,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.4)',
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.sm,
+    borderRadius: borderRadius.full,
   },
   uploadButtonText: {
     fontSize: fontSize.sm,
     fontWeight: fontWeight.semibold,
   },
   filterBar: {
-    padding: spacing.sm,
-    gap: spacing.sm,
-    borderBottomWidth: 1,
+    padding: spacing.lg,
+    gap: spacing.md,
   },
   searchInput: {
     borderWidth: 1,
-    borderRadius: borderRadius.sm,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
+    borderRadius: borderRadius.full,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md,
     fontSize: fontSize.md,
   },
   chipRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: spacing.sm - 2,
+    gap: spacing.sm,
   },
   list: {
-    padding: spacing.md,
+    padding: spacing.lg,
     gap: spacing.md,
+    paddingBottom: 100,
   },
   cardHeader: {
     flexDirection: 'row',
@@ -198,14 +213,25 @@ const styles = StyleSheet.create({
   trailName: {
     fontSize: fontSize.lg,
     fontWeight: fontWeight.semibold,
+    letterSpacing: letterSpacing.tight,
     flex: 1,
     marginRight: spacing.sm,
   },
   cardMeta: {
     flexDirection: 'row',
-    gap: spacing.lg,
+    alignItems: 'center',
+    gap: spacing.sm,
+    flexWrap: 'wrap',
   },
-  metaText: {
-    fontSize: fontSize.sm,
+  metaChip: {
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs,
+    borderRadius: borderRadius.full,
+  },
+  metaChipText: {
+    fontSize: fontSize.xs,
+  },
+  sourceText: {
+    fontSize: fontSize.xs,
   },
 });

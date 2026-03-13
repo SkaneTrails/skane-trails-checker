@@ -182,15 +182,15 @@ export const TrailCard = ({ trail, onViewDetails, onClose, onUpdate, isUpdating 
 
       <View style={styles.meta}>
         <Text style={[styles.metaText, { color: colors.text.secondary }]}>
-          📏 {trail.length_km.toFixed(1)} km
+          {trail.length_km.toFixed(1)} km
         </Text>
         {trail.difficulty && (
           <Text style={[styles.metaText, { color: colors.text.secondary }]}>
-            ⛰️ {trail.difficulty}
+            {trail.difficulty}
           </Text>
         )}
         <Text style={[styles.metaText, { color: colors.text.secondary }]}>
-          📂 {trail.source.replace(/_/g, ' ')}
+          {trail.source.replace(/_/g, ' ')}
         </Text>
       </View>
 
@@ -198,12 +198,12 @@ export const TrailCard = ({ trail, onViewDetails, onClose, onUpdate, isUpdating 
         <View style={styles.meta}>
           {trail.elevation_gain != null && (
             <Text style={[styles.metaText, { color: colors.text.secondary }]}>
-              ↗ {Math.round(trail.elevation_gain)} m
+              +{Math.round(trail.elevation_gain)} m
             </Text>
           )}
           {trail.elevation_loss != null && (
             <Text style={[styles.metaText, { color: colors.text.secondary }]}>
-              ↘ {Math.round(trail.elevation_loss)} m
+              -{Math.round(trail.elevation_loss)} m
             </Text>
           )}
         </View>

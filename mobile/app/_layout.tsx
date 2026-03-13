@@ -1,6 +1,6 @@
 import { Stack, useRouter, useSegments } from 'expo-router';
 import { useEffect } from 'react';
-import { ActivityIndicator, View } from 'react-native';
+import { ActivityIndicator, Platform, View } from 'react-native';
 import { AuthProvider, useAuth } from '@/lib/hooks/use-auth';
 import { useTranslation } from '@/lib/i18n';
 import { QueryProvider } from '@/lib/query-provider';
@@ -51,9 +51,12 @@ function AppStack() {
   return (
     <Stack
       screenOptions={{
-        headerStyle: { backgroundColor: colors.primary },
-        headerTintColor: colors.text.inverse,
-        headerTitleStyle: { fontWeight: 'bold' },
+        headerStyle: {
+          backgroundColor: colors.surface,
+        },
+        headerTintColor: colors.text.primary,
+        headerTitleStyle: { fontWeight: '600' as const },
+        headerShadowVisible: false,
       }}
     >
       <Stack.Screen name="sign-in" options={{ headerShown: false, animation: 'fade' }} />
@@ -61,22 +64,37 @@ function AppStack() {
       <Stack.Screen
         name="trail/[id]"
         options={{
-          title: t('trail.title'),
-          presentation: 'card',
+          headerShown: false,
+          presentation: 'transparentModal',
+          animation: 'fade',
+          contentStyle: Platform.OS === 'web' ? { backgroundColor: 'transparent' } : undefined,
         }}
       />
       <Stack.Screen
         name="upload"
         options={{
-          title: t('upload.title'),
-          presentation: 'card',
+          headerShown: false,
+          presentation: 'transparentModal',
+          animation: 'fade',
+          contentStyle: Platform.OS === 'web' ? { backgroundColor: 'transparent' } : undefined,
         }}
       />
       <Stack.Screen
         name="group-settings"
         options={{
-          title: t('settings.groupSettings'),
-          presentation: 'card',
+          headerShown: false,
+          presentation: 'transparentModal',
+          animation: 'fade',
+          contentStyle: Platform.OS === 'web' ? { backgroundColor: 'transparent' } : undefined,
+        }}
+      />
+      <Stack.Screen
+        name="settings"
+        options={{
+          headerShown: false,
+          presentation: 'transparentModal',
+          animation: 'fade',
+          contentStyle: Platform.OS === 'web' ? { backgroundColor: 'transparent' } : undefined,
         }}
       />
     </Stack>
@@ -88,7 +106,10 @@ export default function RootLayout() {
 
   useEffect(() => {
     registerServiceWorker();
-  }, []);
+    if (Platform.OS === 'web') {
+      import('@/lib/inject-css').then(({ injectGlassCSS }) => injectGlassCSS(theme.colors));
+    }
+  }, [theme.colors]);
 
   return (
     <ThemeProvider theme={theme}>

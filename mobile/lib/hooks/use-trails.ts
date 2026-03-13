@@ -217,10 +217,7 @@ export function useUploadGpx() {
           for (const trail of newTrails) {
             merged.set(trail.trail_id, trail);
           }
-          trailCache.set(
-            Array.from(merged.values()),
-            lastSyncTime ?? new Date().toISOString(),
-          );
+          trailCache.set(Array.from(merged.values()), lastSyncTime ?? new Date().toISOString());
         });
       }
     },

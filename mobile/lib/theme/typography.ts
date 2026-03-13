@@ -1,5 +1,5 @@
 /**
- * Typography tokens — font sizes and weights.
+ * Typography tokens — font sizes, weights, spacing, and line heights.
  *
  * Shared across all themes.
  */
@@ -11,6 +11,8 @@ export const fontSize = {
   lg: 16,
   xl: 18,
   xxl: 24,
+  title: 28,
+  hero: 34,
 } as const;
 
 export const fontWeight = {
@@ -19,3 +21,15 @@ export const fontWeight = {
   semibold: '600' as const,
   bold: '700' as const,
 };
+
+export const letterSpacing = {
+  tight: -0.3,
+  normal: 0,
+  wide: 0.5,
+} as const;
+
+export const lineHeight = {
+  tight: 1.2,
+  normal: 1.5,
+  relaxed: 1.7,
+} as const;
