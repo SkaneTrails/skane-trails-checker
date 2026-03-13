@@ -8,9 +8,15 @@ export function registerServiceWorker(): void {
   if (Platform.OS !== 'web') return;
   if (!('serviceWorker' in navigator)) return;
 
-  window.addEventListener('load', () => {
+  const register = () => {
     navigator.serviceWorker.register('/sw.js').catch((error) => {
       console.warn('SW registration failed:', error);
     });
-  });
+  };
+
+  if (document.readyState === 'complete') {
+    register();
+  } else {
+    window.addEventListener('load', register);
+  }
 }

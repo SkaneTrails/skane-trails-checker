@@ -3,18 +3,25 @@
  *
  * Strategy:
  * - Static assets (JS, CSS, images, fonts): cache-first
- * - API calls: network-first with cache fallback for GET requests
- * - Navigation: network-first with offline fallback
+ * - Unauthenticated API calls: network-first with cache fallback
+ * - Navigation: network-first, falls back to cached app shell
+ * - Authenticated API calls: network-only (never cached)
  */
 
 const CACHE_NAME = 'skane-trails-v1';
+const APP_SHELL = '/';
 
-/** Patterns for static assets to cache. */
-const STATIC_PATTERNS = [/\.(js|css|png|jpg|jpeg|svg|ico|woff2?)$/];
+/** Patterns for static assets to cache (matched against pathname). */
+const STATIC_PATTERNS = [/\.(js|css|png|jpg|jpeg|svg|ico|woff2?)(\?.*)?$/];
 
 /** @param {string} url */
 function isStaticAsset(url) {
-  return STATIC_PATTERNS.some((p) => p.test(url));
+  try {
+    const pathname = new URL(url).pathname;
+    return STATIC_PATTERNS.some((p) => p.test(pathname));
+  } catch {
+    return false;
+  }
 }
 
 /** @param {string} url */
@@ -23,19 +30,23 @@ function isApiCall(url) {
 }
 
 self.addEventListener('install', (event) => {
-  // Activate immediately without waiting for existing clients to close
+  // Pre-cache the app shell for offline navigation fallback
+  event.waitUntil(
+    caches.open(CACHE_NAME).then((cache) => cache.add(APP_SHELL)),
+  );
   self.skipWaiting();
 });
 
 self.addEventListener('activate', (event) => {
-  // Clean up old caches
+  // Clean up old caches and claim clients in one waitUntil
   event.waitUntil(
-    caches.keys().then((keys) =>
-      Promise.all(keys.filter((k) => k !== CACHE_NAME).map((k) => caches.delete(k))),
-    ),
+    Promise.all([
+      caches.keys().then((keys) =>
+        Promise.all(keys.filter((k) => k !== CACHE_NAME).map((k) => caches.delete(k))),
+      ),
+      self.clients.claim(),
+    ]),
   );
-  // Take control of all open clients immediately
-  self.clients.claim();
 });
 
 self.addEventListener('fetch', (event) => {
@@ -55,20 +66,27 @@ self.addEventListener('fetch', (event) => {
         (cached) => cached || fetch(request).then((response) => {
           if (response.ok) {
             const clone = response.clone();
-            caches.open(CACHE_NAME).then((cache) => cache.put(request, clone));
+            event.waitUntil(
+              caches.open(CACHE_NAME).then((cache) => cache.put(request, clone)),
+            );
           }
           return response;
         }),
       ),
     );
   } else if (isApiCall(url)) {
-    // API calls: network-first, cache fallback for reads
+    // Skip caching for authenticated requests (security: don't persist private data)
+    if (request.headers.has('Authorization')) return;
+
+    // Unauthenticated API calls: network-first, cache fallback
     event.respondWith(
       fetch(request)
         .then((response) => {
           if (response.ok) {
             const clone = response.clone();
-            caches.open(CACHE_NAME).then((cache) => cache.put(request, clone));
+            event.waitUntil(
+              caches.open(CACHE_NAME).then((cache) => cache.put(request, clone)),
+            );
           }
           return response;
         })
@@ -77,10 +95,10 @@ self.addEventListener('fetch', (event) => {
           headers: { 'Content-Type': 'application/json' },
         }))),
     );
-  } else {
-    // Navigation / other: network-first
+  } else if (request.mode === 'navigate') {
+    // Navigation: network-first, fall back to cached app shell
     event.respondWith(
-      fetch(request).catch(() => caches.match(request)),
+      fetch(request).catch(() => caches.match(APP_SHELL)),
     );
   }
 });

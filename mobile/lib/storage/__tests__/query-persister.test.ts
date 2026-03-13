@@ -37,8 +37,9 @@ function makePersistedClient(overrides?: Partial<PersistedClient>): PersistedCli
 describe('createIdbPersister', () => {
   let persister: ReturnType<typeof createIdbPersister>;
 
-  beforeEach(() => {
+  beforeEach(async () => {
     persister = createIdbPersister();
+    await persister.removeClient();
   });
 
   afterEach(() => {

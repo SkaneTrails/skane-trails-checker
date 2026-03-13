@@ -5,8 +5,7 @@
  * IndexedDB entry, surviving page refreshes and app restarts.
  * Uses the `idb` library for a cleaner async IndexedDB API.
  *
- * Queries with `meta: { persist: false }` are excluded from
- * persistence (useful for transient data like auth tokens).
+ * All queries managed by the QueryClient are persisted.
  */
 import type { PersistedClient, Persister } from '@tanstack/react-query-persist-client';
 import { openDB } from 'idb';

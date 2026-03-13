@@ -1,8 +1,6 @@
-import { QueryClient } from '@tanstack/react-query';
-import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client';
-import type { ReactNode } from 'react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { type ReactNode, useState } from 'react';
 import { Platform } from 'react-native';
-import { createIdbPersister } from '@/lib/storage/query-persister';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -15,18 +13,25 @@ const queryClient = new QueryClient({
   },
 });
 
-const persister = Platform.OS === 'web' ? createIdbPersister() : undefined;
-
 export function QueryProvider({ children }: { children: ReactNode }) {
-  if (persister) {
-    return (
-      <PersistQueryClientProvider client={queryClient} persistOptions={{ persister, maxAge: 1000 * 60 * 60 * 24 }}>
-        {children}
-      </PersistQueryClientProvider>
-    );
+  if (Platform.OS === 'web') {
+    return <WebPersistProvider>{children}</WebPersistProvider>;
   }
 
-  // Native platforms: no IndexedDB, fall back to regular provider
-  const { QueryClientProvider } = require('@tanstack/react-query');
   return <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>;
+}
+
+/** Lazy-loaded persistence wrapper — only imported on web to avoid bundling IndexedDB code on native. */
+function WebPersistProvider({ children }: { children: ReactNode }) {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports -- dynamic require avoids bundling on native
+  const { PersistQueryClientProvider } = require('@tanstack/react-query-persist-client');
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const { createIdbPersister } = require('@/lib/storage/query-persister');
+  const [persister] = useState(() => createIdbPersister());
+
+  return (
+    <PersistQueryClientProvider client={queryClient} persistOptions={{ persister, maxAge: 1000 * 60 * 60 * 24 }}>
+      {children}
+    </PersistQueryClientProvider>
+  );
 }
