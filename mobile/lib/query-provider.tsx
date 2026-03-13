@@ -1,6 +1,8 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client';
 import { type ReactNode, useState } from 'react';
 import { Platform } from 'react-native';
+import { createIdbPersister } from '@/lib/storage/query-persister';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -21,12 +23,8 @@ export function QueryProvider({ children }: { children: ReactNode }) {
   return <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>;
 }
 
-/** Lazy-loaded persistence wrapper — only imported on web to avoid bundling IndexedDB code on native. */
+/** Persistence wrapper — uses IndexedDB persister for offline cache on web. */
 function WebPersistProvider({ children }: { children: ReactNode }) {
-  // eslint-disable-next-line @typescript-eslint/no-require-imports -- dynamic require avoids bundling on native
-  const { PersistQueryClientProvider } = require('@tanstack/react-query-persist-client');
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const { createIdbPersister } = require('@/lib/storage/query-persister');
   const [persister] = useState(() => createIdbPersister());
 
   return (
