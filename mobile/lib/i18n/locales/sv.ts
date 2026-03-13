@@ -1,0 +1,177 @@
+/**
+ * Swedish translations.
+ * Must have the same keys as en.ts.
+ */
+
+import type { Translations } from './en';
+
+const sv: Translations = {
+  common: {
+    cancel: 'Avbryt',
+    save: 'Spara',
+    delete: 'Radera',
+    loading: 'Laddar...',
+    saving: 'Sparar...',
+    retry: 'Försök igen',
+    goBack: 'Tillbaka',
+    all: 'Alla',
+    close: 'Stäng',
+  },
+
+  tabs: {
+    map: 'Karta',
+    trails: 'Leder',
+    foraging: 'Plocka',
+    places: 'Platser',
+    settings: 'Inställningar',
+  },
+
+  signIn: {
+    title: 'Skåne Trails',
+    subtitle: 'Utforska vandringsleder i Skåne',
+    continueWithGoogle: 'Fortsätt med Google',
+    syncNote: 'Din data synkroniseras mellan enheter',
+    signOut: 'Logga ut',
+  },
+
+  trails: {
+    explored: 'Utforskad',
+    toExplore: 'Att utforska',
+    exploredCount: '🥾 {{explored}} / {{total}} utforskade',
+    uploadGpx: '📤 Ladda upp GPX',
+    searchPlaceholder: 'Sök leder...',
+    loadingTrails: 'Laddar leder...',
+    noTrailsFound: 'Inga leder hittades',
+    failedToLoad: 'Kunde inte ladda leder',
+    distance: '📏 {{km}} km',
+    difficulty: '⛰️ {{level}}',
+    source: '📂 {{source}}',
+  },
+
+  places: {
+    loadingPlaces: 'Laddar platser...',
+    failedToLoad: 'Kunde inte ladda platser',
+    noPlacesFound: 'Inga platser hittades',
+    coordinates: '📍 {{lat}}, {{lng}}',
+    webLink: '🔗 {{url}}',
+  },
+
+  foraging: {
+    mapWebOnly: 'Kartan är tillgänglig på webben',
+    mapRequiresBrowser: 'Svampkartan kräver en webbläsare.',
+    month: '📅 {{month}}',
+    coordinates: '📍 {{lat}}, {{lng}}',
+    addSpot: '+ Ny plats',
+    addSpotAccessibility: 'Lägg till plockplats',
+    couldNotLoad: 'Kunde inte ladda plockplatser',
+  },
+
+  map: {
+    webOnly: 'Kartan är tillgänglig på webben',
+    useTrailsTab: 'Använd Leder-fliken för att se dina leder.',
+    couldNotConnect: 'Kunde inte ansluta till API',
+  },
+
+  trail: {
+    title: 'Leddetaljer',
+    loadingTrail: 'Laddar led...',
+    trailNotFound: 'Led hittades inte',
+    distance: 'Avstånd',
+    elevationGain: 'Höjdökning',
+    elevationLoss: 'Höjdminskning',
+    difficultyLabel: 'Svårighetsgrad',
+    exploredStatus: '✅ Utforskad!',
+    markExplored: '🔴 Markera som utforskad',
+    updating: 'Uppdaterar...',
+    info: 'Info',
+    sourceLabel: 'Källa',
+    statusLabel: 'Status',
+    updatedLabel: 'Uppdaterad',
+    activityLabel: 'Aktivitet',
+    typeLabel: 'Typ',
+    trackPoints: 'Spårpunkter',
+    trailName: 'Lednamn',
+    rename: '✏️ Byt namn',
+    deleteTrail: '🗑️ Radera',
+    deleteConfirm: 'Radera "{{name}}"? Detta kan inte ångras.',
+  },
+
+  upload: {
+    title: 'Ladda upp GPX',
+    heading: 'Ladda upp GPX-fil',
+    description:
+      'Ladda upp en .gpx-fil för att lägga till leder. Uppladdade leder markeras automatiskt som utforskade.',
+    trailSource: 'Ledkälla',
+    otherTrails: 'Övriga leder',
+    worldWideHikes: 'Vandringar i världen',
+    upload: '📤 Ladda upp',
+    uploading: 'Laddar upp...',
+    uploadFailed: 'Uppladdning misslyckades',
+    uploadSuccess: '✅ {{count}} led(er) uppladdade!',
+    viewTrails: 'Visa leder',
+    webOnly: 'GPX-uppladdning är tillgänglig på webben',
+  },
+
+  addSpot: {
+    title: 'Lägg till plockplats',
+    type: 'Typ',
+    month: 'Månad',
+    location: 'Plats',
+    useCurrentLocation: '📍 Använd nuvarande plats',
+    orTapMap: 'eller tryck på kartan, eller ange manuellt:',
+    latitude: 'Latitud',
+    longitude: 'Longitud',
+    notes: 'Anteckningar',
+    notesPlaceholder: 'Eventuella observationer...',
+    addSpot: 'Lägg till',
+  },
+
+  trailCard: {
+    viewDetails: 'Visa detaljer',
+    elevationGain: '↗ {{meters}} m',
+    elevationLoss: '↘ {{meters}} m',
+  },
+
+  months: {
+    jan: 'Jan',
+    feb: 'Feb',
+    mar: 'Mar',
+    apr: 'Apr',
+    may: 'Maj',
+    jun: 'Jun',
+    jul: 'Jul',
+    aug: 'Aug',
+    sep: 'Sep',
+    oct: 'Okt',
+    nov: 'Nov',
+    dec: 'Dec',
+  },
+
+  settings: {
+    title: 'Inställningar',
+    hikeGroup: 'Vandringsgrupp',
+    language: 'Språk',
+    theme: 'Tema',
+    noGroup: 'Ingen vandringsgrupp ännu',
+    createGroup: 'Skapa grupp',
+    groupName: 'Gruppnamn',
+    members: 'Medlemmar',
+    addMember: 'Lägg till medlem',
+    emailPlaceholder: 'E-postadress',
+    removeMember: 'Ta bort',
+    owner: 'Ägare',
+    member: 'Medlem',
+    leaveGroup: 'Lämna grupp',
+    deleteGroup: 'Radera grupp',
+    deleteGroupConfirm: 'Radera "{{name}}"? Alla medlemmar tas bort.',
+    english: 'English',
+    swedish: 'Svenska',
+    outdoor: 'Outdoor',
+    onlyTheme: 'Enda tillgängliga temat just nu',
+    groupSettings: 'Gruppinställningar',
+    account: 'Konto',
+    signOut: 'Logga ut',
+  },
+} as const;
+
+export default sv;

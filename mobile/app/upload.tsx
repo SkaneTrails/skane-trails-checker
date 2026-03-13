@@ -10,6 +10,7 @@ import { type ChangeEvent, useRef, useState } from 'react';
 import { Platform, StyleSheet, Text, View } from 'react-native';
 import { Button, Chip, ContentCard, EmptyState, ScreenLayout } from '@/components';
 import { useUploadGpx } from '@/lib/hooks';
+import { useTranslation } from '@/lib/i18n';
 import { borderRadius, fontSize, fontWeight, spacing, useTheme } from '@/lib/theme';
 import type { Trail } from '@/lib/types';
 
@@ -20,6 +21,7 @@ const SOURCE_OPTIONS = [
 
 export default function UploadScreen() {
   const { colors } = useTheme();
+  const { t } = useTranslation();
   const router = useRouter();
   const upload = useUploadGpx();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -33,8 +35,8 @@ export default function UploadScreen() {
       <ScreenLayout>
         <EmptyState
           emoji="📁"
-          title="GPX upload is currently available on web only"
-          actionLabel="Go Back"
+          title={t('upload.webOnly')}
+          actionLabel={t('common.goBack')}
           onAction={() => router.back()}
         />
       </ScreenLayout>
@@ -68,18 +70,18 @@ export default function UploadScreen() {
   return (
     <ScreenLayout>
       <View style={styles.content}>
-        <Text style={[styles.heading, { color: colors.text.primary }]}>Upload GPX File</Text>
+        <Text style={[styles.heading, { color: colors.text.primary }]}>{t('upload.heading')}</Text>
         <Text style={[styles.description, { color: colors.text.secondary }]}>
-          Upload a .gpx file to add trails. Uploaded trails are automatically marked as explored.
+          {t('upload.description')}
         </Text>
 
         <View style={styles.sourceSection}>
-          <Text style={[styles.label, { color: colors.text.secondary }]}>Trail Source</Text>
+          <Text style={[styles.label, { color: colors.text.secondary }]}>{t('upload.trailSource')}</Text>
           <View style={styles.chipRow}>
             {SOURCE_OPTIONS.map((opt) => (
               <Chip
                 key={opt.value}
-                label={opt.label}
+                label={t(`upload.${opt.value === 'other_trails' ? 'otherTrails' : 'worldWideHikes'}`)}
                 selected={source === opt.value}
                 onPress={() => setSource(opt.value)}
               />
@@ -104,7 +106,7 @@ export default function UploadScreen() {
 
         <View style={styles.actions}>
           <Button
-            title={upload.isPending ? 'Uploading...' : '📤 Upload'}
+            title={upload.isPending ? t('upload.uploading') : t('upload.upload')}
             onPress={handleUpload}
             disabled={!selectedFile || upload.isPending}
           />
@@ -113,7 +115,7 @@ export default function UploadScreen() {
         {upload.isError && (
           <View style={[styles.errorBox, { backgroundColor: colors.errorBg }]}>
             <Text style={[styles.errorText, { color: colors.error }]}>
-              {upload.error?.message ?? 'Upload failed'}
+              {upload.error?.message ?? t('upload.uploadFailed')}
             </Text>
           </View>
         )}
@@ -121,7 +123,7 @@ export default function UploadScreen() {
         {uploadedTrails && (
           <View style={styles.results}>
             <Text style={[styles.resultHeading, { color: colors.success }]}>
-              ✅ {uploadedTrails.length} trail(s) uploaded successfully!
+              {t('upload.uploadSuccess', { count: String(uploadedTrails.length) })}
             </Text>
             {uploadedTrails.map((trail) => (
               <ContentCard key={trail.trail_id}>
@@ -132,7 +134,7 @@ export default function UploadScreen() {
               </ContentCard>
             ))}
             <View style={styles.actions}>
-              <Button title="View Trails" onPress={() => router.push('/(tabs)/trails')} />
+              <Button title={t('upload.viewTrails')} onPress={() => router.push('/(tabs)/trails')} />
             </View>
           </View>
         )}

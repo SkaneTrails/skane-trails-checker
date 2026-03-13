@@ -7,13 +7,15 @@
 
 import { Redirect } from 'expo-router';
 import { ActivityIndicator, Pressable, Text, View } from 'react-native';
-import { ScreenLayout } from '../components';
-import { GoogleLogo } from '../components/GoogleLogo';
-import { useAuth } from '../lib/hooks/use-auth';
-import { borderRadius, fontSize, fontWeight, spacing, useTheme } from '../lib/theme';
+import { ScreenLayout } from '@/components';
+import { GoogleLogo } from '@/components/GoogleLogo';
+import { useAuth } from '@/lib/hooks/use-auth';
+import { useTranslation } from '@/lib/i18n';
+import { borderRadius, fontSize, fontWeight, spacing, useTheme } from '@/lib/theme';
 
 export default function SignInScreen() {
   const { colors } = useTheme();
+  const { t } = useTranslation();
   const { user, loading, error, signIn, signOut } = useAuth();
 
   if (user) {
@@ -32,7 +34,7 @@ export default function SignInScreen() {
               fontSize: fontSize.md,
             }}
           >
-            Loading…
+            {t('common.loading')}
           </Text>
           <Pressable
             onPress={signOut}
@@ -90,7 +92,7 @@ export default function SignInScreen() {
             marginBottom: 64,
           }}
         >
-          Explore hiking trails in Skåne
+          {t('signIn.subtitle')}
         </Text>
 
         {/* Error */}
@@ -143,7 +145,7 @@ export default function SignInScreen() {
               marginLeft: spacing.md,
             }}
           >
-            Continue with Google
+            {t('signIn.continueWithGoogle')}
           </Text>
         </Pressable>
       </View>
@@ -164,7 +166,7 @@ export default function SignInScreen() {
             textAlign: 'center',
           }}
         >
-          Your trail data syncs across devices
+          {t('signIn.syncNote')}
         </Text>
         <Pressable
           onPress={signOut}

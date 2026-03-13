@@ -5,6 +5,16 @@ export {
   useForagingSpots,
   useForagingTypes,
 } from './use-foraging';
+export {
+  hikeGroupKeys,
+  useAddMember,
+  useCreateHikeGroup,
+  useDeleteHikeGroup,
+  useHikeGroup,
+  useHikeGroups,
+  useRemoveMember,
+  useUpdateHikeGroup,
+} from './use-hike-groups';
 export { placeKeys, usePlaceCategories, usePlaces } from './use-places';
 export {
   trailKeys,

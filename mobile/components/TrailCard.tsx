@@ -5,6 +5,7 @@
  */
 
 import { StyleSheet, Text, View } from 'react-native';
+import { useTranslation } from '@/lib/i18n';
 import { fontSize, spacing, useTheme } from '@/lib/theme';
 import type { Trail } from '@/lib/types';
 import { MapInfoCard } from './MapInfoCard';
@@ -18,12 +19,13 @@ interface TrailCardProps {
 
 export const TrailCard = ({ trail, onViewDetails, onClose }: TrailCardProps) => {
   const { colors } = useTheme();
+  const { t } = useTranslation();
 
   return (
     <MapInfoCard
       title={trail.name}
       onClose={onClose}
-      action={{ label: 'View Details', onPress: () => onViewDetails(trail) }}
+      action={{ label: t('trailCard.viewDetails'), onPress: () => onViewDetails(trail) }}
     >
       <View style={styles.badgeRow}>
         <StatusBadge status={trail.status} />

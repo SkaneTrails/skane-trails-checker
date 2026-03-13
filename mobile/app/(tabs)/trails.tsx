@@ -4,18 +4,14 @@ import { ActivityIndicator, FlatList, Pressable, StyleSheet, Text, TextInput, Vi
 import { Chip, ContentCard, EmptyState, ScreenLayout, StatusBadge } from '@/components';
 import type { TrailFilters } from '@/lib/api';
 import { useTrails } from '@/lib/hooks';
+import { useTranslation } from '@/lib/i18n';
 import { borderRadius, fontSize, fontWeight, spacing, useTheme } from '@/lib/theme';
 import type { Trail } from '@/lib/types';
-
-const STATUS_OPTIONS = [
-  { label: 'All', value: undefined },
-  { label: 'Explored', value: 'Explored!' },
-  { label: 'To Explore', value: 'To Explore' },
-] as const;
 
 function TrailItem({ trail }: { trail: Trail }) {
   const router = useRouter();
   const { colors } = useTheme();
+  const { t } = useTranslation();
 
   return (
     <Pressable onPress={() => router.push(`/trail/${trail.trail_id}`)}>
@@ -28,15 +24,15 @@ function TrailItem({ trail }: { trail: Trail }) {
         </View>
         <View style={styles.cardMeta}>
           <Text style={[styles.metaText, { color: colors.text.secondary }]}>
-            📏 {trail.length_km.toFixed(1)} km
+            {t('trails.distance', { km: trail.length_km.toFixed(1) })}
           </Text>
           {trail.difficulty && (
             <Text style={[styles.metaText, { color: colors.text.secondary }]}>
-              ⛰️ {trail.difficulty}
+              {t('trails.difficulty', { level: trail.difficulty })}
             </Text>
           )}
           <Text style={[styles.metaText, { color: colors.text.secondary }]}>
-            📂 {trail.source.replace(/_/g, ' ')}
+            {t('trails.source', { source: trail.source.replace(/_/g, ' ') })}
           </Text>
         </View>
       </ContentCard>
@@ -46,9 +42,16 @@ function TrailItem({ trail }: { trail: Trail }) {
 
 export default function TrailsScreen() {
   const { colors } = useTheme();
+  const { t } = useTranslation();
   const router = useRouter();
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<string | undefined>();
+
+  const statusOptions = [
+    { label: t('common.all'), value: undefined },
+    { label: t('trails.explored'), value: 'Explored!' },
+    { label: t('trails.toExplore'), value: 'To Explore' },
+  ] as const;
 
   const filters: TrailFilters = {
     ...(search.trim() ? { search: search.trim() } : {}),
@@ -57,16 +60,16 @@ export default function TrailsScreen() {
 
   const { data: trails, isLoading, isFetching, error, refetch } = useTrails(filters);
 
-  const explored = trails?.filter((t) => t.status === 'Explored!').length ?? 0;
-  const total = trails?.length ?? 0;
+  const trailCount = trails?.length ?? 0;
+  const explored = trails?.filter((tr) => tr.status === 'Explored!').length ?? 0;
 
-  if (error && !trails?.length) {
+  if (error && trailCount === 0) {
     return (
       <ScreenLayout>
         <EmptyState
           emoji="⚠️"
-          title="Failed to load trails"
-          actionLabel="Retry"
+          title={t('trails.failedToLoad')}
+          actionLabel={t('common.retry')}
           onAction={() => refetch()}
         />
       </ScreenLayout>
@@ -78,7 +81,7 @@ export default function TrailsScreen() {
       <View style={[styles.summary, { backgroundColor: colors.primary }]}>
         <View style={styles.summaryLeft}>
           <Text style={[styles.summaryText, { color: colors.text.inverse }]}>
-            🥾 {explored} / {total} explored
+          {t('trails.exploredCount', { explored: String(explored), total: String(trailCount) })}
           </Text>
           {isFetching && (
             <ActivityIndicator size="small" color={colors.text.inverse} />
@@ -86,7 +89,7 @@ export default function TrailsScreen() {
         </View>
         <Pressable style={styles.uploadButton} onPress={() => router.push('/upload')}>
           <Text style={[styles.uploadButtonText, { color: colors.text.inverse }]}>
-            📤 Upload GPX
+            {t('trails.uploadGpx')}
           </Text>
         </Pressable>
       </View>
@@ -106,13 +109,13 @@ export default function TrailsScreen() {
               color: colors.text.primary,
             },
           ]}
-          placeholder="Search trails..."
+          placeholder={t('trails.searchPlaceholder')}
           placeholderTextColor={colors.text.muted}
           value={search}
           onChangeText={setSearch}
         />
         <View style={styles.chipRow}>
-          {STATUS_OPTIONS.map((opt) => (
+          {statusOptions.map((opt) => (
             <Chip
               key={opt.label}
               label={opt.label}
@@ -123,15 +126,15 @@ export default function TrailsScreen() {
         </View>
       </View>
 
-      {isLoading && !trails?.length ? (
-        <EmptyState emoji="⏳" title="Loading trails..." />
+      {isLoading && trailCount === 0 ? (
+        <EmptyState emoji="⏳" title={t('trails.loadingTrails')} />
       ) : (
         <FlatList
           data={trails}
           keyExtractor={(item) => item.trail_id}
           renderItem={({ item }) => <TrailItem trail={item} />}
           contentContainerStyle={styles.list}
-          ListEmptyComponent={<EmptyState emoji="🥾" title="No trails found" />}
+          ListEmptyComponent={<EmptyState emoji="🥾" title={t('trails.noTrailsFound')} />}
         />
       )}
     </ScreenLayout>

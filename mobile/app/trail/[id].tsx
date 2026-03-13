@@ -3,12 +3,14 @@ import { useState } from 'react';
 import { Alert, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Button, EmptyState, FormField, ScreenLayout, StatCard, StatusBadge } from '@/components';
 import { useDeleteTrail, useTrail, useTrailDetails, useUpdateTrail } from '@/lib/hooks';
+import { useTranslation } from '@/lib/i18n';
 import { borderRadius, fontSize, fontWeight, spacing, useTheme } from '@/lib/theme';
 
 export default function TrailDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const { colors } = useTheme();
+  const { t } = useTranslation();
   const { data: trail, isLoading: trailLoading } = useTrail(id);
   const { data: details, isLoading: detailsLoading } = useTrailDetails(id);
   const updateTrail = useUpdateTrail();
@@ -20,7 +22,7 @@ export default function TrailDetailScreen() {
   if (trailLoading || detailsLoading) {
     return (
       <ScreenLayout>
-        <EmptyState emoji="⏳" title="Loading trail..." />
+        <EmptyState emoji="⏳" title={t('trail.loadingTrail')} />
       </ScreenLayout>
     );
   }
@@ -30,8 +32,8 @@ export default function TrailDetailScreen() {
       <ScreenLayout>
         <EmptyState
           emoji="🔍"
-          title="Trail not found"
-          actionLabel="Go Back"
+          title={t('trail.trailNotFound')}
+          actionLabel={t('common.goBack')}
           onAction={() => router.back()}
         />
       </ScreenLayout>
@@ -60,14 +62,14 @@ export default function TrailDetailScreen() {
   const confirmDelete = () => {
     if (!id) return;
     if (Platform.OS === 'web') {
-      if (window.confirm(`Delete "${trail.name}"? This cannot be undone.`)) {
+      if (window.confirm(t('trail.deleteConfirm', { name: trail.name }))) {
         deleteTrail.mutate(id, { onSuccess: () => router.back() });
       }
     } else {
-      Alert.alert('Delete Trail', `Delete "${trail.name}"? This cannot be undone.`, [
-        { text: 'Cancel', style: 'cancel' },
+      Alert.alert(t('common.delete'), t('trail.deleteConfirm', { name: trail.name }), [
+        { text: t('common.cancel'), style: 'cancel' },
         {
-          text: 'Delete',
+          text: t('common.delete'),
           style: 'destructive',
           onPress: () => deleteTrail.mutate(id, { onSuccess: () => router.back() }),
         },
@@ -80,14 +82,14 @@ export default function TrailDetailScreen() {
       <ScrollView contentContainerStyle={styles.content}>
         {isEditing ? (
           <View style={styles.editSection}>
-            <FormField label="Trail Name" value={editName} onChangeText={setEditName} />
+            <FormField label={t('trail.trailName')} value={editName} onChangeText={setEditName} />
             <View style={styles.editButtons}>
               <Button
-                title="Save"
+                title={t('common.save')}
                 onPress={saveRename}
                 disabled={!editName.trim() || updateTrail.isPending}
               />
-              <Button title="Cancel" variant="secondary" onPress={() => setIsEditing(false)} />
+              <Button title={t('common.cancel')} variant="secondary" onPress={() => setIsEditing(false)} />
             </View>
           </View>
         ) : (
@@ -97,14 +99,14 @@ export default function TrailDetailScreen() {
         )}
 
         <View style={styles.statsRow}>
-          <StatCard label="Distance" value={`${trail.length_km.toFixed(1)} km`} />
+          <StatCard label={t('trail.distance')} value={`${trail.length_km.toFixed(1)} km`} />
           {trail.elevation_gain != null && (
-            <StatCard label="Elevation Gain" value={`${Math.round(trail.elevation_gain)} m`} />
+            <StatCard label={t('trail.elevationGain')} value={`${Math.round(trail.elevation_gain)} m`} />
           )}
           {trail.elevation_loss != null && (
-            <StatCard label="Elevation Loss" value={`${Math.round(trail.elevation_loss)} m`} />
+            <StatCard label={t('trail.elevationLoss')} value={`${Math.round(trail.elevation_loss)} m`} />
           )}
-          {trail.difficulty && <StatCard label="Difficulty" value={trail.difficulty} />}
+          {trail.difficulty && <StatCard label={t('trail.difficultyLabel')} value={trail.difficulty} />}
         </View>
 
         <View style={styles.statusSection}>
@@ -123,29 +125,29 @@ export default function TrailDetailScreen() {
           >
             <Text style={[styles.statusButtonText, { color: colors.text.primary }]}>
               {updateTrail.isPending
-                ? 'Updating...'
+                ? t('trail.updating')
                 : trail.status === 'Explored!'
-                  ? '✅ Explored!'
-                  : '🔴 Mark as Explored'}
+                  ? t('trail.exploredStatus')
+                  : t('trail.markExplored')}
             </Text>
           </Pressable>
         </View>
 
         <View style={[styles.infoSection, { backgroundColor: colors.surface }]}>
-          <Text style={[styles.sectionTitle, { color: colors.text.primary }]}>Info</Text>
+          <Text style={[styles.sectionTitle, { color: colors.text.primary }]}>{t('trail.info')}</Text>
           <View style={styles.infoRow}>
-            <Text style={[styles.infoLabel, { color: colors.text.muted }]}>Source</Text>
+            <Text style={[styles.infoLabel, { color: colors.text.muted }]}>{t('trail.sourceLabel')}</Text>
             <Text style={[styles.infoText, { color: colors.text.secondary }]}>
               {trail.source.replace(/_/g, ' ')}
             </Text>
           </View>
           <View style={styles.infoRow}>
-            <Text style={[styles.infoLabel, { color: colors.text.muted }]}>Status</Text>
+            <Text style={[styles.infoLabel, { color: colors.text.muted }]}>{t('trail.statusLabel')}</Text>
             <StatusBadge status={trail.status} />
           </View>
           {trail.last_updated && (
             <View style={styles.infoRow}>
-              <Text style={[styles.infoLabel, { color: colors.text.muted }]}>Updated</Text>
+              <Text style={[styles.infoLabel, { color: colors.text.muted }]}>{t('trail.updatedLabel')}</Text>
               <Text style={[styles.infoText, { color: colors.text.secondary }]}>
                 {new Date(trail.last_updated).toLocaleDateString()}
               </Text>
@@ -153,7 +155,7 @@ export default function TrailDetailScreen() {
           )}
           {trail.activity_date && (
             <View style={styles.infoRow}>
-              <Text style={[styles.infoLabel, { color: colors.text.muted }]}>Activity</Text>
+              <Text style={[styles.infoLabel, { color: colors.text.muted }]}>{t('trail.activityLabel')}</Text>
               <Text style={[styles.infoText, { color: colors.text.secondary }]}>
                 {new Date(trail.activity_date).toLocaleDateString()}
               </Text>
@@ -161,7 +163,7 @@ export default function TrailDetailScreen() {
           )}
           {trail.activity_type && (
             <View style={styles.infoRow}>
-              <Text style={[styles.infoLabel, { color: colors.text.muted }]}>Type</Text>
+              <Text style={[styles.infoLabel, { color: colors.text.muted }]}>{t('trail.typeLabel')}</Text>
               <Text style={[styles.infoText, { color: colors.text.secondary }]}>
                 {trail.activity_type}
               </Text>
@@ -169,7 +171,7 @@ export default function TrailDetailScreen() {
           )}
           {details && (
             <View style={styles.infoRow}>
-              <Text style={[styles.infoLabel, { color: colors.text.muted }]}>Track Points</Text>
+              <Text style={[styles.infoLabel, { color: colors.text.muted }]}>{t('trail.trackPoints')}</Text>
               <Text style={[styles.infoText, { color: colors.text.secondary }]}>
                 {details.coordinates_full.length}
               </Text>
@@ -178,9 +180,9 @@ export default function TrailDetailScreen() {
         </View>
 
         <View style={styles.actions}>
-          <Button title="✏️ Rename" variant="secondary" onPress={startEditing} />
+          <Button title={t('trail.rename')} variant="secondary" onPress={startEditing} />
           <Button
-            title="🗑️ Delete"
+            title={t('trail.deleteTrail')}
             variant="danger"
             onPress={confirmDelete}
             disabled={deleteTrail.isPending}
