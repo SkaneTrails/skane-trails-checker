@@ -50,8 +50,9 @@ module "apis" {
 module "iam" {
   source = "../../modules/iam"
 
-  project    = var.project
-  superusers = local.superusers
+  project             = var.project
+  superusers          = local.superusers
+  tfstate_bucket_name = var.tfstate_bucket_name
 
   # Implicit dependency on APIs module through output reference
   iam_api_service = module.apis.iam_service

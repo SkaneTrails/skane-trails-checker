@@ -114,6 +114,13 @@ resource "google_project_iam_member" "github_actions_terraform_ci" {
   member  = "serviceAccount:${google_service_account.github_actions_terraform.email}"
 }
 
+# CI: bucket-scoped write for terraform state lock files (not project-wide)
+resource "google_storage_bucket_iam_member" "terraform_state_lock" {
+  bucket = var.tfstate_bucket_name
+  role   = "roles/storage.objectUser"
+  member = "serviceAccount:${google_service_account.github_actions_terraform.email}"
+}
+
 # --- CD: terraform apply + Docker push (write operations) ---
 # When splitting into separate SAs, assign these to the CD SA only.
 

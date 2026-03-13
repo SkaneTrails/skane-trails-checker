@@ -154,6 +154,7 @@ resource "google_project_iam_custom_role" "terraform_ci" {
     "cloudfunctions.functions.get",
     "cloudfunctions.functions.list",
     "cloudfunctions.locations.list",
+    "cloudfunctions.operations.get",
 
     # Cloud Scheduler
     "cloudscheduler.jobs.get",
@@ -209,12 +210,10 @@ resource "google_project_iam_custom_role" "terraform_ci" {
     "serviceusage.services.get",
     "serviceusage.services.list",
 
-    # Cloud Storage (state read + lock file write)
+    # Cloud Storage (read-only — state lock writes are bucket-scoped, see main.tf)
     "storage.buckets.get",
     "storage.buckets.getIamPolicy",
     "storage.buckets.list",
-    "storage.objects.create",
-    "storage.objects.delete",
     "storage.objects.get",
     "storage.objects.list",
   ]
@@ -227,8 +226,9 @@ resource "google_project_iam_custom_role" "terraform_ci" {
 # -----------------------------------------------------------------------------
 # Terraform CD Role (terraform apply — write operations)
 # -----------------------------------------------------------------------------
-# Additive to CI role. Only contains write/create/update/delete permissions for
-# resource types managed by our Terraform config.
+# Additive to CI role. Contains write/create/update/delete permissions for
+# resource types managed by our Terraform config, plus operational reads
+# (e.g. cloudfunctions.operations.get) needed only during apply.
 #
 # Permissions NOT included here (covered by predefined roles on the SA):
 #   roles/iam.serviceAccountAdmin  — SA lifecycle
@@ -257,16 +257,14 @@ resource "google_project_iam_custom_role" "terraform_cd" {
     "cloudfunctions.functions.create",
     "cloudfunctions.functions.delete",
     "cloudfunctions.functions.update",
-    "cloudfunctions.operations.get",
 
     # Cloud Scheduler
     "cloudscheduler.jobs.create",
     "cloudscheduler.jobs.delete",
     "cloudscheduler.jobs.update",
 
-    # Firestore / Datastore
+    # Firestore / Datastore (no databases.delete — defense-in-depth with deletion_policy=ABANDON)
     "datastore.databases.create",
-    "datastore.databases.delete",
     "datastore.databases.update",
     "datastore.entities.create",
     "datastore.entities.delete",
