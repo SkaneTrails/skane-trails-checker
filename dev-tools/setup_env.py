@@ -165,6 +165,14 @@ def write_env_file(env_vars: dict[str, str], env: str) -> None:
     # Always include ENV variable to track current environment
     env_vars["ENV"] = env
 
+    # Local dev defaults — not secrets, just config for running locally
+    local_defaults = {
+        "SKIP_AUTH": "true",
+        "ALLOWED_ORIGINS": "http://localhost:8081,http://localhost:8085,http://localhost:19006,http://localhost:3000",
+    }
+    for key, value in local_defaults.items():
+        env_vars.setdefault(key, value)
+
     # Sort for consistent output
     sorted_vars = sorted(env_vars.items())
 
