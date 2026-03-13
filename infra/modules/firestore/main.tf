@@ -13,7 +13,7 @@ resource "google_firestore_database" "database" {
   app_engine_integration_mode = "DISABLED"
 
   # Prevent accidental deletion of production data
-  deletion_policy = "DELETE"
+  deletion_policy = "ABANDON"
 
   depends_on = [var.firestore_api_service, var.iam_bindings_complete]
 }

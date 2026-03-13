@@ -157,6 +157,7 @@ module "backup" {
 
 # -----------------------------------------------------------------------------
 # Service Account User grants (scoped to specific runtime SAs, not project-level)
+# CD only — when splitting SAs, assign to CD SA only.
 # -----------------------------------------------------------------------------
 
 # Cloud Run deploy SA needs to attach the Cloud Run runtime SA during deployment
