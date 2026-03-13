@@ -88,6 +88,14 @@ resource "google_project_service" "identitytoolkit" {
   disable_on_destroy = false
 }
 
+# Firebase Rules API for Firestore security rules
+resource "google_project_service" "firebaserules" {
+  project = var.project
+  service = "firebaserules.googleapis.com"
+
+  disable_on_destroy = false
+}
+
 # IAM Credentials API for Workload Identity Federation
 resource "google_project_service" "iamcredentials" {
   project = var.project

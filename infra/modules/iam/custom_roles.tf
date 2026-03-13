@@ -173,6 +173,12 @@ resource "google_project_iam_custom_role" "terraform_ci" {
     "firebasehosting.sites.get",
     "firebasehosting.sites.list",
 
+    # Firebase Rules (Firestore security rules)
+    "firebaserules.releases.get",
+    "firebaserules.releases.list",
+    "firebaserules.rulesets.get",
+    "firebaserules.rulesets.list",
+
     # IAM
     "iam.roles.get",
     "iam.roles.list",

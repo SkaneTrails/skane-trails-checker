@@ -48,12 +48,24 @@ jobs:
       - name: Fetch secrets from GCP Secret Manager
         id: secrets
         run: |
+          API_URL=$(gcloud secrets versions access latest --secret=st_github_EXPO_PUBLIC_API_URL --project="${{ env.GCP_PROJECT_ID }}")
+          API_KEY=$(gcloud secrets versions access latest --secret=st_github_EXPO_PUBLIC_FIREBASE_API_KEY --project="${{ env.GCP_PROJECT_ID }}")
+          APP_ID=$(gcloud secrets versions access latest --secret=st_github_EXPO_PUBLIC_FIREBASE_APP_ID --project="${{ env.GCP_PROJECT_ID }}")
+          SENDER_ID=$(gcloud secrets versions access latest --secret=st_github_EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID --project="${{ env.GCP_PROJECT_ID }}")
+          CLIENT_ID=$(gcloud secrets versions access latest --secret=skane-trails_oauth_client_id --project="${{ env.GCP_PROJECT_ID }}")
+
+          echo "::add-mask::$API_URL"
+          echo "::add-mask::$API_KEY"
+          echo "::add-mask::$APP_ID"
+          echo "::add-mask::$SENDER_ID"
+          echo "::add-mask::$CLIENT_ID"
+
           {
-            echo "EXPO_PUBLIC_API_URL=$(gcloud secrets versions access latest --secret=st_github_EXPO_PUBLIC_API_URL --project="${{ env.GCP_PROJECT_ID }}")"
-            echo "EXPO_PUBLIC_FIREBASE_API_KEY=$(gcloud secrets versions access latest --secret=st_github_EXPO_PUBLIC_FIREBASE_API_KEY --project="${{ env.GCP_PROJECT_ID }}")"
-            echo "EXPO_PUBLIC_FIREBASE_APP_ID=$(gcloud secrets versions access latest --secret=st_github_EXPO_PUBLIC_FIREBASE_APP_ID --project="${{ env.GCP_PROJECT_ID }}")"
-            echo "EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=$(gcloud secrets versions access latest --secret=st_github_EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID --project="${{ env.GCP_PROJECT_ID }}")"
-            echo "EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID=$(gcloud secrets versions access latest --secret=skane-trails_oauth_client_id --project="${{ env.GCP_PROJECT_ID }}")"
+            echo "EXPO_PUBLIC_API_URL=$API_URL"
+            echo "EXPO_PUBLIC_FIREBASE_API_KEY=$API_KEY"
+            echo "EXPO_PUBLIC_FIREBASE_APP_ID=$APP_ID"
+            echo "EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=$SENDER_ID"
+            echo "EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID=$CLIENT_ID"
           } >> "$GITHUB_OUTPUT"
 
       - name: Build web app

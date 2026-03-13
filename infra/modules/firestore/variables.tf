@@ -27,3 +27,8 @@ variable "iam_bindings_complete" {
   description = "IAM bindings completion marker to ensure permissions are set before creating Firestore resources"
   type        = any
 }
+
+variable "firebaserules_api_service" {
+  description = "Firebase Rules API service resource for depends_on (from apis module)"
+  type        = any
+}

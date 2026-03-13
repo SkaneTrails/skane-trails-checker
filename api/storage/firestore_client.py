@@ -117,3 +117,12 @@ def get_collection(collection_name: str) -> firestore.CollectionReference:  # pr
     """
     client = get_firestore_client()
     return client.collection(collection_name)
+
+
+def create_batch() -> firestore.WriteBatch:  # pragma: no cover
+    """Create a Firestore write batch.
+
+    Returns:
+        Write batch for atomic operations
+    """
+    return get_firestore_client().batch()

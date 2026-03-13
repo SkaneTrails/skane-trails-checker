@@ -185,11 +185,9 @@ class TestSavePlacesBatch:
     """Tests for save_places_batch."""
 
     def test_saves_batch_of_places(self, mock_collection) -> None:
-        with patch("api.storage.places_storage.get_firestore_client") as mock_get_client:
-            mock_db = MagicMock()
-            mock_get_client.return_value = mock_db
+        with patch("api.storage.places_storage.create_batch") as mock_create_batch:
             mock_batch = MagicMock()
-            mock_db.batch.return_value = mock_batch
+            mock_create_batch.return_value = mock_batch
 
             places = [
                 PlaceResponse(place_id="p1", name="A", lat=56.0, lng=13.0),
