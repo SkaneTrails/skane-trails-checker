@@ -92,6 +92,31 @@ resource "google_firestore_index" "track_status_index" {
   }
 }
 
+# Firestore security rules — deny all client SDK access
+# Admin SDK (used by FastAPI backend) bypasses rules entirely.
+resource "google_firebaserules_ruleset" "firestore" {
+  provider = google-beta
+  project  = var.project
+
+  source {
+    files {
+      name    = "firestore.rules"
+      content = file("${path.module}/../../../firestore.rules")
+    }
+  }
+
+  depends_on = [var.firebaserules_api_service, google_firestore_database.database]
+}
+
+resource "google_firebaserules_release" "firestore" {
+  provider     = google-beta
+  project      = var.project
+  name         = "cloud.firestore/database/${var.database_name}"
+  ruleset_name = google_firebaserules_ruleset.firestore.name
+
+  depends_on = [var.firebaserules_api_service]
+}
+
 # Foraging spots collection index
 resource "google_firestore_index" "foraging_spots_index" {
   project    = var.project

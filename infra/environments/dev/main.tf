@@ -71,6 +71,7 @@ module "firestore" {
   # Implicit dependencies through API service references
   firestore_api_service     = module.apis.firestore_service
   secretmanager_api_service = module.apis.secretmanager_service
+  firebaserules_api_service = module.apis.firebaserules_service
 
   # Ensure IAM permissions are in place before creating Firestore resources
   iam_bindings_complete = module.iam.iam_bindings_complete

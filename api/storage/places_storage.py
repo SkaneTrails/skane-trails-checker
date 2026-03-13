@@ -4,7 +4,7 @@ import logging
 from datetime import UTC, datetime
 
 from api.models.place import PlaceCategoryResponse, PlaceResponse
-from api.storage.firestore_client import get_collection, get_firestore_client
+from api.storage.firestore_client import create_batch, get_collection
 from api.storage.validation import validate_document_id
 
 logger = logging.getLogger(__name__)
@@ -76,14 +76,13 @@ def save_places_batch(places: list[PlaceResponse], batch_size: int = 500) -> int
     if not places:
         return 0
 
-    db = get_firestore_client()
     collection = get_collection("places")
     timestamp = datetime.now(UTC).isoformat()
 
     saved_count = 0
 
     for i in range(0, len(places), batch_size):
-        batch = db.batch()
+        batch = create_batch()
         batch_places = places[i : i + batch_size]
 
         for place in batch_places:
