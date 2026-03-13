@@ -41,14 +41,14 @@ describe('AddSpotForm', () => {
 
     expect(screen.getByText('🍄 Mushrooms')).toBeDefined();
     expect(screen.getByText('🫐 Berries')).toBeDefined();
-    expect(screen.getByText('Jan')).toBeDefined();
-    expect(screen.getByText('Dec')).toBeDefined();
+    expect(screen.getByText('months.jan')).toBeDefined();
+    expect(screen.getByText('months.dec')).toBeDefined();
   });
 
   it('submit button is disabled when fields are empty', () => {
     render(<AddSpotForm {...defaultProps} />);
 
-    const addButton = screen.getByText('Add Spot');
+    const addButton = screen.getByText('addSpot.addSpot');
     expect(addButton.closest('[aria-disabled="true"]') ?? addButton).toBeDefined();
   });
 
@@ -57,7 +57,7 @@ describe('AddSpotForm', () => {
 
     // Select type and month
     fireEvent.click(screen.getByText('🍄 Mushrooms'));
-    fireEvent.click(screen.getByText('Sep'));
+    fireEvent.click(screen.getByText('months.sep'));
 
     // Enter invalid lat
     const latInput = screen.getByPlaceholderText('55.95');
@@ -67,7 +67,7 @@ describe('AddSpotForm', () => {
     fireEvent.change(lngInput, { target: { value: '13.5' } });
 
     // Button should still be disabled
-    const addButton = screen.getByText('Add Spot');
+    const addButton = screen.getByText('addSpot.addSpot');
     expect(addButton.closest('[aria-disabled="true"]') ?? addButton).toBeDefined();
     fireEvent.click(addButton);
     expect(defaultProps.onSubmit).not.toHaveBeenCalled();
@@ -77,7 +77,7 @@ describe('AddSpotForm', () => {
     render(<AddSpotForm {...defaultProps} />);
 
     fireEvent.click(screen.getByText('🍄 Mushrooms'));
-    fireEvent.click(screen.getByText('Sep'));
+    fireEvent.click(screen.getByText('months.sep'));
 
     const latInput = screen.getByPlaceholderText('55.95');
     fireEvent.change(latInput, { target: { value: '91' } });
@@ -85,7 +85,7 @@ describe('AddSpotForm', () => {
     const lngInput = screen.getByPlaceholderText('13.40');
     fireEvent.change(lngInput, { target: { value: '13.5' } });
 
-    const addButton = screen.getByText('Add Spot');
+    const addButton = screen.getByText('addSpot.addSpot');
     fireEvent.click(addButton);
     expect(defaultProps.onSubmit).not.toHaveBeenCalled();
   });
@@ -94,7 +94,7 @@ describe('AddSpotForm', () => {
     render(<AddSpotForm {...defaultProps} />);
 
     fireEvent.click(screen.getByText('🍄 Mushrooms'));
-    fireEvent.click(screen.getByText('Sep'));
+    fireEvent.click(screen.getByText('months.sep'));
 
     const latInput = screen.getByPlaceholderText('55.95');
     fireEvent.change(latInput, { target: { value: '55.95' } });
@@ -102,14 +102,14 @@ describe('AddSpotForm', () => {
     const lngInput = screen.getByPlaceholderText('13.40');
     fireEvent.change(lngInput, { target: { value: '13.40' } });
 
-    fireEvent.click(screen.getByText('Add Spot'));
+    fireEvent.click(screen.getByText('addSpot.addSpot'));
 
     expect(defaultProps.onSubmit).toHaveBeenCalledWith({
       type: 'Mushrooms',
       lat: 55.95,
       lng: 13.4,
       notes: '',
-      month: 'Sep',
+      month: 'months.sep',
     });
   });
 
@@ -128,20 +128,20 @@ describe('AddSpotForm', () => {
   it('calls onCancel when cancel button is pressed', () => {
     render(<AddSpotForm {...defaultProps} />);
 
-    fireEvent.click(screen.getByText('Cancel'));
+    fireEvent.click(screen.getByText('common.cancel'));
     expect(defaultProps.onCancel).toHaveBeenCalled();
   });
 
   it('calls onUseCurrentLocation when location button pressed', () => {
     render(<AddSpotForm {...defaultProps} />);
 
-    fireEvent.click(screen.getByText('📍 Use Current Location'));
+    fireEvent.click(screen.getByText('addSpot.useCurrentLocation'));
     expect(defaultProps.onUseCurrentLocation).toHaveBeenCalled();
   });
 
   it('shows Saving... text when submitting', () => {
     render(<AddSpotForm {...defaultProps} isSubmitting />);
 
-    expect(screen.getByText('Saving...')).toBeDefined();
+    expect(screen.getByText('common.saving')).toBeDefined();
   });
 });

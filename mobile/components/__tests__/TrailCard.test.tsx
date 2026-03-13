@@ -85,7 +85,7 @@ describe('TrailCard', () => {
     const onViewDetails = vi.fn();
     render(<TrailCard trail={baseTrail} onViewDetails={onViewDetails} onClose={vi.fn()} />);
 
-    fireEvent.click(screen.getByText('View Details'));
+    fireEvent.click(screen.getByText('trailCard.viewDetails'));
     expect(onViewDetails).toHaveBeenCalledWith(baseTrail);
   });
 

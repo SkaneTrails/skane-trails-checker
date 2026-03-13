@@ -4,6 +4,7 @@ import { Chip, EmptyState, MapInfoCard, ScreenLayout } from '@/components';
 import { AddSpotForm } from '@/components/AddSpotForm';
 import { ForagingMap } from '@/components/ForagingMap';
 import { useCreateForagingSpot, useForagingSpots, useForagingTypes } from '@/lib/hooks';
+import { useTranslation } from '@/lib/i18n';
 import { borderRadius, fontSize, fontWeight, spacing, useTheme } from '@/lib/theme';
 import type { ForagingSpot, ForagingSpotCreate } from '@/lib/types';
 
@@ -11,6 +12,7 @@ const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', '
 
 export default function ForagingScreen() {
   const { colors, shadows } = useTheme();
+  const { t } = useTranslation();
   const [selectedMonth, setSelectedMonth] = useState<string | undefined>();
   const isWeb = Platform.OS === 'web';
   const { data: spots, isFetching, error } = useForagingSpots(selectedMonth, { enabled: isWeb });
@@ -71,8 +73,8 @@ export default function ForagingScreen() {
       <ScreenLayout>
         <EmptyState
           emoji="🗺️"
-          title="Map is currently available on web only"
-          subtitle="Foraging map requires a web browser."
+          title={t('foraging.mapWebOnly')}
+          subtitle={t('foraging.mapRequiresBrowser')}
         />
       </ScreenLayout>
     );
@@ -87,7 +89,7 @@ export default function ForagingScreen() {
           { backgroundColor: colors.surface, borderBottomColor: colors.borderLight },
         ]}
       >
-        <Chip label="All" selected={!selectedMonth} onPress={() => setSelectedMonth(undefined)} />
+        <Chip label={t('common.all')} selected={!selectedMonth} onPress={() => setSelectedMonth(undefined)} />
         {MONTHS.map((m) => (
           <Chip
             key={m}
@@ -153,9 +155,9 @@ export default function ForagingScreen() {
           <Pressable
             style={[styles.fab, { backgroundColor: colors.primary }, shadows.card]}
             onPress={openAddForm}
-            accessibilityLabel="Add foraging spot"
+            accessibilityLabel={t('foraging.addSpotAccessibility')}
           >
-            <Text style={[styles.fabText, { color: colors.text.inverse }]}>+ Add Spot</Text>
+            <Text style={[styles.fabText, { color: colors.text.inverse }]}>{t('foraging.addSpot')}</Text>
           </Pressable>
         )}
 
@@ -175,7 +177,7 @@ export default function ForagingScreen() {
                 { backgroundColor: colors.overlay, color: colors.overlayText },
               ]}
             >
-              Could not load foraging spots
+              {t('foraging.couldNotLoad')}
             </Text>
           </View>
         )}

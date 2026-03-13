@@ -109,3 +109,30 @@ export interface PlaceCategory {
   name: string;
   icon: string;
 }
+
+// Hike group member
+export interface HikeGroupMember {
+  uid: string;
+  email: string;
+  name: string | null;
+  role: 'owner' | 'member';
+}
+
+// Hike group
+export interface HikeGroup {
+  group_id: string;
+  name: string;
+  members: HikeGroupMember[];
+  created_at: string;
+  last_updated: string;
+}
+
+// Create hike group payload
+export interface HikeGroupCreate {
+  name: string;
+}
+
+// Add member payload
+export interface AddMemberRequest {
+  email: string;
+}

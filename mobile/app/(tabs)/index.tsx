@@ -4,12 +4,14 @@ import { ActivityIndicator, Platform, StyleSheet, Text, View } from 'react-nativ
 import { EmptyState, ScreenLayout, TrailCard } from '@/components';
 import { TrailMap } from '@/components/TrailMap';
 import { useTrails } from '@/lib/hooks';
+import { useTranslation } from '@/lib/i18n';
 import { borderRadius, fontSize, spacing, useTheme } from '@/lib/theme';
 import type { Trail } from '@/lib/types';
 
 export default function MapScreen() {
   const { data: trails, isFetching, error } = useTrails();
   const { colors } = useTheme();
+  const { t } = useTranslation();
   const router = useRouter();
   const [selectedTrail, setSelectedTrail] = useState<Trail | null>(null);
 
@@ -18,8 +20,8 @@ export default function MapScreen() {
       <ScreenLayout>
         <EmptyState
           emoji="🗺️"
-          title="Map is currently available on web only"
-          subtitle="Use the Trails tab to see your trails."
+          title={t('map.webOnly')}
+          subtitle={t('map.useTrailsTab')}
         />
       </ScreenLayout>
     );
@@ -55,7 +57,7 @@ export default function MapScreen() {
                 { backgroundColor: colors.overlay, color: colors.overlayText },
               ]}
             >
-              Could not connect to API
+              {t('map.couldNotConnect')}
             </Text>
           </View>
         )}

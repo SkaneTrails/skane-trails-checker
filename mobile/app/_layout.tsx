@@ -2,7 +2,9 @@ import { Stack, useRouter, useSegments } from 'expo-router';
 import { useEffect } from 'react';
 import { ActivityIndicator, View } from 'react-native';
 import { AuthProvider, useAuth } from '@/lib/hooks/use-auth';
+import { useTranslation } from '@/lib/i18n';
 import { QueryProvider } from '@/lib/query-provider';
+import { SettingsProvider } from '@/lib/settings-context';
 import { defaultThemeId, getTheme, ThemeProvider, useTheme } from '@/lib/theme';
 
 function useProtectedRoute() {
@@ -68,6 +70,13 @@ function AppStack() {
           presentation: 'card',
         }}
       />
+      <Stack.Screen
+        name="group-settings"
+        options={{
+          title: 'Group Settings',
+          presentation: 'card',
+        }}
+      />
     </Stack>
   );
 }
@@ -77,11 +86,13 @@ export default function RootLayout() {
 
   return (
     <ThemeProvider theme={theme}>
-      <AuthProvider>
-        <QueryProvider>
-          <AppStack />
-        </QueryProvider>
-      </AuthProvider>
+      <SettingsProvider>
+        <AuthProvider>
+          <QueryProvider>
+            <AppStack />
+          </QueryProvider>
+        </AuthProvider>
+      </SettingsProvider>
     </ThemeProvider>
   );
 }

@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { FlatList, StyleSheet, Text, View } from 'react-native';
 import { Chip, ContentCard, EmptyState, ScreenLayout } from '@/components';
 import { usePlaceCategories, usePlaces } from '@/lib/hooks';
+import { useTranslation } from '@/lib/i18n';
 import { borderRadius, fontSize, fontWeight, spacing, useTheme } from '@/lib/theme';
 import type { Place } from '@/lib/types';
 
@@ -47,6 +48,7 @@ function PlaceItem({ place }: { place: Place }) {
 
 export default function PlacesScreen() {
   const { colors } = useTheme();
+  const { t } = useTranslation();
   const [selectedCategory, setSelectedCategory] = useState<string | undefined>();
   const { data: places, isLoading, error } = usePlaces(selectedCategory);
   const { data: categories } = usePlaceCategories();
@@ -63,7 +65,7 @@ export default function PlacesScreen() {
           ]}
         >
           <Chip
-            label="All"
+            label={t('common.all')}
             selected={!selectedCategory}
             onPress={() => setSelectedCategory(undefined)}
           />
@@ -79,16 +81,16 @@ export default function PlacesScreen() {
       )}
 
       {isLoading ? (
-        <EmptyState emoji="⏳" title="Loading places..." />
+        <EmptyState emoji="⏳" title={t('places.loadingPlaces')} />
       ) : error ? (
-        <EmptyState emoji="⚠️" title="Failed to load places" />
+        <EmptyState emoji="⚠️" title={t('places.failedToLoad')} />
       ) : (
         <FlatList
           data={places}
           keyExtractor={(item) => item.place_id}
           renderItem={({ item }) => <PlaceItem place={item} />}
           contentContainerStyle={styles.list}
-          ListEmptyComponent={<EmptyState emoji="📍" title="No places found" />}
+          ListEmptyComponent={<EmptyState emoji="📍" title={t('places.noPlacesFound')} />}
         />
       )}
     </ScreenLayout>

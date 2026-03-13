@@ -3,10 +3,11 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Button } from './Button';
 import { Chip } from './Chip';
 import { FormField } from './FormField';
+import { useTranslation } from '@/lib/i18n';
 import { borderRadius, fontSize, fontWeight, spacing, useTheme } from '@/lib/theme';
 import type { ForagingType } from '@/lib/types';
 
-const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+const MONTH_KEYS = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec'] as const;
 
 interface AddSpotFormProps {
   types: ForagingType[];
@@ -28,6 +29,7 @@ export function AddSpotForm({
   isSubmitting = false,
 }: AddSpotFormProps) {
   const { colors, shadows } = useTheme();
+  const { t } = useTranslation();
   const [selectedType, setSelectedType] = useState('');
   const [lat, setLat] = useState(initialLat?.toString() ?? '');
   const [lng, setLng] = useState(initialLng?.toString() ?? '');
@@ -67,14 +69,14 @@ export function AddSpotForm({
     <View style={[styles.card, { backgroundColor: colors.surface }, shadows.card]}>
       <ScrollView style={styles.scroll} showsVerticalScrollIndicator={false}>
         <View style={styles.header}>
-          <Text style={[styles.title, { color: colors.text.primary }]}>Add Foraging Spot</Text>
-          <Pressable onPress={onCancel} style={styles.closeButton} accessibilityLabel="Close">
+          <Text style={[styles.title, { color: colors.text.primary }]}>{t('addSpot.title')}</Text>
+          <Pressable onPress={onCancel} style={styles.closeButton} accessibilityLabel={t('common.cancel')}>
             <Text style={[styles.closeText, { color: colors.text.muted }]}>✕</Text>
           </Pressable>
         </View>
 
         {/* Type selector */}
-        <Text style={[styles.label, { color: colors.text.secondary }]}>Type *</Text>
+        <Text style={[styles.label, { color: colors.text.secondary }]}>{t('addSpot.type')} *</Text>
         <View style={styles.chipRow}>
           {types.map((t) => (
             <Chip
@@ -87,26 +89,29 @@ export function AddSpotForm({
         </View>
 
         {/* Month selector */}
-        <Text style={[styles.label, { color: colors.text.secondary }]}>Month *</Text>
+        <Text style={[styles.label, { color: colors.text.secondary }]}>{t('addSpot.month')} *</Text>
         <View style={styles.chipRow}>
-          {MONTHS.map((m) => (
-            <Chip
-              key={m}
-              label={m}
-              selected={selectedMonth === m}
-              onPress={() => setSelectedMonth(m)}
-            />
-          ))}
+          {MONTH_KEYS.map((key) => {
+            const label = t(`months.${key}`);
+            return (
+              <Chip
+                key={key}
+                label={label}
+                selected={selectedMonth === label}
+                onPress={() => setSelectedMonth(label)}
+              />
+            );
+          })}
         </View>
 
         {/* Location */}
-        <Text style={[styles.label, { color: colors.text.secondary }]}>Location *</Text>
-        <Button title="📍 Use Current Location" onPress={onUseCurrentLocation} variant="secondary" />
-        <Text style={[styles.orText, { color: colors.text.muted }]}>or tap on the map, or enter manually:</Text>
+        <Text style={[styles.label, { color: colors.text.secondary }]}>{t('addSpot.location')} *</Text>
+        <Button title={t('addSpot.useCurrentLocation')} onPress={onUseCurrentLocation} variant="secondary" />
+        <Text style={[styles.orText, { color: colors.text.muted }]}>{t('addSpot.orTapMap')}</Text>
         <View style={styles.coordRow}>
           <View style={styles.coordField}>
             <FormField
-              label="Latitude"
+              label={t('addSpot.latitude')}
               value={lat}
               onChangeText={setLat}
               placeholder="55.95"
@@ -115,7 +120,7 @@ export function AddSpotForm({
           </View>
           <View style={styles.coordField}>
             <FormField
-              label="Longitude"
+              label={t('addSpot.longitude')}
               value={lng}
               onChangeText={setLng}
               placeholder="13.40"
@@ -126,19 +131,19 @@ export function AddSpotForm({
 
         {/* Notes */}
         <FormField
-          label="Notes"
+          label={t('addSpot.notes')}
           value={notes}
           onChangeText={setNotes}
-          placeholder="Any observations..."
+          placeholder={t('addSpot.notesPlaceholder')}
           multiline
           numberOfLines={3}
         />
 
         {/* Actions */}
         <View style={styles.actions}>
-          <Button title="Cancel" onPress={onCancel} variant="secondary" />
+          <Button title={t('common.cancel')} onPress={onCancel} variant="secondary" />
           <Button
-            title={isSubmitting ? 'Saving...' : 'Add Spot'}
+            title={isSubmitting ? t('common.saving') : t('addSpot.addSpot')}
             onPress={handleSubmit}
             disabled={!canSubmit}
           />
