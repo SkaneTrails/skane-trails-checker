@@ -20,7 +20,7 @@ interface TrailCardProps {
   trail: Trail;
   onViewDetails: (trail: Trail) => void;
   onClose: () => void;
-  onUpdate?: (trailId: string, data: TrailUpdate) => void;
+  onUpdate?: (trailId: string, data: TrailUpdate, onSuccess: () => void) => void;
   isUpdating?: boolean;
 }
 
@@ -44,8 +44,7 @@ export const TrailCard = ({ trail, onViewDetails, onClose, onUpdate, isUpdating 
       setEditing(false);
       return;
     }
-    onUpdate(trail.trail_id, updates);
-    setEditing(false);
+    onUpdate(trail.trail_id, updates, () => setEditing(false));
   };
 
   if (editing) {

@@ -32,10 +32,11 @@ export default function MapScreen() {
     router.push(`/trail/${trail.trail_id}`);
   };
 
-  const handleUpdate = (trailId: string, data: TrailUpdate) => {
+  const handleUpdate = (trailId: string, data: TrailUpdate, onSuccess?: () => void) => {
     updateTrail.mutate({ id: trailId, data }, {
       onSuccess: (updated) => {
         setSelectedTrail(updated);
+        onSuccess?.();
       },
     });
   };
@@ -47,6 +48,7 @@ export default function MapScreen() {
         {selectedTrail && (
           <View style={styles.cardOverlay} pointerEvents="box-none">
             <TrailCard
+              key={selectedTrail.trail_id}
               trail={selectedTrail}
               onViewDetails={handleViewDetails}
               onClose={() => setSelectedTrail(null)}
