@@ -56,11 +56,11 @@ class TestListForagingSpots:
 
 
 class TestCreateForagingSpot:
-    @patch("api.routers.foraging.foraging_storage.get_foraging_spots")
+    @patch("api.routers.foraging.foraging_storage.get_foraging_spot")
     @patch("api.routers.foraging.foraging_storage.save_foraging_spot")
     def test_create_spot(self, mock_save, mock_get, authenticated_client):
         mock_save.return_value = "new_doc_id"
-        mock_get.return_value = [ForagingSpotResponse(id="new_doc_id", type="Herbs", lat=56.2, lng=13.3, month="Jun")]
+        mock_get.return_value = ForagingSpotResponse(id="new_doc_id", type="Herbs", lat=56.2, lng=13.3, month="Jun")
 
         response = authenticated_client.post(
             "/api/v1/foraging/spots", json={"type": "Herbs", "lat": 56.2, "lng": 13.3, "month": "Jun"}
@@ -70,13 +70,13 @@ class TestCreateForagingSpot:
         assert data["id"] == "new_doc_id"
         assert data["type"] == "Herbs"
 
-    @patch("api.routers.foraging.foraging_storage.get_foraging_spots")
+    @patch("api.routers.foraging.foraging_storage.get_foraging_spot")
     @patch("api.routers.foraging.foraging_storage.save_foraging_spot")
     def test_create_spot_sets_created_by(self, mock_save, mock_get, authenticated_client):
         mock_save.return_value = "new_doc_id"
-        mock_get.return_value = [
-            ForagingSpotResponse(id="new_doc_id", type="Herbs", lat=56.2, lng=13.3, month="Jun", created_by="test-user")
-        ]
+        mock_get.return_value = ForagingSpotResponse(
+            id="new_doc_id", type="Herbs", lat=56.2, lng=13.3, month="Jun", created_by="test-user"
+        )
 
         authenticated_client.post(
             "/api/v1/foraging/spots", json={"type": "Herbs", "lat": 56.2, "lng": 13.3, "month": "Jun"}

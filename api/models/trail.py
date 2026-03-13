@@ -38,7 +38,7 @@ class TrailResponse(BaseModel):
     activity_type: str | None = None
     elevation_gain: float | None = None
     elevation_loss: float | None = None
-    created_by: str | None = None
+    created_by: str | None = Field(default=None, exclude=True)
 
     def to_dict(self) -> dict:
         """Convert to dictionary for Firestore storage."""

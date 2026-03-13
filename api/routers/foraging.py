@@ -34,12 +34,11 @@ def create_foraging_spot(
     spot_data["created_by"] = user.uid
     doc_id = foraging_storage.save_foraging_spot(spot_data)
 
-    spots = foraging_storage.get_foraging_spots()
-    for spot in spots:
-        if spot.id == doc_id:
-            return spot
+    created = foraging_storage.get_foraging_spot(doc_id)
+    if created:
+        return created
 
-    return ForagingSpotResponse(id=doc_id, **body.model_dump())
+    return ForagingSpotResponse(id=doc_id, created_by=user.uid, **body.model_dump())
 
 
 @router.patch("/spots/{spot_id}", status_code=204)
