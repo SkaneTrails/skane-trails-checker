@@ -31,6 +31,12 @@
     }
   },
   "files": {
-    "includes": ["**", "!**/node_modules", "!**/.expo", "!**/dist", "!**/coverage"]
+    "includes": [
+      "**",
+      "!**/node_modules",
+      "!**/.expo",
+      "!**/dist",
+      "!**/coverage"
+    ]
   }
 }
