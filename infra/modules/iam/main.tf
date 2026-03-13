@@ -121,6 +121,13 @@ resource "google_storage_bucket_iam_member" "terraform_state_lock" {
   member = "serviceAccount:${google_service_account.github_actions_terraform.email}"
 }
 
+# CD: bucket-scoped write for backup bucket (Cloud Function source zip upload)
+resource "google_storage_bucket_iam_member" "terraform_backup_objects" {
+  bucket = var.backup_bucket_name
+  role   = "roles/storage.objectUser"
+  member = "serviceAccount:${google_service_account.github_actions_terraform.email}"
+}
+
 # --- CD: terraform apply + Docker push (write operations) ---
 # When splitting into separate SAs, assign these to the CD SA only.
 

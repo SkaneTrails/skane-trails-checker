@@ -25,3 +25,8 @@ variable "tfstate_bucket_name" {
   description = "Name of the Terraform state bucket (for scoped lock file permissions)"
   type        = string
 }
+
+variable "backup_bucket_name" {
+  description = "Name of the backup bucket (for scoped object permissions during terraform apply)"
+  type        = string
+}
