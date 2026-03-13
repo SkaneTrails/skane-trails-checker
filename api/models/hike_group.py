@@ -10,7 +10,7 @@ MAX_EMAIL_LENGTH = 200
 class HikeGroupMember(BaseModel):
     """A member of a hike group."""
 
-    uid: str
+    uid: str = ""
     email: str
     name: str | None = None
     role: str = Field(default="member", pattern=r"^(owner|member)$")

@@ -97,8 +97,8 @@ export function AddSpotForm({
               <Chip
                 key={key}
                 label={label}
-                selected={selectedMonth === label}
-                onPress={() => setSelectedMonth(label)}
+                selected={selectedMonth === key}
+                onPress={() => setSelectedMonth(key)}
               />
             );
           })}

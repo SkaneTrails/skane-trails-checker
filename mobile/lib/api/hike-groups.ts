@@ -44,9 +44,9 @@ export const hikeGroupsApi = {
     );
   },
 
-  removeMember(groupId: string, memberUid: string): Promise<void> {
+  removeMember(groupId: string, memberEmail: string): Promise<void> {
     return apiRequest(
-      `/api/v1/hike-groups/${encodeURIComponent(groupId)}/members/${encodeURIComponent(memberUid)}`,
+      `/api/v1/hike-groups/${encodeURIComponent(groupId)}/members/${encodeURIComponent(memberEmail)}`,
       {
         method: 'DELETE',
       },

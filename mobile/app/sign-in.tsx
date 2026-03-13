@@ -7,11 +7,11 @@
 
 import { Redirect } from 'expo-router';
 import { ActivityIndicator, Pressable, Text, View } from 'react-native';
-import { ScreenLayout } from '../components';
-import { GoogleLogo } from '../components/GoogleLogo';
-import { useAuth } from '../lib/hooks/use-auth';
-import { useTranslation } from '../lib/i18n';
-import { borderRadius, fontSize, fontWeight, spacing, useTheme } from '../lib/theme';
+import { ScreenLayout } from '@/components';
+import { GoogleLogo } from '@/components/GoogleLogo';
+import { useAuth } from '@/lib/hooks/use-auth';
+import { useTranslation } from '@/lib/i18n';
+import { borderRadius, fontSize, fontWeight, spacing, useTheme } from '@/lib/theme';
 
 export default function SignInScreen() {
   const { colors } = useTheme();

@@ -29,6 +29,7 @@ function useProtectedRoute() {
 
 function AppStack() {
   const { colors } = useTheme();
+  const { t } = useTranslation();
   const { loading } = useProtectedRoute();
 
   if (loading) {
@@ -59,21 +60,21 @@ function AppStack() {
       <Stack.Screen
         name="trail/[id]"
         options={{
-          title: 'Trail Details',
+          title: t('trail.title'),
           presentation: 'card',
         }}
       />
       <Stack.Screen
         name="upload"
         options={{
-          title: 'Upload GPX',
+          title: t('upload.title'),
           presentation: 'card',
         }}
       />
       <Stack.Screen
         name="group-settings"
         options={{
-          title: 'Group Settings',
+          title: t('settings.groupSettings'),
           presentation: 'card',
         }}
       />

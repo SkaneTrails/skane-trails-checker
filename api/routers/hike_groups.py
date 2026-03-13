@@ -5,7 +5,14 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, HTTPException
 
 from api.auth import AuthenticatedUser, require_auth
-from api.models.hike_group import MAX_MEMBERS, AddMemberRequest, HikeGroupCreate, HikeGroupResponse, HikeGroupUpdate
+from api.models.hike_group import (
+    MAX_MEMBERS,
+    AddMemberRequest,
+    HikeGroupCreate,
+    HikeGroupMember,
+    HikeGroupResponse,
+    HikeGroupUpdate,
+)
 from api.storage import hike_group_storage
 
 router = APIRouter(prefix="/hike-groups", tags=["hike-groups"])
@@ -19,7 +26,7 @@ def _require_owner(group: HikeGroupResponse, user: AuthenticatedUser) -> None:
 
 def _require_member(group: HikeGroupResponse, user: AuthenticatedUser) -> None:
     """Raise 403 if user is not a member of the group."""
-    if not any(m.uid == user.uid for m in group.members):
+    if not any(m.uid == user.uid or m.email.lower() == user.email.lower() for m in group.members):
         raise HTTPException(status_code=403, detail="Not a member of this group")
 
 
@@ -51,7 +58,9 @@ def create_hike_group(
     if created:
         return created
 
-    return HikeGroupResponse(group_id=doc_id, name=body.name, members=[], created_by=user.uid)
+    return HikeGroupResponse(
+        group_id=doc_id, name=body.name, members=[HikeGroupMember(**owner_member)], created_by=user.uid
+    )
 
 
 @router.get("/{group_id}")
@@ -105,7 +114,7 @@ def add_member(
     if any(m.email.lower() == normalized_email for m in group.members):
         raise HTTPException(status_code=409, detail="User is already a member of this group")
 
-    new_member = {"uid": "", "email": normalized_email, "name": None, "role": "member"}
+    new_member = {"email": normalized_email, "name": None, "role": "member"}
     members = [m.model_dump() for m in group.members]
     members.append(new_member)
 
@@ -117,17 +126,18 @@ def add_member(
     return group
 
 
-@router.delete("/{group_id}/members/{member_uid}", status_code=204)
-def remove_member(group_id: str, member_uid: str, user: Annotated[AuthenticatedUser, Depends(require_auth)]) -> None:
-    """Remove a member from a hike group. Owner only, cannot remove owner."""
+@router.delete("/{group_id}/members/{member_email:path}", status_code=204)
+def remove_member(group_id: str, member_email: str, user: Annotated[AuthenticatedUser, Depends(require_auth)]) -> None:
+    """Remove a member from a hike group by email. Owner only, cannot remove owner."""
     group = _get_group_or_404(group_id)
     _require_owner(group, user)
 
-    if member_uid == user.uid:
+    normalized = member_email.strip().lower()
+    if normalized == user.email.lower():
         raise HTTPException(status_code=400, detail="Cannot remove the group owner")
 
-    if not any(m.uid == member_uid for m in group.members):
+    if not any(m.email.lower() == normalized for m in group.members):
         raise HTTPException(status_code=404, detail="Member not found in group")
 
-    members = [m.model_dump() for m in group.members if m.uid != member_uid]
+    members = [m.model_dump() for m in group.members if m.email.lower() != normalized]
     hike_group_storage.update_hike_group(group_id, {"members": members})

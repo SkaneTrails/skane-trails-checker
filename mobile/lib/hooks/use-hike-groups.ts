@@ -77,8 +77,8 @@ export function useRemoveMember() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: ({ groupId, memberUid }: { groupId: string; memberUid: string }) =>
-      hikeGroupsApi.removeMember(groupId, memberUid),
+    mutationFn: ({ groupId, memberEmail }: { groupId: string; memberEmail: string }) =>
+      hikeGroupsApi.removeMember(groupId, memberEmail),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: hikeGroupKeys.all });
     },

@@ -75,32 +75,31 @@ class TestGetHikeGroup:
 class TestGetUserGroups:
     def test_returns_groups_for_user(self, mock_collection) -> None:
         docs = [
-            _make_doc("g1", {"name": "Group A", "members": [{"uid": "u1", "email": "a@b.com"}], "created_by": "u1"}),
-            _make_doc("g2", {"name": "Group B", "members": [{"uid": "u2", "email": "x@y.com"}], "created_by": "u2"}),
+            _make_doc("g1", {"name": "Group A", "members": [{"uid": "u1", "email": "a@b.com"}], "created_by": "u1"})
         ]
-        mock_collection.stream.return_value = docs
+        mock_collection.where.return_value.stream.return_value = docs
 
         result = get_user_groups("u1")
         assert len(result) == 1
         assert result[0].group_id == "g1"
+        mock_collection.where.assert_called_once_with("member_uids", "array_contains", "u1")
 
     def test_returns_empty_when_user_in_no_groups(self, mock_collection) -> None:
-        docs = [_make_doc("g1", {"name": "Group A", "members": [{"uid": "u2"}], "created_by": "u2"})]
-        mock_collection.stream.return_value = docs
+        mock_collection.where.return_value.stream.return_value = []
 
         result = get_user_groups("u1")
         assert result == []
 
     def test_skips_docs_with_none_data(self, mock_collection) -> None:
         docs = [_make_doc("g1", None)]
-        mock_collection.stream.return_value = docs
+        mock_collection.where.return_value.stream.return_value = docs
 
         result = get_user_groups("u1")
         assert result == []
 
 
 class TestSaveHikeGroup:
-    @patch("api.storage.hike_group_storage._utc_now", return_value="2026-03-13T10:00:00")
+    @patch("api.storage.hike_group_storage._utc_now_z", return_value="2026-03-13T10:00:00Z")
     def test_saves_and_returns_id(self, mock_now, mock_collection) -> None:
         mock_doc_ref = MagicMock()
         mock_doc_ref.id = "new-id"
@@ -112,19 +111,43 @@ class TestSaveHikeGroup:
         assert result == "new-id"
         mock_doc_ref.set.assert_called_once()
         saved = mock_doc_ref.set.call_args[0][0]
-        assert saved["created_at"] == "2026-03-13T10:00:00"
-        assert saved["last_updated"] == "2026-03-13T10:00:00"
+        assert saved["created_at"] == "2026-03-13T10:00:00Z"
+        assert saved["last_updated"] == "2026-03-13T10:00:00Z"
+        assert saved["member_uids"] == []
+
+    @patch("api.storage.hike_group_storage._utc_now_z", return_value="2026-03-13T10:00:00Z")
+    def test_saves_member_uids(self, mock_now, mock_collection) -> None:
+        mock_doc_ref = MagicMock()
+        mock_doc_ref.id = "new-id"
+        mock_collection.document.return_value = mock_doc_ref
+
+        group_data = {
+            "name": "Group",
+            "members": [{"uid": "u1", "email": "a@b.com", "role": "owner"}],
+            "created_by": "u1",
+        }
+        save_hike_group(group_data)
+
+        saved = mock_doc_ref.set.call_args[0][0]
+        assert saved["member_uids"] == ["u1"]
 
 
 class TestUpdateHikeGroup:
-    @patch("api.storage.hike_group_storage._utc_now", return_value="2026-03-13T11:00:00")
+    @patch("api.storage.hike_group_storage._utc_now_z", return_value="2026-03-13T11:00:00Z")
     def test_updates_with_timestamp(self, mock_now, mock_collection) -> None:
         update_hike_group("g1", {"name": "Renamed"})
         mock_collection.document.assert_called_once_with("g1")
         mock_collection.document.return_value.update.assert_called_once()
         updated = mock_collection.document.return_value.update.call_args[0][0]
         assert updated["name"] == "Renamed"
-        assert updated["last_updated"] == "2026-03-13T11:00:00"
+        assert updated["last_updated"] == "2026-03-13T11:00:00Z"
+
+    @patch("api.storage.hike_group_storage._utc_now_z", return_value="2026-03-13T11:00:00Z")
+    def test_updates_member_uids_on_members_change(self, mock_now, mock_collection) -> None:
+        members = [{"uid": "u1", "email": "a@b.com", "role": "owner"}, {"email": "new@x.com", "role": "member"}]
+        update_hike_group("g1", {"members": members})
+        updated = mock_collection.document.return_value.update.call_args[0][0]
+        assert updated["member_uids"] == ["u1"]
 
     def test_rejects_invalid_id(self, mock_collection) -> None:
         with pytest.raises(InvalidDocumentIdError, match="group_id"):

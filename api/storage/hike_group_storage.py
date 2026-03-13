@@ -12,8 +12,8 @@ logger = logging.getLogger(__name__)
 COLLECTION = "hike_groups"
 
 
-def _utc_now() -> str:
-    return datetime.now(UTC).isoformat()
+def _utc_now_z() -> str:
+    return datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
 def _doc_to_hike_group(doc_id: str, data: dict) -> HikeGroupResponse:
@@ -49,23 +49,17 @@ def get_hike_group(group_id: str) -> HikeGroupResponse | None:
 def get_user_groups(user_uid: str) -> list[HikeGroupResponse]:
     """Get all hike groups where the user is a member."""
     collection = get_collection(COLLECTION)
-    groups = []
-    for doc in collection.stream():
-        data = doc.to_dict()
-        if not data:
-            continue
-        members = data.get("members", [])
-        if any(m.get("uid") == user_uid for m in members):
-            groups.append(_doc_to_hike_group(doc.id, data))
-    return groups
+    docs = collection.where("member_uids", "array_contains", user_uid).stream()
+    return [_doc_to_hike_group(doc.id, doc.to_dict()) for doc in docs if doc.to_dict()]
 
 
 def save_hike_group(group_data: dict) -> str:
     """Save a new hike group. Returns the document ID."""
     collection = get_collection(COLLECTION)
-    now = _utc_now()
+    now = _utc_now_z()
     group_data["created_at"] = now
     group_data["last_updated"] = now
+    group_data["member_uids"] = [m["uid"] for m in group_data.get("members", []) if m.get("uid")]
 
     doc_ref = collection.document()
     doc_ref.set(group_data)
@@ -75,7 +69,9 @@ def save_hike_group(group_data: dict) -> str:
 def update_hike_group(group_id: str, updates: dict) -> None:
     """Update a hike group."""
     validate_document_id(group_id, field_name="group_id")
-    updates["last_updated"] = _utc_now()
+    if "members" in updates:
+        updates["member_uids"] = [m["uid"] for m in updates["members"] if m.get("uid")]
+    updates["last_updated"] = _utc_now_z()
     get_collection(COLLECTION).document(group_id).update(updates)
 
 

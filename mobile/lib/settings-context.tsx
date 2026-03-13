@@ -90,11 +90,13 @@ export const SettingsProvider = ({
 
   const setLanguage = useCallback(
     async (language: AppLanguage) => {
-      const updated = { ...settings, language };
-      setSettings(updated);
-      await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+      setSettings((prev) => {
+        const updated = { ...prev, language };
+        AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+        return updated;
+      });
     },
-    [settings],
+    [],
   );
 
   const value = useMemo<SettingsContextType>(

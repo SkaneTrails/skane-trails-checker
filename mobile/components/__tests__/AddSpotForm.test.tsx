@@ -109,7 +109,7 @@ describe('AddSpotForm', () => {
       lat: 55.95,
       lng: 13.4,
       notes: '',
-      month: 'months.sep',
+      month: 'sep',
     });
   });
 

@@ -2,7 +2,7 @@
  * Group settings screen — manage group name and members.
  */
 
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
 import {
   ActivityIndicator,
@@ -14,6 +14,7 @@ import {
   View,
 } from 'react-native';
 import { Button, ContentCard, FormField, ScreenLayout } from '@/components';
+import { useAuth } from '@/lib/hooks/use-auth';
 import {
   useAddMember,
   useHikeGroup,
@@ -27,7 +28,7 @@ export default function GroupSettingsScreen() {
   const { colors } = useTheme();
   const { t } = useTranslation();
   const { id } = useLocalSearchParams<{ id: string }>();
-  const router = useRouter();
+  const { user } = useAuth();
 
   const { data: group, isLoading } = useHikeGroup(id ?? '', { enabled: !!id });
   const updateMutation = useUpdateHikeGroup();
@@ -49,7 +50,7 @@ export default function GroupSettingsScreen() {
   }
 
   const isOwner = group.members.some(
-    (m) => m.role === 'owner',
+    (m) => m.role === 'owner' && m.email === user?.email,
   );
 
   const handleSaveName = async () => {
@@ -72,7 +73,7 @@ export default function GroupSettingsScreen() {
     setNewEmail('');
   };
 
-  const handleRemoveMember = (memberUid: string, memberEmail: string) => {
+  const handleRemoveMember = (memberEmail: string) => {
     Alert.alert(
       t('settings.removeMember'),
       memberEmail,
@@ -84,7 +85,7 @@ export default function GroupSettingsScreen() {
           onPress: () =>
             removeMemberMutation.mutate({
               groupId: group.group_id,
-              memberUid,
+              memberEmail,
             }),
         },
       ],
@@ -187,7 +188,7 @@ export default function GroupSettingsScreen() {
                 </View>
                 {member.role !== 'owner' && (
                   <Pressable
-                    onPress={() => handleRemoveMember(member.uid, member.email)}
+                    onPress={() => handleRemoveMember(member.email)}
                     accessibilityRole="button"
                     accessibilityLabel={t('settings.removeMember')}
                   >

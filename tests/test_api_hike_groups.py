@@ -2,12 +2,7 @@
 
 from unittest.mock import patch
 
-from fastapi.testclient import TestClient
-
-from api.main import app
 from api.models.hike_group import HikeGroupMember, HikeGroupResponse
-
-client = TestClient(app)
 
 OWNER = HikeGroupMember(uid="test-user", email="test@example.com", name="Test User", role="owner")
 MEMBER = HikeGroupMember(uid="member-1", email="member@example.com", name="Member One", role="member")
@@ -82,7 +77,10 @@ class TestCreateHikeGroup:
 
         response = authenticated_client.post("/api/v1/hike-groups", json={"name": "Hikers"})
         assert response.status_code == 201
-        assert response.json()["group_id"] == "new-group-id"
+        data = response.json()
+        assert data["group_id"] == "new-group-id"
+        assert len(data["members"]) == 1
+        assert data["members"][0]["role"] == "owner"
 
     def test_create_group_empty_name(self, authenticated_client):
         response = authenticated_client.post("/api/v1/hike-groups", json={"name": ""})
@@ -219,6 +217,7 @@ class TestAddMember:
         saved_members = mock_update.call_args[0][1]["members"]
         new_member = saved_members[-1]
         assert new_member["email"] == "new@example.com"
+        assert "uid" not in new_member
 
     @patch("api.routers.hike_groups.hike_group_storage.get_hike_group")
     @patch("api.routers.hike_groups.hike_group_storage.update_hike_group")
@@ -235,28 +234,28 @@ class TestRemoveMember:
     @patch("api.routers.hike_groups.hike_group_storage.get_hike_group")
     def test_remove_member(self, mock_get, mock_update, authenticated_client):
         mock_get.return_value = SAMPLE_GROUP
-        response = authenticated_client.delete("/api/v1/hike-groups/group1/members/member-1")
+        response = authenticated_client.delete("/api/v1/hike-groups/group1/members/member@example.com")
         assert response.status_code == 204
         saved_members = mock_update.call_args[0][1]["members"]
         assert len(saved_members) == 1
-        assert saved_members[0]["uid"] == "test-user"
+        assert saved_members[0]["email"] == "test@example.com"
 
     @patch("api.routers.hike_groups.hike_group_storage.get_hike_group")
     def test_remove_self_as_owner(self, mock_get, authenticated_client):
         mock_get.return_value = SAMPLE_GROUP
-        response = authenticated_client.delete("/api/v1/hike-groups/group1/members/test-user")
+        response = authenticated_client.delete("/api/v1/hike-groups/group1/members/test@example.com")
         assert response.status_code == 400
 
     @patch("api.routers.hike_groups.hike_group_storage.get_hike_group")
     def test_remove_nonexistent_member(self, mock_get, authenticated_client):
         mock_get.return_value = SAMPLE_GROUP
-        response = authenticated_client.delete("/api/v1/hike-groups/group1/members/nonexistent")
+        response = authenticated_client.delete("/api/v1/hike-groups/group1/members/nonexistent@example.com")
         assert response.status_code == 404
 
     @patch("api.routers.hike_groups.hike_group_storage.get_hike_group")
     def test_remove_member_not_owner(self, mock_get, authenticated_client):
         mock_get.return_value = SAMPLE_GROUP_OTHER_OWNER
-        response = authenticated_client.delete("/api/v1/hike-groups/group2/members/someone")
+        response = authenticated_client.delete("/api/v1/hike-groups/group2/members/someone@example.com")
         assert response.status_code == 403
 
 
