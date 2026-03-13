@@ -303,6 +303,30 @@ class TestUpdateTrail:
         assert response.status_code == 200
         assert response.json()["name"] == "My Trail"
 
+    @patch("api.routers.trails.trail_storage.get_trail")
+    @patch("api.routers.trails.trail_storage.update_trail")
+    def test_update_trail_activity_date(self, mock_update, mock_get, authenticated_client):
+        updated_trail = SAMPLE_TRAIL.model_copy(update={"activity_date": "2026-03-15"})
+        mock_get.side_effect = [SAMPLE_TRAIL, updated_trail]
+        mock_update.return_value = None
+
+        response = authenticated_client.patch("/api/v1/trails/abc123", json={"activity_date": "2026-03-15"})
+        assert response.status_code == 200
+        assert response.json()["activity_date"] == "2026-03-15"
+        mock_update.assert_called_once_with("abc123", {"activity_date": "2026-03-15"})
+
+    @patch("api.routers.trails.trail_storage.get_trail")
+    @patch("api.routers.trails.trail_storage.update_trail")
+    def test_update_trail_activity_type(self, mock_update, mock_get, authenticated_client):
+        updated_trail = SAMPLE_TRAIL.model_copy(update={"activity_type": "Running"})
+        mock_get.side_effect = [SAMPLE_TRAIL, updated_trail]
+        mock_update.return_value = None
+
+        response = authenticated_client.patch("/api/v1/trails/abc123", json={"activity_type": "Running"})
+        assert response.status_code == 200
+        assert response.json()["activity_type"] == "Running"
+        mock_update.assert_called_once_with("abc123", {"activity_type": "Running"})
+
 
 class TestDeleteTrail:
     @patch("api.routers.trails.trail_storage.get_trail")

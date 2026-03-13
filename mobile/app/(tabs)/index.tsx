@@ -3,10 +3,10 @@ import { useState } from 'react';
 import { ActivityIndicator, Platform, StyleSheet, Text, View } from 'react-native';
 import { EmptyState, ScreenLayout, TrailCard } from '@/components';
 import { TrailMap } from '@/components/TrailMap';
-import { useTrails } from '@/lib/hooks';
+import { useTrails, useUpdateTrail } from '@/lib/hooks';
 import { useTranslation } from '@/lib/i18n';
 import { borderRadius, fontSize, spacing, useTheme } from '@/lib/theme';
-import type { Trail } from '@/lib/types';
+import type { Trail, TrailUpdate } from '@/lib/types';
 
 export default function MapScreen() {
   const { data: trails, isFetching, error } = useTrails();
@@ -14,6 +14,7 @@ export default function MapScreen() {
   const { t } = useTranslation();
   const router = useRouter();
   const [selectedTrail, setSelectedTrail] = useState<Trail | null>(null);
+  const updateTrail = useUpdateTrail();
 
   if (Platform.OS !== 'web') {
     return (
@@ -31,6 +32,14 @@ export default function MapScreen() {
     router.push(`/trail/${trail.trail_id}`);
   };
 
+  const handleUpdate = (trailId: string, data: TrailUpdate) => {
+    updateTrail.mutate({ id: trailId, data }, {
+      onSuccess: (updated) => {
+        setSelectedTrail(updated);
+      },
+    });
+  };
+
   return (
     <ScreenLayout>
       <View style={styles.container}>
@@ -41,6 +50,8 @@ export default function MapScreen() {
               trail={selectedTrail}
               onViewDetails={handleViewDetails}
               onClose={() => setSelectedTrail(null)}
+              onUpdate={handleUpdate}
+              isUpdating={updateTrail.isPending}
             />
           </View>
         )}

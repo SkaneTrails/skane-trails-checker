@@ -64,6 +64,10 @@ const sv: Translations = {
     addSpot: '+ Ny plats',
     addSpotAccessibility: 'Lägg till plockplats',
     couldNotLoad: 'Kunde inte ladda plockplatser',
+    editSpot: 'Redigera',
+    notesLabel: 'Anteckningar',
+    monthLabel: 'Månad',
+    typeLabel: 'Typ',
   },
 
   map: {
@@ -128,6 +132,7 @@ const sv: Translations = {
 
   trailCard: {
     viewDetails: 'Visa detaljer',
+    edit: 'Redigera',
     elevationGain: '↗ {{meters}} m',
     elevationLoss: '↘ {{meters}} m',
   },

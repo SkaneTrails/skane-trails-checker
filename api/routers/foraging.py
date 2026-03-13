@@ -11,6 +11,7 @@ from api.models.foraging import (
     ForagingSpotUpdate,
     ForagingTypeCreate,
     ForagingTypeResponse,
+    ForagingTypeUpdate,
 )
 from api.storage import foraging_storage
 
@@ -88,6 +89,27 @@ def create_foraging_type(
     type_data["icon"] = body.icon
     foraging_storage.save_foraging_type(body.name, type_data)
     return ForagingTypeResponse(name=body.name, **body.model_dump(exclude={"name"}))
+
+
+@router.patch("/types/{type_name}")
+def update_foraging_type(
+    type_name: str, body: ForagingTypeUpdate, _user: Annotated[AuthenticatedUser, Depends(require_auth)]
+) -> ForagingTypeResponse:
+    """Update a foraging type."""
+    existing = foraging_storage.get_foraging_type(type_name)
+    if not existing:
+        raise HTTPException(status_code=404, detail="Foraging type not found")
+
+    updates = body.model_dump(exclude_none=True)
+    if not updates:
+        raise HTTPException(status_code=400, detail="No fields to update")
+
+    foraging_storage.update_foraging_type(type_name, updates)
+
+    updated = foraging_storage.get_foraging_type(type_name)
+    if updated:
+        return updated
+    return existing
 
 
 @router.delete("/types/{type_name}", status_code=204)

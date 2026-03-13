@@ -47,6 +47,8 @@ export interface TrailUpdate {
   name?: string;
   status?: 'To Explore' | 'Explored!';
   difficulty?: string;
+  activity_date?: string;
+  activity_type?: string;
 }
 
 // Sync metadata for delta trail fetching
@@ -63,6 +65,7 @@ export interface ForagingSpot {
   lng: number;
   notes: string;
   month: string;
+  date?: string;
   created_at?: string;
   last_updated?: string;
 }
@@ -81,6 +84,27 @@ export interface ForagingType {
   name: string;
   icon: string;
   color?: string;
+}
+
+// Update foraging spot payload
+export interface ForagingSpotUpdate {
+  type?: string;
+  lat?: number;
+  lng?: number;
+  notes?: string;
+  month?: string;
+  date?: string;
+}
+
+// Update foraging type payload
+export interface ForagingTypeUpdate {
+  icon?: string;
+  color?: string;
+  swedish_name?: string;
+  description?: string;
+  season?: string;
+  usage?: string;
+  image_file?: string;
 }
 
 // Category info embedded in a place response

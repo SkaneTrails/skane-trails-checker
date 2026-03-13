@@ -66,3 +66,15 @@ class ForagingTypeCreate(BaseModel):
     season: str = ""
     usage: str = ""
     image_file: str = ""
+
+
+class ForagingTypeUpdate(BaseModel):
+    """Request body for updating a foraging type."""
+
+    icon: str | None = Field(default=None, min_length=1, max_length=10)
+    color: str | None = Field(default=None, max_length=50)
+    swedish_name: str | None = Field(default=None, max_length=100)
+    description: str | None = Field(default=None, max_length=500)
+    season: str | None = Field(default=None, max_length=100)
+    usage: str | None = Field(default=None, max_length=200)
+    image_file: str | None = Field(default=None, max_length=200)

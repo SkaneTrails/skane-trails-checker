@@ -16,10 +16,12 @@ from api.storage.foraging_storage import (
     delete_foraging_type,
     get_foraging_spot,
     get_foraging_spots,
+    get_foraging_type,
     get_foraging_types,
     save_foraging_spot,
     save_foraging_type,
     update_foraging_spot,
+    update_foraging_type,
 )
 from api.storage.validation import InvalidDocumentIdError
 
@@ -230,6 +232,60 @@ class TestSaveForagingType:
 
         mock_collection.document.assert_called_once_with("Mushroom")
         mock_collection.document.return_value.set.assert_called_once_with({"icon": "🍄"})
+
+
+class TestUpdateForagingType:
+    """Tests for update_foraging_type."""
+
+    def test_updates_type(self, mock_collection) -> None:
+        update_foraging_type("Mushroom", {"color": "#FF0000"})
+
+        mock_collection.document.assert_called_once_with("Mushroom")
+        mock_collection.document.return_value.update.assert_called_once_with({"color": "#FF0000"})
+
+    def test_rejects_invalid_id(self, mock_collection) -> None:
+        with pytest.raises(InvalidDocumentIdError, match="type_name"):
+            update_foraging_type("", {"color": "#FF0000"})
+
+
+class TestGetForagingType:
+    """Tests for get_foraging_type — returns single ForagingTypeResponse."""
+
+    def test_returns_type_by_name(self, mock_collection) -> None:
+        mock_doc = MagicMock()
+        mock_doc.exists = True
+        mock_doc.id = "Mushroom"
+        mock_doc.to_dict.return_value = {"icon": "🍄", "color": "#8B4513", "season": "Autumn"}
+        mock_collection.document.return_value.get.return_value = mock_doc
+
+        result = get_foraging_type("Mushroom")
+
+        assert result is not None
+        assert isinstance(result, ForagingTypeResponse)
+        assert result.name == "Mushroom"
+        assert result.icon == "🍄"
+        assert result.color == "#8B4513"
+        assert result.season == "Autumn"
+        mock_collection.document.assert_called_once_with("Mushroom")
+
+    def test_returns_none_when_not_found(self, mock_collection) -> None:
+        mock_doc = MagicMock()
+        mock_doc.exists = False
+        mock_collection.document.return_value.get.return_value = mock_doc
+
+        assert get_foraging_type("Nonexistent") is None
+
+    def test_returns_none_when_data_is_none(self, mock_collection) -> None:
+        mock_doc = MagicMock()
+        mock_doc.exists = True
+        mock_doc.to_dict.return_value = None
+        mock_collection.document.return_value.get.return_value = mock_doc
+
+        assert get_foraging_type("bad-doc") is None
+
+    def test_rejects_invalid_id(self, mock_collection) -> None:
+        with pytest.raises(InvalidDocumentIdError, match="type_name"):
+            get_foraging_type("")
 
 
 class TestDeleteForagingType:

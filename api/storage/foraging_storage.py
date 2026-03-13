@@ -106,6 +106,33 @@ def save_foraging_type(type_name: str, type_data: dict) -> None:
     get_collection("foraging_types").document(type_name).set(type_data)
 
 
+def update_foraging_type(type_name: str, updates: dict) -> None:
+    """Update fields of an existing foraging type."""
+    validate_document_id(type_name, field_name="type_name")
+    get_collection("foraging_types").document(type_name).update(updates)
+
+
+def get_foraging_type(type_name: str) -> ForagingTypeResponse | None:
+    """Get a single foraging type by name."""
+    validate_document_id(type_name, field_name="type_name")
+    doc = get_collection("foraging_types").document(type_name).get()
+    if not doc.exists:
+        return None
+    data = doc.to_dict()
+    if not data:
+        return None
+    return ForagingTypeResponse(
+        name=doc.id,
+        icon=data.get("icon", ""),
+        color=data.get("color", ""),
+        swedish_name=data.get("swedish_name", ""),
+        description=data.get("description", ""),
+        season=data.get("season", ""),
+        usage=data.get("usage", ""),
+        image_file=data.get("image_file", ""),
+    )
+
+
 def delete_foraging_type(type_name: str) -> None:
     """Delete a foraging type."""
     validate_document_id(type_name, field_name="type_name")
