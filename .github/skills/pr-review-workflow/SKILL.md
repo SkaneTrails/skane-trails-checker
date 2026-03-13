@@ -16,18 +16,19 @@ ______________________________________________________________________
 
 After every `git push`, do ALL in order:
 
-1. Fetch review threads (section 2)
+1. Fetch review threads and **save to `tmp/pr-<PR>-comments.json`** (section 2)
 1. Summarize and present to developer (section 3)
 1. Wait for developer confirmation on which to address
-1. Fix, commit, push
-1. Reply + resolve each thread (section 4) — these are **inseparable**
+1. Fix each issue → record reply text in the JSON file as you go
+1. Commit and push all fixes
+1. Batch reply + resolve all threads in one pass (section 4) — using saved IDs, no re-fetch
 
 **Completion checklist per comment (all required):**
 
 - [ ] Code fix implemented
+- [ ] Reply text recorded in `tmp/pr-<PR>-comments.json`
 - [ ] Committed and pushed
-- [ ] Replied to comment with commit SHA
-- [ ] Thread resolved via GraphQL — immediately after replying
+- [ ] Single-script batch: reply + resolve all threads (section 4) — **1 terminal approval**
 
 ______________________________________________________________________
 
@@ -35,9 +36,9 @@ ______________________________________________________________________
 
 > **⚠️ NEVER use built-in IDE tools** (`github-pull-request_activePullRequest` etc.) — they return stale/cached data. Always use `gh api graphql` directly.
 
-### Primary method: GraphQL reviewThreads
+### Primary method: GraphQL reviewThreads (with both IDs)
 
-Returns all threads with resolution status, thread IDs, and comment bodies in one call:
+Fetch all threads with resolution status, **thread IDs** (for resolving), and **comment IDs** (for replying) in one call:
 
 ```bash
 gh api graphql -f query='
@@ -59,15 +60,52 @@ gh api graphql -f query='
 ' -f owner="<OWNER>" -f repo="<REPO>" -F pr=<PR>
 ```
 
-The `id` field on each thread node is the `threadId` needed for resolution.
+- `id` on each thread node = `threadId` for resolution
+- `databaseId` on each comment = `commentId` for REST replies
 
-### REST fallback (only when you need comment IDs for replies)
+### Save IDs immediately to `tmp/pr-<PR>-comments.json`
 
-```bash
-gh api repos/<OWNER>/<REPO>/pulls/<PR>/comments --jq "[.[] | {id, path}]"
+After fetching, **immediately** save all comment metadata using `create_file`. This avoids re-fetching later:
+
+```json
+{
+  "pr": 171,
+  "owner": "SkaneTrails",
+  "repo": "skane-trails-checker",
+  "threads": [
+    {
+      "threadId": "PRT_kwDO...",
+      "commentId": 2927547515,
+      "path": "api/routers/foraging.py",
+      "body": "The fallback response omits created_by...",
+      "author": "copilot-pull-request-reviewer",
+      "isResolved": false,
+      "reply": null
+    }
+  ]
+}
 ```
 
-Returns `id` (needed for `in_reply_to` in replies) and `path`. Does NOT show resolution status.
+- `threadId` → GraphQL resolve. `commentId` → REST reply. Both captured once; no second lookup needed.
+- `reply` starts as `null` — filled in as each issue is fixed (section 2b).
+
+### Recording replies as you fix
+
+After implementing a fix for a comment, update the `reply` field in the JSON file:
+
+```json
+{ "reply": "Fixed in 209ac4d — now uses get_foraging_spot(doc_id) for single-doc fetch." }
+```
+
+This keeps fix context fresh and avoids composing replies from memory later.
+
+### REST fallback (only when GraphQL is unavailable)
+
+```bash
+gh api repos/<OWNER>/<REPO>/pulls/<PR>/comments --jq "[.[] | {id, path, body}]"
+```
+
+Returns `id` (for replies) but NOT `threadId` (cannot resolve). Save to `tmp/` file the same way.
 
 ### CI status
 
@@ -95,38 +133,49 @@ Present as a table with file, author, and summary. Wait for developer confirmati
 
 ______________________________________________________________________
 
-## 4. Responding to comments
+## 4. Responding to comments — single-script batch
 
-### Reply (REST API)
+All replies and resolutions use IDs from `tmp/pr-<PR>-comments.json`. No re-fetching.
+**Goal: 1 terminal execution = 1 user approval** for all replies + all resolves.
 
-```bash
-# -F (not -f) for numeric in_reply_to
-gh api repos/<OWNER>/<REPO>/pulls/<PR>/comments \
-  -X POST -f body="Fixed in <SHA>." -F in_reply_to=<COMMENT_ID>
+### Generate and run `tmp/pr-<PR>-respond.py`
+
+Use `create_file` to write a Python script that reads the JSON and does everything:
+
+```python
+import json, subprocess
+
+with open("tmp/pr-<PR>-comments.json") as f:
+    data = json.load(f)
+
+owner, repo, pr = data["owner"], data["repo"], data["pr"]
+
+# Post all replies
+for t in data["threads"]:
+    if t.get("reply"):
+        subprocess.run(
+            ["gh", "api", f"repos/{owner}/{repo}/pulls/{pr}/comments/{t['commentId']}/replies",
+             "-X", "POST", "-f", f"body={t['reply']}"],
+            check=True,
+        )
+
+# Batch-resolve all threads (single GraphQL call)
+parts = []
+for i, t in enumerate(data["threads"], 1):
+    tid = t["threadId"]
+    parts.append(f't{i}: resolveReviewThread(input: {{threadId: "{tid}"}}) {{ thread {{ isResolved }} }}')
+
+mutation = "mutation { " + " ".join(parts) + " }"
+subprocess.run(["gh", "api", "graphql", "-f", f"query={mutation}"], check=True)
 ```
 
-### Resolve (GraphQL — required after every reply)
+Then execute: `python tmp/pr-<PR>-respond.py`
 
-```bash
-gh api graphql -f query='
-  mutation { resolveReviewThread(input: {threadId: "<THREAD_ID>"}) { thread { isResolved } } }
-'
-```
+**Why Python instead of chained `gh` commands:**
 
-### Batch resolution
-
-```bash
-# Simple loop (copy-paste, replace IDs)
-for thread_id in <ID1> <ID2> <ID3>; do
-  gh api graphql -f query="mutation { resolveReviewThread(input: {threadId: \"$thread_id\"}) { thread { isResolved } } }"
-done
-
-# Or single call (faster for many threads)
-gh api graphql -f query='mutation {
-  t1: resolveReviewThread(input: {threadId: "<ID1>"}) { thread { isResolved } }
-  t2: resolveReviewThread(input: {threadId: "<ID2>"}) { thread { isResolved } }
-}'
-```
+- Avoids PowerShell backtick escaping issues in GraphQL queries
+- Reply text can contain any characters (read from JSON, not shell-interpolated)
+- One script, one approval, regardless of comment count
 
 ### Disagreeing
 
