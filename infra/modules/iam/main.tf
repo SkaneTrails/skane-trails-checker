@@ -96,26 +96,48 @@ resource "google_project_iam_member" "github_actions_cloudrun_artifact_registry"
 # GitHub Actions Terraform Service Account
 # -----------------------------------------------------------------------------
 
-# Service account for GitHub Actions to run terraform apply
+# Service account for GitHub Actions to run terraform plan/apply
 resource "google_service_account" "github_actions_terraform" {
   project      = var.project
   account_id   = "st-gh-actions-terraform"
-  display_name = "ST GitHub Actions Terraform Deploy"
-  description  = "Service account for GitHub Actions to run terraform plan/apply"
+  display_name = "ST GitHub Actions Terraform"
+  description  = "Service account for GitHub Actions terraform plan (CI) and apply (CD)"
 
   depends_on = [var.iam_api_service]
 }
 
-# Editor role covers most resource CRUD (Cloud Run, Storage, Firestore, APIs, etc.)
-resource "google_project_iam_member" "github_actions_terraform_editor" {
-  project = var.project
-  role    = "roles/editor"
-  member  = "serviceAccount:${google_service_account.github_actions_terraform.email}"
+# --- CI: terraform plan (read all resources + state lock) ---
 
-  depends_on = [google_service_account.github_actions_terraform]
+resource "google_project_iam_member" "github_actions_terraform_ci" {
+  project = var.project
+  role    = google_project_iam_custom_role.terraform_ci.id
+  member  = "serviceAccount:${google_service_account.github_actions_terraform.email}"
 }
 
-# Service Account Admin to create/manage other service accounts
+# CI: bucket-scoped write for terraform state lock files (not project-wide)
+resource "google_storage_bucket_iam_member" "terraform_state_lock" {
+  bucket = var.tfstate_bucket_name
+  role   = "roles/storage.objectUser"
+  member = "serviceAccount:${google_service_account.github_actions_terraform.email}"
+}
+
+# CD: bucket-scoped write for backup bucket (Cloud Function source zip upload)
+resource "google_storage_bucket_iam_member" "terraform_backup_objects" {
+  bucket = var.backup_bucket_name
+  role   = "roles/storage.objectUser"
+  member = "serviceAccount:${google_service_account.github_actions_terraform.email}"
+}
+
+# --- CD: terraform apply + Docker push (write operations) ---
+# When splitting into separate SAs, assign these to the CD SA only.
+
+resource "google_project_iam_member" "github_actions_terraform_cd" {
+  project = var.project
+  role    = google_project_iam_custom_role.terraform_cd.id
+  member  = "serviceAccount:${google_service_account.github_actions_terraform.email}"
+}
+
+# CD only — Service Account Admin to create/manage other service accounts
 resource "google_project_iam_member" "github_actions_terraform_sa_admin" {
   project = var.project
   role    = "roles/iam.serviceAccountAdmin"
@@ -124,7 +146,7 @@ resource "google_project_iam_member" "github_actions_terraform_sa_admin" {
   depends_on = [google_service_account.github_actions_terraform]
 }
 
-# Secret Manager Admin to create/manage secrets
+# CD only — Secret Manager Admin to create/manage secrets and versions
 resource "google_project_iam_member" "github_actions_terraform_secrets" {
   project = var.project
   role    = "roles/secretmanager.admin"
@@ -133,7 +155,7 @@ resource "google_project_iam_member" "github_actions_terraform_secrets" {
   depends_on = [google_service_account.github_actions_terraform]
 }
 
-# Firebase Admin to manage Firebase resources (auth, hosting)
+# CD only — Firebase Admin to manage Firebase resources (auth, hosting, Identity Platform)
 resource "google_project_iam_member" "github_actions_terraform_firebase" {
   project = var.project
   role    = "roles/firebase.admin"
@@ -142,7 +164,7 @@ resource "google_project_iam_member" "github_actions_terraform_firebase" {
   depends_on = [google_service_account.github_actions_terraform]
 }
 
-# IAM Workload Identity Pool Admin to manage WIF pools/providers
+# CD only — IAM Workload Identity Pool Admin to manage WIF pools/providers
 resource "google_project_iam_member" "github_actions_terraform_wif" {
   project = var.project
   role    = "roles/iam.workloadIdentityPoolAdmin"
@@ -187,6 +209,7 @@ resource "google_project_iam_member" "local_dev_secrets" {
 # Uses iam_binding (authoritative) — must include ALL members for these roles,
 # including the terraform SA. Mixing iam_binding + iam_member on the same role
 # causes them to fight (binding strips members that only iam_member knows about).
+# CD only — when splitting SAs, only include the CD SA here.
 resource "google_project_iam_binding" "prerequisite_roles" {
   for_each = toset(local.prerequisite_roles)
 

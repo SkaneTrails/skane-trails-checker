@@ -50,8 +50,10 @@ module "apis" {
 module "iam" {
   source = "../../modules/iam"
 
-  project    = var.project
-  superusers = local.superusers
+  project             = var.project
+  superusers          = local.superusers
+  tfstate_bucket_name = var.tfstate_bucket_name
+  backup_bucket_name  = var.backup_bucket_name
 
   # Implicit dependency on APIs module through output reference
   iam_api_service = module.apis.iam_service
@@ -157,6 +159,7 @@ module "backup" {
 
 # -----------------------------------------------------------------------------
 # Service Account User grants (scoped to specific runtime SAs, not project-level)
+# CD only — when splitting SAs, assign to CD SA only.
 # -----------------------------------------------------------------------------
 
 # Cloud Run deploy SA needs to attach the Cloud Run runtime SA during deployment
