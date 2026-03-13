@@ -1,19 +1,41 @@
 import { useEffect, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { foragingColor } from '@/lib/foraging-colors';
+import { useTranslation } from '@/lib/i18n';
+import { borderRadius, fontSize, fontWeight, spacing, useTheme } from '@/lib/theme';
+import { cssShadow, glassSheet } from '@/lib/theme/styles';
+import type { ForagingType } from '@/lib/types';
 import { Button } from './Button';
 import { Chip } from './Chip';
 import { FormField } from './FormField';
-import { useTranslation } from '@/lib/i18n';
-import { borderRadius, fontSize, fontWeight, spacing, useTheme } from '@/lib/theme';
-import type { ForagingType } from '@/lib/types';
+import { TabIcon } from './TabIcon';
 
-const MONTH_KEYS = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec'] as const;
+const MONTH_KEYS = [
+  'jan',
+  'feb',
+  'mar',
+  'apr',
+  'may',
+  'jun',
+  'jul',
+  'aug',
+  'sep',
+  'oct',
+  'nov',
+  'dec',
+] as const;
 
 interface AddSpotFormProps {
   types: ForagingType[];
   initialLat?: number;
   initialLng?: number;
-  onSubmit: (data: { type: string; lat: number; lng: number; notes: string; month: string }) => void;
+  onSubmit: (data: {
+    type: string;
+    lat: number;
+    lng: number;
+    notes: string;
+    month: string;
+  }) => void;
   onCancel: () => void;
   onUseCurrentLocation: () => void;
   isSubmitting?: boolean;
@@ -55,10 +77,7 @@ export function AddSpotForm({
     parsedLng <= 180;
 
   const canSubmit =
-    selectedType !== '' &&
-    selectedMonth !== '' &&
-    coordinatesAreValid &&
-    !isSubmitting;
+    selectedType !== '' && selectedMonth !== '' && coordinatesAreValid && !isSubmitting;
 
   const handleSubmit = () => {
     if (!coordinatesAreValid) return;
@@ -66,26 +85,62 @@ export function AddSpotForm({
   };
 
   return (
-    <View style={[styles.card, { backgroundColor: colors.surface }, shadows.card]}>
+    <View
+      style={[
+        styles.card,
+        glassSheet(colors.glass),
+        Platform.OS === 'web' &&
+          ({
+            boxShadow: cssShadow(shadows, 'elevated'),
+          } as any),
+      ]}
+    >
       <ScrollView style={styles.scroll} showsVerticalScrollIndicator={false}>
         <View style={styles.header}>
           <Text style={[styles.title, { color: colors.text.primary }]}>{t('addSpot.title')}</Text>
-          <Pressable onPress={onCancel} style={styles.closeButton} accessibilityLabel={t('common.cancel')}>
-            <Text style={[styles.closeText, { color: colors.text.muted }]}>✕</Text>
+          <Pressable
+            onPress={onCancel}
+            style={styles.closeButton}
+            accessibilityLabel={t('common.cancel')}
+          >
+            <TabIcon name="close" color={colors.text.muted} size={18} strokeWidth={2} />
           </Pressable>
         </View>
 
         {/* Type selector */}
         <Text style={[styles.label, { color: colors.text.secondary }]}>{t('addSpot.type')} *</Text>
         <View style={styles.chipRow}>
-          {types.map((t) => (
-            <Chip
-              key={t.name}
-              label={`${t.icon} ${t.name}`}
-              selected={selectedType === t.name}
-              onPress={() => setSelectedType(t.name)}
-            />
-          ))}
+          {types.map((typeItem) => {
+            const isSelected = selectedType === typeItem.name;
+            const dotColor = foragingColor(typeItem.color);
+            return (
+              <Pressable
+                key={typeItem.name}
+                style={[
+                  styles.typeChip,
+                  {
+                    backgroundColor: isSelected ? colors.chip.activeBg : colors.chip.bg,
+                    borderColor: isSelected ? colors.chip.activeBg : colors.glass.borderSubtle,
+                  },
+                  isSelected && styles.typeChipSelected,
+                ]}
+                onPress={() => setSelectedType(typeItem.name)}
+              >
+                <View style={[styles.typeDot, { backgroundColor: dotColor }]} />
+                <Text
+                  style={[
+                    styles.typeChipText,
+                    {
+                      color: isSelected ? colors.chip.activeText : colors.chip.text,
+                      fontWeight: isSelected ? fontWeight.semibold : fontWeight.normal,
+                    },
+                  ]}
+                >
+                  {typeItem.name}
+                </Text>
+              </Pressable>
+            );
+          })}
         </View>
 
         {/* Month selector */}
@@ -105,8 +160,14 @@ export function AddSpotForm({
         </View>
 
         {/* Location */}
-        <Text style={[styles.label, { color: colors.text.secondary }]}>{t('addSpot.location')} *</Text>
-        <Button title={t('addSpot.useCurrentLocation')} onPress={onUseCurrentLocation} variant="secondary" />
+        <Text style={[styles.label, { color: colors.text.secondary }]}>
+          {t('addSpot.location')} *
+        </Text>
+        <Button
+          title={t('addSpot.useCurrentLocation')}
+          onPress={onUseCurrentLocation}
+          variant="secondary"
+        />
         <Text style={[styles.orText, { color: colors.text.muted }]}>{t('addSpot.orTapMap')}</Text>
         <View style={styles.coordRow}>
           <View style={styles.coordField}>
@@ -155,11 +216,12 @@ export function AddSpotForm({
 
 const styles = StyleSheet.create({
   card: {
-    borderRadius: borderRadius.md,
+    borderRadius: borderRadius.xl,
     padding: spacing.lg,
-    maxWidth: 400,
-    maxHeight: '80%',
+    maxWidth: 520,
+    maxHeight: '85%',
     width: '100%',
+    overflow: 'hidden',
   },
   scroll: {
     flexGrow: 0,
@@ -178,10 +240,6 @@ const styles = StyleSheet.create({
   closeButton: {
     padding: spacing.xs,
   },
-  closeText: {
-    fontSize: fontSize.lg,
-    lineHeight: fontSize.lg,
-  },
   label: {
     fontSize: fontSize.sm,
     fontWeight: fontWeight.semibold,
@@ -193,6 +251,30 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
     gap: spacing.sm - 2,
     marginBottom: spacing.sm,
+  },
+  typeChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    borderRadius: borderRadius.full,
+    borderWidth: 1,
+    gap: spacing.xs + 2,
+  },
+  typeChipSelected: {
+    shadowColor: 'rgba(0,40,20,0.12)',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 1,
+    shadowRadius: 6,
+    elevation: 2,
+  },
+  typeDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+  typeChipText: {
+    fontSize: fontSize.sm,
   },
   orText: {
     fontSize: fontSize.xs,

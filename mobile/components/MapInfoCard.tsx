@@ -9,6 +9,8 @@
 import type { ReactNode } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { borderRadius, fontSize, fontWeight, spacing, useTheme } from '@/lib/theme';
+import { glassCard } from '@/lib/theme/styles';
+import { TabIcon } from './TabIcon';
 
 interface MapInfoCardAction {
   label: string;
@@ -25,14 +27,23 @@ interface MapInfoCardProps {
 export const MapInfoCard = ({ title, onClose, action, children }: MapInfoCardProps) => {
   const { colors, shadows } = useTheme();
 
+  // Override borderRadius from glassCard with explicit corner values
+  const cardGlass = { ...glassCard(colors.glass), borderRadius: undefined };
+
   return (
-    <View style={[styles.card, { backgroundColor: colors.surface }, shadows.card]}>
+    <View
+      style={[
+        cardGlass,
+        shadows.elevated,
+        styles.card,
+      ]}
+    >
       <View style={styles.header}>
         <Text style={[styles.title, { color: colors.text.primary }]} numberOfLines={1}>
           {title}
         </Text>
         <Pressable onPress={onClose} style={styles.closeButton} accessibilityLabel="Close">
-          <Text style={[styles.closeText, { color: colors.text.muted }]}>✕</Text>
+          <TabIcon name="close" color={colors.text.muted} size={18} strokeWidth={2} />
         </Pressable>
       </View>
 
@@ -40,10 +51,10 @@ export const MapInfoCard = ({ title, onClose, action, children }: MapInfoCardPro
 
       {action && (
         <Pressable
-          style={[styles.actionButton, { backgroundColor: colors.primary }]}
+          style={[styles.actionButton, { borderWidth: 1, borderColor: colors.primary }]}
           onPress={action.onPress}
         >
-          <Text style={[styles.actionButtonText, { color: colors.text.inverse }]}>
+          <Text style={[styles.actionButtonText, { color: colors.primary }]}>
             {action.label}
           </Text>
         </Pressable>
@@ -54,9 +65,12 @@ export const MapInfoCard = ({ title, onClose, action, children }: MapInfoCardPro
 
 const styles = StyleSheet.create({
   card: {
-    borderRadius: borderRadius.md,
-    padding: spacing.lg - 2,
-    maxWidth: 340,
+    borderTopLeftRadius: borderRadius.xl,
+    borderTopRightRadius: borderRadius.xl,
+    borderBottomLeftRadius: 0,
+    borderBottomRightRadius: 0,
+    padding: spacing.lg,
+    maxWidth: 360,
     width: '100%',
   },
   header: {
@@ -74,15 +88,11 @@ const styles = StyleSheet.create({
   closeButton: {
     padding: spacing.xs,
   },
-  closeText: {
-    fontSize: fontSize.lg,
-    lineHeight: fontSize.lg,
-  },
   actionButton: {
     alignItems: 'center',
-    paddingVertical: spacing.sm,
-    borderRadius: borderRadius.sm,
-    marginTop: spacing.xs,
+    paddingVertical: spacing.sm + 2,
+    borderRadius: borderRadius.full,
+    marginTop: spacing.md,
   },
   actionButtonText: {
     fontSize: fontSize.sm,

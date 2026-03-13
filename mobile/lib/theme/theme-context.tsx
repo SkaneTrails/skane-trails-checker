@@ -2,8 +2,6 @@
  * Theme context — provider and consumer hook.
  *
  * Wraps the app with a ThemeProvider to access the active theme via useTheme().
- * Simplified from meal-planner: no button display config, no visibility tokens,
- * no style overrides. Just colors + layout + typography.
  */
 
 import type { ReactNode } from 'react';

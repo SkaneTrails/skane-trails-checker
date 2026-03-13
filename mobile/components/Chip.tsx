@@ -1,5 +1,5 @@
 /**
- * Filter/toggle chip.
+ * Filter/toggle chip with glass inactive state.
  *
  * Used for month filters, category filters, status filters.
  */
@@ -14,7 +14,7 @@ interface ChipProps {
 }
 
 export function Chip({ label, selected, onPress }: ChipProps) {
-  const { colors } = useTheme();
+  const { colors, shadows } = useTheme();
 
   return (
     <Pressable
@@ -22,7 +22,9 @@ export function Chip({ label, selected, onPress }: ChipProps) {
         styles.chip,
         {
           backgroundColor: selected ? colors.chip.activeBg : colors.chip.bg,
+          borderColor: selected ? colors.chip.activeBg : colors.glass.borderSubtle,
         },
+        selected && shadows.subtle,
       ]}
       onPress={onPress}
     >
@@ -43,9 +45,10 @@ export function Chip({ label, selected, onPress }: ChipProps) {
 
 const styles = StyleSheet.create({
   chip: {
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm - 2,
-    borderRadius: borderRadius.lg,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.sm,
+    borderRadius: borderRadius.full,
+    borderWidth: 1,
   },
   text: {
     fontSize: fontSize.sm,

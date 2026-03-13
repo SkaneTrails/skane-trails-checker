@@ -7,27 +7,26 @@ import { useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
   Text,
   View,
 } from 'react-native';
-import { Button, ContentCard, FormField, ScreenLayout } from '@/components';
+import { Button, ContentCard, FormField } from '@/components';
 import { Chip } from '@/components/Chip';
+import { TabIcon } from '@/components/TabIcon';
 import { useAuth } from '@/lib/hooks/use-auth';
-import {
-  useCreateHikeGroup,
-  useDeleteHikeGroup,
-  useHikeGroups,
-} from '@/lib/hooks/use-hike-groups';
+import { useCreateHikeGroup, useDeleteHikeGroup, useHikeGroups } from '@/lib/hooks/use-hike-groups';
 import { useTranslation } from '@/lib/i18n';
 import { LANGUAGES, useSettings } from '@/lib/settings-context';
 import { borderRadius, fontSize, fontWeight, spacing, useTheme } from '@/lib/theme';
+import { cssShadow, glassSheet } from '@/lib/theme/styles';
 import { themes } from '@/lib/theme/themes';
 
 export default function SettingsScreen() {
-  const { colors } = useTheme();
+  const { colors, shadows } = useTheme();
   const { t } = useTranslation();
   const { language, setLanguage, themeId } = useSettings();
   const { signOut } = useAuth();
@@ -49,23 +48,51 @@ export default function SettingsScreen() {
   };
 
   const handleDeleteGroup = (groupId: string, groupName: string) => {
-    Alert.alert(
-      t('common.delete'),
-      t('settings.deleteGroupConfirm', { name: groupName }),
-      [
-        { text: t('common.cancel'), style: 'cancel' },
-        {
-          text: t('common.delete'),
-          style: 'destructive',
-          onPress: () => deleteGroupMutation.mutate(groupId),
-        },
-      ],
-    );
+    Alert.alert(t('common.delete'), t('settings.deleteGroupConfirm', { name: groupName }), [
+      { text: t('common.cancel'), style: 'cancel' },
+      {
+        text: t('common.delete'),
+        style: 'destructive',
+        onPress: () => deleteGroupMutation.mutate(groupId),
+      },
+    ]);
   };
 
+  const isWeb = Platform.OS === 'web';
+
   return (
-    <ScreenLayout>
-      <ScrollView contentContainerStyle={styles.content}>
+    <View style={[styles.backdrop, { backgroundColor: colors.backdrop }]}>
+      <Pressable
+        style={StyleSheet.absoluteFill}
+        onPress={() => router.back()}
+        accessibilityLabel="Close settings"
+      />
+      <View
+        style={[
+          styles.card,
+          glassSheet(colors.glass),
+          isWeb &&
+            ({
+              backgroundColor: colors.glass.surface,
+              boxShadow: cssShadow(shadows, 'elevated'),
+            } as any),
+        ]}
+      >
+        {/* Header with close button */}
+        <View style={styles.cardHeader}>
+          <Text style={[styles.cardTitle, { color: colors.text.primary }]}>
+            {t('settings.title')}
+          </Text>
+          <Pressable
+            onPress={() => router.back()}
+            style={styles.closeButton}
+            accessibilityLabel={t('common.cancel')}
+          >
+            <TabIcon name="close" color={colors.text.muted} size={20} strokeWidth={2} />
+          </Pressable>
+        </View>
+
+        <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         {/* Hike Group Section */}
         <Text style={[styles.sectionTitle, { color: colors.text.primary }]}>
           {t('settings.hikeGroup')}
@@ -131,10 +158,7 @@ export default function SettingsScreen() {
               <Text style={[styles.emptyText, { color: colors.text.muted }]}>
                 {t('settings.noGroup')}
               </Text>
-              <Button
-                title={t('settings.createGroup')}
-                onPress={() => setShowCreateForm(true)}
-              />
+              <Button title={t('settings.createGroup')} onPress={() => setShowCreateForm(true)} />
             </View>
           )}
         </ContentCard>
@@ -148,7 +172,7 @@ export default function SettingsScreen() {
             {LANGUAGES.map((lang) => (
               <Chip
                 key={lang.code}
-                label={`${lang.flag} ${lang.label}`}
+                label={lang.label}
                 selected={language === lang.code}
                 onPress={() => setLanguage(lang.code)}
               />
@@ -163,17 +187,10 @@ export default function SettingsScreen() {
         <ContentCard>
           <View style={styles.chipRow}>
             {Object.entries(themes).map(([id, theme]) => (
-              <Chip
-                key={id}
-                label={theme.name}
-                selected={themeId === id}
-                onPress={() => {}}
-              />
+              <Chip key={id} label={theme.name} selected={themeId === id} onPress={() => {}} />
             ))}
           </View>
-          <Text style={[styles.hint, { color: colors.text.muted }]}>
-            {t('settings.onlyTheme')}
-          </Text>
+          <Text style={[styles.hint, { color: colors.text.muted }]}>{t('settings.onlyTheme')}</Text>
         </ContentCard>
 
         {/* Account Section */}
@@ -181,26 +198,52 @@ export default function SettingsScreen() {
           {t('settings.account')}
         </Text>
         <ContentCard>
-          <Button
-            title={t('settings.signOut')}
-            variant="secondary"
-            onPress={signOut}
-          />
+          <Button title={t('settings.signOut')} variant="secondary" onPress={signOut} />
         </ContentCard>
-      </ScrollView>
-    </ScreenLayout>
+        </ScrollView>
+      </View>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
+  backdrop: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: spacing.xl,
+  },
+  card: {
+    width: '100%',
+    maxWidth: 520,
+    maxHeight: '85%',
+    borderRadius: borderRadius.xl,
+    overflow: 'hidden',
+  },
+  cardHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.lg,
+    paddingBottom: spacing.sm,
+  },
+  cardTitle: {
+    fontSize: fontSize.xl,
+    fontWeight: fontWeight.semibold,
+  },
+  closeButton: {
+    padding: spacing.xs,
+  },
   content: {
-    padding: spacing.lg,
+    paddingHorizontal: spacing.lg,
+    paddingBottom: spacing.lg,
     gap: spacing.sm,
   },
   sectionTitle: {
-    fontSize: fontSize.lg,
+    fontSize: fontSize.md,
     fontWeight: fontWeight.semibold,
-    marginTop: spacing.md,
+    marginTop: spacing.sm,
     marginBottom: spacing.xs,
   },
   chipRow: {
@@ -222,11 +265,11 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   groupName: {
-    fontSize: fontSize.lg,
+    fontSize: fontSize.md,
     fontWeight: fontWeight.medium,
   },
   groupMeta: {
-    fontSize: fontSize.sm,
+    fontSize: fontSize.xs,
     marginTop: 2,
   },
   emptyGroup: {
@@ -234,7 +277,7 @@ const styles = StyleSheet.create({
     gap: spacing.md,
   },
   emptyText: {
-    fontSize: fontSize.md,
+    fontSize: fontSize.sm,
   },
   formActions: {
     flexDirection: 'row',

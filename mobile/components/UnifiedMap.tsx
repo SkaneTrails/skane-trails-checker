@@ -1,0 +1,229 @@
+/**
+ * Unified map with toggleable layers for trails, foraging spots, and places.
+ *
+ * Replaces separate TrailMap and ForagingMap with a single map instance
+ * showing all data types as independently toggleable layers.
+ */
+
+import { useEffect, useRef } from 'react';
+import { foragingColorMap } from '@/lib/foraging-colors';
+import { injectLeafletCSS } from '@/lib/inject-css';
+import { placeCategoryColor } from '@/lib/place-colors';
+import { animation, iconSize, useTheme } from '@/lib/theme';
+import type { ColorTokens } from '@/lib/theme/colors';
+import type { ForagingSpot, ForagingType, Place, Trail } from '@/lib/types';
+
+export interface MapLayers {
+  trails: boolean;
+  foraging: boolean;
+  places: boolean;
+}
+
+interface UnifiedMapProps {
+  trails: Trail[];
+  foragingSpots: ForagingSpot[];
+  foragingTypes: ForagingType[];
+  places: Place[];
+  layers: MapLayers;
+  onTrailSelect?: (trail: Trail) => void;
+  onSpotSelect?: (spot: ForagingSpot) => void;
+  onPlaceSelect?: (place: Place) => void;
+  onMapClick?: (lat: number, lng: number) => void;
+}
+
+const DEFAULT_CENTER: [number, number] = [55.95, 13.4];
+const DEFAULT_ZOOM = 9;
+
+const MAP_DOT_BORDER = '2px solid rgba(255,255,255,0.9)';
+
+/** Generate inline HTML for a colored circle marker. */
+function mapDotHtml(color: string, size: number): string {
+  return `<div style="width:${size}px;height:${size}px;background:${color};border:${MAP_DOT_BORDER};border-radius:50%;box-shadow:0 1px 4px rgba(0,0,0,0.2);cursor:pointer;transition:transform ${animation.duration.fast}ms ease"></div>`;
+}
+
+export function UnifiedMap({
+  trails,
+  foragingSpots,
+  foragingTypes,
+  places,
+  layers,
+  onTrailSelect,
+  onSpotSelect,
+  onPlaceSelect,
+  onMapClick,
+}: UnifiedMapProps) {
+  const { colors } = useTheme();
+  const mapRef = useRef<HTMLDivElement>(null);
+  const mapInstanceRef = useRef<L.Map | null>(null);
+  const layerGroupsRef = useRef<{
+    trails: L.LayerGroup | null;
+    foraging: L.LayerGroup | null;
+    places: L.LayerGroup | null;
+  }>({ trails: null, foraging: null, places: null });
+
+  const callbackRefs = useRef({ onTrailSelect, onSpotSelect, onPlaceSelect, onMapClick });
+  callbackRefs.current = { onTrailSelect, onSpotSelect, onPlaceSelect, onMapClick };
+
+  const colorsRef = useRef<ColorTokens>(colors);
+  colorsRef.current = colors;
+
+  // Initialize map once
+  useEffect(() => {
+    let cancelled = false;
+
+    async function initMap() {
+      injectLeafletCSS(colorsRef.current);
+      const [L, { LocateControl }] = await Promise.all([
+        import('leaflet'),
+        import('leaflet.locatecontrol'),
+      ]);
+
+      if (cancelled || !mapRef.current) return;
+
+      if (mapInstanceRef.current) {
+        mapInstanceRef.current.remove();
+      }
+
+      const map = L.map(mapRef.current, { zoomControl: false }).setView(
+        DEFAULT_CENTER,
+        DEFAULT_ZOOM,
+      );
+      mapInstanceRef.current = map;
+
+      // Zoom at bottom-right
+      L.control.zoom({ position: 'bottomright' }).addTo(map);
+
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; OpenStreetMap contributors',
+        maxZoom: 18,
+      }).addTo(map);
+
+      new LocateControl({
+        position: 'bottomright',
+        setView: 'untilPan',
+        keepCurrentZoomLevel: true,
+        flyTo: true,
+        drawCircle: true,
+        drawMarker: true,
+        showCompass: true,
+        showPopup: false,
+        metric: true,
+        strings: { title: 'Show my location' },
+        locateOptions: { enableHighAccuracy: true },
+      }).addTo(map);
+
+      // Create layer groups
+      layerGroupsRef.current.trails = L.layerGroup().addTo(map);
+      layerGroupsRef.current.foraging = L.layerGroup().addTo(map);
+      layerGroupsRef.current.places = L.layerGroup().addTo(map);
+
+      map.on('click', (e: L.LeafletMouseEvent) => {
+        callbackRefs.current.onMapClick?.(e.latlng.lat, e.latlng.lng);
+      });
+    }
+
+    initMap();
+
+    return () => {
+      cancelled = true;
+      if (mapInstanceRef.current) {
+        mapInstanceRef.current.remove();
+        mapInstanceRef.current = null;
+      }
+    };
+  }, []);
+
+  // Update trail layer
+  useEffect(() => {
+    const group = layerGroupsRef.current.trails;
+    if (!group) return;
+    group.clearLayers();
+
+    if (!layers.trails) return;
+
+    import('leaflet').then((L) => {
+      const toExplore = trails.filter((t) => t.status !== 'Explored!');
+      const explored = trails.filter((t) => t.status === 'Explored!');
+
+      for (const trail of [...toExplore, ...explored]) {
+        if (!trail.coordinates_map || trail.coordinates_map.length === 0) continue;
+
+        const latlngs = trail.coordinates_map.map((c) => [c.lat, c.lng] as [number, number]);
+        const isExplored = trail.status === 'Explored!';
+        const color = isExplored ? colorsRef.current.explored : colorsRef.current.toExplore;
+
+        const polyline = L.polyline(latlngs, {
+          color,
+          weight: isExplored ? 4 : 3,
+          opacity: 0.85,
+          lineCap: 'round',
+          lineJoin: 'round',
+        }).addTo(group);
+
+        polyline.on('click', () => {
+          callbackRefs.current.onTrailSelect?.(trail);
+        });
+      }
+    });
+  }, [trails, layers.trails]);
+
+  // Update foraging layer — colored dots
+  useEffect(() => {
+    const group = layerGroupsRef.current.foraging;
+    if (!group) return;
+    group.clearLayers();
+
+    if (!layers.foraging) return;
+
+    import('leaflet').then((L) => {
+      const colorMap = foragingColorMap(foragingTypes);
+
+      for (const spot of foragingSpots) {
+        const spotColor = colorMap.get(spot.type) ?? colorsRef.current.text.muted;
+
+        const icon = L.divIcon({
+          html: mapDotHtml(spotColor, iconSize.sm),
+          className: 'foraging-dot',
+          iconSize: [iconSize.sm, iconSize.sm],
+          iconAnchor: [iconSize.sm / 2, iconSize.sm / 2],
+        });
+
+        const marker = L.marker([spot.lat, spot.lng], { icon }).addTo(group);
+        marker.on('click', () => {
+          callbackRefs.current.onSpotSelect?.(spot);
+        });
+      }
+    });
+  }, [foragingSpots, foragingTypes, layers.foraging]);
+
+  // Update places layer — themed circle markers
+  useEffect(() => {
+    const group = layerGroupsRef.current.places;
+    if (!group) return;
+    group.clearLayers();
+
+    if (!layers.places) return;
+
+    import('leaflet').then((L) => {
+      for (const place of places) {
+        const firstCat = place.categories[0];
+        const dotColor = firstCat ? placeCategoryColor(firstCat.slug) : colorsRef.current.text.muted;
+        const dotSize = iconSize.sm + 2;
+
+        const icon = L.divIcon({
+          html: mapDotHtml(dotColor, dotSize),
+          className: 'place-dot',
+          iconSize: [dotSize, dotSize],
+          iconAnchor: [dotSize / 2, dotSize / 2],
+        });
+
+        const marker = L.marker([place.lat, place.lng], { icon }).addTo(group);
+        marker.on('click', () => {
+          callbackRefs.current.onPlaceSelect?.(place);
+        });
+      }
+    });
+  }, [places, layers.places]);
+
+  return <div ref={mapRef} style={{ width: '100%', height: '100%' }} />;
+}

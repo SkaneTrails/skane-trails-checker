@@ -28,20 +28,14 @@ export const resolve = (obj: unknown, path: string): string | undefined => {
 /**
  * Replace {{variable}} placeholders with values from params.
  */
-export const interpolate = (
-  template: string,
-  params?: Record<string, string | number>,
-): string => {
+export const interpolate = (template: string, params?: Record<string, string | number>): string => {
   if (!params) return template;
   return template.replace(/\{\{(\w+)\}\}/g, (_, key: string) =>
     params[key] != null ? String(params[key]) : `{{${key}}}`,
   );
 };
 
-export type TFunction = (
-  key: string,
-  params?: Record<string, string | number>,
-) => string;
+export type TFunction = (key: string, params?: Record<string, string | number>) => string;
 
 /**
  * Standalone translate function for use outside React component tree.

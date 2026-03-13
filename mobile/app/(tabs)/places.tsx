@@ -1,9 +1,10 @@
 import { useState } from 'react';
-import { FlatList, StyleSheet, Text, View } from 'react-native';
+import { FlatList, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Chip, ContentCard, EmptyState, ScreenLayout } from '@/components';
+import { PlaceCategoryIcon } from '@/components/PlaceCategoryIcon';
 import { usePlaceCategories, usePlaces } from '@/lib/hooks';
 import { useTranslation } from '@/lib/i18n';
-import { borderRadius, fontSize, fontWeight, spacing, useTheme } from '@/lib/theme';
+import { borderRadius, blur, fontSize, fontWeight, letterSpacing, spacing, useTheme } from '@/lib/theme';
 import type { Place } from '@/lib/types';
 
 function PlaceItem({ place }: { place: Place }) {
@@ -11,35 +12,40 @@ function PlaceItem({ place }: { place: Place }) {
 
   return (
     <ContentCard>
-      <Text style={[styles.placeName, { color: colors.text.primary }]}>{place.name}</Text>
-      {place.city ? (
-        <Text style={[styles.description, { color: colors.text.secondary }]} numberOfLines={1}>
-          {place.city}
-        </Text>
-      ) : null}
-      <View style={styles.cardMeta}>
-        <Text style={[styles.coords, { color: colors.text.muted }]}>
-          📍 {place.lat.toFixed(4)}, {place.lng.toFixed(4)}
-        </Text>
+      <View style={styles.placeHeader}>
+        <View style={styles.placeTitleRow}>
+          <View style={[styles.placeIndicator, { backgroundColor: colors.explored }]} />
+          <Text style={[styles.placeName, { color: colors.text.primary }]}>{place.name}</Text>
+        </View>
         {place.categories.length > 0 && (
           <View style={styles.categoriesRow}>
             {place.categories.map((cat) => (
-              <Text
+              <View
                 key={cat.slug}
-                style={[
-                  styles.categoryTag,
-                  { backgroundColor: colors.tag.placeBg, color: colors.tag.placeText },
-                ]}
+                style={[styles.categoryTag, { backgroundColor: colors.tag.placeBg }]}
               >
-                {cat.icon} {cat.name}
-              </Text>
+                <PlaceCategoryIcon slug={cat.slug} size={12} strokeWidth={2} />
+                <Text style={[styles.categoryTagText, { color: colors.tag.placeText }]}>
+                  {cat.name}
+                </Text>
+              </View>
             ))}
           </View>
         )}
       </View>
+      <View style={styles.placeDetails}>
+        {place.city ? (
+          <Text style={[styles.cityText, { color: colors.text.secondary }]} numberOfLines={1}>
+            {place.city}
+          </Text>
+        ) : null}
+        <Text style={[styles.coords, { color: colors.text.muted }]}>
+          {place.lat.toFixed(4)}, {place.lng.toFixed(4)}
+        </Text>
+      </View>
       {place.weburl ? (
         <Text style={[styles.website, { color: colors.primary }]} numberOfLines={1}>
-          🔗 {place.weburl}
+          {place.weburl}
         </Text>
       ) : null}
     </ContentCard>
@@ -47,7 +53,7 @@ function PlaceItem({ place }: { place: Place }) {
 }
 
 export default function PlacesScreen() {
-  const { colors } = useTheme();
+  const { colors, shadows } = useTheme();
   const { t } = useTranslation();
   const [selectedCategory, setSelectedCategory] = useState<string | undefined>();
   const { data: places, isLoading, error } = usePlaces(selectedCategory);
@@ -56,41 +62,83 @@ export default function PlacesScreen() {
   const categoryEntries = categories ? Object.entries(categories) : [];
 
   return (
-    <ScreenLayout>
+    <ScreenLayout title={t('tabs.places')}>
+      {/* Summary bar */}
+      <View
+        style={[
+          styles.summaryBar,
+          { borderColor: colors.glass.border },
+          Platform.OS === 'web' &&
+            ({
+              backgroundColor: colors.glass.background,
+              backdropFilter: `blur(${blur.md}px)`,
+              WebkitBackdropFilter: `blur(${blur.md}px)`,
+            } as any),
+        ]}
+      >
+        <Text style={[styles.summaryText, { color: colors.text.primary }]}>
+          {places?.length ?? 0} {t('places.places')}
+        </Text>
+      </View>
+
       {categoryEntries.length > 0 && (
-        <View
-          style={[
-            styles.filterBar,
-            { backgroundColor: colors.surface, borderBottomColor: colors.borderLight },
-          ]}
-        >
+        <View style={styles.filterBar}>
           <Chip
             label={t('common.all')}
             selected={!selectedCategory}
             onPress={() => setSelectedCategory(undefined)}
           />
-          {categoryEntries.map(([slug, cat]) => (
-            <Chip
-              key={slug}
-              label={`${cat.icon} ${cat.name}`}
-              selected={selectedCategory === slug}
-              onPress={() => setSelectedCategory(slug === selectedCategory ? undefined : slug)}
-            />
-          ))}
+          {categoryEntries.map(([slug, cat]) => {
+            const isSelected = selectedCategory === slug;
+            return (
+              <Pressable
+                key={slug}
+                style={[
+                  styles.filterChip,
+                  {
+                    backgroundColor: isSelected ? colors.chip.activeBg : colors.chip.bg,
+                    borderColor: isSelected ? colors.chip.activeBg : colors.glass.borderSubtle,
+                  },
+                  isSelected && shadows.subtle,
+                ]}
+                onPress={() =>
+                  setSelectedCategory(slug === selectedCategory ? undefined : slug)
+                }
+              >
+                <PlaceCategoryIcon
+                  slug={slug}
+                  size={14}
+                  strokeWidth={1.8}
+                  color={isSelected ? colors.chip.activeText : undefined}
+                />
+                <Text
+                  style={[
+                    styles.filterChipText,
+                    {
+                      color: isSelected ? colors.chip.activeText : colors.chip.text,
+                      fontWeight: isSelected ? fontWeight.semibold : fontWeight.normal,
+                    },
+                  ]}
+                >
+                  {cat.name}
+                </Text>
+              </Pressable>
+            );
+          })}
         </View>
       )}
 
       {isLoading ? (
-        <EmptyState emoji="⏳" title={t('places.loadingPlaces')} />
+        <EmptyState title={t('places.loadingPlaces')} />
       ) : error ? (
-        <EmptyState emoji="⚠️" title={t('places.failedToLoad')} />
+        <EmptyState title={t('places.failedToLoad')} />
       ) : (
         <FlatList
           data={places}
           keyExtractor={(item) => item.place_id}
           renderItem={({ item }) => <PlaceItem place={item} />}
           contentContainerStyle={styles.list}
-          ListEmptyComponent={<EmptyState emoji="📍" title={t('places.noPlacesFound')} />}
+          ListEmptyComponent={<EmptyState title={t('places.noPlacesFound')} />}
         />
       )}
     </ScreenLayout>
@@ -98,28 +146,61 @@ export default function PlacesScreen() {
 }
 
 const styles = StyleSheet.create({
+  summaryBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md,
+    marginHorizontal: spacing.lg,
+    marginTop: spacing.lg,
+    borderRadius: borderRadius.full,
+    borderWidth: 1,
+  },
+  summaryText: {
+    fontSize: fontSize.lg,
+    fontWeight: fontWeight.semibold,
+    letterSpacing: letterSpacing.tight,
+  },
   filterBar: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    padding: spacing.sm,
-    gap: spacing.sm - 2,
-    borderBottomWidth: 1,
+    padding: spacing.lg,
+    gap: spacing.sm,
   },
   list: {
-    padding: spacing.md,
+    padding: spacing.lg,
     gap: spacing.md,
+    paddingBottom: 100,
+  },
+  placeHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: spacing.sm,
+  },
+  placeTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    flex: 1,
+    marginRight: spacing.sm,
+  },
+  placeIndicator: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
   },
   placeName: {
     fontSize: fontSize.lg,
     fontWeight: fontWeight.semibold,
-    marginBottom: spacing.xs,
+    flex: 1,
   },
-  description: {
+  placeDetails: {
+    marginLeft: spacing.lg + spacing.sm,
+    gap: spacing.xs,
+  },
+  cityText: {
     fontSize: fontSize.md,
-    marginBottom: spacing.sm,
-  },
-  cardMeta: {
-    gap: spacing.sm - 2,
   },
   coords: {
     fontSize: fontSize.xs,
@@ -127,16 +208,35 @@ const styles = StyleSheet.create({
   categoriesRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: spacing.sm - 2,
+    gap: spacing.sm,
   },
   categoryTag: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs + 2,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs,
+    borderRadius: borderRadius.full,
+    overflow: 'hidden',
+  },
+  categoryTagText: {
     fontSize: fontSize.xs,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: 3,
-    borderRadius: borderRadius.md,
+  },
+  filterChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.sm,
+    borderRadius: borderRadius.full,
+    borderWidth: 1,
+    gap: spacing.xs + 2,
+  },
+  filterChipText: {
+    fontSize: fontSize.sm,
   },
   website: {
     fontSize: fontSize.sm,
-    marginTop: spacing.sm - 2,
+    marginTop: spacing.sm,
+    marginLeft: spacing.lg + spacing.sm,
   },
 });

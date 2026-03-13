@@ -7,14 +7,7 @@
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import type React from 'react';
-import {
-  createContext,
-  useCallback,
-  useContext,
-  useEffect,
-  useMemo,
-  useState,
-} from 'react';
+import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import type { AppLanguage } from './i18n/language-state';
 import { setCurrentLanguage } from './i18n/language-state';
 
@@ -22,9 +15,9 @@ export type { AppLanguage } from './i18n/language-state';
 
 const STORAGE_KEY = '@skane_trails_settings';
 
-export const LANGUAGES: { code: AppLanguage; label: string; flag: string }[] = [
-  { code: 'en', label: 'English', flag: '🇬🇧' },
-  { code: 'sv', label: 'Svenska', flag: '🇸🇪' },
+export const LANGUAGES: { code: AppLanguage; label: string }[] = [
+  { code: 'en', label: 'English' },
+  { code: 'sv', label: 'Svenska' },
 ];
 
 const SUPPORTED_LANGUAGES: AppLanguage[] = ['en', 'sv'];
@@ -51,11 +44,7 @@ const defaultSettings: Settings = {
 
 const SettingsContext = createContext<SettingsContextType | null>(null);
 
-export const SettingsProvider = ({
-  children,
-}: {
-  children: React.ReactNode;
-}) => {
+export const SettingsProvider = ({ children }: { children: React.ReactNode }) => {
   const [settings, setSettings] = useState<Settings>(defaultSettings);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -67,8 +56,7 @@ export const SettingsProvider = ({
           const parsed = JSON.parse(stored);
           setSettings({
             language:
-              typeof parsed.language === 'string' &&
-              isSupportedLanguage(parsed.language)
+              typeof parsed.language === 'string' && isSupportedLanguage(parsed.language)
                 ? parsed.language
                 : 'en',
             themeId: parsed.themeId ?? 'outdoor',
@@ -88,16 +76,13 @@ export const SettingsProvider = ({
     setCurrentLanguage(settings.language);
   }, [settings.language]);
 
-  const setLanguage = useCallback(
-    async (language: AppLanguage) => {
-      setSettings((prev) => {
-        const updated = { ...prev, language };
-        AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
-        return updated;
-      });
-    },
-    [],
-  );
+  const setLanguage = useCallback(async (language: AppLanguage) => {
+    setSettings((prev) => {
+      const updated = { ...prev, language };
+      AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+      return updated;
+    });
+  }, []);
 
   const value = useMemo<SettingsContextType>(
     () => ({
@@ -109,9 +94,7 @@ export const SettingsProvider = ({
     [settings, isLoading, setLanguage],
   );
 
-  return (
-    <SettingsContext.Provider value={value}>{children}</SettingsContext.Provider>
-  );
+  return <SettingsContext.Provider value={value}>{children}</SettingsContext.Provider>;
 };
 
 export const useSettings = (): SettingsContextType => {
