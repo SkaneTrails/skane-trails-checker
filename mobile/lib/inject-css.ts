@@ -27,15 +27,18 @@ function injectLink(href: string, integrity: string): void {
   document.head.appendChild(link);
 }
 
-let glassInjected = false;
+const GLASS_STYLE_ID = 'glass-theme-css';
 
 export function injectGlassCSS(colors: ColorTokens): void {
-  if (glassInjected) return;
-  glassInjected = true;
-
   const { glass, text, shadow } = colors;
 
-  const style = document.createElement('style');
+  // Re-use existing <style> element so theme changes take effect
+  let style = document.getElementById(GLASS_STYLE_ID) as HTMLStyleElement | null;
+  if (!style) {
+    style = document.createElement('style');
+    style.id = GLASS_STYLE_ID;
+    document.head.appendChild(style);
+  }
   style.textContent = `
     /* Slide-down animation for glass cards */
     @keyframes slideDown {
@@ -143,7 +146,6 @@ export function injectGlassCSS(colors: ColorTokens): void {
       -moz-osx-font-smoothing: grayscale;
     }
   `;
-  document.head.appendChild(style);
 }
 
 export function injectLeafletCSS(colors: ColorTokens): void {

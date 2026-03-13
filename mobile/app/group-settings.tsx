@@ -7,6 +7,7 @@ import { useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -54,7 +55,7 @@ export default function GroupSettingsScreen() {
     );
   }
 
-  const _isOwner = group.members.some((m) => m.role === 'owner' && m.email === user?.email);
+  const isOwner = group.members.some((m) => m.role === 'owner' && m.email === user?.email);
 
   const handleSaveName = async () => {
     const trimmed = groupName.trim();
@@ -101,9 +102,9 @@ export default function GroupSettingsScreen() {
           styles.cardWrap,
           glass,
           shadows.elevated,
-          {
+          Platform.OS === 'web' && {
             boxShadow: '0 8px 40px rgba(0,0,0,0.10), 0 2px 8px rgba(0,0,0,0.04)',
-          } as any,
+          },
         ]}
       >
         <View style={styles.handleContainer}>
@@ -208,7 +209,7 @@ export default function GroupSettingsScreen() {
                     {member.role === 'owner' ? t('settings.owner') : t('settings.member')}
                   </Text>
                 </View>
-                {member.role !== 'owner' && (
+                {isOwner && member.role !== 'owner' && (
                   <Pressable
                     onPress={() => handleRemoveMember(member.email)}
                     accessibilityRole="button"
@@ -223,7 +224,8 @@ export default function GroupSettingsScreen() {
             </View>
           ))}
 
-          {/* Add member */}
+          {/* Add member (owner only) */}
+          {isOwner && (
           <View style={styles.addMemberRow}>
             <View style={styles.addMemberInput}>
               <FormField
@@ -241,6 +243,7 @@ export default function GroupSettingsScreen() {
               disabled={!newEmail.trim() || addMemberMutation.isPending}
             />
           </View>
+          )}
         </ContentCard>
       </ScrollView>
       </View>
