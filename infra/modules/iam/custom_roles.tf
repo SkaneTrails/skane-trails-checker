@@ -215,6 +215,7 @@ resource "google_project_iam_custom_role" "terraform_ci" {
     # Service Usage (APIs)
     "serviceusage.services.get",
     "serviceusage.services.list",
+    "serviceusage.services.use",
 
     # Cloud Storage (read-only — state lock writes are bucket-scoped, see main.tf)
     "storage.buckets.get",
