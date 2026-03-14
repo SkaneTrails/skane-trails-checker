@@ -165,7 +165,7 @@ export default function TrailDetailScreen() {
               value={`${Math.round(trail.elevation_loss)} m`}
             />
           )}
-          {trail.difficulty && (
+          {!!trail.difficulty && (
             <StatCard label={t('trail.difficultyLabel')} value={trail.difficulty} />
           )}
         </View>

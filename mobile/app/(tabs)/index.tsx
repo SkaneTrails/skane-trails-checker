@@ -134,7 +134,7 @@ export default function MapScreen() {
               <Text style={[styles.metaItem, { color: colors.text.secondary }]}>
                 {selected.data.length_km.toFixed(1)} km
               </Text>
-              {selected.data.difficulty && (
+              {!!selected.data.difficulty && (
                 <Text style={[styles.metaItem, { color: colors.text.secondary }]}>
                   {selected.data.difficulty}
                 </Text>
@@ -180,7 +180,7 @@ export default function MapScreen() {
             <Text style={[styles.sheetTitle, { color: colors.text.primary }]}>
               {selected.data.name}
             </Text>
-            {selected.data.city && (
+            {!!selected.data.city && (
               <Text style={[styles.metaItem, { color: colors.text.secondary }]}>
                 {selected.data.city}
               </Text>
@@ -203,7 +203,7 @@ export default function MapScreen() {
                 ))}
               </View>
             )}
-            {selected.data.weburl && (
+            {!!selected.data.weburl && (
               <Text style={[styles.metaItem, { color: colors.primary }]} numberOfLines={1}>
                 {selected.data.weburl}
               </Text>

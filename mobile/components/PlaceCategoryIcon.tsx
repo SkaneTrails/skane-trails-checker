@@ -8,7 +8,7 @@
 import { Platform, View } from 'react-native';
 import { placeCategoryColor } from '@/lib/place-colors';
 
-const ICON_PATHS: Record<string, string> = {
+export const ICON_PATHS: Record<string, string> = {
   parkering:
     'M5 4h14a1 1 0 0 1 1 1v14a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1z M9 8h3.5a2.5 2.5 0 0 1 0 5H9V8z M9 13v3',
   vatten: 'M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0L12 2.69z',
@@ -38,7 +38,7 @@ const ICON_PATHS: Record<string, string> = {
     'M12 3v19 M5 8c0 0 3-2 7-2s7 2 7 2 M7 13c0 0 2-1.5 5-1.5s5 1.5 5 1.5 M9 18c0 0 1.5-1 3-1s3 1 3 1',
 };
 
-const FALLBACK_PATH = 'M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z';
+export const FALLBACK_PATH = 'M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z';
 
 interface PlaceCategoryIconProps {
   slug: string;

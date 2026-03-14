@@ -181,7 +181,7 @@ export default function GroupSettingsScreen() {
                 <Text style={[styles.memberEmail, { color: colors.text.primary }]}>
                   {member.email}
                 </Text>
-                {member.name && (
+                {!!member.name && (
                   <Text style={[styles.memberName, { color: colors.text.secondary }]}>
                     {member.name}
                   </Text>

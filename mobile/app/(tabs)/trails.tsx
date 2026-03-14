@@ -38,7 +38,7 @@ function TrailItem({ trail }: { trail: Trail }) {
               {t('trails.distance', { km: trail.length_km.toFixed(1) })}
             </Text>
           </View>
-          {trail.difficulty && (
+          {!!trail.difficulty && (
             <View style={[styles.metaChip, { backgroundColor: colors.status.toExploreBg }]}>
               <Text style={[styles.metaChipText, { color: colors.status.toExploreText }]}>
                 {trail.difficulty}
