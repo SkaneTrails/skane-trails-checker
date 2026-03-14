@@ -3,8 +3,8 @@
  *
  * Renders an elevation profile as a filled SVG area with a
  * small max-height label on the right edge.
- * Baseline = hike's lowest point; Y-axis cap = 400 m so
- * different hikes are visually comparable.
+ * Baseline = hike's lowest point; Y-axis cap = 400 m so flat
+ * trails appear flat. Label shows relative elevation range.
  */
 
 import Svg, { Path, Text as SvgText } from 'react-native-svg';
@@ -52,6 +52,7 @@ export const ElevationProfile = ({
 
   const minElev = Math.min(...sampledElevations);
   const maxElev = Math.max(...sampledElevations);
+  const elevRange = maxElev - minElev;
 
   const padY = 4;
   const drawHeight = height - padY * 2;
@@ -66,8 +67,7 @@ export const ElevationProfile = ({
   const linePath = points.map((p, i) => `${i === 0 ? 'M' : 'L'}${p.x},${p.y}`).join(' ');
   const fillPath = `${linePath} L${chartWidth},${height} L0,${height} Z`;
 
-  // Position max label at its actual height on the chart
-  const maxY = padY + drawHeight - ((maxElev - minElev) / MAX_SCALE_M) * drawHeight;
+  const maxY = padY + drawHeight - (elevRange / MAX_SCALE_M) * drawHeight;
 
   return (
     <Svg width={width} height={height} viewBox={`0 0 ${width} ${height}`}>
@@ -80,7 +80,7 @@ export const ElevationProfile = ({
         fontSize={9}
         alignmentBaseline="middle"
       >
-        {Math.round(maxElev)} m
+        {Math.round(elevRange)} m
       </SvgText>
     </Svg>
   );
