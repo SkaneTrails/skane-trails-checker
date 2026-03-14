@@ -1,5 +1,5 @@
 /**
- * Generic map info card shell — positioned as a map overlay.
+ * Generic map info card shell — positioned as a floating overlay.
  *
  * Provides title, close button, optional action button, and a
  * `children` slot for domain-specific content (trail info,
@@ -27,13 +27,10 @@ interface MapInfoCardProps {
 export const MapInfoCard = ({ title, onClose, action, children }: MapInfoCardProps) => {
   const { colors, shadows } = useTheme();
 
-  // Override borderRadius from glassCard with explicit corner values
-  const cardGlass = { ...glassCard(colors.glass), borderRadius: undefined };
-
   return (
     <View
       style={[
-        cardGlass,
+        glassCard(colors.glass),
         shadows.elevated,
         styles.card,
       ]}
@@ -65,10 +62,7 @@ export const MapInfoCard = ({ title, onClose, action, children }: MapInfoCardPro
 
 const styles = StyleSheet.create({
   card: {
-    borderTopLeftRadius: borderRadius.xl,
-    borderTopRightRadius: borderRadius.xl,
-    borderBottomLeftRadius: 0,
-    borderBottomRightRadius: 0,
+    borderRadius: borderRadius.xl,
     padding: spacing.lg,
     maxWidth: 360,
     width: '100%',

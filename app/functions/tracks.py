@@ -128,12 +128,15 @@ def filter_trails(  # noqa: PLR0913
 def simplify_track_coordinates(coordinates: list, tolerance: float = 0.0001) -> list:
     """Simplify track coordinates using the Ramer-Douglas-Peucker algorithm.
 
+    Supports both 2D (lat, lng) and 3D (lat, lng, elevation) coordinates.
+    Elevation is preserved through simplification when present.
+
     Args:
-        coordinates: List of (latitude, longitude) points
+        coordinates: List of (latitude, longitude) or (latitude, longitude, elevation) points
         tolerance: Higher values result in more simplification
 
     Returns:
-        Simplified list of coordinates
+        Simplified list of coordinates in the same format as input
 
     """
     try:
@@ -143,14 +146,16 @@ def simplify_track_coordinates(coordinates: list, tolerance: float = 0.0001) -> 
         if len(coordinates) <= MIN_POINTS_FOR_SIMPLIFICATION:
             return coordinates
 
-        # Convert 2D coordinates to 3D (add z=0) for NumPy 2.0 compatibility
-        # NumPy 2.0 deprecated 2D vectors in cross-product calculations
-        points_3d = np.array([(lat, lon, 0.0) for lat, lon in coordinates])
+        _COORD_3D_LEN = 3  # noqa: N806
+        has_elevation = len(coordinates[0]) == _COORD_3D_LEN
+
+        points_3d = np.array(coordinates) if has_elevation else np.array([(lat, lon, 0.0) for lat, lon in coordinates])
 
         # Apply RDP simplification
         simplified_3d = rdp(points_3d, epsilon=tolerance)
 
-        # Convert back to 2D by removing the z coordinate
+        if has_elevation:
+            return [(lat, lon, elev) for lat, lon, elev in simplified_3d.tolist()]
         return [(lat, lon) for lat, lon, _ in simplified_3d.tolist()]
     except ImportError:
         logger.warning("To enable track simplification, install rdp: uv add rdp")

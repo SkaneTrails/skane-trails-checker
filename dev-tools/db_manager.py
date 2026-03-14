@@ -6,6 +6,8 @@ trails, trail_details, places, foraging_spots, foraging_types, hike_groups.
 Usage:
     uv run python dev-tools/db_manager.py                    # Interactive mode
     uv run python dev-tools/db_manager.py trails list        # CLI: list trails
+    uv run python dev-tools/db_manager.py trails import --gpx-dir /path  # Import GPX files
+    uv run python dev-tools/db_manager.py trails import --gpx-dir /path --duplicates replace
     uv run python dev-tools/db_manager.py places stats       # CLI: place stats
     uv run python dev-tools/db_manager.py status             # CLI: all collection counts
 
@@ -15,9 +17,11 @@ Environment:
 """
 
 import argparse
+import logging
 import os
 import sys
 from collections import Counter
+from datetime import UTC, datetime
 from pathlib import Path
 
 # Add project root to path for imports
@@ -28,10 +32,20 @@ from app.functions.env_loader import load_env_if_needed
 # Load environment variables before importing storage modules
 load_env_if_needed()
 
+from api.services.gpx_parser import parse_gpx_upload  # noqa: E402
 from api.storage.firestore_client import get_collection  # noqa: E402
 from api.storage.foraging_storage import get_foraging_spots, get_foraging_types  # noqa: E402
 from api.storage.places_storage import get_all_places, get_places_by_category  # noqa: E402
-from api.storage.trail_storage import get_all_trails, get_sync_metadata, get_trail  # noqa: E402
+from api.storage.trail_storage import (  # noqa: E402
+    delete_trail,
+    get_all_trails,
+    get_sync_metadata,
+    get_trail,
+    save_trail,
+    update_sync_metadata,
+)
+
+logger = logging.getLogger(__name__)
 
 
 def _validate_environment() -> tuple[str, str]:
@@ -120,12 +134,41 @@ def cmd_trails_get(args: argparse.Namespace) -> None:
     _row("Source", trail.source)
     _row("Length", f"{trail.length_km:.1f} km" if trail.length_km else "unknown")
     _row("Difficulty", trail.difficulty or "unknown")
-    _row("Coordinates", f"{len(trail.coordinates_map)} points")
+    _row("Activity date", trail.activity_date or "none")
+    _row("Activity type", trail.activity_type or "none")
+    _row("Duration", f"{trail.duration_minutes} min" if trail.duration_minutes else "none")
+    if trail.elevation_gain is not None:
+        _row("Elevation gain", f"+{trail.elevation_gain:.0f} m")
+    if trail.elevation_loss is not None:
+        _row("Elevation loss", f"-{trail.elevation_loss:.0f} m")
+    if trail.avg_inclination_deg is not None:
+        _row("Avg inclination", f"{trail.avg_inclination_deg}°")
+    if trail.max_inclination_deg is not None:
+        _row("Max inclination", f"{trail.max_inclination_deg}°")
+    has_elev = any(c.elevation is not None for c in trail.coordinates_map) if trail.coordinates_map else False
+    _row("Coordinates", f"{len(trail.coordinates_map)} points (elevation: {'yes' if has_elev else 'no'})")
     if trail.bounds:
         b = trail.bounds
         _row("Bounds", f"SW({b.south}, {b.west}) NE({b.north}, {b.east})")
     _row("Created", trail.created_at or "unknown")
     _row("Updated", trail.last_updated or "unknown")
+
+
+def cmd_trails_search(args: argparse.Namespace) -> None:
+    """Search trails by name (case-insensitive substring match)."""
+    query = args.query.lower()
+    trails = get_all_trails()
+    matches = [t for t in trails if query in t.name.lower()]
+
+    _header(f"Search: '{args.query}' ({len(matches)} matches)")
+
+    for trail in matches:
+        has_elev = any(c.elevation is not None for c in trail.coordinates_map) if trail.coordinates_map else False
+        dur = f"{trail.duration_minutes}min" if trail.duration_minutes else "-"
+        elev = "elev" if has_elev else "no-elev"
+        print(
+            f"  {trail.trail_id}  {trail.name} | {trail.length_km:.1f}km | {dur} | {elev} | {trail.activity_date or 'no date'}"
+        )
 
 
 def cmd_trails_stats(_args: argparse.Namespace) -> None:
@@ -281,6 +324,151 @@ def cmd_foraging_stats(_args: argparse.Namespace) -> None:
                 print(f"    {m}: {by_month[m]}")
 
 
+# ── Trails import command ─────────────────────────────────────────────────────
+
+
+def _find_duplicate_by_date(activity_date: str, existing_trails: list, tolerance_minutes: int) -> object | None:
+    """Find a duplicate trail by activity date within tolerance."""
+    try:
+        gpx_dt = datetime.fromisoformat(activity_date)
+        if gpx_dt.tzinfo is None:
+            gpx_dt = gpx_dt.replace(tzinfo=UTC)
+    except (ValueError, TypeError):
+        return None
+
+    best_match = None
+    best_delta = float("inf")
+    for trail in existing_trails:
+        if not trail.activity_date:
+            continue
+        try:
+            trail_dt = datetime.fromisoformat(trail.activity_date)
+            if trail_dt.tzinfo is None:
+                trail_dt = trail_dt.replace(tzinfo=UTC)
+            delta = abs((gpx_dt - trail_dt).total_seconds() / 60)
+            if delta < best_delta:
+                best_delta = delta
+                best_match = trail
+        except (ValueError, TypeError):
+            continue
+
+    if best_match and best_delta <= tolerance_minutes:
+        return best_match
+    return None
+
+
+def _find_duplicate(
+    trail_name: str, activity_date: str | None, existing_trails: list, tolerance_minutes: int = 60
+) -> tuple[object | None, str]:
+    """Find an existing trail that matches by date or name.
+
+    Returns (matched_trail, match_method) where match_method is "date", "name",
+    or "" if no match found.
+    """
+    if activity_date:
+        match = _find_duplicate_by_date(activity_date, existing_trails, tolerance_minutes)
+        if match:
+            return match, "date"
+
+    name_matches = [t for t in existing_trails if t.name == trail_name]
+    if len(name_matches) == 1:
+        return name_matches[0], "name"
+
+    return None, ""
+
+
+def _process_trail(trail: object, existing_trails: list, *, duplicates: str, dry_run: bool) -> tuple[str, list]:
+    """Process a single trail for import. Returns (action, updated_trails).
+
+    Action is one of: "imported", "replaced", "skipped".
+    """
+    duplicate, match_method = _find_duplicate(trail.name, trail.activity_date, existing_trails)
+
+    if not duplicate:
+        if dry_run:
+            km = trail.length_km
+            elev = "✓" if trail.elevation_gain is not None else "✗"
+            dur = "✓" if trail.duration_minutes is not None else "✗"
+            print(f"  📋 Would import: {trail.name} ({km:.1f} km, elev={elev}, dur={dur})")
+        else:
+            save_trail(trail, update_sync=False)
+            existing_trails.append(trail)
+            print(f"  ✅ Imported: {trail.name}")
+        return "imported", existing_trails
+
+    label = f"{trail.name} ↔ {duplicate.name} (via {match_method})"
+
+    if duplicates == "skip":
+        print(f"  ⏭️  Duplicate, skipped: {label}")
+        return "skipped", existing_trails
+
+    if duplicates == "replace":
+        if not dry_run:
+            delete_trail(duplicate.trail_id, update_sync=False)
+            save_trail(trail, update_sync=False)
+            existing_trails = [t for t in existing_trails if t.trail_id != duplicate.trail_id]
+            existing_trails.append(trail)
+        print(f"  {'📋 Would replace' if dry_run else '🔄 Replaced'}: {label}")
+        return "replaced", existing_trails
+
+    # keep-both
+    if not dry_run:
+        save_trail(trail, update_sync=False)
+        existing_trails.append(trail)
+    print(f"  {'📋 Would keep both' if dry_run else '\u2795 Keeping both'}: {label}")
+    return "imported", existing_trails
+
+
+def cmd_trails_import(args: argparse.Namespace) -> None:
+    """Import GPX files into Firestore as trails."""
+    gpx_dir = Path(args.gpx_dir)
+    source = getattr(args, "source", "other_trails") or "other_trails"
+    dry_run = getattr(args, "dry_run", False)
+    duplicates = getattr(args, "duplicates", "skip") or "skip"
+
+    if not gpx_dir.is_dir():
+        print(f"  ❌ GPX directory not found: {gpx_dir}")
+        return
+
+    _header("GPX Trail Import")
+    print(f"  Source:     {source}")
+    print(f"  Duplicates: {duplicates}")
+    if dry_run:
+        print("  ⚠️  DRY RUN — no changes will be written")
+    print()
+
+    existing_trails = get_all_trails()
+    print(f"  {len(existing_trails)} existing trails in Firestore")
+
+    gpx_files = sorted(gpx_dir.glob("*.gpx"))
+    print(f"  {len(gpx_files)} GPX files in {gpx_dir}\n")
+
+    counts = {"imported": 0, "replaced": 0, "skipped": 0, "errors": 0}
+
+    for gpx_file in gpx_files:
+        try:
+            content = gpx_file.read_bytes()
+            parsed_trails = parse_gpx_upload(content, source=source)
+        except (ValueError, Exception) as e:
+            counts["errors"] += 1
+            print(f"  ❌ Parse error: {gpx_file.name} — {e}")
+            continue
+
+        for trail in parsed_trails:
+            action, existing_trails = _process_trail(trail, existing_trails, duplicates=duplicates, dry_run=dry_run)
+            counts[action] += 1
+
+    if not dry_run and (counts["imported"] > 0 or counts["replaced"] > 0):
+        update_sync_metadata()
+
+    _header("Summary")
+    _row("Imported", counts["imported"])
+    _row("Replaced", counts["replaced"])
+    _row("Skipped (duplicate)", counts["skipped"])
+    _row("Skipped (parse error)", counts["errors"])
+    _row("Total GPX files", len(gpx_files))
+
+
 # ── Groups commands ──────────────────────────────────────────────────────────
 
 
@@ -312,19 +500,43 @@ MENU_ITEMS = [
     ("1", "Database status", cmd_status),
     ("2", "List trails", cmd_trails_list),
     ("3", "Trail statistics", cmd_trails_stats),
-    ("4", "List places", cmd_places_list),
-    ("5", "Place statistics", cmd_places_stats),
-    ("6", "Search places", cmd_places_search),
-    ("7", "List foraging spots", cmd_foraging_list),
-    ("8", "Foraging types", cmd_foraging_types),
-    ("9", "Foraging statistics", cmd_foraging_stats),
-    ("10", "List hike groups", cmd_groups_list),
+    ("4", "Search trails", cmd_trails_search),
+    ("5", "List places", cmd_places_list),
+    ("6", "Place statistics", cmd_places_stats),
+    ("7", "Search places", cmd_places_search),
+    ("8", "List foraging spots", cmd_foraging_list),
+    ("9", "Foraging types", cmd_foraging_types),
+    ("10", "Foraging statistics", cmd_foraging_stats),
+    ("11", "List hike groups", cmd_groups_list),
+    ("12", "Import GPX trails", cmd_trails_import),
     ("q", "Quit", None),
 ]
 
 
+def _prompt_import_args() -> argparse.Namespace | None:
+    """Prompt for GPX import arguments in interactive mode."""
+    ns = argparse.Namespace()
+    gpx_dir = input("  GPX directory: ").strip()
+    if not gpx_dir:
+        print("  ❌ Empty path")
+        return None
+    ns.gpx_dir = Path(gpx_dir)
+    ns.source = input("  Source [other_trails]: ").strip() or "other_trails"
+    dup = input("  Duplicates — skip/replace/keep-both [skip]: ").strip().lower() or "skip"
+    if dup not in ("skip", "replace", "keep-both"):
+        print("  ❌ Invalid choice")
+        return None
+    ns.duplicates = dup
+    dry = input("  Dry run? [Y/n]: ").strip().lower()
+    ns.dry_run = dry != "n"
+    return ns
+
+
 def _build_interactive_namespace(handler: object) -> argparse.Namespace | None:
     """Build a namespace with extra input for interactive commands."""
+    if handler == cmd_trails_import:
+        return _prompt_import_args()
+
     ns = argparse.Namespace()
     if handler == cmd_places_search:
         ns.query = input("  Search query: ").strip()
@@ -335,6 +547,11 @@ def _build_interactive_namespace(handler: object) -> argparse.Namespace | None:
         ns.trail_id = input("  Trail ID: ").strip()
     elif handler == cmd_trails_list:
         ns.source = None
+    elif handler == cmd_trails_search:
+        ns.query = input("  Search query: ").strip()
+        if not ns.query:
+            print("  \u274c Empty query")
+            return None
     elif handler == cmd_places_list:
         ns.category = None
         ns.limit = 20
@@ -394,6 +611,20 @@ def _build_parser() -> argparse.ArgumentParser:
 
     trails_sub.add_parser("stats", help="Trail statistics")
 
+    trails_search = trails_sub.add_parser("search", help="Search trails by name")
+    trails_search.add_argument("query", help="Search query (substring match)")
+
+    trails_import = trails_sub.add_parser("import", help="Import GPX files into Firestore")
+    trails_import.add_argument("--gpx-dir", required=True, type=Path, help="Directory containing GPX files")
+    trails_import.add_argument("--source", default="other_trails", help="Trail source (other_trails, world_wide_hikes)")
+    trails_import.add_argument(
+        "--duplicates",
+        choices=["skip", "replace", "keep-both"],
+        default="skip",
+        help="How to handle duplicates: skip (default), replace, or keep-both",
+    )
+    trails_import.add_argument("--dry-run", action="store_true", help="Show what would happen")
+
     # places
     places = sub.add_parser("places", help="Place operations")
     places_sub = places.add_subparsers(dest="places_command")
@@ -431,8 +662,14 @@ def _build_parser() -> argparse.ArgumentParser:
 _COMMAND_HANDLERS = {
     "trails": {
         "sub_attr": "trails_command",
-        "handlers": {"list": cmd_trails_list, "get": cmd_trails_get, "stats": cmd_trails_stats},
-        "usage": "trails {list|get|stats}",
+        "handlers": {
+            "list": cmd_trails_list,
+            "get": cmd_trails_get,
+            "stats": cmd_trails_stats,
+            "search": cmd_trails_search,
+            "import": cmd_trails_import,
+        },
+        "usage": "trails {list|get|stats|search|import}",
     },
     "places": {
         "sub_attr": "places_command",

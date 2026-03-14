@@ -21,7 +21,10 @@ def _doc_to_trail(data: dict) -> TrailResponse:
         difficulty=data.get("difficulty", "Unknown"),
         length_km=data.get("length_km", 0.0),
         status=data.get("status", "To Explore"),
-        coordinates_map=[Coordinate(lat=coord["lat"], lng=coord["lng"]) for coord in data.get("coordinates_map", [])],
+        coordinates_map=[
+            Coordinate(lat=coord["lat"], lng=coord["lng"], elevation=coord.get("elevation"))
+            for coord in data.get("coordinates_map", [])
+        ],
         bounds=TrailBounds(
             north=bounds_data.get("north", 0.0),
             south=bounds_data.get("south", 0.0),
@@ -37,6 +40,9 @@ def _doc_to_trail(data: dict) -> TrailResponse:
         activity_type=data.get("activity_type"),
         elevation_gain=data.get("elevation_gain"),
         elevation_loss=data.get("elevation_loss"),
+        duration_minutes=data.get("duration_minutes"),
+        avg_inclination_deg=data.get("avg_inclination_deg"),
+        max_inclination_deg=data.get("max_inclination_deg"),
         created_by=data.get("created_by"),
     )
 
@@ -45,7 +51,10 @@ def _doc_to_trail_details(data: dict) -> TrailDetailsResponse:
     """Convert a Firestore document dict to a TrailDetailsResponse model."""
     return TrailDetailsResponse(
         trail_id=data["trail_id"],
-        coordinates_full=[Coordinate(lat=coord["lat"], lng=coord["lng"]) for coord in data.get("coordinates_full", [])],
+        coordinates_full=[
+            Coordinate(lat=coord["lat"], lng=coord["lng"], elevation=coord.get("elevation"))
+            for coord in data.get("coordinates_full", [])
+        ],
         elevation_profile=data.get("elevation_profile"),
         waypoints=data.get("waypoints"),
         statistics=data.get("statistics"),
@@ -149,13 +158,14 @@ def update_trail(trail_id: str, updates: dict) -> None:
     _update_sync_metadata()
 
 
-def delete_trail(trail_id: str) -> None:
+def delete_trail(trail_id: str, *, update_sync: bool = True) -> None:
     """Delete a trail and its details from Firestore."""
     validate_document_id(trail_id, field_name="trail_id")
     logger.info("Deleting trail %s", trail_id)
     get_collection("trails").document(trail_id).delete()
     get_collection("trail_details").document(trail_id).delete()
-    _update_sync_metadata()
+    if update_sync:
+        _update_sync_metadata()
 
 
 def get_sync_metadata() -> SyncMetadata:

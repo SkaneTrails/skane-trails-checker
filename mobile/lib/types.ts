@@ -31,6 +31,9 @@ export interface Trail {
   activity_type?: string | null;
   elevation_gain?: number | null;
   elevation_loss?: number | null;
+  duration_minutes?: number | null;
+  avg_inclination_deg?: number | null;
+  max_inclination_deg?: number | null;
 }
 
 // Full trail details with all coordinates and elevation

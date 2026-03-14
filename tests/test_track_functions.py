@@ -142,6 +142,25 @@ def test_simplify_track_coordinates_single_point() -> None:
     assert result == coordinates
 
 
+def test_simplify_track_coordinates_3d() -> None:
+    """Test 3D coordinate simplification preserves elevation."""
+    coordinates = [
+        (56.0, 13.0, 100.0),
+        (56.01, 13.01, 120.0),
+        (56.02, 13.02, 140.0),
+        (56.03, 13.03, 130.0),
+        (56.1, 13.1, 200.0),
+    ]
+
+    result = simplify_track_coordinates(coordinates, tolerance=0.001)
+
+    assert len(result) <= len(coordinates)
+    # First and last points preserved with elevation
+    assert len(result[0]) == 3
+    assert result[0] == (56.0, 13.0, 100.0)
+    assert result[-1] == (56.1, 13.1, 200.0)
+
+
 # Tests for filter_trails (Trail objects from Firestore)
 
 

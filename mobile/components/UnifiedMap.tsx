@@ -26,6 +26,7 @@ interface UnifiedMapProps {
   foragingTypes: ForagingType[];
   places: Place[];
   layers: MapLayers;
+  selectedTrailId?: string | null;
   onTrailSelect?: (trail: Trail) => void;
   onSpotSelect?: (spot: ForagingSpot) => void;
   onPlaceSelect?: (place: Place) => void;
@@ -59,6 +60,7 @@ export function UnifiedMap({
   foragingTypes,
   places,
   layers,
+  selectedTrailId,
   onTrailSelect,
   onSpotSelect,
   onPlaceSelect,
@@ -79,6 +81,9 @@ export function UnifiedMap({
 
   const callbackRefs = useRef({ onTrailSelect, onSpotSelect, onPlaceSelect, onMapClick });
   callbackRefs.current = { onTrailSelect, onSpotSelect, onPlaceSelect, onMapClick };
+
+  const selectedTrailIdRef = useRef(selectedTrailId);
+  selectedTrailIdRef.current = selectedTrailId;
 
   const colorsRef = useRef<ColorTokens>(colors);
   colorsRef.current = colors;
@@ -173,12 +178,14 @@ export function UnifiedMap({
 
         const latlngs = trail.coordinates_map.map((c) => [c.lat, c.lng] as [number, number]);
         const isExplored = trail.status === 'Explored!';
+        const isSelected = trail.trail_id === selectedTrailIdRef.current;
         const color = isExplored ? colorsRef.current.explored : colorsRef.current.toExplore;
+        const baseWeight = isExplored ? 4 : 3;
 
         const polyline = L.polyline(latlngs, {
           color,
-          weight: isExplored ? 4 : 3,
-          opacity: 0.85,
+          weight: isSelected ? baseWeight + 3 : baseWeight,
+          opacity: isSelected ? 1 : 0.85,
           lineCap: 'round',
           lineJoin: 'round',
         }).addTo(group);
@@ -188,7 +195,7 @@ export function UnifiedMap({
         });
       }
     });
-  }, [trails, layers.trails, mapReady]);
+  }, [trails, layers.trails, mapReady, selectedTrailId]);
 
   // Update foraging layer — colored dots
   useEffect(() => {
