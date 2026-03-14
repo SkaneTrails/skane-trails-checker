@@ -1,5 +1,6 @@
 """Tests for trail_converter module."""
 
+from datetime import UTC, datetime
 from unittest.mock import MagicMock
 
 import gpxpy.gpx
@@ -261,6 +262,115 @@ class TestGpxTrackToTrail:
 
         assert result1.trail_id == result2.trail_id
         assert len(result1.trail_id) == 12  # MD5 hash truncated to 12 chars
+
+    def test_preserves_elevation_in_coordinates(self) -> None:
+        mock_track = MagicMock(spec=gpxpy.gpx.GPXTrack)
+        mock_track.name = "Elevation Coords"
+        mock_track.type = None
+
+        mock_segment = MagicMock()
+        mock_segment.points = [
+            MagicMock(latitude=55.0, longitude=13.0, elevation=100.0, time=None),
+            MagicMock(latitude=55.01, longitude=13.01, elevation=150.0, time=None),
+            MagicMock(latitude=55.02, longitude=13.02, elevation=120.0, time=None),
+        ]
+        mock_track.segments = [mock_segment]
+
+        result = gpx_track_to_trail(mock_track, source="test_source", index=0)
+
+        assert all(c.elevation is not None for c in result.coordinates_map)
+        elevations = [c.elevation for c in result.coordinates_map]
+        assert elevations[0] == 100.0
+
+    def test_no_elevation_in_coordinates_when_missing(self) -> None:
+        mock_track = MagicMock(spec=gpxpy.gpx.GPXTrack)
+        mock_track.name = "No Elevation"
+        mock_track.type = None
+
+        mock_segment = MagicMock()
+        mock_segment.points = [
+            MagicMock(latitude=55.0, longitude=13.0, elevation=None, time=None),
+            MagicMock(latitude=55.01, longitude=13.01, elevation=None, time=None),
+        ]
+        mock_track.segments = [mock_segment]
+
+        result = gpx_track_to_trail(mock_track, source="test_source", index=0)
+
+        assert all(c.elevation is None for c in result.coordinates_map)
+
+    def test_extracts_duration_from_timestamps(self) -> None:
+        mock_track = MagicMock(spec=gpxpy.gpx.GPXTrack)
+        mock_track.name = "Duration Test"
+        mock_track.type = None
+
+        t1 = datetime(2025, 6, 15, 10, 0, 0, tzinfo=UTC)
+        t2 = datetime(2025, 6, 15, 11, 30, 0, tzinfo=UTC)
+        t3 = datetime(2025, 6, 15, 13, 15, 0, tzinfo=UTC)
+
+        mock_segment = MagicMock()
+        mock_segment.points = [
+            MagicMock(latitude=55.0, longitude=13.0, elevation=100.0, time=t1),
+            MagicMock(latitude=55.01, longitude=13.01, elevation=110.0, time=t2),
+            MagicMock(latitude=55.02, longitude=13.02, elevation=105.0, time=t3),
+        ]
+        mock_track.segments = [mock_segment]
+
+        result = gpx_track_to_trail(mock_track, source="test_source", index=0)
+
+        assert result.duration_minutes == 195  # 3h 15m
+
+    def test_no_duration_without_timestamps(self) -> None:
+        mock_track = MagicMock(spec=gpxpy.gpx.GPXTrack)
+        mock_track.name = "No Time"
+        mock_track.type = None
+
+        mock_segment = MagicMock()
+        mock_segment.points = [
+            MagicMock(latitude=55.0, longitude=13.0, elevation=100.0, time=None),
+            MagicMock(latitude=55.01, longitude=13.01, elevation=110.0, time=None),
+        ]
+        mock_track.segments = [mock_segment]
+
+        result = gpx_track_to_trail(mock_track, source="test_source", index=0)
+
+        assert result.duration_minutes is None
+
+    def test_computes_inclination(self) -> None:
+        mock_track = MagicMock(spec=gpxpy.gpx.GPXTrack)
+        mock_track.name = "Inclination Test"
+        mock_track.type = None
+
+        mock_segment = MagicMock()
+        mock_segment.points = [
+            MagicMock(latitude=55.0, longitude=13.0, elevation=100.0, time=None),
+            MagicMock(latitude=55.01, longitude=13.01, elevation=200.0, time=None),
+            MagicMock(latitude=55.02, longitude=13.02, elevation=190.0, time=None),
+        ]
+        mock_track.segments = [mock_segment]
+
+        result = gpx_track_to_trail(mock_track, source="test_source", index=0)
+
+        assert result.avg_inclination_deg is not None
+        assert result.max_inclination_deg is not None
+        assert result.avg_inclination_deg > 0
+        assert result.max_inclination_deg >= result.avg_inclination_deg
+
+    def test_no_inclination_without_elevation(self) -> None:
+        mock_track = MagicMock(spec=gpxpy.gpx.GPXTrack)
+        mock_track.name = "No Inclination"
+        mock_track.type = None
+
+        mock_segment = MagicMock()
+        mock_segment.points = [
+            MagicMock(latitude=55.0, longitude=13.0, elevation=None, time=None),
+            MagicMock(latitude=55.01, longitude=13.01, elevation=None, time=None),
+        ]
+        mock_track.segments = [mock_segment]
+
+        result = gpx_track_to_trail(mock_track, source="test_source", index=0)
+
+        assert result.avg_inclination_deg is None
+        assert result.max_inclination_deg is None
 
 
 class TestLoadTrailsFromGpxData:

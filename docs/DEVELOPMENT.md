@@ -219,7 +219,39 @@ curl -X POST http://localhost:8000/api/v1/trails/upload \
   -F "source=other_trails"
 ```
 
-See [dev-tools/README.md](../dev-tools/README.md) for additional data import and management scripts.
+### Bulk GPX Import (CLI)
+
+Import GPX files directly into Firestore using the database manager:
+
+```bash
+# Import a folder of GPX files
+uv run python dev-tools/db_manager.py trails import path/to/gpx/ --source other_trails
+
+# Preview first
+uv run python dev-tools/db_manager.py trails import path/to/gpx/ --dry-run
+```
+
+Includes duplicate detection (by date ±60min, then name). See [dev-tools/README.md](../dev-tools/README.md) for full options.
+
+### Database Management
+
+The `db_manager.py` tool provides interactive and CLI access to all Firestore collections:
+
+```bash
+# Interactive menu
+uv run python dev-tools/db_manager.py
+
+# Search trails
+uv run python dev-tools/db_manager.py trails search "söderåsen"
+
+# View full trail details
+uv run python dev-tools/db_manager.py trails get <trail_id>
+
+# Collection overview
+uv run python dev-tools/db_manager.py status
+```
+
+See [dev-tools/README.md](../dev-tools/README.md) for the complete command reference.
 
 ## Authentication
 

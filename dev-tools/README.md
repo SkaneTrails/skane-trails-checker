@@ -204,7 +204,14 @@ uv run python dev-tools/db_manager.py status
 uv run python dev-tools/db_manager.py trails list
 uv run python dev-tools/db_manager.py trails list --source planned_hikes
 uv run python dev-tools/db_manager.py trails get <trail_id>
+uv run python dev-tools/db_manager.py trails search "söderåsen"
 uv run python dev-tools/db_manager.py trails stats
+
+# Import GPX files (with duplicate detection)
+uv run python dev-tools/db_manager.py trails import path/to/file.gpx
+uv run python dev-tools/db_manager.py trails import path/to/folder/ --source other_trails
+uv run python dev-tools/db_manager.py trails import path/to/folder/ --dry-run
+uv run python dev-tools/db_manager.py trails import path/to/folder/ --duplicates replace
 
 # Places
 uv run python dev-tools/db_manager.py places list
@@ -224,6 +231,55 @@ uv run python dev-tools/db_manager.py groups list
 ```
 
 The tool shows the connected project and database on every run. If credentials are missing, it displays a clear error message with setup instructions.
+
+#### Trail Search
+
+Case-insensitive substring search across trail names:
+
+```bash
+uv run python dev-tools/db_manager.py trails search "vellinge"
+```
+
+Output includes trail ID, name, distance, duration, elevation status, and activity date.
+
+#### Trail Details
+
+`trails get` shows all available metadata for a trail:
+
+- Name, status, source, length, difficulty
+- Activity date and type (walking, cycling, etc.)
+- Duration, elevation gain/loss, inclination (avg/max)
+- Coordinate count and whether they include elevation data
+- Geographic bounds
+- Timestamps (created, updated)
+
+#### GPX Import
+
+Import GPX files into Firestore with automatic duplicate detection:
+
+```bash
+# Single file
+uv run python dev-tools/db_manager.py trails import path/to/file.gpx
+
+# Entire folder (recursive)
+uv run python dev-tools/db_manager.py trails import path/to/folder/
+
+# Preview without writing
+uv run python dev-tools/db_manager.py trails import path/to/folder/ --dry-run
+
+# Set trail source (default: other_trails)
+uv run python dev-tools/db_manager.py trails import path/to/folder/ --source world_wide_hikes
+```
+
+**Duplicate detection** matches by activity date (±60 min window), falling back to exact name match. Control behavior with `--duplicates`:
+
+| Flag                     | Behavior                          |
+| ------------------------ | --------------------------------- |
+| `--duplicates skip`      | Skip duplicates (default)         |
+| `--duplicates replace`   | Overwrite existing with new data  |
+| `--duplicates keep-both` | Import as new trail alongside old |
+
+The import pipeline preserves elevation data, extracts duration from timestamps, and computes inclination metrics.
 
 ## Other Tools
 

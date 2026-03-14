@@ -100,6 +100,7 @@ const en = {
     typeLabel: 'Type',
     trackPoints: 'Track Points',
     trailName: 'Trail Name',
+    nameLabel: 'Name',
     rename: 'Rename',
     deleteTrail: 'Delete',
     deleteConfirm: 'Delete "{{name}}"? This cannot be undone.',

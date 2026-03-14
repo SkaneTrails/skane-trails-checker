@@ -8,6 +8,7 @@ class Coordinate(BaseModel):
 
     lat: float
     lng: float
+    elevation: float | None = None
 
 
 class TrailBounds(BaseModel):
@@ -38,6 +39,9 @@ class TrailResponse(BaseModel):
     activity_type: str | None = None
     elevation_gain: float | None = None
     elevation_loss: float | None = None
+    duration_minutes: int | None = None
+    avg_inclination_deg: float | None = None
+    max_inclination_deg: float | None = None
     created_by: str | None = Field(default=None, exclude=True)
 
     def to_dict(self) -> dict:
@@ -48,7 +52,14 @@ class TrailResponse(BaseModel):
             "difficulty": self.difficulty,
             "length_km": float(self.length_km),
             "status": self.status,
-            "coordinates_map": [{"lat": float(c.lat), "lng": float(c.lng)} for c in self.coordinates_map],
+            "coordinates_map": [
+                {
+                    "lat": float(c.lat),
+                    "lng": float(c.lng),
+                    **({"elevation": float(c.elevation)} if c.elevation is not None else {}),
+                }
+                for c in self.coordinates_map
+            ],
             "bounds": {
                 "north": float(self.bounds.north),
                 "south": float(self.bounds.south),
@@ -59,21 +70,30 @@ class TrailResponse(BaseModel):
             "source": self.source,
             "last_updated": self.last_updated,
         }
-        if self.activity_date is not None:
-            data["activity_date"] = self.activity_date
-        if self.activity_type is not None:
-            data["activity_type"] = self.activity_type
-        if self.created_at is not None:
-            data["created_at"] = self.created_at
-        if self.modified_at is not None:
-            data["modified_at"] = self.modified_at
-        if self.elevation_gain is not None:
-            data["elevation_gain"] = float(self.elevation_gain)
-        if self.elevation_loss is not None:
-            data["elevation_loss"] = float(self.elevation_loss)
-        if self.created_by is not None:
-            data["created_by"] = self.created_by
+        self._add_optional_fields(data)
         return data
+
+    def _add_optional_fields(self, data: dict) -> None:
+        """Add optional fields to the dictionary if they are set."""
+        optional_str = {
+            "activity_date": self.activity_date,
+            "activity_type": self.activity_type,
+            "created_at": self.created_at,
+            "modified_at": self.modified_at,
+            "created_by": self.created_by,
+        }
+        data.update({k: v for k, v in optional_str.items() if v is not None})
+
+        optional_float = {
+            "elevation_gain": self.elevation_gain,
+            "elevation_loss": self.elevation_loss,
+            "avg_inclination_deg": self.avg_inclination_deg,
+            "max_inclination_deg": self.max_inclination_deg,
+        }
+        data.update({k: float(v) for k, v in optional_float.items() if v is not None})
+
+        if self.duration_minutes is not None:
+            data["duration_minutes"] = self.duration_minutes
 
 
 class TrailDetailsResponse(BaseModel):
@@ -89,7 +109,14 @@ class TrailDetailsResponse(BaseModel):
         """Convert to dictionary for Firestore storage."""
         data = {
             "trail_id": self.trail_id,
-            "coordinates_full": [{"lat": float(c.lat), "lng": float(c.lng)} for c in self.coordinates_full],
+            "coordinates_full": [
+                {
+                    "lat": float(c.lat),
+                    "lng": float(c.lng),
+                    **({"elevation": float(c.elevation)} if c.elevation is not None else {}),
+                }
+                for c in self.coordinates_full
+            ],
         }
         if self.elevation_profile is not None:
             data["elevation_profile"] = [float(x) for x in self.elevation_profile]

@@ -22,7 +22,13 @@ class TestCoordinate:
     def test_coordinate_serialization(self):
         coord = Coordinate(lat=56.0, lng=13.5)
         data = coord.model_dump()
-        assert data == {"lat": 56.0, "lng": 13.5}
+        assert data == {"lat": 56.0, "lng": 13.5, "elevation": None}
+
+    def test_coordinate_with_elevation(self):
+        coord = Coordinate(lat=56.0, lng=13.5, elevation=120.5)
+        assert coord.elevation == 120.5
+        data = coord.model_dump()
+        assert data == {"lat": 56.0, "lng": 13.5, "elevation": 120.5}
 
 
 class TestTrailBounds:

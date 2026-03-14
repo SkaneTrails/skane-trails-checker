@@ -49,7 +49,7 @@ SAMPLE_TRAIL = {
     "difficulty": "medium",
     "length_km": 8.5,
     "status": "To Explore",
-    "coordinates_map": [{"lat": 56.0, "lng": 13.0}, {"lat": 56.1, "lng": 13.1}],
+    "coordinates_map": [{"lat": 56.0, "lng": 13.0, "elevation": 100.0}, {"lat": 56.1, "lng": 13.1, "elevation": 220.5}],
     "bounds": {"north": 56.1, "south": 56.0, "east": 13.1, "west": 13.0},
     "center": {"lat": 56.05, "lng": 13.05},
     "source": "other_trails",
@@ -60,6 +60,9 @@ SAMPLE_TRAIL = {
     "activity_type": "hiking",
     "elevation_gain": 120.5,
     "elevation_loss": 115.0,
+    "duration_minutes": 195,
+    "avg_inclination_deg": 3.2,
+    "max_inclination_deg": 12.5,
 }
 
 SAMPLE_TRAIL_DETAILS = {
@@ -103,6 +106,11 @@ class TestDocToTrail:
         assert trail.activity_type == "hiking"
         assert trail.elevation_gain == 120.5
         assert trail.elevation_loss == 115.0
+        assert trail.duration_minutes == 195
+        assert trail.avg_inclination_deg == 3.2
+        assert trail.max_inclination_deg == 12.5
+        assert trail.coordinates_map[0].elevation == 100.0
+        assert trail.coordinates_map[1].elevation == 220.5
 
     def test_minimal_document_fills_defaults(self, mock_collection) -> None:
         """Trail with only required fields should populate defaults."""
@@ -127,6 +135,9 @@ class TestDocToTrail:
         assert trail.activity_type is None
         assert trail.elevation_gain is None
         assert trail.elevation_loss is None
+        assert trail.duration_minutes is None
+        assert trail.avg_inclination_deg is None
+        assert trail.max_inclination_deg is None
         assert trail.created_by is None
 
     def test_maps_created_by(self, mock_collection) -> None:
@@ -355,6 +366,7 @@ class TestSaveTrail:
         assert saved_data["last_updated"] == "2026-06-15T10:00:00Z"
         assert saved_data["created_at"] == "2026-06-15T10:00:00Z"
         assert saved_data["coordinates_map"] == [{"lat": 56.0, "lng": 13.0}]
+        assert "duration_minutes" not in saved_data
         mock_sync.assert_called_once()
 
     @patch("api.storage.trail_storage._update_sync_metadata")
@@ -455,6 +467,56 @@ class TestTrailResponseToDict:
         assert result["activity_date"] == "2025-12-15"
         assert result["elevation_gain"] == 120.5
 
+    def test_full_trail_to_dict_includes_new_fields(self) -> None:
+        trail = TrailResponse(
+            trail_id="t1",
+            name="Full Trail",
+            difficulty="hard",
+            length_km=15.0,
+            status="Explored!",
+            coordinates_map=[
+                Coordinate(lat=56.0, lng=13.0, elevation=100.0),
+                Coordinate(lat=56.1, lng=13.1, elevation=250.0),
+            ],
+            bounds=TrailBounds(north=56.1, south=56.0, east=13.1, west=13.0),
+            center=Coordinate(lat=56.05, lng=13.05),
+            source="other_trails",
+            last_updated="2026-01-01",
+            duration_minutes=195,
+            avg_inclination_deg=3.2,
+            max_inclination_deg=12.5,
+            elevation_gain=350.0,
+            elevation_loss=280.0,
+        )
+
+        result = trail.to_dict()
+
+        assert result["duration_minutes"] == 195
+        assert result["avg_inclination_deg"] == 3.2
+        assert result["max_inclination_deg"] == 12.5
+        assert result["coordinates_map"] == [
+            {"lat": 56.0, "lng": 13.0, "elevation": 100.0},
+            {"lat": 56.1, "lng": 13.1, "elevation": 250.0},
+        ]
+
+    def test_to_dict_omits_elevation_when_none(self) -> None:
+        trail = TrailResponse(
+            trail_id="t1",
+            name="No Elevation",
+            difficulty="easy",
+            length_km=5.0,
+            status="To Explore",
+            coordinates_map=[Coordinate(lat=56.0, lng=13.0)],
+            bounds=TrailBounds(north=56.0, south=56.0, east=13.0, west=13.0),
+            center=Coordinate(lat=56.0, lng=13.0),
+            source="other_trails",
+            last_updated="2026-01-01",
+        )
+
+        result = trail.to_dict()
+
+        assert result["coordinates_map"] == [{"lat": 56.0, "lng": 13.0}]
+
     def test_minimal_trail_to_dict_omits_optional_fields(self) -> None:
         trail = TrailResponse(
             trail_id="t2",
@@ -477,6 +539,9 @@ class TestTrailResponseToDict:
         assert "modified_at" not in result
         assert "elevation_gain" not in result
         assert "elevation_loss" not in result
+        assert "duration_minutes" not in result
+        assert "avg_inclination_deg" not in result
+        assert "max_inclination_deg" not in result
 
 
 class TestTrailDetailsToDict:
@@ -496,8 +561,15 @@ class TestTrailDetailsToDict:
         assert result["trail_id"] == "t1"
         assert result["coordinates_full"] == [{"lat": 56.0, "lng": 13.0}]
         assert result["elevation_profile"] == [100.0]
-        assert result["waypoints"] == [{"name": "Start"}]
-        assert result["statistics"] == {"total_km": 5.0}
+
+    def test_details_to_dict_with_elevation(self) -> None:
+        details = TrailDetailsResponse(
+            trail_id="t1", coordinates_full=[Coordinate(lat=56.0, lng=13.0, elevation=100.0)]
+        )
+
+        result = details.to_dict()
+
+        assert result["coordinates_full"] == [{"lat": 56.0, "lng": 13.0, "elevation": 100.0}]
 
     def test_minimal_details_to_dict(self) -> None:
         details = TrailDetailsResponse(trail_id="t2", coordinates_full=[])

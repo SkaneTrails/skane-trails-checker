@@ -100,6 +100,7 @@ const sv: Translations = {
     typeLabel: 'Typ',
     trackPoints: 'Spårpunkter',
     trailName: 'Lednamn',
+    nameLabel: 'Namn',
     rename: 'Byt namn',
     deleteTrail: 'Radera',
     deleteConfirm: 'Radera "{{name}}"? Detta kan inte ångras.',

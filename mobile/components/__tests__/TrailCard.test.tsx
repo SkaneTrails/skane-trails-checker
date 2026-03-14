@@ -2,10 +2,21 @@ import { fireEvent, render, screen } from '@testing-library/react';
 import type { Trail } from '@/lib/types';
 import { TrailCard } from '../TrailCard';
 
+vi.mock('react-native-svg', () => {
+  const React = require('react');
+  return {
+    __esModule: true,
+    default: (props: any) => React.createElement('svg', props),
+    Path: (props: any) => React.createElement('path', props),
+    Text: (props: any) => React.createElement('text', props),
+  };
+});
+
 vi.mock('@/lib/theme', () => ({
   useTheme: () => ({
     colors: {
       surface: '#fff',
+      border: '#ccc',
       text: { primary: '#000', secondary: '#666', muted: '#999', inverse: '#fff' },
       primary: '#2E7D32',
       status: {
@@ -29,8 +40,8 @@ vi.mock('@/lib/theme', () => ({
       elevated: { shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.15, shadowRadius: 8, elevation: 4 },
     },
   }),
-  borderRadius: { sm: 4, md: 8, lg: 12 },
-  fontSize: { xs: 10, sm: 12, md: 14, lg: 16, xl: 20 },
+  borderRadius: { sm: 4, md: 8, lg: 12, xl: 16, full: 9999 },
+  fontSize: { xs: 10, sm: 12, md: 14, lg: 16, xl: 20, xxl: 24 },
   fontWeight: { semibold: '600', bold: '700' },
   spacing: { xs: 4, sm: 8, md: 12, lg: 16, xl: 20 },
 }));
@@ -42,70 +53,92 @@ const baseTrail: Trail = {
   source: 'planned_hikes',
   length_km: 12.5,
   difficulty: 'Medium',
-  coordinates_map: [],
+  coordinates_map: [
+    { lat: 56.0, lng: 13.0, elevation: 100 },
+    { lat: 56.01, lng: 13.01, elevation: 150 },
+    { lat: 56.02, lng: 13.02, elevation: 120 },
+  ],
   bounds: { north: 56, south: 55, east: 14, west: 13 },
   center: { lat: 55.5, lng: 13.5 },
   last_updated: '2026-01-01T00:00:00Z',
   elevation_gain: 320,
   elevation_loss: 310,
+  duration_minutes: 195,
+  avg_inclination_deg: 3.2,
+  max_inclination_deg: 12.5,
 };
 
 describe('TrailCard', () => {
-  it('renders trail name and status', () => {
-    render(<TrailCard trail={baseTrail} onViewDetails={vi.fn()} onClose={vi.fn()} />);
+  it('renders trail name via MapInfoCard title', () => {
+    render(<TrailCard trail={baseTrail} onClose={vi.fn()} />);
 
     expect(screen.getByText('Söderåsen Loop')).toBeDefined();
-    expect(screen.getByText('Explored!')).toBeDefined();
   });
 
-  it('renders distance and difficulty', () => {
-    render(<TrailCard trail={baseTrail} onViewDetails={vi.fn()} onClose={vi.fn()} />);
+  it('renders distance', () => {
+    render(<TrailCard trail={baseTrail} onClose={vi.fn()} />);
 
     expect(screen.getByText('12.5 km')).toBeDefined();
-    expect(screen.getByText('Medium')).toBeDefined();
   });
 
-  it('renders source with underscores replaced', () => {
-    render(<TrailCard trail={baseTrail} onViewDetails={vi.fn()} onClose={vi.fn()} />);
+  it('renders formatted duration', () => {
+    render(<TrailCard trail={baseTrail} onClose={vi.fn()} />);
 
-    expect(screen.getByText('planned hikes')).toBeDefined();
+    expect(screen.getByText('3h 15m')).toBeDefined();
   });
 
   it('renders elevation gain and loss', () => {
-    render(<TrailCard trail={baseTrail} onViewDetails={vi.fn()} onClose={vi.fn()} />);
+    render(<TrailCard trail={baseTrail} onClose={vi.fn()} />);
 
-    expect(screen.getByText('+320 m')).toBeDefined();
-    expect(screen.getByText('-310 m')).toBeDefined();
+    expect(screen.getByText('↑ 320 m')).toBeDefined();
+    expect(screen.getByText('↓ 310 m')).toBeDefined();
+  });
+
+  it('hides duration when not provided', () => {
+    const trail = { ...baseTrail, duration_minutes: null };
+    render(<TrailCard trail={trail} onClose={vi.fn()} />);
+
+    expect(screen.queryByText(/\dh/)).toBeNull();
   });
 
   it('hides elevation when not provided', () => {
     const trail = { ...baseTrail, elevation_gain: null, elevation_loss: null };
-    render(<TrailCard trail={trail} onViewDetails={vi.fn()} onClose={vi.fn()} />);
+    render(<TrailCard trail={trail} onClose={vi.fn()} />);
 
-    expect(screen.queryByText(/\+\d+ m/)).toBeNull();
-    expect(screen.queryByText(/-\d+ m/)).toBeNull();
+    expect(screen.queryByText(/↑/)).toBeNull();
+    expect(screen.queryByText(/↓/)).toBeNull();
   });
 
-  it('hides difficulty when not provided', () => {
-    const trail = { ...baseTrail, difficulty: '' };
-    render(<TrailCard trail={trail} onViewDetails={vi.fn()} onClose={vi.fn()} />);
+  it('enters edit mode when edit button pressed', () => {
+    render(<TrailCard trail={baseTrail} onClose={vi.fn()} onUpdate={vi.fn()} />);
 
-    expect(screen.queryByText('Medium')).toBeNull();
-  });
-
-  it('calls onViewDetails with trail when button pressed', () => {
-    const onViewDetails = vi.fn();
-    render(<TrailCard trail={baseTrail} onViewDetails={onViewDetails} onClose={vi.fn()} />);
-
-    fireEvent.click(screen.getByText('trailCard.viewDetails'));
-    expect(onViewDetails).toHaveBeenCalledWith(baseTrail);
+    fireEvent.click(screen.getByLabelText('trailCard.edit'));
+    // In edit mode, the title changes to the edit label
+    expect(screen.getByText('trailCard.edit')).toBeDefined();
   });
 
   it('calls onClose when close button pressed', () => {
     const onClose = vi.fn();
-    render(<TrailCard trail={baseTrail} onViewDetails={vi.fn()} onClose={onClose} />);
+    render(<TrailCard trail={baseTrail} onClose={onClose} />);
 
     fireEvent.click(screen.getByLabelText('Close'));
     expect(onClose).toHaveBeenCalled();
+  });
+
+  it('calls onUpdate with changed name when saving', () => {
+    const onUpdate = vi.fn();
+    render(<TrailCard trail={baseTrail} onClose={vi.fn()} onUpdate={onUpdate} />);
+
+    fireEvent.click(screen.getByLabelText('trailCard.edit'));
+
+    const nameInput = screen.getByDisplayValue('Söderåsen Loop');
+    fireEvent.change(nameInput, { target: { value: 'New Name' } });
+    fireEvent.click(screen.getByText('common.save'));
+
+    expect(onUpdate).toHaveBeenCalledWith(
+      'trail-1',
+      { name: 'New Name' },
+      expect.any(Function),
+    );
   });
 });

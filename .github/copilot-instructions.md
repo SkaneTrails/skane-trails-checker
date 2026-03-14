@@ -37,6 +37,7 @@ You are collaborating with a human who may make changes between your edits:
 - **Compare alternatives** - when the user suggests a different approach, analyze both and explain tradeoffs
 - **Troubleshoot step-by-step** - suggest one fix at a time and wait for results
 - **Exploratory questions → answer only** - when asked "how", "why", or "what would change", answer only. NEVER start implementing
+- **Answer questions before acting** - when the user asks a question (including "why did you do X?"), answer the question first. Do not silently correct or move on. Ask before proceeding to fix
 - **Assess test coverage for bugs** - see `python-style-guide.instructions.md` Testing section
 - **Track iterations** - when a command fails, IMMEDIATELY log to Failure Tracking in `.copilot-tasks.md` BEFORE retrying
 - **Plan before non-trivial changes** - present a plan and save to `.copilot-tasks.md`. Non-trivial = affects multiple consumers, alters interfaces, introduces patterns, or has side effects

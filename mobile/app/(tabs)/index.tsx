@@ -1,17 +1,25 @@
-import { useRouter } from 'expo-router';
 import { useCallback, useMemo, useState } from 'react';
-import { ActivityIndicator, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
-import { Button, EmptyState, ScreenLayout, StatusBadge } from '@/components';
-import { BottomSheet } from '@/components/BottomSheet';
+import { ActivityIndicator, Platform, Pressable, StyleSheet, View } from 'react-native';
+import { EmptyState, ScreenLayout } from '@/components';
 import { FloatingButton } from '@/components/FloatingButton';
+import { FloatingCardOverlay } from '@/components/FloatingCardOverlay';
+import { ForagingSpotCard } from '@/components/ForagingSpotCard';
 import { LayerToggle, type MapLayer } from '@/components/LayerToggle';
-import { PlaceCategoryIcon } from '@/components/PlaceCategoryIcon';
+import { PlaceCard } from '@/components/PlaceCard';
 import { TabIcon } from '@/components/TabIcon';
+import { TrailCard } from '@/components/TrailCard';
 import { type MapLayers, UnifiedMap } from '@/components/UnifiedMap';
-import { useForagingSpots, useForagingTypes, usePlaces, useTrails } from '@/lib/hooks';
+import {
+  useForagingSpots,
+  useForagingTypes,
+  usePlaces,
+  useTrails,
+  useUpdateForagingSpot,
+  useUpdateTrail,
+} from '@/lib/hooks';
 import { useTranslation } from '@/lib/i18n';
 import { useSettings } from '@/lib/settings-context';
-import { borderRadius, fontSize, fontWeight, letterSpacing, spacing, useTheme } from '@/lib/theme';
+import { spacing, useTheme } from '@/lib/theme';
 import { glassPill } from '@/lib/theme/styles';
 import type { ForagingSpot, Place, Trail } from '@/lib/types';
 
@@ -23,13 +31,14 @@ type SelectedItem =
 export default function MapScreen() {
   const { colors, shadows } = useTheme();
   const { t } = useTranslation();
-  const router = useRouter();
   const { enabledPlaceCategories } = useSettings();
 
   const { data: trails, isFetching: trailsFetching } = useTrails();
   const { data: spots } = useForagingSpots(undefined, { enabled: Platform.OS === 'web' });
   const { data: types } = useForagingTypes({ enabled: Platform.OS === 'web' });
   const { data: places } = usePlaces();
+  const updateTrail = useUpdateTrail();
+  const updateSpot = useUpdateForagingSpot();
 
   const filteredPlaces = useMemo(
     () =>
@@ -70,6 +79,22 @@ export default function MapScreen() {
     setSelected({ type: 'place', data: place });
   }, []);
 
+  const handleTrailUpdate = useCallback(
+    (trailId: string, data: Parameters<typeof updateTrail.mutate>[0]['data'], onSuccess: () => void) => {
+      updateTrail.mutate({ id: trailId, data }, { onSuccess });
+    },
+    [updateTrail],
+  );
+
+  const handleSpotUpdate = useCallback(
+    (id: string, data: Parameters<typeof updateSpot.mutate>[0]['data'], onSuccess: () => void) => {
+      updateSpot.mutate({ id, data }, { onSuccess });
+    },
+    [updateSpot],
+  );
+
+  const selectedTrailId = selected?.type === 'trail' ? selected.data.trail_id : null;
+
   if (Platform.OS !== 'web') {
     return (
       <ScreenLayout>
@@ -86,6 +111,7 @@ export default function MapScreen() {
         foragingTypes={types ?? []}
         places={filteredPlaces}
         layers={mapLayers}
+        selectedTrailId={selectedTrailId}
         onTrailSelect={handleTrailSelect}
         onSpotSelect={handleSpotSelect}
         onPlaceSelect={handlePlaceSelect}
@@ -98,7 +124,12 @@ export default function MapScreen() {
 
       {/* Settings button (top-right) */}
       <Pressable
-        onPress={() => router.push('/settings' as never)}
+        onPress={() => {
+          // Dynamic import to avoid pulling router into non-web
+          // eslint-disable-next-line @typescript-eslint/no-require-imports
+          const { router } = require('expo-router');
+          router.push('/settings');
+        }}
         accessibilityRole="button"
         accessibilityLabel={t('settings.title')}
         style={[styles.settingsButton, glassPill(colors.glass), shadows.subtle]}
@@ -120,97 +151,33 @@ export default function MapScreen() {
         </View>
       )}
 
-      {/* Bottom sheet for selected item */}
-      <BottomSheet isOpen={!!selected} onClose={() => setSelected(null)}>
+      {/* Floating card for selected item */}
+      <FloatingCardOverlay isOpen={!!selected} onClose={() => setSelected(null)}>
         {selected?.type === 'trail' && (
-          <View style={styles.sheetContent}>
-            <View style={styles.sheetHeader}>
-              <Text style={[styles.sheetTitle, { color: colors.text.primary }]}>
-                {selected.data.name}
-              </Text>
-              <StatusBadge status={selected.data.status} />
-            </View>
-            <View style={styles.sheetMeta}>
-              <Text style={[styles.metaItem, { color: colors.text.secondary }]}>
-                {selected.data.length_km.toFixed(1)} km
-              </Text>
-              {!!selected.data.difficulty && (
-                <Text style={[styles.metaItem, { color: colors.text.secondary }]}>
-                  {selected.data.difficulty}
-                </Text>
-              )}
-              {selected.data.elevation_gain != null && (
-                <Text style={[styles.metaItem, { color: colors.text.secondary }]}>
-                  +{Math.round(selected.data.elevation_gain)} m
-                </Text>
-              )}
-            </View>
-            <Button
-              title={t('trailCard.viewDetails')}
-              onPress={() => {
-                setSelected(null);
-                router.push(`/trail/${selected.data.trail_id}`);
-              }}
-              pill
-            />
-          </View>
+          <TrailCard
+            trail={selected.data}
+            onClose={() => setSelected(null)}
+            onUpdate={handleTrailUpdate}
+            isUpdating={updateTrail.isPending}
+          />
         )}
 
         {selected?.type === 'spot' && (
-          <View style={styles.sheetContent}>
-            <Text style={[styles.sheetTitle, { color: colors.text.primary }]}>
-              {selected.data.type}
-            </Text>
-            <Text style={[styles.metaItem, { color: colors.text.secondary }]}>
-              {selected.data.month}
-            </Text>
-            {selected.data.notes ? (
-              <Text style={[styles.spotNotes, { color: colors.text.primary }]}>
-                {selected.data.notes}
-              </Text>
-            ) : null}
-            <Text style={[styles.coordText, { color: colors.text.muted }]}>
-              {selected.data.lat.toFixed(4)}, {selected.data.lng.toFixed(4)}
-            </Text>
-          </View>
+          <ForagingSpotCard
+            spot={selected.data}
+            onClose={() => setSelected(null)}
+            onUpdate={handleSpotUpdate}
+            isUpdating={updateSpot.isPending}
+          />
         )}
 
         {selected?.type === 'place' && (
-          <View style={styles.sheetContent}>
-            <Text style={[styles.sheetTitle, { color: colors.text.primary }]}>
-              {selected.data.name}
-            </Text>
-            {!!selected.data.city && (
-              <Text style={[styles.metaItem, { color: colors.text.secondary }]}>
-                {selected.data.city}
-              </Text>
-            )}
-            {selected.data.categories.length > 0 && (
-              <View style={styles.tagRow}>
-                {selected.data.categories.map((cat) => (
-                  <View
-                    key={cat.slug}
-                    style={[
-                      styles.tag,
-                      { backgroundColor: colors.tag.placeBg },
-                    ]}
-                  >
-                    <PlaceCategoryIcon slug={cat.slug} size={12} strokeWidth={2} />
-                    <Text style={{ color: colors.tag.placeText, fontSize: fontSize.sm }}>
-                      {cat.name}
-                    </Text>
-                  </View>
-                ))}
-              </View>
-            )}
-            {!!selected.data.weburl && (
-              <Text style={[styles.metaItem, { color: colors.primary }]} numberOfLines={1}>
-                {selected.data.weburl}
-              </Text>
-            )}
-          </View>
+          <PlaceCard
+            place={selected.data}
+            onClose={() => setSelected(null)}
+          />
         )}
-      </BottomSheet>
+      </FloatingCardOverlay>
     </View>
   );
 }
@@ -244,49 +211,5 @@ const styles = StyleSheet.create({
     right: spacing.lg + 44,
     padding: spacing.sm,
     zIndex: 800,
-  },
-  sheetContent: {
-    gap: spacing.md,
-    paddingTop: spacing.xs,
-  },
-  sheetHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  sheetTitle: {
-    fontSize: fontSize.xxl,
-    fontWeight: fontWeight.bold,
-    letterSpacing: letterSpacing.tight,
-    flex: 1,
-    marginRight: spacing.md,
-  },
-  sheetMeta: {
-    flexDirection: 'row',
-    gap: spacing.lg,
-    flexWrap: 'wrap',
-  },
-  metaItem: {
-    fontSize: fontSize.md,
-  },
-  spotNotes: {
-    fontSize: fontSize.md,
-  },
-  coordText: {
-    fontSize: fontSize.sm,
-  },
-  tagRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: spacing.sm,
-  },
-  tag: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.xs,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.xs,
-    borderRadius: borderRadius.full,
-    overflow: 'hidden',
   },
 });

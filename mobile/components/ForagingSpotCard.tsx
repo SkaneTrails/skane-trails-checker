@@ -1,76 +1,84 @@
 /**
- * Trail floating card — display mode shows name, date, distance,
- * duration, inclination, elevation profile. Edit mode allows
- * changing name and activity date only (GPX provides the rest).
+ * Foraging spot floating card — view and inline edit mode.
+ *
+ * All fields (type, month, notes) are editable from the card.
+ * Uses theme tokens for all visual properties.
  */
 
 import { useState } from 'react';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useTranslation } from '@/lib/i18n';
 import { borderRadius, fontSize, fontWeight, spacing, useTheme } from '@/lib/theme';
-import type { Trail, TrailUpdate } from '@/lib/types';
-import { ElevationProfile } from './ElevationProfile';
+import type { ForagingSpot, ForagingSpotUpdate } from '@/lib/types';
 import { MapInfoCard } from './MapInfoCard';
 import { TabIcon } from './TabIcon';
 
-interface TrailCardProps {
-  trail: Trail;
+interface ForagingSpotCardProps {
+  spot: ForagingSpot;
   onClose: () => void;
-  onUpdate?: (trailId: string, data: TrailUpdate, onSuccess: () => void) => void;
+  onUpdate?: (id: string, data: ForagingSpotUpdate, onSuccess: () => void) => void;
   isUpdating?: boolean;
 }
 
-function formatDuration(minutes: number): string {
-  const h = Math.floor(minutes / 60);
-  const m = minutes % 60;
-  if (h === 0) return `${m}m`;
-  if (m === 0) return `${h}h`;
-  return `${h}h ${m}m`;
-}
-
-export const TrailCard = ({ trail, onClose, onUpdate, isUpdating }: TrailCardProps) => {
+export const ForagingSpotCard = ({ spot, onClose, onUpdate, isUpdating }: ForagingSpotCardProps) => {
   const { colors } = useTheme();
   const { t } = useTranslation();
   const [editing, setEditing] = useState(false);
-  const [editName, setEditName] = useState(trail.name);
-  const [editDate, setEditDate] = useState(trail.activity_date ?? '');
+  const [editType, setEditType] = useState(spot.type);
+  const [editMonth, setEditMonth] = useState(spot.month);
+  const [editNotes, setEditNotes] = useState(spot.notes);
 
   const handleSave = () => {
     if (!onUpdate) return;
-    const updates: TrailUpdate = {};
-    if (editName !== trail.name) updates.name = editName;
-    if (editDate !== (trail.activity_date ?? '')) updates.activity_date = editDate || undefined;
+    const updates: ForagingSpotUpdate = {};
+    if (editType !== spot.type) updates.type = editType;
+    if (editMonth !== spot.month) updates.month = editMonth;
+    if (editNotes !== spot.notes) updates.notes = editNotes;
     if (Object.keys(updates).length === 0) {
       setEditing(false);
       return;
     }
-    onUpdate(trail.trail_id, updates, () => setEditing(false));
+    onUpdate(spot.id, updates, () => setEditing(false));
   };
 
   if (editing) {
     return (
-      <MapInfoCard title={t('trailCard.edit')} onClose={onClose}>
+      <MapInfoCard title={t('foraging.editSpot')} onClose={onClose}>
         <View style={styles.fieldRow}>
           <Text style={[styles.fieldLabel, { color: colors.text.secondary }]}>
-            {t('trail.nameLabel')}
+            {t('foraging.typeLabel')}
           </Text>
           <TextInput
             style={[styles.input, { borderColor: colors.border, color: colors.text.primary, backgroundColor: colors.surface }]}
-            value={editName}
-            onChangeText={setEditName}
+            value={editType}
+            onChangeText={setEditType}
             placeholderTextColor={colors.text.muted}
           />
         </View>
 
         <View style={styles.fieldRow}>
           <Text style={[styles.fieldLabel, { color: colors.text.secondary }]}>
-            {t('trail.activityLabel')}
+            {t('foraging.monthLabel')}
           </Text>
           <TextInput
             style={[styles.input, { borderColor: colors.border, color: colors.text.primary, backgroundColor: colors.surface }]}
-            value={editDate}
-            onChangeText={setEditDate}
-            placeholder="YYYY-MM-DD"
+            value={editMonth}
+            onChangeText={setEditMonth}
+            placeholder="Jan, Feb, ..."
+            placeholderTextColor={colors.text.muted}
+          />
+        </View>
+
+        <View style={styles.fieldRow}>
+          <Text style={[styles.fieldLabel, { color: colors.text.secondary }]}>
+            {t('foraging.notesLabel')}
+          </Text>
+          <TextInput
+            style={[styles.input, styles.multilineInput, { borderColor: colors.border, color: colors.text.primary, backgroundColor: colors.surface }]}
+            value={editNotes}
+            onChangeText={setEditNotes}
+            multiline
+            numberOfLines={3}
             placeholderTextColor={colors.text.muted}
           />
         </View>
@@ -99,52 +107,18 @@ export const TrailCard = ({ trail, onClose, onUpdate, isUpdating }: TrailCardPro
   }
 
   return (
-    <MapInfoCard title={trail.name} onClose={onClose}>
-      {/* Date */}
-      {trail.activity_date && (
-        <Text style={[styles.dateText, { color: colors.text.muted }]}>
-          {trail.activity_date}
+    <MapInfoCard title={spot.type} onClose={onClose}>
+      <Text style={[styles.metaText, { color: colors.text.secondary }]}>
+        {spot.month}
+      </Text>
+      {spot.notes ? (
+        <Text style={[styles.notesText, { color: colors.text.primary }]}>
+          {spot.notes}
         </Text>
-      )}
-
-      {/* Stats row: distance, duration */}
-      <View style={styles.statsRow}>
-        <Text style={[styles.statText, { color: colors.text.secondary }]}>
-          {trail.length_km.toFixed(1)} km
-        </Text>
-        {trail.duration_minutes != null && (
-          <>
-            <Text style={[styles.statDot, { color: colors.text.muted }]}>·</Text>
-            <Text style={[styles.statText, { color: colors.text.secondary }]}>
-              {formatDuration(trail.duration_minutes)}
-            </Text>
-          </>
-        )}
-      </View>
-
-      {/* Elevation gain / loss */}
-      {(trail.elevation_gain != null || trail.elevation_loss != null) && (
-        <View style={styles.statsRow}>
-          {trail.elevation_gain != null && (
-            <Text style={[styles.statText, { color: colors.text.secondary }]}>
-              ↑ {Math.round(trail.elevation_gain)} m
-            </Text>
-          )}
-          {trail.elevation_loss != null && (
-            <>
-              <Text style={[styles.statDot, { color: colors.text.muted }]}>·</Text>
-              <Text style={[styles.statText, { color: colors.text.secondary }]}>
-                ↓ {Math.round(trail.elevation_loss)} m
-              </Text>
-            </>
-          )}
-        </View>
-      )}
-
-      {/* Elevation profile */}
-      <View style={styles.profileContainer}>
-        <ElevationProfile coordinates={trail.coordinates_map} />
-      </View>
+      ) : null}
+      <Text style={[styles.coordText, { color: colors.text.muted }]}>
+        {spot.lat.toFixed(4)}, {spot.lng.toFixed(4)}
+      </Text>
 
       {/* Edit icon */}
       {onUpdate && (
@@ -161,26 +135,16 @@ export const TrailCard = ({ trail, onClose, onUpdate, isUpdating }: TrailCardPro
 };
 
 const styles = StyleSheet.create({
-  dateText: {
+  metaText: {
     fontSize: fontSize.sm,
-    marginBottom: spacing.sm,
-  },
-  statsRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
     marginBottom: spacing.xs,
   },
-  statText: {
+  notesText: {
     fontSize: fontSize.sm,
+    marginBottom: spacing.xs,
   },
-  statDot: {
-    fontSize: fontSize.sm,
-  },
-  profileContainer: {
-    marginTop: spacing.sm,
-    overflow: 'hidden',
-    borderRadius: borderRadius.sm,
+  coordText: {
+    fontSize: fontSize.xs,
   },
   editIcon: {
     position: 'absolute',
@@ -202,6 +166,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
     fontSize: fontSize.sm,
+  },
+  multilineInput: {
+    textAlignVertical: 'top',
+    minHeight: 60,
   },
   buttonRow: {
     flexDirection: 'row',
