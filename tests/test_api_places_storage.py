@@ -102,6 +102,27 @@ class TestDocToPlace:
         assert len(place.categories) == 2
         assert place.categories[1].slug == "toalett"
 
+    def test_none_string_fields_coerced_to_empty(self, mock_collection) -> None:
+        """Firestore may store explicit None for optional string fields."""
+        data = {
+            "place_id": "p4",
+            "name": "Test Place",
+            "lat": 56.0,
+            "lng": 13.0,
+            "address": None,
+            "city": None,
+            "weburl": None,
+        }
+        mock_collection.stream.return_value = [_make_doc(data)]
+
+        result = get_all_places()
+
+        assert len(result) == 1
+        place = result[0]
+        assert place.address == ""
+        assert place.city == ""
+        assert place.weburl == ""
+
 
 class TestGetAllPlaces:
     """Tests for get_all_places."""

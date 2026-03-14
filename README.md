@@ -14,7 +14,7 @@ Browse all 169 Skåneleden etapps (~1,000 km) on an interactive map. Upload your
 
 Track seasonal foraging locations — mushrooms, berries, herbs — on a map with monthly filtering. Add custom foraging types with icons, colors, and Swedish names.
 
-### 📍 Points of Interest - Coming soon!
+### 📍 Points of Interest
 
 Browse curated places and points of interest in Skåne, organized by category.
 

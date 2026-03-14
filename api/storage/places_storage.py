@@ -14,18 +14,18 @@ def _doc_to_place(data: dict) -> PlaceResponse:
     """Convert a Firestore document dict to a PlaceResponse model."""
     return PlaceResponse(
         place_id=data["place_id"],
-        name=data.get("name", ""),
-        lat=data.get("lat", 0.0),
-        lng=data.get("lng", 0.0),
+        name=data.get("name") or "",
+        lat=data.get("lat") or 0.0,
+        lng=data.get("lng") or 0.0,
         categories=[
-            PlaceCategoryResponse(name=cat.get("name", ""), slug=cat.get("slug", ""), icon=cat.get("icon", ""))
-            for cat in data.get("categories", [])
+            PlaceCategoryResponse(name=cat.get("name") or "", slug=cat.get("slug") or "", icon=cat.get("icon") or "")
+            for cat in data.get("categories") or []
         ],
-        address=data.get("address", ""),
-        city=data.get("city", ""),
-        weburl=data.get("weburl", ""),
-        source=data.get("source", "skaneleden"),
-        last_updated=data.get("last_updated", ""),
+        address=data.get("address") or "",
+        city=data.get("city") or "",
+        weburl=data.get("weburl") or "",
+        source=data.get("source") or "skaneleden",
+        last_updated=data.get("last_updated") or "",
     )
 
 
