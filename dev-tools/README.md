@@ -176,6 +176,55 @@ The bootstrap function is idempotent — it skips if `planned_hikes` trails alre
 - Some GPX files contain multiple track segments, resulting in 156 tracks from 169 etapps
 - Uses RDP simplification with tolerance 0.00005 (~5m accuracy, ~80% size reduction)
 
+## Database Manager
+
+### `db_manager.py`
+
+Unified Firestore database management tool with both interactive and CLI modes. Covers all collections: trails, places, foraging spots, foraging types, and hike groups.
+
+#### Prerequisites
+
+Requires a configured `.env` file. Run `setup_env.py` first (see above).
+
+#### Usage
+
+**Interactive mode** (menu-driven):
+
+```bash
+uv run python dev-tools/db_manager.py
+```
+
+**CLI mode** (direct commands):
+
+```bash
+# Overview of all collections
+uv run python dev-tools/db_manager.py status
+
+# Trails
+uv run python dev-tools/db_manager.py trails list
+uv run python dev-tools/db_manager.py trails list --source planned_hikes
+uv run python dev-tools/db_manager.py trails get <trail_id>
+uv run python dev-tools/db_manager.py trails stats
+
+# Places
+uv run python dev-tools/db_manager.py places list
+uv run python dev-tools/db_manager.py places list --category parkering --limit 10
+uv run python dev-tools/db_manager.py places get <place_id>
+uv run python dev-tools/db_manager.py places stats
+uv run python dev-tools/db_manager.py places search "Söderåsen"
+
+# Foraging
+uv run python dev-tools/db_manager.py foraging list
+uv run python dev-tools/db_manager.py foraging list --month Jun
+uv run python dev-tools/db_manager.py foraging types
+uv run python dev-tools/db_manager.py foraging stats
+
+# Hike groups
+uv run python dev-tools/db_manager.py groups list
+```
+
+The tool shows the connected project and database on every run. If credentials are missing, it displays a clear error message with setup instructions.
+
 ## Other Tools
 
 ### Trail Management
