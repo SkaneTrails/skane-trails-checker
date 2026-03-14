@@ -1,9 +1,10 @@
-import { useState } from 'react';
+import { useMemo } from 'react';
 import { FlatList, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Chip, ContentCard, EmptyState, ScreenLayout } from '@/components';
 import { PlaceCategoryIcon } from '@/components/PlaceCategoryIcon';
 import { usePlaceCategories, usePlaces } from '@/lib/hooks';
 import { useTranslation } from '@/lib/i18n';
+import { useSettings } from '@/lib/settings-context';
 import { borderRadius, blur, fontSize, fontWeight, letterSpacing, spacing, useTheme } from '@/lib/theme';
 import type { Place } from '@/lib/types';
 
@@ -55,11 +56,28 @@ function PlaceItem({ place }: { place: Place }) {
 export default function PlacesScreen() {
   const { colors, shadows } = useTheme();
   const { t } = useTranslation();
-  const [selectedCategory, setSelectedCategory] = useState<string | undefined>();
-  const { data: places, isLoading, error } = usePlaces(selectedCategory);
+  const { enabledPlaceCategories, togglePlaceCategory, setEnabledPlaceCategories } = useSettings();
+  const { data: places, isLoading, error } = usePlaces();
   const { data: categories } = usePlaceCategories();
 
   const categoryEntries = categories ? Object.entries(categories) : [];
+  const allEnabled = categoryEntries.length > 0 && categoryEntries.every(([slug]) => enabledPlaceCategories.includes(slug));
+
+  const filteredPlaces = useMemo(
+    () =>
+      (places ?? []).filter((p) =>
+        p.categories.some((c) => enabledPlaceCategories.includes(c.slug)),
+      ),
+    [places, enabledPlaceCategories],
+  );
+
+  const handleToggleAll = () => {
+    if (allEnabled) {
+      setEnabledPlaceCategories([]);
+    } else {
+      setEnabledPlaceCategories(categoryEntries.map(([slug]) => slug));
+    }
+  };
 
   return (
     <ScreenLayout title={t('tabs.places')}>
@@ -77,7 +95,7 @@ export default function PlacesScreen() {
         ]}
       >
         <Text style={[styles.summaryText, { color: colors.text.primary }]}>
-          {places?.length ?? 0} {t('places.places')}
+          {filteredPlaces.length} {t('places.places')}
         </Text>
       </View>
 
@@ -85,11 +103,11 @@ export default function PlacesScreen() {
         <View style={styles.filterBar}>
           <Chip
             label={t('common.all')}
-            selected={!selectedCategory}
-            onPress={() => setSelectedCategory(undefined)}
+            selected={allEnabled}
+            onPress={handleToggleAll}
           />
           {categoryEntries.map(([slug, cat]) => {
-            const isSelected = selectedCategory === slug;
+            const isSelected = enabledPlaceCategories.includes(slug);
             return (
               <Pressable
                 key={slug}
@@ -101,9 +119,7 @@ export default function PlacesScreen() {
                   },
                   isSelected && shadows.subtle,
                 ]}
-                onPress={() =>
-                  setSelectedCategory(slug === selectedCategory ? undefined : slug)
-                }
+                onPress={() => togglePlaceCategory(slug)}
               >
                 <PlaceCategoryIcon
                   slug={slug}
@@ -134,7 +150,7 @@ export default function PlacesScreen() {
         <EmptyState title={t('places.failedToLoad')} />
       ) : (
         <FlatList
-          data={places}
+          data={filteredPlaces}
           keyExtractor={(item) => item.place_id}
           renderItem={({ item }) => <PlaceItem place={item} />}
           contentContainerStyle={styles.list}

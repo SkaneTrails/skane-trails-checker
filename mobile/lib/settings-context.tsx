@@ -25,21 +25,29 @@ const SUPPORTED_LANGUAGES: AppLanguage[] = ['en', 'sv'];
 const isSupportedLanguage = (value: string): value is AppLanguage =>
   SUPPORTED_LANGUAGES.includes(value as AppLanguage);
 
+/** Categories shown by default on map and places tab (hiking essentials). */
+export const DEFAULT_PLACE_CATEGORIES = ['parkering', 'vatten', 'toalett'];
+
 interface Settings {
   language: AppLanguage;
   themeId: string;
+  enabledPlaceCategories: string[];
 }
 
 interface SettingsContextType {
   language: AppLanguage;
   themeId: string;
+  enabledPlaceCategories: string[];
   isLoading: boolean;
   setLanguage: (language: AppLanguage) => Promise<void>;
+  setEnabledPlaceCategories: (categories: string[]) => Promise<void>;
+  togglePlaceCategory: (slug: string) => Promise<void>;
 }
 
 const defaultSettings: Settings = {
   language: 'en',
   themeId: 'outdoor',
+  enabledPlaceCategories: DEFAULT_PLACE_CATEGORIES,
 };
 
 const SettingsContext = createContext<SettingsContextType | null>(null);
@@ -60,6 +68,9 @@ export const SettingsProvider = ({ children }: { children: React.ReactNode }) =>
                 ? parsed.language
                 : 'en',
             themeId: parsed.themeId ?? 'outdoor',
+            enabledPlaceCategories: Array.isArray(parsed.enabledPlaceCategories)
+              ? parsed.enabledPlaceCategories
+              : DEFAULT_PLACE_CATEGORIES,
           });
         }
       } catch {
@@ -84,14 +95,36 @@ export const SettingsProvider = ({ children }: { children: React.ReactNode }) =>
     });
   }, []);
 
+  const setEnabledPlaceCategories = useCallback(async (categories: string[]) => {
+    setSettings((prev) => {
+      const updated = { ...prev, enabledPlaceCategories: categories };
+      AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+      return updated;
+    });
+  }, []);
+
+  const togglePlaceCategory = useCallback(async (slug: string) => {
+    setSettings((prev) => {
+      const enabled = prev.enabledPlaceCategories.includes(slug)
+        ? prev.enabledPlaceCategories.filter((s) => s !== slug)
+        : [...prev.enabledPlaceCategories, slug];
+      const updated = { ...prev, enabledPlaceCategories: enabled };
+      AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+      return updated;
+    });
+  }, []);
+
   const value = useMemo<SettingsContextType>(
     () => ({
       language: settings.language,
       themeId: settings.themeId,
+      enabledPlaceCategories: settings.enabledPlaceCategories,
       isLoading,
       setLanguage,
+      setEnabledPlaceCategories,
+      togglePlaceCategory,
     }),
-    [settings, isLoading, setLanguage],
+    [settings, isLoading, setLanguage, setEnabledPlaceCategories, togglePlaceCategory],
   );
 
   return <SettingsContext.Provider value={value}>{children}</SettingsContext.Provider>;
