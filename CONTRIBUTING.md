@@ -65,7 +65,7 @@ cd mobile && pnpm test
 
 We follow [Conventional Commits](https://www.conventionalcommits.org/):
 
-```
+```bash
 <type>: <description>
 ```
 
