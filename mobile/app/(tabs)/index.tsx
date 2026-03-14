@@ -1,5 +1,5 @@
 import { useRouter } from 'expo-router';
-import { useCallback, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { ActivityIndicator, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Button, EmptyState, ScreenLayout, StatusBadge } from '@/components';
 import { BottomSheet } from '@/components/BottomSheet';
@@ -10,6 +10,7 @@ import { TabIcon } from '@/components/TabIcon';
 import { type MapLayers, UnifiedMap } from '@/components/UnifiedMap';
 import { useForagingSpots, useForagingTypes, usePlaces, useTrails } from '@/lib/hooks';
 import { useTranslation } from '@/lib/i18n';
+import { useSettings } from '@/lib/settings-context';
 import { borderRadius, fontSize, fontWeight, letterSpacing, spacing, useTheme } from '@/lib/theme';
 import { glassPill } from '@/lib/theme/styles';
 import type { ForagingSpot, Place, Trail } from '@/lib/types';
@@ -23,11 +24,20 @@ export default function MapScreen() {
   const { colors, shadows } = useTheme();
   const { t } = useTranslation();
   const router = useRouter();
+  const { enabledPlaceCategories } = useSettings();
 
   const { data: trails, isFetching: trailsFetching } = useTrails();
   const { data: spots } = useForagingSpots(undefined, { enabled: Platform.OS === 'web' });
   const { data: types } = useForagingTypes({ enabled: Platform.OS === 'web' });
   const { data: places } = usePlaces();
+
+  const filteredPlaces = useMemo(
+    () =>
+      (places ?? []).filter((p) =>
+        p.categories.some((c) => enabledPlaceCategories.includes(c.slug)),
+      ),
+    [places, enabledPlaceCategories],
+  );
 
   const [mapLayers, setMapLayers] = useState<MapLayers>({
     trails: true,
@@ -74,7 +84,7 @@ export default function MapScreen() {
         trails={trails ?? []}
         foragingSpots={spots ?? []}
         foragingTypes={types ?? []}
-        places={places ?? []}
+        places={filteredPlaces}
         layers={mapLayers}
         onTrailSelect={handleTrailSelect}
         onSpotSelect={handleSpotSelect}
@@ -124,7 +134,7 @@ export default function MapScreen() {
               <Text style={[styles.metaItem, { color: colors.text.secondary }]}>
                 {selected.data.length_km.toFixed(1)} km
               </Text>
-              {selected.data.difficulty && (
+              {!!selected.data.difficulty && (
                 <Text style={[styles.metaItem, { color: colors.text.secondary }]}>
                   {selected.data.difficulty}
                 </Text>
@@ -170,7 +180,7 @@ export default function MapScreen() {
             <Text style={[styles.sheetTitle, { color: colors.text.primary }]}>
               {selected.data.name}
             </Text>
-            {selected.data.city && (
+            {!!selected.data.city && (
               <Text style={[styles.metaItem, { color: colors.text.secondary }]}>
                 {selected.data.city}
               </Text>
@@ -193,7 +203,7 @@ export default function MapScreen() {
                 ))}
               </View>
             )}
-            {selected.data.weburl && (
+            {!!selected.data.weburl && (
               <Text style={[styles.metaItem, { color: colors.primary }]} numberOfLines={1}>
                 {selected.data.weburl}
               </Text>

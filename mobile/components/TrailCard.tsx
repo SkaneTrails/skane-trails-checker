@@ -184,7 +184,7 @@ export const TrailCard = ({ trail, onViewDetails, onClose, onUpdate, isUpdating 
         <Text style={[styles.metaText, { color: colors.text.secondary }]}>
           {trail.length_km.toFixed(1)} km
         </Text>
-        {trail.difficulty && (
+        {!!trail.difficulty && (
           <Text style={[styles.metaText, { color: colors.text.secondary }]}>
             {trail.difficulty}
           </Text>

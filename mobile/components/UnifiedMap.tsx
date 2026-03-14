@@ -5,10 +5,11 @@
  * showing all data types as independently toggleable layers.
  */
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { foragingColorMap } from '@/lib/foraging-colors';
 import { injectLeafletCSS } from '@/lib/inject-css';
 import { placeCategoryColor } from '@/lib/place-colors';
+import { FALLBACK_PATH, ICON_PATHS } from './PlaceCategoryIcon';
 import { animation, iconSize, useTheme } from '@/lib/theme';
 import type { ColorTokens } from '@/lib/theme/colors';
 import type { ForagingSpot, ForagingType, Place, Trail } from '@/lib/types';
@@ -33,12 +34,23 @@ interface UnifiedMapProps {
 
 const DEFAULT_CENTER: [number, number] = [55.95, 13.4];
 const DEFAULT_ZOOM = 9;
+const PLACES_MIN_ZOOM = 12;
 
 const MAP_DOT_BORDER = '2px solid rgba(255,255,255,0.9)';
 
 /** Generate inline HTML for a colored circle marker. */
 function mapDotHtml(color: string, size: number): string {
   return `<div style="width:${size}px;height:${size}px;background:${color};border:${MAP_DOT_BORDER};border-radius:50%;box-shadow:0 1px 4px rgba(0,0,0,0.2);cursor:pointer;transition:transform ${animation.duration.fast}ms ease"></div>`;
+}
+
+/** Generate inline HTML for a place category icon marker. */
+function placeIconHtml(slug: string, color: string, size: number): string {
+  const pathData = ICON_PATHS[slug] ?? FALLBACK_PATH;
+  const paths = pathData
+    .split(' M')
+    .map((d, i) => `<path d="${i === 0 ? d : `M${d}`}"/>`)
+    .join('');
+  return `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="${color}" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="filter:drop-shadow(0 1px 2px rgba(0,0,0,0.4))">${paths}</svg>`;
 }
 
 export function UnifiedMap({
@@ -55,11 +67,15 @@ export function UnifiedMap({
   const { colors } = useTheme();
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<L.Map | null>(null);
+  const [mapReady, setMapReady] = useState(false);
   const layerGroupsRef = useRef<{
     trails: L.LayerGroup | null;
     foraging: L.LayerGroup | null;
     places: L.LayerGroup | null;
   }>({ trails: null, foraging: null, places: null });
+
+  const placesDataRef = useRef({ places, layers, colors });
+  placesDataRef.current = { places, layers, colors };
 
   const callbackRefs = useRef({ onTrailSelect, onSpotSelect, onPlaceSelect, onMapClick });
   callbackRefs.current = { onTrailSelect, onSpotSelect, onPlaceSelect, onMapClick };
@@ -120,6 +136,12 @@ export function UnifiedMap({
       map.on('click', (e: L.LeafletMouseEvent) => {
         callbackRefs.current.onMapClick?.(e.latlng.lat, e.latlng.lng);
       });
+
+      map.on('zoomend', () => {
+        renderPlaces(L, map.getZoom());
+      });
+
+      setMapReady(true);
     }
 
     initMap();
@@ -130,6 +152,7 @@ export function UnifiedMap({
         mapInstanceRef.current.remove();
         mapInstanceRef.current = null;
       }
+      setMapReady(false);
     };
   }, []);
 
@@ -165,7 +188,7 @@ export function UnifiedMap({
         });
       }
     });
-  }, [trails, layers.trails]);
+  }, [trails, layers.trails, mapReady]);
 
   // Update foraging layer — colored dots
   useEffect(() => {
@@ -194,36 +217,46 @@ export function UnifiedMap({
         });
       }
     });
-  }, [foragingSpots, foragingTypes, layers.foraging]);
+  }, [foragingSpots, foragingTypes, layers.foraging, mapReady]);
 
-  // Update places layer — themed circle markers
-  useEffect(() => {
+  // Render places — extracted so both data changes and zoom events can call it
+  function renderPlaces(L: typeof import('leaflet'), zoom: number) {
     const group = layerGroupsRef.current.places;
     if (!group) return;
     group.clearLayers();
 
-    if (!layers.places) return;
+    const { places: p, layers: l, colors: c } = placesDataRef.current;
+    if (!l.places || zoom < PLACES_MIN_ZOOM) return;
+
+    for (const place of p) {
+      const firstCat = place.categories[0];
+      const catSlug = firstCat?.slug ?? '';
+      const catColor = firstCat ? placeCategoryColor(catSlug) : c.text.muted;
+      const markerSize = iconSize.lg;
+
+      const icon = L.divIcon({
+        html: placeIconHtml(catSlug, catColor, markerSize),
+        className: 'place-dot',
+        iconSize: [markerSize, markerSize],
+        iconAnchor: [markerSize / 2, markerSize / 2],
+      });
+
+      const marker = L.marker([place.lat, place.lng], { icon }).addTo(group);
+      marker.on('click', () => {
+        callbackRefs.current.onPlaceSelect?.(place);
+      });
+    }
+  }
+
+  // Update places layer — category icon markers, hidden below zoom threshold
+  useEffect(() => {
+    const map = mapInstanceRef.current;
+    if (!map) return;
 
     import('leaflet').then((L) => {
-      for (const place of places) {
-        const firstCat = place.categories[0];
-        const dotColor = firstCat ? placeCategoryColor(firstCat.slug) : colorsRef.current.text.muted;
-        const dotSize = iconSize.sm + 2;
-
-        const icon = L.divIcon({
-          html: mapDotHtml(dotColor, dotSize),
-          className: 'place-dot',
-          iconSize: [dotSize, dotSize],
-          iconAnchor: [dotSize / 2, dotSize / 2],
-        });
-
-        const marker = L.marker([place.lat, place.lng], { icon }).addTo(group);
-        marker.on('click', () => {
-          callbackRefs.current.onPlaceSelect?.(place);
-        });
-      }
+      renderPlaces(L, map.getZoom());
     });
-  }, [places, layers.places]);
+  }, [places, layers.places, mapReady]);
 
   return <div ref={mapRef} style={{ width: '100%', height: '100%' }} />;
 }

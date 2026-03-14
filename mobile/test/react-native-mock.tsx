@@ -17,36 +17,50 @@ export const StyleSheet = {
   flatten: (style: unknown) => style,
 };
 
+/** Flatten RN-style arrays into a single object for React DOM. */
+function flattenStyle(style: unknown): React.CSSProperties | undefined {
+  if (!style) return undefined;
+  if (Array.isArray(style)) {
+    return Object.assign({}, ...style.filter(Boolean).map(flattenStyle));
+  }
+  return style as React.CSSProperties;
+}
+
 export const Alert = { alert: vi.fn() };
 
 /* Simple HTML-element wrappers */
 export const View = React.forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDivElement>>(
-  (props, ref) => React.createElement('div', { ...props, ref }),
+  ({ style, ...props }, ref) => React.createElement('div', { ...props, style: flattenStyle(style), ref }),
 );
 View.displayName = 'View';
 
 export const Text = React.forwardRef<
   HTMLSpanElement,
   React.HTMLAttributes<HTMLSpanElement> & { numberOfLines?: number }
->(({ numberOfLines: _numberOfLines, ...props }, ref) =>
-  React.createElement('span', { ...props, ref }),
+>(({ numberOfLines: _numberOfLines, style, ...props }, ref) =>
+  React.createElement('span', { ...props, style: flattenStyle(style), ref }),
 );
 Text.displayName = 'Text';
 
 export const Pressable = React.forwardRef<
   HTMLButtonElement,
-  React.ButtonHTMLAttributes<HTMLButtonElement> & {
+  Omit<React.ButtonHTMLAttributes<HTMLButtonElement>, 'style'> & {
     onPress?: () => void;
     accessibilityLabel?: string;
+    accessibilityRole?: string;
+    accessibilityState?: Record<string, unknown>;
+    style?: unknown | ((state: { pressed: boolean }) => unknown);
   }
->(({ onPress, accessibilityLabel, ...props }, ref) =>
-  React.createElement('button', {
+>(({ onPress, accessibilityLabel, accessibilityRole: _role, accessibilityState: _state, style, ...props }, ref) => {
+  const resolved = typeof style === 'function' ? style({ pressed: false }) : style;
+  return React.createElement('button', {
     ...props,
+    style: flattenStyle(resolved),
     onClick: onPress,
     'aria-label': accessibilityLabel,
     ref,
-  }),
-);
+  });
+});
 Pressable.displayName = 'Pressable';
 
 export const TextInput = React.forwardRef<
