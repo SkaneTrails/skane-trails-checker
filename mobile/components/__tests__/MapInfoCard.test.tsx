@@ -7,8 +7,20 @@ vi.mock('@/lib/theme', () => ({
       surface: '#fff',
       text: { primary: '#000', secondary: '#666', muted: '#999', inverse: '#fff' },
       primary: '#2E7D32',
+      glass: {
+        background: 'rgba(255,255,255,0.8)',
+        backgroundDark: 'rgba(0,0,0,0.6)',
+        surface: 'rgba(255,255,255,0.9)',
+        border: 'rgba(0,0,0,0.1)',
+        borderSubtle: 'rgba(0,0,0,0.05)',
+        activeHighlight: 'rgba(0,0,0,0.03)',
+      },
     },
-    shadows: { card: {} },
+    shadows: {
+      card: { shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 4, elevation: 2 },
+      subtle: { shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 2, elevation: 1 },
+      elevated: { shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.15, shadowRadius: 8, elevation: 4 },
+    },
   }),
   borderRadius: { sm: 4, md: 8, lg: 12 },
   fontSize: { xs: 10, sm: 12, md: 14, lg: 16, xl: 20 },
@@ -36,7 +48,7 @@ describe('MapInfoCard', () => {
       </MapInfoCard>,
     );
 
-    fireEvent.click(screen.getByText('✕'));
+    fireEvent.click(screen.getByLabelText('Close'));
     expect(onClose).toHaveBeenCalled();
   });
 

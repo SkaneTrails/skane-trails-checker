@@ -10,8 +10,20 @@ vi.mock('@/lib/theme', () => ({
       error: '#D32F2F',
       border: '#E0E0E0',
       chip: { bg: '#eee', text: '#333', activeBg: '#1a5e2a', activeText: '#fff' },
+      glass: {
+        background: 'rgba(255,255,255,0.8)',
+        backgroundDark: 'rgba(0,0,0,0.6)',
+        surface: 'rgba(255,255,255,0.9)',
+        border: 'rgba(0,0,0,0.1)',
+        borderSubtle: 'rgba(0,0,0,0.05)',
+        activeHighlight: 'rgba(0,0,0,0.03)',
+      },
     },
-    shadows: { card: {} },
+    shadows: {
+      card: { shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 4, elevation: 2 },
+      subtle: { shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 2, elevation: 1 },
+      elevated: { shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.15, shadowRadius: 8, elevation: 4 },
+    },
   }),
   borderRadius: { sm: 4, md: 8, lg: 12 },
   fontSize: { xs: 10, sm: 12, md: 14, lg: 16, xl: 20 },
@@ -39,8 +51,8 @@ describe('AddSpotForm', () => {
   it('renders type and month selectors', () => {
     render(<AddSpotForm {...defaultProps} />);
 
-    expect(screen.getByText('🍄 Mushrooms')).toBeDefined();
-    expect(screen.getByText('🫐 Berries')).toBeDefined();
+    expect(screen.getByText('Mushrooms')).toBeDefined();
+    expect(screen.getByText('Berries')).toBeDefined();
     expect(screen.getByText('months.jan')).toBeDefined();
     expect(screen.getByText('months.dec')).toBeDefined();
   });
@@ -56,7 +68,7 @@ describe('AddSpotForm', () => {
     render(<AddSpotForm {...defaultProps} />);
 
     // Select type and month
-    fireEvent.click(screen.getByText('🍄 Mushrooms'));
+    fireEvent.click(screen.getByText('Mushrooms'));
     fireEvent.click(screen.getByText('months.sep'));
 
     // Enter invalid lat
@@ -76,7 +88,7 @@ describe('AddSpotForm', () => {
   it('submit button is disabled with out-of-bounds coordinates', () => {
     render(<AddSpotForm {...defaultProps} />);
 
-    fireEvent.click(screen.getByText('🍄 Mushrooms'));
+    fireEvent.click(screen.getByText('Mushrooms'));
     fireEvent.click(screen.getByText('months.sep'));
 
     const latInput = screen.getByPlaceholderText('55.95');
@@ -93,7 +105,7 @@ describe('AddSpotForm', () => {
   it('calls onSubmit with correct payload when all fields are valid', () => {
     render(<AddSpotForm {...defaultProps} />);
 
-    fireEvent.click(screen.getByText('🍄 Mushrooms'));
+    fireEvent.click(screen.getByText('Mushrooms'));
     fireEvent.click(screen.getByText('months.sep'));
 
     const latInput = screen.getByPlaceholderText('55.95');
