@@ -39,9 +39,9 @@ interface SettingsContextType {
   themeId: string;
   enabledPlaceCategories: string[];
   isLoading: boolean;
-  setLanguage: (language: AppLanguage) => Promise<void>;
-  setEnabledPlaceCategories: (categories: string[]) => Promise<void>;
-  togglePlaceCategory: (slug: string) => Promise<void>;
+  setLanguage: (language: AppLanguage) => void;
+  setEnabledPlaceCategories: (categories: string[]) => void;
+  togglePlaceCategory: (slug: string) => void;
 }
 
 const defaultSettings: Settings = {
@@ -87,7 +87,7 @@ export const SettingsProvider = ({ children }: { children: React.ReactNode }) =>
     setCurrentLanguage(settings.language);
   }, [settings.language]);
 
-  const setLanguage = useCallback(async (language: AppLanguage) => {
+  const setLanguage = useCallback((language: AppLanguage) => {
     setSettings((prev) => {
       const updated = { ...prev, language };
       AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
@@ -95,7 +95,7 @@ export const SettingsProvider = ({ children }: { children: React.ReactNode }) =>
     });
   }, []);
 
-  const setEnabledPlaceCategories = useCallback(async (categories: string[]) => {
+  const setEnabledPlaceCategories = useCallback((categories: string[]) => {
     setSettings((prev) => {
       const updated = { ...prev, enabledPlaceCategories: categories };
       AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
@@ -103,7 +103,7 @@ export const SettingsProvider = ({ children }: { children: React.ReactNode }) =>
     });
   }, []);
 
-  const togglePlaceCategory = useCallback(async (slug: string) => {
+  const togglePlaceCategory = useCallback((slug: string) => {
     setSettings((prev) => {
       const enabled = prev.enabledPlaceCategories.includes(slug)
         ? prev.enabledPlaceCategories.filter((s) => s !== slug)

@@ -44,12 +44,12 @@ Text.displayName = 'Text';
 
 export const Pressable = React.forwardRef<
   HTMLButtonElement,
-  React.ButtonHTMLAttributes<HTMLButtonElement> & {
+  Omit<React.ButtonHTMLAttributes<HTMLButtonElement>, 'style'> & {
     onPress?: () => void;
     accessibilityLabel?: string;
     accessibilityRole?: string;
     accessibilityState?: Record<string, unknown>;
-    style?: unknown;
+    style?: unknown | ((state: { pressed: boolean }) => unknown);
   }
 >(({ onPress, accessibilityLabel, accessibilityRole: _role, accessibilityState: _state, style, ...props }, ref) => {
   const resolved = typeof style === 'function' ? style({ pressed: false }) : style;
