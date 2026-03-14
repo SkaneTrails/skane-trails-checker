@@ -125,7 +125,7 @@ export const ForagingSpotCard = ({ spot, onClose, onUpdate, isUpdating }: Foragi
         <Pressable
           onPress={() => setEditing(true)}
           style={[styles.editIcon, { borderColor: colors.border }]}
-          accessibilityLabel={t('trailCard.edit')}
+          accessibilityLabel={t('foraging.editSpot')}
         >
           <TabIcon name="edit" color={colors.primary} size={16} strokeWidth={2} />
         </Pressable>

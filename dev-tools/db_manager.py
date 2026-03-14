@@ -404,7 +404,7 @@ def _process_trail(trail: object, existing_trails: list, *, duplicates: str, dry
 
     if duplicates == "replace":
         if not dry_run:
-            delete_trail(duplicate.trail_id)
+            delete_trail(duplicate.trail_id, update_sync=False)
             save_trail(trail, update_sync=False)
             existing_trails = [t for t in existing_trails if t.trail_id != duplicate.trail_id]
             existing_trails.append(trail)

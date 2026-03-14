@@ -337,6 +337,14 @@ class TestDeleteTrail:
         assert calls[1].args == ("t1",)
         mock_sync.assert_called_once()
 
+    @patch("api.storage.trail_storage._update_sync_metadata")
+    def test_delete_trail_skips_sync_when_disabled(self, mock_sync, mock_collection) -> None:
+        delete_trail("t1", update_sync=False)
+
+        calls = mock_collection.document.call_args_list
+        assert len(calls) == 2
+        mock_sync.assert_not_called()
+
 
 class TestSaveTrail:
     """Tests for save_trail — saves a TrailResponse to Firestore."""

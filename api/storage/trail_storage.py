@@ -158,13 +158,14 @@ def update_trail(trail_id: str, updates: dict) -> None:
     _update_sync_metadata()
 
 
-def delete_trail(trail_id: str) -> None:
+def delete_trail(trail_id: str, *, update_sync: bool = True) -> None:
     """Delete a trail and its details from Firestore."""
     validate_document_id(trail_id, field_name="trail_id")
     logger.info("Deleting trail %s", trail_id)
     get_collection("trails").document(trail_id).delete()
     get_collection("trail_details").document(trail_id).delete()
-    _update_sync_metadata()
+    if update_sync:
+        _update_sync_metadata()
 
 
 def get_sync_metadata() -> SyncMetadata:

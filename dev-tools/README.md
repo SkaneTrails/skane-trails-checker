@@ -208,10 +208,10 @@ uv run python dev-tools/db_manager.py trails search "söderåsen"
 uv run python dev-tools/db_manager.py trails stats
 
 # Import GPX files (with duplicate detection)
-uv run python dev-tools/db_manager.py trails import path/to/file.gpx
-uv run python dev-tools/db_manager.py trails import path/to/folder/ --source other_trails
-uv run python dev-tools/db_manager.py trails import path/to/folder/ --dry-run
-uv run python dev-tools/db_manager.py trails import path/to/folder/ --duplicates replace
+uv run python dev-tools/db_manager.py trails import --gpx-dir path/to/folder/
+uv run python dev-tools/db_manager.py trails import --gpx-dir path/to/folder/ --source other_trails
+uv run python dev-tools/db_manager.py trails import --gpx-dir path/to/folder/ --dry-run
+uv run python dev-tools/db_manager.py trails import --gpx-dir path/to/folder/ --duplicates replace
 
 # Places
 uv run python dev-tools/db_manager.py places list
@@ -258,18 +258,17 @@ Output includes trail ID, name, distance, duration, elevation status, and activi
 Import GPX files into Firestore with automatic duplicate detection:
 
 ```bash
-# Single file
-uv run python dev-tools/db_manager.py trails import path/to/file.gpx
-
-# Entire folder (recursive)
-uv run python dev-tools/db_manager.py trails import path/to/folder/
+# Import all GPX files from a directory
+uv run python dev-tools/db_manager.py trails import --gpx-dir path/to/folder/
 
 # Preview without writing
-uv run python dev-tools/db_manager.py trails import path/to/folder/ --dry-run
+uv run python dev-tools/db_manager.py trails import --gpx-dir path/to/folder/ --dry-run
 
 # Set trail source (default: other_trails)
-uv run python dev-tools/db_manager.py trails import path/to/folder/ --source world_wide_hikes
+uv run python dev-tools/db_manager.py trails import --gpx-dir path/to/folder/ --source world_wide_hikes
 ```
+
+Note: Only reads `.gpx` files directly in the given directory (not recursive).
 
 **Duplicate detection** matches by activity date (±60 min window), falling back to exact name match. Control behavior with `--duplicates`:
 
