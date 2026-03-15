@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from 'react';
 import type { TrailFilters } from '@/lib/api';
 import { trailsApi } from '@/lib/api';
 import { trailCache } from '@/lib/storage/trail-cache';
+import type { TrackingPoint } from '@/lib/track-to-trail';
 import type { Trail, TrailUpdate } from '@/lib/types';
 
 /**
@@ -220,6 +221,23 @@ export function useUploadGpx() {
           trailCache.set(Array.from(merged.values()), lastSyncTime ?? new Date().toISOString());
         });
       }
+    },
+  });
+}
+
+export function useSaveRecording() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ name, points, source }: { name: string; points: TrackingPoint[]; source?: string }) =>
+      trailsApi.saveRecording(name, points, source),
+    onSuccess: (savedTrail) => {
+      queryClient.invalidateQueries({ queryKey: trailKeys.all });
+      trailCache.get().then(({ trails, lastSyncTime }) => {
+        const merged = new Map(trails.map((t) => [t.trail_id, t]));
+        merged.set(savedTrail.trail_id, savedTrail);
+        trailCache.set(Array.from(merged.values()), lastSyncTime ?? new Date().toISOString());
+      });
     },
   });
 }

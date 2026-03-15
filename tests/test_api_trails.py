@@ -1,5 +1,6 @@
 """Tests for trail API endpoints."""
 
+from typing import ClassVar
 from unittest.mock import patch
 
 from fastapi.testclient import TestClient
@@ -361,3 +362,118 @@ class TestDeleteTrail:
         mock_delete.return_value = None
         response = authenticated_client.delete("/api/v1/trails/abc123")
         assert response.status_code == 204
+
+
+class TestSaveRecording:
+    """Tests for POST /trails/record endpoint."""
+
+    SAMPLE_RECORDING: ClassVar[dict[str, object]] = {
+        "name": "Morning Hike",
+        "coordinates": [
+            {"lat": 55.600, "lng": 13.000, "altitude": 50.0, "timestamp": 1700000000000},
+            {"lat": 55.601, "lng": 13.000, "altitude": 55.0, "timestamp": 1700000030000},
+            {"lat": 55.602, "lng": 13.000, "altitude": 60.0, "timestamp": 1700000060000},
+            {"lat": 55.603, "lng": 13.000, "altitude": 55.0, "timestamp": 1700000090000},
+            {"lat": 55.604, "lng": 13.000, "altitude": 50.0, "timestamp": 1700000120000},
+        ],
+        "source": "gps_recording",
+    }
+
+    @patch("api.routers.trails.trail_storage.save_trail_details")
+    @patch("api.routers.trails.trail_storage.save_trail")
+    def test_save_recording_success(self, mock_save, mock_details, authenticated_client):
+        mock_save.return_value = None
+        mock_details.return_value = None
+
+        response = authenticated_client.post("/api/v1/trails/record", json=self.SAMPLE_RECORDING)
+        assert response.status_code == 201
+        data = response.json()
+        assert data["name"] == "Morning Hike"
+        assert data["status"] == "Explored!"
+        assert data["source"] == "gps_recording"
+        assert data["length_km"] > 0
+        assert data["elevation_gain"] is not None
+        assert data["duration_minutes"] == 2
+        mock_save.assert_called_once()
+        mock_details.assert_called_once()
+
+    @patch("api.routers.trails.trail_storage.save_trail_details")
+    @patch("api.routers.trails.trail_storage.save_trail")
+    def test_save_recording_without_elevation(self, mock_save, mock_details, authenticated_client):
+        recording = {
+            "name": "Flat Walk",
+            "coordinates": [
+                {"lat": 55.600, "lng": 13.000, "altitude": None, "timestamp": 1700000000000},
+                {"lat": 55.601, "lng": 13.000, "altitude": None, "timestamp": 1700000060000},
+                {"lat": 55.602, "lng": 13.000, "altitude": None, "timestamp": 1700000120000},
+            ],
+        }
+        mock_save.return_value = None
+        mock_details.return_value = None
+
+        response = authenticated_client.post("/api/v1/trails/record", json=recording)
+        assert response.status_code == 201
+        data = response.json()
+        assert data["elevation_gain"] is None
+        assert data["elevation_loss"] is None
+
+    @patch("api.routers.trails.trail_storage.save_trail_details")
+    @patch("api.routers.trails.trail_storage.save_trail")
+    def test_save_recording_default_source(self, mock_save, mock_details, authenticated_client):
+        recording = {
+            "name": "No Source",
+            "coordinates": [
+                {"lat": 55.600, "lng": 13.000, "altitude": 50.0, "timestamp": 1700000000000},
+                {"lat": 55.601, "lng": 13.000, "altitude": 55.0, "timestamp": 1700000060000},
+            ],
+        }
+        mock_save.return_value = None
+        mock_details.return_value = None
+
+        response = authenticated_client.post("/api/v1/trails/record", json=recording)
+        assert response.status_code == 201
+        assert response.json()["source"] == "gps_recording"
+
+    def test_save_recording_requires_auth(self, unauthenticated_client):
+        response = unauthenticated_client.post("/api/v1/trails/record", json=self.SAMPLE_RECORDING)
+        assert response.status_code == 401
+
+    def test_save_recording_rejects_empty_name(self, authenticated_client):
+        recording = {**self.SAMPLE_RECORDING, "name": ""}
+        response = authenticated_client.post("/api/v1/trails/record", json=recording)
+        assert response.status_code == 422
+
+    def test_save_recording_rejects_too_few_coords(self, authenticated_client):
+        recording = {
+            "name": "Short",
+            "coordinates": [{"lat": 55.0, "lng": 13.0, "altitude": None, "timestamp": 1700000000000}],
+        }
+        response = authenticated_client.post("/api/v1/trails/record", json=recording)
+        assert response.status_code == 422
+
+    def test_save_recording_rejects_invalid_source(self, authenticated_client):
+        recording = {**self.SAMPLE_RECORDING, "source": "invalid_source"}
+        response = authenticated_client.post("/api/v1/trails/record", json=recording)
+        assert response.status_code == 422
+
+    def test_save_recording_rejects_invalid_lat(self, authenticated_client):
+        recording = {
+            "name": "Bad Coords",
+            "coordinates": [
+                {"lat": 91.0, "lng": 13.0, "altitude": None, "timestamp": 1700000000000},
+                {"lat": 55.0, "lng": 13.0, "altitude": None, "timestamp": 1700000060000},
+            ],
+        }
+        response = authenticated_client.post("/api/v1/trails/record", json=recording)
+        assert response.status_code == 422
+
+    def test_save_recording_rejects_invalid_lng(self, authenticated_client):
+        recording = {
+            "name": "Bad Coords",
+            "coordinates": [
+                {"lat": 55.0, "lng": 181.0, "altitude": None, "timestamp": 1700000000000},
+                {"lat": 55.0, "lng": 13.0, "altitude": None, "timestamp": 1700000060000},
+            ],
+        }
+        response = authenticated_client.post("/api/v1/trails/record", json=recording)
+        assert response.status_code == 422

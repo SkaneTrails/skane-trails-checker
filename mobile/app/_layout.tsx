@@ -6,6 +6,7 @@ import { useTranslation } from '@/lib/i18n';
 import { QueryProvider } from '@/lib/query-provider';
 import { registerServiceWorker } from '@/lib/register-sw';
 import { SettingsProvider } from '@/lib/settings-context';
+import { TrackingProvider } from '@/lib/tracking-context';
 import { defaultThemeId, getTheme, ThemeProvider, useTheme } from '@/lib/theme';
 
 function useProtectedRoute() {
@@ -116,7 +117,9 @@ export default function RootLayout() {
       <SettingsProvider>
         <AuthProvider>
           <QueryProvider>
-            <AppStack />
+            <TrackingProvider>
+              <AppStack />
+            </TrackingProvider>
           </QueryProvider>
         </AuthProvider>
       </SettingsProvider>

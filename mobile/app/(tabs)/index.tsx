@@ -7,6 +7,7 @@ import { ForagingSpotCard } from '@/components/ForagingSpotCard';
 import { HamburgerMenu } from '@/components/HamburgerMenu';
 import { LayerToggle, type MapLayer } from '@/components/LayerToggle';
 import { PlaceCard } from '@/components/PlaceCard';
+import { TrackingOverlay } from '@/components/TrackingOverlay';
 import { TrailCard } from '@/components/TrailCard';
 import { type MapLayers, UnifiedMap } from '@/components/UnifiedMap';
 import {
@@ -19,6 +20,7 @@ import {
 } from '@/lib/hooks';
 import { useTranslation } from '@/lib/i18n';
 import { useSettings } from '@/lib/settings-context';
+import { useTracking } from '@/lib/tracking-context';
 import { spacing, useTheme } from '@/lib/theme';
 import { glassPill } from '@/lib/theme/styles';
 import type { ForagingSpot, Place, Trail } from '@/lib/types';
@@ -32,6 +34,7 @@ export default function MapScreen() {
   const { colors } = useTheme();
   const { t } = useTranslation();
   const { enabledPlaceCategories } = useSettings();
+  const tracking = useTracking();
 
   const { data: trails, isFetching: trailsFetching } = useTrails();
   const { data: spots } = useForagingSpots(undefined, { enabled: Platform.OS === 'web' });
@@ -133,10 +136,17 @@ export default function MapScreen() {
             router.push('/settings');
           }}
           onStartTracking={() => {
-            Alert.alert(t('tracking.startTracking'), t('tracking.webNotSupported'));
+            if (Platform.OS === 'web') {
+              Alert.alert(t('tracking.startTracking'), t('tracking.webNotSupported'));
+            } else {
+              tracking.start();
+            }
           }}
         />
       </View>
+
+      {/* Tracking overlay */}
+      <TrackingOverlay />
 
       {/* Layer toggle panel */}
       {showLayers && (

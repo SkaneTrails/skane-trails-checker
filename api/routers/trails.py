@@ -6,8 +6,16 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile
 
 from api.auth import AuthenticatedUser, require_auth
-from api.models.trail import SyncMetadata, TrailDetailsResponse, TrailFilterParams, TrailResponse, TrailUpdate
+from api.models.trail import (
+    RecordingCreate,
+    SyncMetadata,
+    TrailDetailsResponse,
+    TrailFilterParams,
+    TrailResponse,
+    TrailUpdate,
+)
 from api.services.gpx_parser import parse_gpx_upload
+from api.services.recording_processor import process_recording
 from api.storage import trail_storage
 
 logger = logging.getLogger(__name__)
@@ -163,3 +171,22 @@ def upload_gpx(
 
     logger.info("Uploaded %d trail(s) from %s", len(trails), file.filename)
     return trails
+
+
+@router.post("/record", status_code=201)
+def save_recording(body: RecordingCreate, user: Annotated[AuthenticatedUser, Depends(require_auth)]) -> TrailResponse:
+    """Save a GPS recording as a trail.
+
+    Accepts raw GPS coordinates (from device tracking), computes
+    distance, elevation, bounds, and simplified coordinates, then
+    saves both the trail summary and full details to Firestore.
+    """
+    trail, details = process_recording(
+        name=body.name, coordinates=body.coordinates, source=body.source, user_uid=user.uid
+    )
+
+    trail_storage.save_trail(trail)
+    trail_storage.save_trail_details(details)
+
+    logger.info("Saved GPS recording '%s' (%d points)", body.name, len(body.coordinates))
+    return trail
