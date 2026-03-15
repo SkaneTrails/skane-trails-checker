@@ -1,4 +1,6 @@
 import type { SyncMetadata, Trail, TrailDetails, TrailUpdate } from '@/lib/types';
+import type { TrackingPoint } from '@/lib/track-to-trail';
+import { toRecordingPayload } from '@/lib/track-to-trail';
 import { apiRequest } from './client';
 
 export interface TrailFilters {
@@ -58,6 +60,13 @@ export const trailsApi = {
     return apiRequest<Trail[]>(`/api/v1/trails/upload?source=${encodeURIComponent(source)}`, {
       method: 'POST',
       body: formData,
+    });
+  },
+
+  saveRecording(name: string, points: TrackingPoint[], source?: string): Promise<Trail> {
+    return apiRequest<Trail>('/api/v1/trails/record', {
+      method: 'POST',
+      body: JSON.stringify(toRecordingPayload(name, points, source)),
     });
   },
 };

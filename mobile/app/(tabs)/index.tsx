@@ -1,12 +1,13 @@
 import { useCallback, useMemo, useState } from 'react';
-import { ActivityIndicator, Platform, Pressable, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, Alert, Platform, StyleSheet, View } from 'react-native';
 import { EmptyState, ScreenLayout } from '@/components';
 import { FloatingButton } from '@/components/FloatingButton';
 import { FloatingCardOverlay } from '@/components/FloatingCardOverlay';
 import { ForagingSpotCard } from '@/components/ForagingSpotCard';
+import { HamburgerMenu } from '@/components/HamburgerMenu';
 import { LayerToggle, type MapLayer } from '@/components/LayerToggle';
 import { PlaceCard } from '@/components/PlaceCard';
-import { TabIcon } from '@/components/TabIcon';
+import { TrackingOverlay } from '@/components/TrackingOverlay';
 import { TrailCard } from '@/components/TrailCard';
 import { type MapLayers, UnifiedMap } from '@/components/UnifiedMap';
 import {
@@ -29,7 +30,7 @@ type SelectedItem =
   | { type: 'place'; data: Place };
 
 export default function MapScreen() {
-  const { colors, shadows } = useTheme();
+  const { colors } = useTheme();
   const { t } = useTranslation();
   const { enabledPlaceCategories } = useSettings();
 
@@ -55,6 +56,7 @@ export default function MapScreen() {
   });
 
   const [showLayers, setShowLayers] = useState(false);
+  const [showMenu, setShowMenu] = useState(false);
   const [selected, setSelected] = useState<SelectedItem | null>(null);
 
   const layerList: MapLayer[] = [
@@ -122,20 +124,23 @@ export default function MapScreen() {
         <FloatingButton label={t('map.layers')} onPress={() => setShowLayers((v) => !v)} />
       </View>
 
-      {/* Settings button (top-right) */}
-      <Pressable
-        onPress={() => {
-          // Dynamic import to avoid pulling router into non-web
-          // eslint-disable-next-line @typescript-eslint/no-require-imports
-          const { router } = require('expo-router');
-          router.push('/settings');
-        }}
-        accessibilityRole="button"
-        accessibilityLabel={t('settings.title')}
-        style={[styles.settingsButton, glassPill(colors.glass), shadows.subtle]}
-      >
-        <TabIcon name="settings" color={colors.text.secondary} size={20} strokeWidth={1.5} />
-      </Pressable>
+      {/* Hamburger menu (top-right) */}
+      <View style={styles.menuContainer}>
+        <HamburgerMenu
+          isOpen={showMenu}
+          onToggle={() => setShowMenu((v) => !v)}
+          onSettings={() => {
+            const { router } = require('expo-router');
+            router.push('/settings');
+          }}
+          onStartTracking={() => {
+            Alert.alert(t('tracking.startTracking'), t('tracking.webNotSupported'));
+          }}
+        />
+      </View>
+
+      {/* Tracking overlay */}
+      <TrackingOverlay />
 
       {/* Layer toggle panel */}
       {showLayers && (
@@ -192,12 +197,11 @@ const styles = StyleSheet.create({
     left: spacing.lg,
     zIndex: 900,
   },
-  settingsButton: {
+  menuContainer: {
     position: 'absolute',
     top: spacing.lg,
     right: spacing.lg,
-    zIndex: 900,
-    padding: spacing.sm + 2,
+    zIndex: 1000,
   },
   layerPanel: {
     position: 'absolute',

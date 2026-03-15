@@ -21,7 +21,9 @@ type IconName =
   | 'edit'
   | 'trash'
   | 'file'
-  | 'globe';
+  | 'globe'
+  | 'menu'
+  | 'play';
 
 interface TabIconProps {
   name: IconName;
@@ -47,6 +49,8 @@ const paths: Record<IconName, string> = {
   trash: 'M3 6h18 M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6 M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2',
   file: 'M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z M14 2v6h6',
   globe: 'M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20z M2 12h20 M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z',
+  menu: 'M3 12h18 M3 6h18 M3 18h18',
+  play: 'M5 3l14 9-14 9V3z',
 };
 
 export function TabIcon({ name, color, size = 22, strokeWidth = 1.5 }: TabIconProps) {

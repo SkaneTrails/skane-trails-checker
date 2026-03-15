@@ -21,6 +21,7 @@ export { placeKeys, usePlaceCategories, usePlaces } from './use-places';
 export {
   trailKeys,
   useDeleteTrail,
+  useSaveRecording,
   useTrail,
   useTrailDetails,
   useTrails,
