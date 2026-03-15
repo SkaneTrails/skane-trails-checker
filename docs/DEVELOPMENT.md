@@ -114,6 +114,150 @@ cd mobile
 npx expo start --web
 ```
 
+### Android App (Native)
+
+The app supports building a standalone Android APK with native maps (MapLibre GL + OpenStreetMap) and background GPS tracking. The web app continues working unchanged — platform-specific code uses file extensions (`.web.tsx` / `.native.tsx`).
+
+#### Prerequisites
+
+- [Android Studio](https://developer.android.com/studio) with Android SDK installed
+- Android SDK Platform 35 (or latest)
+- Android SDK Build-Tools
+- An Android device with USB debugging enabled, or an Android emulator
+- [EAS CLI](https://docs.expo.dev/eas/): `npm install -g eas-cli`
+
+> **USB Debugging:** On your phone, go to Settings → About Phone → tap "Build Number" 7 times to enable Developer Options. Then enable "USB Debugging" in Developer Options.
+
+#### First-Time Development Build
+
+The Android app requires an Expo development build (not Expo Go) because it uses custom native modules (`@maplibre/maplibre-react-native`, `expo-location` background tracking).
+
+```bash
+cd mobile
+
+# Install dependencies
+pnpm install
+
+# Build and run on connected Android device via USB
+npx expo run:android
+```
+
+This will:
+
+1. Generate the `android/` directory with native project files
+1. Compile the native code
+1. Install the app on your connected device
+1. Start the Metro bundler
+
+> **First build takes several minutes.** Subsequent builds are much faster as Gradle caches compiled code.
+
+#### Running After First Build
+
+Once the app is installed, start the dev server without rebuilding:
+
+```bash
+cd mobile
+npx expo start --android
+```
+
+The app connects to Metro over your local network. Both the phone and computer must be on the same WiFi network.
+
+#### Building a Standalone APK
+
+To build a sideloadable APK that runs without a dev server:
+
+```bash
+# Local build (requires Android SDK)
+npx eas build --platform android --profile preview --local
+
+# Cloud build (requires Expo account)
+npx eas build --platform android --profile preview
+```
+
+The `preview` profile in `eas.json` produces a standalone APK for internal distribution (no dev server required).
+
+#### Installing the APK
+
+```bash
+# Via ADB (USB connected)
+adb install build-*.apk
+
+# Or transfer the .apk file to your phone and open it
+# You may need to enable "Install from unknown sources" in Settings
+```
+
+#### API Connection
+
+The Android app connects to the same API as the web app. Set the API URL in `mobile/.env.development`:
+
+```
+EXPO_PUBLIC_API_URL=http://<your-computer-ip>:8000
+```
+
+Use your computer's local IP (not `localhost`) since the phone connects over WiFi. Find it with `ipconfig` (Windows) or `ifconfig` (macOS/Linux).
+
+#### Native Map (MapLibre + OpenStreetMap)
+
+The native Android map uses [MapLibre GL](https://github.com/maplibre/maplibre-react-native) with OpenStreetMap tiles — **no API key or billing required**. This keeps the project within its zero-cost constraint.
+
+Both web (Leaflet) and native (MapLibre) render the same OpenStreetMap tile data, ensuring visual consistency across platforms.
+
+#### Architecture: Platform-Specific Files
+
+Native code uses Expo's platform file extensions. Metro resolves imports automatically:
+
+| Import               | Web resolves to            | Android resolves to           |
+| -------------------- | -------------------------- | ----------------------------- |
+| `./UnifiedMap`       | `UnifiedMap.web.tsx`       | `UnifiedMap.native.tsx`       |
+| `./TrackingControls` | `TrackingControls.web.tsx` | `TrackingControls.native.tsx` |
+
+Key platform-specific files:
+
+| File                                     | Purpose                               |
+| ---------------------------------------- | ------------------------------------- |
+| `components/UnifiedMap.web.tsx`          | Leaflet map (OpenStreetMap tiles)     |
+| `components/UnifiedMap.native.tsx`       | MapLibre GL map (OpenStreetMap tiles) |
+| `components/TrackingControls.web.tsx`    | Empty stub (GPS not available on web) |
+| `components/TrackingControls.native.tsx` | FAB buttons for start/pause/stop GPS  |
+| `lib/tracking-service.ts`                | Background GPS via expo-task-manager  |
+| `lib/location-permissions.ts`            | Android permission request flow       |
+
+All business logic (hooks, types, API client, TrackingContext, TrackingOverlay) is shared across platforms.
+
+#### Background GPS Tracking
+
+The Android app records hikes with the screen off using a foreground service:
+
+- `expo-location` provides GPS coordinates (high accuracy, 5s interval, 10m minimum movement)
+- `expo-task-manager` registers a background task that survives screen lock
+- A persistent notification shows "Recording hike" while tracking is active
+- Coordinates are flushed to AsyncStorage every 30s for crash recovery
+- Recorded tracks are saved as trails via POST `/api/v1/trails/record`
+
+#### Permissions
+
+The app requests these Android permissions (configured in `app.json`):
+
+| Permission                    | Purpose                           |
+| ----------------------------- | --------------------------------- |
+| `ACCESS_FINE_LOCATION`        | GPS coordinates while app is open |
+| `ACCESS_COARSE_LOCATION`      | Approximate location fallback     |
+| `ACCESS_BACKGROUND_LOCATION`  | GPS with screen off               |
+| `FOREGROUND_SERVICE`          | Keep tracking alive in background |
+| `FOREGROUND_SERVICE_LOCATION` | Location-type foreground service  |
+
+Background location requires a two-step permission flow: foreground first, then background (Android 10+ requirement).
+
+#### Troubleshooting
+
+| Problem                              | Solution                                                                   |
+| ------------------------------------ | -------------------------------------------------------------------------- |
+| `INSTALL_FAILED_UPDATE_INCOMPATIBLE` | Uninstall the existing app: `adb uninstall com.skanetrails.checker`        |
+| Build fails with SDK errors          | Open `mobile/android/` in Android Studio and let it sync Gradle            |
+| App can't reach API                  | Check `EXPO_PUBLIC_API_URL` uses your computer's LAN IP, not localhost     |
+| GPS not recording in background      | Ensure "Allow all the time" location permission is granted                 |
+| Emulator has no GPS                  | Use Android Studio's Extended Controls (three dots) to set a mock location |
+
 ## Project Structure
 
 ```
