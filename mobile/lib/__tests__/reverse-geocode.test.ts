@@ -29,7 +29,7 @@ describe('reverseGeocode', () => {
     expect(result).toBe('Brösarp');
     expect(globalThis.fetch).toHaveBeenCalledWith(
       expect.stringContaining('lat=55.72&lon=14.08'),
-      expect.objectContaining({ headers: expect.objectContaining({ 'User-Agent': 'SkaneTrails/1.0' }) }),
+      expect.objectContaining({ headers: expect.objectContaining({ Accept: 'application/json' }) }),
     );
   });
 

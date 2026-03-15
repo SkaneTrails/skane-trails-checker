@@ -102,7 +102,7 @@ describe('HamburgerMenu', () => {
     const onToggle = vi.fn();
     render(<HamburgerMenu {...defaultProps} isOpen={true} onToggle={onToggle} />);
 
-    fireEvent.click(screen.getByLabelText('Close menu'));
+    fireEvent.click(screen.getByLabelText('map.closeMenu'));
     expect(onToggle).toHaveBeenCalledOnce();
   });
 

@@ -204,6 +204,13 @@ class TestProcessRecording:
         trail2, _ = process_recording("Hike B", coords, "gps_recording", "user-1")
         assert trail1.trail_id != trail2.trail_id
 
+    def test_different_timestamps_yield_different_ids(self):
+        coords1 = _make_coords([(55.0, 13.0, 100.0, 1700000000000), (55.001, 13.001, 110.0, 1700000060000)])
+        coords2 = _make_coords([(55.0, 13.0, 100.0, 1700100000000), (55.001, 13.001, 110.0, 1700100060000)])
+        trail1, _ = process_recording("Same Name", coords1, "gps_recording", "user-1")
+        trail2, _ = process_recording("Same Name", coords2, "gps_recording", "user-1")
+        assert trail1.trail_id != trail2.trail_id
+
     def test_coordinates_map_simplified(self):
         # Create a long trail with many points
         base_time = 1700000000000

@@ -78,7 +78,7 @@ export function HamburgerMenu({ isOpen, onToggle, onSettings, onStartTracking }:
           <Pressable
             style={StyleSheet.absoluteFill}
             onPress={onToggle}
-            accessibilityLabel="Close menu"
+            accessibilityLabel={t('map.closeMenu')}
           />
 
           <View

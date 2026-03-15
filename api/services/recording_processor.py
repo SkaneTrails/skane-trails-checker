@@ -121,8 +121,9 @@ def process_recording(
 
     # Stable trail ID
     first_coord = f"{all_coords[0][0]:.6f},{all_coords[0][1]:.6f}"
+    first_ts = str(coordinates[0].timestamp)
     trail_id = hashlib.md5(  # noqa: S324
-        f"{source}_{name}_0_{first_coord}".encode()
+        f"{source}_{name}_{first_ts}_{first_coord}".encode()
     ).hexdigest()[:12]
 
     # Build coordinate lists

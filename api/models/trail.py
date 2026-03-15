@@ -186,5 +186,5 @@ class RecordingCreate(BaseModel):
     """Request body for saving a GPS recording as a trail."""
 
     name: str = Field(min_length=1, max_length=200)
-    coordinates: list[RecordingCoordinate] = Field(min_length=2, max_length=50_000)
+    coordinates: list[RecordingCoordinate] = Field(min_length=2, max_length=10_000)
     source: str = Field(default="gps_recording", pattern=r"^(other_trails|world_wide_hikes|gps_recording)$")

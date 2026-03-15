@@ -80,6 +80,7 @@ const en = {
     couldNotConnect: 'Could not connect to API',
     layers: 'Layers',
     menu: 'Menu',
+    closeMenu: 'Close menu',
   },
 
   tracking: {

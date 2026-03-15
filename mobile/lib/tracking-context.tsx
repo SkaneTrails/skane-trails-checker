@@ -48,6 +48,7 @@ export function TrackingProvider({ children }: { children: React.ReactNode }) {
   const pausedElapsedRef = useRef<number>(0);
 
   const startTimer = useCallback(() => {
+    if (timerRef.current) clearInterval(timerRef.current);
     startTimeRef.current = Date.now();
     timerRef.current = setInterval(() => {
       setElapsedMs(pausedElapsedRef.current + (Date.now() - startTimeRef.current));
@@ -104,7 +105,8 @@ export function TrackingProvider({ children }: { children: React.ReactNode }) {
   const addPoint = useCallback((point: TrackingPoint) => {
     setPoints((prev) => {
       const updated = [...prev, point];
-      if (updated.length >= 2) {
+      // Throttle full recomputation: first time we have 2+ points, then every 5
+      if (updated.length === 2 || (updated.length >= 2 && updated.length % 5 === 0)) {
         setStats(computeTrackingStats(updated));
       }
       return updated;

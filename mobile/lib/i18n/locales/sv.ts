@@ -80,6 +80,7 @@ const sv: Translations = {
     couldNotConnect: 'Kunde inte ansluta till API',
     layers: 'Lager',
     menu: 'Meny',
+    closeMenu: 'Stäng meny',
   },
 
   tracking: {

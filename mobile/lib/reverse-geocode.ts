@@ -37,12 +37,13 @@ function extractPlaceName(address: NominatimAddress): string | null {
 export async function reverseGeocode(lat: number, lng: number): Promise<string | null> {
   const url = `${NOMINATIM_URL}?lat=${lat}&lon=${lng}&format=json&zoom=14&addressdetails=1`;
 
-  const response = await fetch(url, {
-    headers: {
-      'User-Agent': 'SkaneTrails/1.0',
-      Accept: 'application/json',
-    },
-  });
+  const headers: Record<string, string> = { Accept: 'application/json' };
+  // User-Agent is forbidden in browsers but required by Nominatim policy on native
+  if (typeof navigator === 'undefined' || !('userAgent' in navigator)) {
+    headers['User-Agent'] = 'SkaneTrails/1.0';
+  }
+
+  const response = await fetch(url, { headers });
 
   if (!response.ok) return null;
 
