@@ -1,5 +1,9 @@
 /**
- * Native tracking controls — FAB button to start GPS recording on Android.
+ * Native tracking controls — FAB buttons for GPS recording.
+ *
+ * Currently targets Android only (iOS is not supported). Uses .native.tsx
+ * extension since there is no iOS-specific variant; if iOS support is added
+ * later, platform guards or .android.tsx can be introduced.
  *
  * Bridges expo-location background tracking with the shared TrackingContext.
  * When idle, shows a "Start Recording" FAB. Once tracking starts, the

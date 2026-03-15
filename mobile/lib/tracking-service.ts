@@ -191,7 +191,11 @@ export async function stopTracking(): Promise<TrackingPoint[]> {
   state.memoryBuffer = [];
   state.pointListener = null;
 
-  await AsyncStorage.removeItem(STORAGE_KEY);
+  try {
+    await AsyncStorage.removeItem(STORAGE_KEY);
+  } catch {
+    // Best-effort cleanup — don't break stop flow
+  }
 
   return points;
 }

@@ -9,7 +9,7 @@ vi.mock('expo-location', () => ({
 vi.mock('react-native', async () => {
   return {
     Alert: { alert: vi.fn() },
-    Linking: { openSettings: vi.fn() },
+    Linking: { openSettings: vi.fn(() => Promise.resolve()) },
     Platform: { OS: 'android' },
   };
 });

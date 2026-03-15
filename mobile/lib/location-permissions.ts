@@ -46,7 +46,7 @@ export async function requestTrackingPermissions(t: (key: string) => string): Pr
       t('permissions.openSettings'),
       [
         { text: t('common.cancel'), style: 'cancel' },
-        { text: t('permissions.settings'), onPress: () => Linking.openSettings() },
+        { text: t('permissions.settings'), onPress: () => void Linking.openSettings().catch(() => {}) },
       ],
     );
     return false;
@@ -62,7 +62,7 @@ export async function requestTrackingPermissions(t: (key: string) => string): Pr
       t('permissions.backgroundExplanation'),
       [
         { text: t('common.cancel'), style: 'cancel' },
-        { text: t('permissions.settings'), onPress: () => Linking.openSettings() },
+        { text: t('permissions.settings'), onPress: () => void Linking.openSettings().catch(() => {}) },
       ],
     );
     return false;

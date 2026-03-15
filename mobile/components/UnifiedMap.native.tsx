@@ -40,7 +40,32 @@ const DEFAULT_CENTER: [number, number] = [13.4, 55.95];
 const DEFAULT_ZOOM = 7;
 const PLACES_MIN_ZOOM = 13;
 const RECORDING_COLOR = '#ef4444';
-const OSM_STYLE_URL = 'https://demotiles.maplibre.org/style.json';
+/**
+ * Inline MapLibre style spec using OpenStreetMap raster tiles.
+ * Avoids depending on the MapLibre demo endpoint which is rate-limited
+ * and not intended for production use.
+ */
+const OSM_STYLE: MapLibreGL.StyleURL = {
+  version: 8,
+  sources: {
+    osm: {
+      type: 'raster',
+      tiles: ['https://tile.openstreetmap.org/{z}/{x}/{y}.png'],
+      tileSize: 256,
+      attribution: '&copy; OpenStreetMap contributors',
+      maxzoom: 19,
+    },
+  },
+  layers: [
+    {
+      id: 'osm-tiles',
+      type: 'raster',
+      source: 'osm',
+      minzoom: 0,
+      maxzoom: 19,
+    },
+  ],
+} as unknown as MapLibreGL.StyleURL;
 
 function trailToGeoJSON(trail: Trail): GeoJSON.Feature<GeoJSON.LineString> {
   return {
@@ -137,7 +162,7 @@ export function UnifiedMap({
     <View style={styles.container}>
       <MapLibreGL.MapView
         style={styles.map}
-        styleURL={OSM_STYLE_URL}
+        styleJSON={JSON.stringify(OSM_STYLE)}
         logoEnabled={false}
         attributionPosition={{ bottom: 8, right: 8 }}
         onPress={(e) => {
