@@ -20,7 +20,7 @@ import { borderRadius, fontSize, fontWeight, spacing, useTheme } from '@/lib/the
 export function TrackingControls() {
   const { colors, shadows } = useTheme();
   const { t } = useTranslation();
-  const { status, start, pause, resume, stop, addPoint } = useTracking();
+  const { status, start, pause, resume, stop, reset, addPoint } = useTracking();
 
   if (Platform.OS !== 'android') return null;
 
@@ -28,13 +28,16 @@ export function TrackingControls() {
     const granted = await requestTrackingPermissions(t);
     if (!granted) return;
 
+    // Transition to tracking state first so early GPS points aren't dropped
+    // by start()'s setPoints([]) clearing after addPoint has been called.
+    start();
     try {
       await TrackingService.startTracking(addPoint);
-      start();
     } catch {
-      // startLocationUpdatesAsync failed — don't transition to tracking state
+      // startLocationUpdatesAsync failed — roll back to idle
+      reset();
     }
-  }, [t, start, addPoint]);
+  }, [t, start, reset, addPoint]);
 
   const handlePause = useCallback(async () => {
     try {

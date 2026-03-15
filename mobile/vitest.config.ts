@@ -55,7 +55,6 @@ export default defineConfig({
         'components/UnifiedMap.web.tsx',
         // Platform-specific — require native runtime or Leaflet DOM, cannot test in jsdom
         'components/UnifiedMap.native.tsx',
-        'components/TrackingControls.native.tsx',
         'components/TrackingControls.web.tsx',
         // Web stub — no-op re-exports, no logic to test
         'lib/tracking-service.web.ts',
