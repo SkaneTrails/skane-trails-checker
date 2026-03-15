@@ -43,8 +43,12 @@ export default defineConfig({
         'lib/hooks/use-auth.tsx',
         // Hike groups hook — thin React Query wrapper
         'lib/hooks/use-hike-groups.ts',
+        // Foraging hooks — thin React Query wrappers (same pattern as hike groups)
+        'lib/hooks/use-foraging.ts',
         // Hike groups API — thin fetch wrapper
         'lib/api/hike-groups.ts',
+        // Foraging API — thin fetch wrappers (same pattern as hike groups)
+        'lib/api/foraging.ts',
         // Map components — Leaflet dependency, heavy DOM interaction
         'components/ForagingMap.tsx',
         'components/TrailMap.tsx',
@@ -60,6 +64,7 @@ export default defineConfig({
         'components/Button.tsx',
         'components/Chip.tsx',
         'components/ContentCard.tsx',
+        'components/ElevationProfile.tsx',
         'components/EmptyState.tsx',
         'components/FloatingButton.tsx',
         'components/FloatingCardOverlay.tsx',
@@ -73,6 +78,8 @@ export default defineConfig({
         'components/StatCard.tsx',
         'components/StatusBadge.tsx',
         'components/TabIcon.tsx',
+        // Tracking overlay — presentation HUD, callbacks delegate to tested tracking-service/context
+        'components/TrackingOverlay.tsx',
       ],
       thresholds: {
         statements: 80,
