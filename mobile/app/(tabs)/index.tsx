@@ -7,6 +7,7 @@ import { ForagingSpotCard } from '@/components/ForagingSpotCard';
 import { HamburgerMenu } from '@/components/HamburgerMenu';
 import { LayerToggle, type MapLayer } from '@/components/LayerToggle';
 import { PlaceCard } from '@/components/PlaceCard';
+import { TrackingControls } from '@/components/TrackingControls';
 import { TrackingOverlay } from '@/components/TrackingOverlay';
 import { TrailCard } from '@/components/TrailCard';
 import { type MapLayers, UnifiedMap } from '@/components/UnifiedMap';
@@ -22,6 +23,7 @@ import { useTranslation } from '@/lib/i18n';
 import { useSettings } from '@/lib/settings-context';
 import { spacing, useTheme } from '@/lib/theme';
 import { glassPill } from '@/lib/theme/styles';
+import { useTracking } from '@/lib/tracking-context';
 import type { ForagingSpot, Place, Trail } from '@/lib/types';
 
 type SelectedItem =
@@ -35,9 +37,10 @@ export default function MapScreen() {
   const { enabledPlaceCategories } = useSettings();
 
   const { data: trails, isFetching: trailsFetching } = useTrails();
-  const { data: spots } = useForagingSpots(undefined, { enabled: Platform.OS === 'web' });
-  const { data: types } = useForagingTypes({ enabled: Platform.OS === 'web' });
+  const { data: spots } = useForagingSpots();
+  const { data: types } = useForagingTypes();
   const { data: places } = usePlaces();
+  const { points: recordingPoints } = useTracking();
   const updateTrail = useUpdateTrail();
   const updateSpot = useUpdateForagingSpot();
 
@@ -96,14 +99,7 @@ export default function MapScreen() {
   );
 
   const selectedTrailId = selected?.type === 'trail' ? selected.data.trail_id : null;
-
-  if (Platform.OS !== 'web') {
-    return (
-      <ScreenLayout>
-        <EmptyState title={t('map.webOnly')} subtitle={t('map.useTrailsTab')} />
-      </ScreenLayout>
-    );
-  }
+  const isWeb = Platform.OS === 'web';
 
   return (
     <View style={styles.container}>
@@ -114,6 +110,7 @@ export default function MapScreen() {
         places={filteredPlaces}
         layers={mapLayers}
         selectedTrailId={selectedTrailId}
+        recordingPoints={recordingPoints}
         onTrailSelect={handleTrailSelect}
         onSpotSelect={handleSpotSelect}
         onPlaceSelect={handlePlaceSelect}
@@ -139,7 +136,10 @@ export default function MapScreen() {
         />
       </View>
 
-      {/* Tracking overlay */}
+      {/* Native GPS tracking controls (no-op on web) */}
+      <TrackingControls />
+
+      {/* Tracking stats overlay (shared across platforms) */}
       <TrackingOverlay />
 
       {/* Layer toggle panel */}

@@ -107,6 +107,16 @@ const en = {
     elevationLoss: '-{{meters}} m',
     defaultName: 'Hike near {{location}}',
     defaultNameFallback: 'Hike {{date}}',
+    startRecording: 'Record Hike',
+  },
+
+  permissions: {
+    locationRequired: 'Location Permission Required',
+    openSettings: 'Location access has been denied. Please enable it in Settings to record hikes.',
+    settings: 'Settings',
+    backgroundRequired: 'Background Location Required',
+    backgroundExplanation:
+      'Background location access is needed to record hikes with the screen off. Please enable "Allow all the time" in Settings.',
   },
 
   trail: {

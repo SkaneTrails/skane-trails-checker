@@ -107,6 +107,16 @@ const sv: Translations = {
     elevationLoss: '-{{meters}} m',
     defaultName: 'Vandring vid {{location}}',
     defaultNameFallback: 'Vandring {{date}}',
+    startRecording: 'Spela in vandring',
+  },
+
+  permissions: {
+    locationRequired: 'Platsbehörighet krävs',
+    openSettings: 'Platsåtkomst har nekats. Aktivera det i Inställningar för att spela in vandringar.',
+    settings: 'Inställningar',
+    backgroundRequired: 'Bakgrundsplats krävs',
+    backgroundExplanation:
+      'Bakgrundsplatsåtkomst behövs för att spela in vandringar med skärmen avstängd. Aktivera "Tillåt hela tiden" i Inställningar.',
   },
 
   trail: {

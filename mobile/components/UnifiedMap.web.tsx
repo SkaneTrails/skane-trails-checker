@@ -13,6 +13,7 @@ import { FALLBACK_PATH, ICON_PATHS } from './PlaceCategoryIcon';
 import { animation, iconSize, useTheme } from '@/lib/theme';
 import type { ColorTokens } from '@/lib/theme/colors';
 import type { ForagingSpot, ForagingType, Place, Trail } from '@/lib/types';
+import type { TrackingPoint } from '@/lib/track-to-trail';
 
 export interface MapLayers {
   trails: boolean;
@@ -27,6 +28,7 @@ interface UnifiedMapProps {
   places: Place[];
   layers: MapLayers;
   selectedTrailId?: string | null;
+  recordingPoints?: TrackingPoint[];
   onTrailSelect?: (trail: Trail) => void;
   onSpotSelect?: (spot: ForagingSpot) => void;
   onPlaceSelect?: (place: Place) => void;
