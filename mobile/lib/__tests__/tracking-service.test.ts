@@ -211,4 +211,81 @@ describe('tracking-service', () => {
     await TrackingService.clearBuffer();
     expect(AsyncStorage.removeItem).toHaveBeenCalledWith('@skane_trails_tracking_buffer');
   });
+
+  it('resumeTracking preserves buffer and restarts GPS', async () => {
+    const onPoint = vi.fn();
+    await TrackingService.startTracking(onPoint);
+
+    // Add a point
+    const taskCb = taskCallbacks.get('background-location-tracking')!;
+    taskCb({
+      data: {
+        locations: [
+          { coords: { latitude: 55.6, longitude: 13.0, altitude: 100 }, timestamp: 1000 },
+        ],
+      },
+      error: null,
+    });
+
+    // Pause
+    vi.mocked(TaskManager.isTaskRegisteredAsync).mockResolvedValue(true);
+    await TrackingService.pauseTracking();
+    vi.mocked(Location.startLocationUpdatesAsync).mockClear();
+
+    // Resume — buffer should NOT be cleared
+    const onPoint2 = vi.fn();
+    await TrackingService.resumeTracking(onPoint2);
+
+    expect(Location.startLocationUpdatesAsync).toHaveBeenCalledWith(
+      'background-location-tracking',
+      expect.objectContaining({ accuracy: Location.Accuracy.High }),
+    );
+
+    // Simulate another point after resume
+    taskCb({
+      data: {
+        locations: [
+          { coords: { latitude: 55.7, longitude: 13.1, altitude: 110 }, timestamp: 2000 },
+        ],
+      },
+      error: null,
+    });
+
+    expect(onPoint2).toHaveBeenCalledWith({
+      lat: 55.7,
+      lng: 13.1,
+      altitude: 110,
+      timestamp: 2000,
+    });
+
+    // Stop should return all points (both before and after resume)
+    vi.mocked(TaskManager.isTaskRegisteredAsync).mockResolvedValue(true);
+    const points = await TrackingService.stopTracking();
+    expect(points).toHaveLength(2);
+    expect(points[0].lat).toBe(55.6);
+    expect(points[1].lat).toBe(55.7);
+  });
+
+  it('flush timer swallows AsyncStorage errors', async () => {
+    const onPoint = vi.fn();
+    await TrackingService.startTracking(onPoint);
+
+    const taskCb = taskCallbacks.get('background-location-tracking')!;
+    taskCb({
+      data: {
+        locations: [
+          { coords: { latitude: 55.6, longitude: 13.0, altitude: 100 }, timestamp: 1000 },
+        ],
+      },
+      error: null,
+    });
+
+    vi.mocked(AsyncStorage.setItem).mockRejectedValueOnce(new Error('disk full'));
+
+    // Should not throw
+    await vi.advanceTimersByTimeAsync(30_000);
+
+    // Verify setItem was called (and rejected gracefully)
+    expect(AsyncStorage.setItem).toHaveBeenCalled();
+  });
 });

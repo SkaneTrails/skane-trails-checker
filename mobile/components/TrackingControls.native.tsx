@@ -34,7 +34,7 @@ export function TrackingControls() {
 
   const handleResume = useCallback(async () => {
     resume();
-    await TrackingService.startTracking(addPoint);
+    await TrackingService.resumeTracking(addPoint);
   }, [resume, addPoint]);
 
   const handleStop = useCallback(async () => {

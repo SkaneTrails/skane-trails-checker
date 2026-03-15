@@ -198,27 +198,14 @@ Use your computer's local IP (not `localhost`) since the phone connects over WiF
 
 #### Google Maps API Key
 
-The native map requires a Google Maps API key. Configure it in `app.json` under `android.config.googleMaps.apiKey`. The placeholder value `GOOGLE_MAPS_API_KEY` must be replaced with a real key before building.
+The native map requires a Google Maps API key, loaded via `app.config.ts` from the `GOOGLE_MAPS_API_KEY` environment variable. The key is **never committed** to the repository.
 
 1. Create a key in [Google Cloud Console](https://console.cloud.google.com/apis/credentials) with Maps SDK for Android enabled
-1. Restrict to your Android app's package name (`com.skanetrails.checker`)
-1. Replace the placeholder in `app.json`, or use `app.config.ts` to read from an environment variable:
+1. **Restrict the key** (mandatory): set Application restriction to Android apps, add package name `com.skanetrails.checker` and your signing certificate SHA-1
+1. Set the environment variable for local builds: `export GOOGLE_MAPS_API_KEY=AIzaSy...`
+1. For EAS builds, add it as an [EAS Secret](https://docs.expo.dev/build-reference/variables/): `eas secret:create --name GOOGLE_MAPS_API_KEY --value AIzaSy...`
 
-```ts
-// app.config.ts (alternative to app.json)
-export default {
-  expo: {
-    // ...existing config
-    android: {
-      config: {
-        googleMaps: {
-          apiKey: process.env.GOOGLE_MAPS_API_KEY,
-        },
-      },
-    },
-  },
-};
-```
+The build will fail with a clear error if the variable is missing during an EAS build.
 
 > **Free tier:** Google Maps SDK allows 28,000 map loads/month for free — more than enough for personal use.
 

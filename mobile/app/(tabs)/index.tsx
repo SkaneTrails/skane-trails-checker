@@ -134,6 +134,7 @@ export default function MapScreen() {
               Alert.alert(t('tracking.startTracking'), t('tracking.webNotSupported'));
             }
           }}
+          showTrackingItem={isWeb}
         />
       </View>
 

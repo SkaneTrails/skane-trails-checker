@@ -25,27 +25,32 @@ interface HamburgerMenuProps {
   onToggle: () => void;
   onSettings: () => void;
   onStartTracking: () => void;
+  showTrackingItem?: boolean;
 }
 
-export function HamburgerMenu({ isOpen, onToggle, onSettings, onStartTracking }: HamburgerMenuProps) {
+export function HamburgerMenu({ isOpen, onToggle, onSettings, onStartTracking, showTrackingItem = true }: HamburgerMenuProps) {
   const { colors, shadows } = useTheme();
   const { t } = useTranslation();
 
   const isWeb = Platform.OS === 'web';
 
   const items: MenuItem[] = [
-    {
-      key: 'tracking',
-      label: t('tracking.startTracking'),
-      icon: 'play',
-      onPress: onStartTracking,
-      disabled: isWeb,
-      subtitle: isWeb ? t('tracking.webNotSupported') : undefined,
-    },
+    ...(showTrackingItem
+      ? [
+          {
+            key: 'tracking',
+            label: t('tracking.startTracking'),
+            icon: 'play' as const,
+            onPress: onStartTracking,
+            disabled: isWeb,
+            subtitle: isWeb ? t('tracking.webNotSupported') : undefined,
+          },
+        ]
+      : []),
     {
       key: 'settings',
       label: t('settings.title'),
-      icon: 'settings',
+      icon: 'settings' as const,
       onPress: onSettings,
     },
   ];

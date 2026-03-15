@@ -116,4 +116,11 @@ describe('HamburgerMenu', () => {
     expect(screen.getByLabelText('map.menu')).toBeDefined();
     expect(screen.getByText('settings.title')).toBeDefined();
   });
+
+  it('hides tracking item when showTrackingItem is false', () => {
+    render(<HamburgerMenu {...defaultProps} isOpen={true} showTrackingItem={false} />);
+
+    expect(screen.queryByText('tracking.startTracking')).toBeNull();
+    expect(screen.getByText('settings.title')).toBeDefined();
+  });
 });

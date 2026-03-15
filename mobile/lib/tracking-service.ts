@@ -6,7 +6,8 @@
  * flushed to AsyncStorage for crash recovery.
  *
  * Buffer lifecycle:
- * - startTracking: clears buffer, starts collecting
+ * - startTracking: clears buffer, starts a new recording
+ * - resumeTracking: preserves buffer, restarts GPS after pause
  * - pauseTracking: stops GPS updates but preserves buffer
  * - stopTracking: stops GPS updates AND clears buffer (use after save/discard)
  * - recoverPoints: reads crash-recovery buffer (does NOT clear it)
@@ -58,7 +59,11 @@ function startFlushTimer() {
   stopFlushTimer();
   flushTimer = setInterval(async () => {
     if (memoryBuffer.length > 0) {
-      await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(memoryBuffer));
+      try {
+        await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(memoryBuffer));
+      } catch {
+        // Swallow write errors — crash recovery is best-effort
+      }
     }
   }, FLUSH_INTERVAL_MS);
 }
@@ -76,6 +81,29 @@ function stopFlushTimer() {
  */
 export async function startTracking(onPoint: PointListener): Promise<void> {
   memoryBuffer = [];
+  pointListener = onPoint;
+
+  await Location.startLocationUpdatesAsync(TRACKING_TASK, {
+    accuracy: Location.Accuracy.High,
+    timeInterval: 5000,
+    distanceInterval: 10,
+    foregroundService: {
+      notificationTitle: 'Recording hike',
+      notificationBody: 'GPS tracking active',
+      notificationColor: '#1a5e2a',
+    },
+    pausesUpdatesAutomatically: false,
+    activityType: Location.ActivityType.Fitness,
+  });
+
+  startFlushTimer();
+}
+
+/**
+ * Resume tracking after a pause — restarts GPS without clearing the buffer.
+ * Preserves crash-recovery data accumulated before the pause.
+ */
+export async function resumeTracking(onPoint: PointListener): Promise<void> {
   pointListener = onPoint;
 
   await Location.startLocationUpdatesAsync(TRACKING_TASK, {
