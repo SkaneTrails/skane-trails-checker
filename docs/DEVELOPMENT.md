@@ -196,18 +196,11 @@ EXPO_PUBLIC_API_URL=http://<your-computer-ip>:8000
 
 Use your computer's local IP (not `localhost`) since the phone connects over WiFi. Find it with `ipconfig` (Windows) or `ifconfig` (macOS/Linux).
 
-#### Google Maps API Key
+#### Native Map (MapLibre + OpenStreetMap)
 
-The native map requires a Google Maps API key, loaded via `app.config.ts` from the `GOOGLE_MAPS_API_KEY` environment variable. The key is **never committed** to the repository.
+The native Android map uses [MapLibre GL](https://github.com/maplibre/maplibre-react-native) with OpenStreetMap tiles — **no API key or billing required**. This keeps the project within its zero-cost constraint.
 
-1. Create a key in [Google Cloud Console](https://console.cloud.google.com/apis/credentials) with Maps SDK for Android enabled
-1. **Restrict the key** (mandatory): set Application restriction to Android apps, add package name `com.skanetrails.checker` and your signing certificate SHA-1
-1. Set the environment variable for local builds: `export GOOGLE_MAPS_API_KEY=AIzaSy...`
-1. For EAS builds, add it as an [EAS Secret](https://docs.expo.dev/build-reference/variables/): `eas secret:create --name GOOGLE_MAPS_API_KEY --value AIzaSy...`
-
-The build will fail with a clear error if the variable is missing during an EAS build.
-
-> **Billing & cost:** Google Maps Platform requires a billing-enabled GCP project. The Maps SDK for Android provides $200/month free credit (~28,000 map loads). For a personal-use app this is effectively free, but you **must** enable billing on the GCP project. Set a budget alert at $0 to catch unexpected usage. If zero billing is a hard requirement, consider switching to an OpenStreetMap-based native provider (e.g., `react-native-maps` with no provider, or `maplibre-react-native`).
+Both web (Leaflet) and native (MapLibre) render the same OpenStreetMap tile data, ensuring visual consistency across platforms.
 
 #### Architecture: Platform-Specific Files
 
@@ -223,7 +216,7 @@ Key platform-specific files:
 | File                                     | Purpose                               |
 | ---------------------------------------- | ------------------------------------- |
 | `components/UnifiedMap.web.tsx`          | Leaflet map (OpenStreetMap tiles)     |
-| `components/UnifiedMap.native.tsx`       | react-native-maps (Google Maps)       |
+| `components/UnifiedMap.native.tsx`       | MapLibre GL map (OpenStreetMap tiles) |
 | `components/TrackingControls.web.tsx`    | Empty stub (GPS not available on web) |
 | `components/TrackingControls.native.tsx` | FAB buttons for start/pause/stop GPS  |
 | `lib/tracking-service.ts`                | Background GPS via expo-task-manager  |
