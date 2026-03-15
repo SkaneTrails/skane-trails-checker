@@ -129,9 +129,13 @@ export async function resumeTracking(onPoint: PointListener): Promise<void> {
 export async function pauseTracking(): Promise<void> {
   stopFlushTimer();
 
-  // Flush current buffer to storage before pausing
+  // Flush current buffer to storage before pausing (best-effort)
   if (memoryBuffer.length > 0) {
-    await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(memoryBuffer));
+    try {
+      await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(memoryBuffer));
+    } catch {
+      // Best-effort flush — don't break pause/stop flow
+    }
   }
 
   const registered = await TaskManager.isTaskRegisteredAsync(TRACKING_TASK);
@@ -185,8 +189,13 @@ export async function isTracking(): Promise<boolean> {
  * Does NOT clear the buffer — call clearBuffer() after successful save.
  */
 export async function recoverPoints(): Promise<TrackingPoint[]> {
-  const raw = await AsyncStorage.getItem(STORAGE_KEY);
-  if (!raw) return [];
-
-  return JSON.parse(raw) as TrackingPoint[];
+  try {
+    const raw = await AsyncStorage.getItem(STORAGE_KEY);
+    if (!raw) return [];
+    return JSON.parse(raw) as TrackingPoint[];
+  } catch {
+    // Corrupted buffer — self-heal by clearing
+    await AsyncStorage.removeItem(STORAGE_KEY).catch(() => {});
+    return [];
+  }
 }

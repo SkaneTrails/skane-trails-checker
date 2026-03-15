@@ -207,7 +207,7 @@ The native map requires a Google Maps API key, loaded via `app.config.ts` from t
 
 The build will fail with a clear error if the variable is missing during an EAS build.
 
-> **Free tier:** Google Maps SDK allows 28,000 map loads/month for free — more than enough for personal use.
+> **Billing & cost:** Google Maps Platform requires a billing-enabled GCP project. The Maps SDK for Android provides $200/month free credit (~28,000 map loads). For a personal-use app this is effectively free, but you **must** enable billing on the GCP project. Set a budget alert at $0 to catch unexpected usage. If zero billing is a hard requirement, consider switching to an OpenStreetMap-based native provider (e.g., `react-native-maps` with no provider, or `maplibre-react-native`).
 
 #### Architecture: Platform-Specific Files
 

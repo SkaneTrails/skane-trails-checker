@@ -207,6 +207,38 @@ describe('tracking-service', () => {
     expect(points).toEqual([]);
   });
 
+  it('recoverPoints self-heals on corrupted data', async () => {
+    vi.mocked(AsyncStorage.getItem).mockResolvedValue('not valid json{{{');
+
+    const points = await TrackingService.recoverPoints();
+
+    expect(points).toEqual([]);
+    expect(AsyncStorage.removeItem).toHaveBeenCalledWith('@skane_trails_tracking_buffer');
+  });
+
+  it('pauseTracking continues even if flush fails', async () => {
+    vi.mocked(TaskManager.isTaskRegisteredAsync).mockResolvedValue(true);
+    const onPoint = vi.fn();
+    await TrackingService.startTracking(onPoint);
+
+    const taskCb = taskCallbacks.get('background-location-tracking')!;
+    taskCb({
+      data: {
+        locations: [
+          { coords: { latitude: 55.6, longitude: 13.0, altitude: 100 }, timestamp: 1000 },
+        ],
+      },
+      error: null,
+    });
+
+    vi.mocked(AsyncStorage.setItem).mockRejectedValueOnce(new Error('disk full'));
+
+    // Should not throw
+    await TrackingService.pauseTracking();
+
+    expect(Location.stopLocationUpdatesAsync).toHaveBeenCalled();
+  });
+
   it('clearBuffer removes persisted data', async () => {
     await TrackingService.clearBuffer();
     expect(AsyncStorage.removeItem).toHaveBeenCalledWith('@skane_trails_tracking_buffer');

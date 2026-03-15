@@ -1,6 +1,13 @@
 import type { ExpoConfig } from 'expo/config';
 import appJson from './app.json';
 
+/**
+ * Google Maps API key for the native Android map (react-native-maps).
+ *
+ * Requires a billing-enabled GCP project. The Maps SDK for Android
+ * provides $200/month free credit (~28K loads). Set a $0 budget alert
+ * to stay within free-tier limits. See docs/DEVELOPMENT.md for setup.
+ */
 const googleMapsApiKey = process.env.GOOGLE_MAPS_API_KEY;
 
 if (!googleMapsApiKey && process.env.EAS_BUILD === 'true') {

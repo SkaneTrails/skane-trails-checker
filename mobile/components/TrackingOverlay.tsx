@@ -15,6 +15,7 @@ import { useSaveRecording } from '@/lib/hooks';
 import { useTranslation } from '@/lib/i18n';
 import { reverseGeocode } from '@/lib/reverse-geocode';
 import { useTracking } from '@/lib/tracking-context';
+import * as TrackingService from '@/lib/tracking-service';
 import { borderRadius, fontSize, fontWeight, spacing, useTheme } from '@/lib/theme';
 import { glassCard } from '@/lib/theme/styles';
 
@@ -77,7 +78,14 @@ export function TrackingOverlay() {
   const handleDiscard = () => {
     Alert.alert(t('tracking.discard'), t('tracking.discardConfirm'), [
       { text: t('common.cancel'), style: 'cancel' },
-      { text: t('tracking.discard'), style: 'destructive', onPress: reset },
+      {
+        text: t('tracking.discard'),
+        style: 'destructive',
+        onPress: () => {
+          TrackingService.clearBuffer();
+          reset();
+        },
+      },
     ]);
   };
 
@@ -89,6 +97,7 @@ export function TrackingOverlay() {
       { name, points },
       {
         onSuccess: () => {
+          TrackingService.clearBuffer();
           reset();
           setTrailName('');
         },

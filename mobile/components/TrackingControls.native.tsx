@@ -23,8 +23,12 @@ export function TrackingControls() {
     const granted = await requestTrackingPermissions(t);
     if (!granted) return;
 
-    start();
-    await TrackingService.startTracking(addPoint);
+    try {
+      await TrackingService.startTracking(addPoint);
+      start();
+    } catch {
+      // startLocationUpdatesAsync failed — don't transition to tracking state
+    }
   }, [t, start, addPoint]);
 
   const handlePause = useCallback(async () => {
