@@ -1,9 +1,8 @@
 /**
  * Native tracking controls — FAB buttons for GPS recording.
  *
- * Currently targets Android only (iOS is not supported). Uses .native.tsx
- * extension since there is no iOS-specific variant; if iOS support is added
- * later, platform guards or .android.tsx can be introduced.
+ * Android only. Returns null on iOS since background GPS tracking
+ * and foreground service are Android-specific features.
  *
  * Bridges expo-location background tracking with the shared TrackingContext.
  * When idle, shows a "Start Recording" FAB. Once tracking starts, the
@@ -11,7 +10,7 @@
  */
 
 import { useCallback } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { requestTrackingPermissions } from '@/lib/location-permissions';
 import { useTranslation } from '@/lib/i18n';
 import { useTracking } from '@/lib/tracking-context';
@@ -22,6 +21,8 @@ export function TrackingControls() {
   const { colors, shadows } = useTheme();
   const { t } = useTranslation();
   const { status, start, pause, resume, stop, addPoint } = useTracking();
+
+  if (Platform.OS !== 'android') return null;
 
   const handleStart = useCallback(async () => {
     const granted = await requestTrackingPermissions(t);

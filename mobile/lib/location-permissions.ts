@@ -3,9 +3,10 @@
  *
  * Requests foreground and background location permissions in the correct
  * order (foreground first, then background) with user-friendly prompts.
+ * Returns safe defaults on non-Android platforms.
  */
 
-import { Alert, Linking } from 'react-native';
+import { Alert, Linking, Platform } from 'react-native';
 import * as Location from 'expo-location';
 
 export type PermissionResult = 'granted' | 'denied' | 'blocked';
@@ -38,6 +39,8 @@ export async function requestBackgroundPermission(): Promise<PermissionResult> {
  * Returns false silently on a normal denial (user can retry later).
  */
 export async function requestTrackingPermissions(t: (key: string) => string): Promise<boolean> {
+  if (Platform.OS !== 'android') return false;
+
   const foreground = await requestForegroundPermission();
 
   if (foreground === 'blocked') {
