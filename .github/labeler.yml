@@ -8,7 +8,7 @@
 
 "📦 type: dependencies":
   - changed-files:
-      - all-globs-to-any-file: ["pyproject.toml", "uv.lock"]
+      - any-glob-to-any-file: ["pyproject.toml", "uv.lock"]
 
 "🐍 type: python-tooling":
   - changed-files:
