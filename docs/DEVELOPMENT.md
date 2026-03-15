@@ -116,7 +116,7 @@ npx expo start --web
 
 ### Android App (Native)
 
-The app supports building a standalone Android APK with native Google Maps and background GPS tracking. The web app continues working unchanged — platform-specific code uses file extensions (`.web.tsx` / `.native.tsx`).
+The app supports building a standalone Android APK with native maps (MapLibre GL + OpenStreetMap) and background GPS tracking. The web app continues working unchanged — platform-specific code uses file extensions (`.web.tsx` / `.native.tsx`).
 
 #### Prerequisites
 
@@ -130,7 +130,7 @@ The app supports building a standalone Android APK with native Google Maps and b
 
 #### First-Time Development Build
 
-The Android app requires an Expo development build (not Expo Go) because it uses custom native modules (`react-native-maps`, `expo-location` background tracking).
+The Android app requires an Expo development build (not Expo Go) because it uses custom native modules (`@maplibre/maplibre-react-native`, `expo-location` background tracking).
 
 ```bash
 cd mobile

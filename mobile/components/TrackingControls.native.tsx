@@ -32,18 +32,30 @@ export function TrackingControls() {
   }, [t, start, addPoint]);
 
   const handlePause = useCallback(async () => {
-    pause();
-    await TrackingService.pauseTracking();
+    try {
+      await TrackingService.pauseTracking();
+      pause();
+    } catch {
+      // GPS stop failed — don't change UI state
+    }
   }, [pause]);
 
   const handleResume = useCallback(async () => {
-    resume();
-    await TrackingService.resumeTracking(addPoint);
+    try {
+      await TrackingService.resumeTracking(addPoint);
+      resume();
+    } catch {
+      // GPS resume failed — don't change UI state
+    }
   }, [resume, addPoint]);
 
   const handleStop = useCallback(async () => {
-    stop();
-    await TrackingService.pauseTracking();
+    try {
+      await TrackingService.pauseTracking();
+      stop();
+    } catch {
+      // GPS stop failed — don't change UI state
+    }
   }, [stop]);
 
   if (status === 'idle') {

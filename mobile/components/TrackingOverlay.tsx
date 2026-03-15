@@ -82,7 +82,7 @@ export function TrackingOverlay() {
         text: t('tracking.discard'),
         style: 'destructive',
         onPress: () => {
-          TrackingService.clearBuffer();
+          void TrackingService.clearBuffer();
           reset();
         },
       },
@@ -97,7 +97,7 @@ export function TrackingOverlay() {
       { name, points },
       {
         onSuccess: () => {
-          TrackingService.clearBuffer();
+          void TrackingService.clearBuffer();
           reset();
           setTrailName('');
         },

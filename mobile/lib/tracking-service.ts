@@ -25,9 +25,27 @@ const FLUSH_INTERVAL_MS = 30_000;
 
 type PointListener = (point: TrackingPoint) => void;
 
-let pointListener: PointListener | null = null;
-let flushTimer: ReturnType<typeof setInterval> | null = null;
-let memoryBuffer: TrackingPoint[] = [];
+// Use globalThis to ensure the task callback and exported functions share
+// the same state across Fast Refresh reloads (the defineTask guard means
+// the old callback survives, so it must reference the same objects).
+const STATE_KEY = '__skane_tracking_state__' as const;
+
+interface TrackingState {
+  pointListener: PointListener | null;
+  flushTimer: ReturnType<typeof setInterval> | null;
+  memoryBuffer: TrackingPoint[];
+}
+
+function getState(): TrackingState {
+  if (!(globalThis as Record<string, unknown>)[STATE_KEY]) {
+    (globalThis as Record<string, unknown>)[STATE_KEY] = {
+      pointListener: null,
+      flushTimer: null,
+      memoryBuffer: [],
+    };
+  }
+  return (globalThis as Record<string, unknown>)[STATE_KEY] as TrackingState;
+}
 
 /**
  * Register the background task. Must be called at module scope
@@ -41,6 +59,7 @@ if (!TaskManager.isTaskDefined(TRACKING_TASK)) {
     const locations = (data as { locations?: Location.LocationObject[] })?.locations;
     if (!locations) return;
 
+    const state = getState();
     for (const loc of locations) {
       const point: TrackingPoint = {
         lat: loc.coords.latitude,
@@ -49,18 +68,19 @@ if (!TaskManager.isTaskDefined(TRACKING_TASK)) {
         timestamp: loc.timestamp,
       };
 
-      memoryBuffer.push(point);
-      pointListener?.(point);
+      state.memoryBuffer.push(point);
+      state.pointListener?.(point);
     }
   });
 }
 
 function startFlushTimer() {
   stopFlushTimer();
-  flushTimer = setInterval(async () => {
-    if (memoryBuffer.length > 0) {
+  const state = getState();
+  state.flushTimer = setInterval(async () => {
+    if (state.memoryBuffer.length > 0) {
       try {
-        await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(memoryBuffer));
+        await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(state.memoryBuffer));
       } catch {
         // Swallow write errors — crash recovery is best-effort
       }
@@ -69,9 +89,10 @@ function startFlushTimer() {
 }
 
 function stopFlushTimer() {
-  if (flushTimer) {
-    clearInterval(flushTimer);
-    flushTimer = null;
+  const state = getState();
+  if (state.flushTimer) {
+    clearInterval(state.flushTimer);
+    state.flushTimer = null;
   }
 }
 
@@ -80,8 +101,12 @@ function stopFlushTimer() {
  * Requires foreground + background permissions to be granted first.
  */
 export async function startTracking(onPoint: PointListener): Promise<void> {
-  memoryBuffer = [];
-  pointListener = onPoint;
+  const state = getState();
+  state.memoryBuffer = [];
+  state.pointListener = onPoint;
+
+  // Clear persisted buffer so crash recovery doesn't return stale data
+  await AsyncStorage.removeItem(STORAGE_KEY).catch(() => {});
 
   await Location.startLocationUpdatesAsync(TRACKING_TASK, {
     accuracy: Location.Accuracy.High,
@@ -104,7 +129,8 @@ export async function startTracking(onPoint: PointListener): Promise<void> {
  * Preserves crash-recovery data accumulated before the pause.
  */
 export async function resumeTracking(onPoint: PointListener): Promise<void> {
-  pointListener = onPoint;
+  const state = getState();
+  state.pointListener = onPoint;
 
   await Location.startLocationUpdatesAsync(TRACKING_TASK, {
     accuracy: Location.Accuracy.High,
@@ -129,10 +155,12 @@ export async function resumeTracking(onPoint: PointListener): Promise<void> {
 export async function pauseTracking(): Promise<void> {
   stopFlushTimer();
 
+  const state = getState();
+
   // Flush current buffer to storage before pausing (best-effort)
-  if (memoryBuffer.length > 0) {
+  if (state.memoryBuffer.length > 0) {
     try {
-      await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(memoryBuffer));
+      await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(state.memoryBuffer));
     } catch {
       // Best-effort flush — don't break pause/stop flow
     }
@@ -143,7 +171,7 @@ export async function pauseTracking(): Promise<void> {
     await Location.stopLocationUpdatesAsync(TRACKING_TASK);
   }
 
-  pointListener = null;
+  state.pointListener = null;
 }
 
 /**
@@ -158,9 +186,10 @@ export async function stopTracking(): Promise<TrackingPoint[]> {
     await Location.stopLocationUpdatesAsync(TRACKING_TASK);
   }
 
-  const points = [...memoryBuffer];
-  memoryBuffer = [];
-  pointListener = null;
+  const state = getState();
+  const points = [...state.memoryBuffer];
+  state.memoryBuffer = [];
+  state.pointListener = null;
 
   await AsyncStorage.removeItem(STORAGE_KEY);
 
@@ -172,8 +201,13 @@ export async function stopTracking(): Promise<TrackingPoint[]> {
  * Call after a successful save or explicit discard.
  */
 export async function clearBuffer(): Promise<void> {
-  memoryBuffer = [];
-  await AsyncStorage.removeItem(STORAGE_KEY);
+  const state = getState();
+  state.memoryBuffer = [];
+  try {
+    await AsyncStorage.removeItem(STORAGE_KEY);
+  } catch {
+    // Best-effort — don't crash callers
+  }
 }
 
 /**

@@ -34,7 +34,8 @@ export async function requestBackgroundPermission(): Promise<PermissionResult> {
 
 /**
  * Request both foreground and background permissions in sequence.
- * Shows an explanation alert if background is denied.
+ * Shows an explanation alert with Settings link if either permission is blocked.
+ * Returns false silently on a normal denial (user can retry later).
  */
 export async function requestTrackingPermissions(t: (key: string) => string): Promise<boolean> {
   const foreground = await requestForegroundPermission();

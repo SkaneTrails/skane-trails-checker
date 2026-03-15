@@ -49,10 +49,12 @@ export default defineConfig({
         'components/ForagingMap.tsx',
         'components/TrailMap.tsx',
         'components/UnifiedMap.web.tsx',
-        // Native-only — require Android runtime, cannot test in jsdom
+        // Platform-specific — require native runtime or Leaflet DOM, cannot test in jsdom
         'components/UnifiedMap.native.tsx',
         'components/TrackingControls.native.tsx',
         'components/TrackingControls.web.tsx',
+        // Web stub — no-op re-exports, no logic to test
+        'lib/tracking-service.web.ts',
         // Presentation-only components — no logic beyond props
         'components/BottomSheet.tsx',
         'components/Button.tsx',

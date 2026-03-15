@@ -31,6 +31,8 @@ describe('tracking-service', () => {
     taskCallbacks.clear();
     // clearAllMocks doesn't reset mockReturnValue — ensure defineTask runs on import
     vi.mocked(TaskManager.isTaskDefined).mockReturnValue(false);
+    // Clear globalThis tracking state (shared across Fast Refresh reloads)
+    delete (globalThis as Record<string, unknown>)['__skane_tracking_state__'];
     // Re-import to reset module-level state
     vi.resetModules();
     TrackingService = await import('@/lib/tracking-service');
@@ -64,6 +66,13 @@ describe('tracking-service', () => {
         distanceInterval: 10,
       }),
     );
+  });
+
+  it('startTracking clears persisted buffer to prevent stale recovery', async () => {
+    const onPoint = vi.fn();
+    await TrackingService.startTracking(onPoint);
+
+    expect(AsyncStorage.removeItem).toHaveBeenCalledWith('@skane_trails_tracking_buffer');
   });
 
   it('startTracking invokes listener when task receives locations', async () => {
@@ -133,6 +142,8 @@ describe('tracking-service', () => {
     vi.mocked(TaskManager.isTaskRegisteredAsync).mockResolvedValue(true);
     const onPoint = vi.fn();
     await TrackingService.startTracking(onPoint);
+    // startTracking clears persisted buffer — reset mock for pause assertions
+    vi.mocked(AsyncStorage.removeItem).mockClear();
 
     // Add a point
     const taskCb = taskCallbacks.get('background-location-tracking')!;
@@ -242,6 +253,11 @@ describe('tracking-service', () => {
   it('clearBuffer removes persisted data', async () => {
     await TrackingService.clearBuffer();
     expect(AsyncStorage.removeItem).toHaveBeenCalledWith('@skane_trails_tracking_buffer');
+  });
+
+  it('clearBuffer swallows errors without throwing', async () => {
+    vi.mocked(AsyncStorage.removeItem).mockRejectedValueOnce(new Error('disk full'));
+    await expect(TrackingService.clearBuffer()).resolves.toBeUndefined();
   });
 
   it('resumeTracking preserves buffer and restarts GPS', async () => {
