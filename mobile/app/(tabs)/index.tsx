@@ -1,6 +1,5 @@
 import { useCallback, useMemo, useState } from 'react';
 import { ActivityIndicator, Alert, Platform, StyleSheet, View } from 'react-native';
-import { EmptyState, ScreenLayout } from '@/components';
 import { FloatingButton } from '@/components/FloatingButton';
 import { FloatingCardOverlay } from '@/components/FloatingCardOverlay';
 import { ForagingSpotCard } from '@/components/ForagingSpotCard';
@@ -131,7 +130,9 @@ export default function MapScreen() {
             router.push('/settings');
           }}
           onStartTracking={() => {
-            Alert.alert(t('tracking.startTracking'), t('tracking.webNotSupported'));
+            if (isWeb) {
+              Alert.alert(t('tracking.startTracking'), t('tracking.webNotSupported'));
+            }
           }}
         />
       </View>

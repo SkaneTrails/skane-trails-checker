@@ -7,7 +7,7 @@
  */
 
 import { useCallback } from 'react';
-import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { requestTrackingPermissions } from '@/lib/location-permissions';
 import { useTranslation } from '@/lib/i18n';
 import { useTracking } from '@/lib/tracking-context';
@@ -29,7 +29,7 @@ export function TrackingControls() {
 
   const handlePause = useCallback(async () => {
     pause();
-    await TrackingService.stopTracking();
+    await TrackingService.pauseTracking();
   }, [pause]);
 
   const handleResume = useCallback(async () => {
@@ -39,7 +39,7 @@ export function TrackingControls() {
 
   const handleStop = useCallback(async () => {
     stop();
-    await TrackingService.stopTracking();
+    await TrackingService.pauseTracking();
   }, [stop]);
 
   if (status === 'idle') {

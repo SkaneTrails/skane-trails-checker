@@ -48,7 +48,11 @@ export default defineConfig({
         // Map components — Leaflet dependency, heavy DOM interaction
         'components/ForagingMap.tsx',
         'components/TrailMap.tsx',
-        'components/UnifiedMap.tsx',
+        'components/UnifiedMap.web.tsx',
+        // Native-only — require Android runtime, cannot test in jsdom
+        'components/UnifiedMap.native.tsx',
+        'components/TrackingControls.native.tsx',
+        'components/TrackingControls.web.tsx',
         // Presentation-only components — no logic beyond props
         'components/BottomSheet.tsx',
         'components/Button.tsx',

@@ -1,6 +1,6 @@
 /**
  * Web stub for TrackingControls — GPS tracking is Android-only.
- * Web users access tracking info via the hamburger menu alert.
+ * On web, the hamburger menu shows a disabled tracking item with an explanation.
  */
 
 export function TrackingControls() {

@@ -174,7 +174,7 @@ npx eas build --platform android --profile preview --local
 npx eas build --platform android --profile preview
 ```
 
-The `preview` profile in `eas.json` produces a debug APK for internal distribution.
+The `preview` profile in `eas.json` produces a standalone APK for internal distribution (no dev server required).
 
 #### Installing the APK
 
@@ -195,6 +195,32 @@ EXPO_PUBLIC_API_URL=http://<your-computer-ip>:8000
 ```
 
 Use your computer's local IP (not `localhost`) since the phone connects over WiFi. Find it with `ipconfig` (Windows) or `ifconfig` (macOS/Linux).
+
+#### Google Maps API Key
+
+The native map requires a Google Maps API key. Configure it in `app.json` under `android.config.googleMaps.apiKey`. The placeholder value `GOOGLE_MAPS_API_KEY` must be replaced with a real key before building.
+
+1. Create a key in [Google Cloud Console](https://console.cloud.google.com/apis/credentials) with Maps SDK for Android enabled
+1. Restrict to your Android app's package name (`com.skanetrails.checker`)
+1. Replace the placeholder in `app.json`, or use `app.config.ts` to read from an environment variable:
+
+```ts
+// app.config.ts (alternative to app.json)
+export default {
+  expo: {
+    // ...existing config
+    android: {
+      config: {
+        googleMaps: {
+          apiKey: process.env.GOOGLE_MAPS_API_KEY,
+        },
+      },
+    },
+  },
+};
+```
+
+> **Free tier:** Google Maps SDK allows 28,000 map loads/month for free — more than enough for personal use.
 
 #### Architecture: Platform-Specific Files
 
