@@ -79,6 +79,12 @@ const sv: Translations = {
     useTrailsTab: 'Använd Leder-fliken för att se dina leder.',
     couldNotConnect: 'Kunde inte ansluta till API',
     layers: 'Lager',
+    menu: 'Meny',
+  },
+
+  tracking: {
+    startTracking: 'Starta spårning',
+    webNotSupported: 'GPS-spårning kräver Android-appen',
   },
 
   trail: {

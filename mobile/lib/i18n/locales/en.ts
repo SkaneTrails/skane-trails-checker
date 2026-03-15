@@ -79,6 +79,12 @@ const en = {
     useTrailsTab: 'Use the Trails tab to see your trails.',
     couldNotConnect: 'Could not connect to API',
     layers: 'Layers',
+    menu: 'Menu',
+  },
+
+  tracking: {
+    startTracking: 'Start Tracking',
+    webNotSupported: 'GPS tracking requires the Android app',
   },
 
   trail: {
