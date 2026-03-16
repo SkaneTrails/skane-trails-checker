@@ -42,8 +42,9 @@ def parse_gpx_upload(content: bytes) -> list[TrailResponse]:
     trails: list[TrailResponse] = []
     for i, track in enumerate(gpx_data.tracks):
         try:
-            coords = [(p.latitude, p.longitude) for seg in track.segments for p in seg.points]
-            source = detect_source(coords) if coords else "other_trails"
+            points = (p for seg in track.segments for p in seg.points)
+            coords_gen = ((p.latitude, p.longitude) for p in points)
+            source = detect_source(coords_gen)
             trail = gpx_track_to_trail(track, source=source, index=i, status="Explored!", gpx_metadata=gpx_metadata)
             trails.append(trail)
         except ValueError:

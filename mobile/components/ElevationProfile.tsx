@@ -67,7 +67,8 @@ export const ElevationProfile = ({
   const minElev = Math.min(...sampledElevations);
   const maxElev = Math.max(...sampledElevations);
   const elevRange = maxElev - minElev;
-  const scaleM = isInSkane(sampled) ? SKANE_SCALE_M : WORLD_SCALE_M;
+  const baseScale = isInSkane(coordinates) ? SKANE_SCALE_M : WORLD_SCALE_M;
+  const scaleM = Math.max(baseScale, elevRange);
 
   const padY = 4;
   const drawHeight = height - padY * 2;

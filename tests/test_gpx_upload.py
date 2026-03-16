@@ -216,10 +216,20 @@ class TestUploadGpxEndpoint:
         assert response.status_code == 400
         assert "empty" in response.json()["detail"]
 
-    def test_upload_ignores_source_query_param(self, authenticated_client):
+    @patch("api.routers.trails.trail_storage.update_sync_metadata")
+    @patch("api.routers.trails.trail_storage.save_trail")
+    @patch("api.routers.trails.parse_gpx_upload")
+    def test_upload_ignores_source_query_param(self, mock_parse, mock_save, mock_sync, authenticated_client):
         """Source query param is silently ignored (not a validation error)."""
-        # The endpoint no longer accepts source, but unknown query params
-        # shouldn't cause errors in FastAPI by default
+        mock_parse.return_value = [SAMPLE_TRAIL]
+        mock_save.return_value = None
+
+        response = authenticated_client.post(
+            "/api/v1/trails/upload?source=planned_hikes",
+            files={"file": ("trail.gpx", io.BytesIO(VALID_GPX.encode()), "application/gpx+xml")},
+        )
+        assert response.status_code == 201
+        mock_parse.assert_called_once()
 
     @patch("api.routers.trails.parse_gpx_upload")
     def test_upload_invalid_gpx_content(self, mock_parse, authenticated_client):

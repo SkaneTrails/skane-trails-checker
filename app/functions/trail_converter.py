@@ -2,6 +2,7 @@
 
 import hashlib
 import math
+from collections.abc import Iterable
 from datetime import UTC, datetime
 
 import gpxpy
@@ -20,8 +21,11 @@ _SKANE_WEST = 12.75
 _SKANE_EAST = 14.45
 
 
-def detect_source(coordinates: list[tuple[float, float]]) -> str:
+def detect_source(coordinates: Iterable[tuple[float, float]]) -> str:
     """Auto-detect trail source based on coordinates.
+
+    Accepts any iterable of (lat, lng) tuples so callers can pass
+    generator expressions for lazy evaluation with early exit.
 
     Returns 'other_trails' if any coordinate falls within Skåne's
     bounding box, otherwise 'world_wide_hikes'.
