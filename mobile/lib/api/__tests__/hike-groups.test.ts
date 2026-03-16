@@ -78,6 +78,14 @@ describe('hikeGroupsApi', () => {
     });
   });
 
+  describe('getMembers', () => {
+    it('fetches members for a group', async () => {
+      mockApiRequest.mockResolvedValue([]);
+      await hikeGroupsApi.getMembers('g1');
+      expect(mockApiRequest).toHaveBeenCalledWith('/api/v1/admin/groups/g1/members');
+    });
+  });
+
   describe('addMember', () => {
     it('posts member to group', async () => {
       mockApiRequest.mockResolvedValue({ id: 'g1' });

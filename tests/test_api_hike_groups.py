@@ -55,12 +55,23 @@ class TestGetCurrentUser:
 
 
 class TestListGroups:
+    @patch("api.routers.hike_groups.hike_group_storage.list_group_members")
     @patch("api.routers.hike_groups.hike_group_storage.get_all_hike_groups")
-    def test_list_groups_superuser(self, mock_get, superuser_client):
+    def test_list_groups_superuser(self, mock_get, mock_members, superuser_client):
         mock_get.return_value = [SAMPLE_GROUP, SAMPLE_GROUP_2]
+        mock_members.side_effect = [
+            [
+                GroupMember(email="a@test.com", group_id="group1", role="owner"),
+                GroupMember(email="b@test.com", group_id="group1", role="member"),
+            ],
+            [],
+        ]
         response = superuser_client.get("/api/v1/admin/groups")
         assert response.status_code == 200
-        assert len(response.json()) == 2
+        data = response.json()
+        assert len(data) == 2
+        assert data[0]["member_count"] == 2
+        assert data[1]["member_count"] == 0
 
     def test_list_groups_forbidden_for_admin(self, authenticated_client):
         response = authenticated_client.get("/api/v1/admin/groups")
@@ -125,12 +136,15 @@ class TestCreateGroup:
 
 
 class TestGetGroup:
+    @patch("api.routers.hike_groups.hike_group_storage.list_group_members")
     @patch("api.routers.hike_groups.hike_group_storage.get_hike_group")
-    def test_get_group_as_member(self, mock_get, authenticated_client):
+    def test_get_group_as_member(self, mock_get, mock_members, authenticated_client):
         mock_get.return_value = HikeGroupResponse(group_id="test-group", name="My Group", created_by="su@example.com")
+        mock_members.return_value = [GroupMember(email="admin@example.com", group_id="test-group", role="admin")]
         response = authenticated_client.get("/api/v1/admin/groups/test-group")
         assert response.status_code == 200
         assert response.json()["name"] == "My Group"
+        assert response.json()["member_count"] == 1
 
     @patch("api.routers.hike_groups.hike_group_storage.get_hike_group")
     def test_get_group_not_found(self, mock_get, authenticated_client):
@@ -143,11 +157,14 @@ class TestGetGroup:
         response = authenticated_client.get("/api/v1/admin/groups/other-group")
         assert response.status_code == 403
 
+    @patch("api.routers.hike_groups.hike_group_storage.list_group_members")
     @patch("api.routers.hike_groups.hike_group_storage.get_hike_group")
-    def test_get_group_superuser_any_group(self, mock_get, superuser_client):
+    def test_get_group_superuser_any_group(self, mock_get, mock_members, superuser_client):
         mock_get.return_value = SAMPLE_GROUP
+        mock_members.return_value = []
         response = superuser_client.get("/api/v1/admin/groups/group1")
         assert response.status_code == 200
+        assert response.json()["member_count"] == 0
 
 
 class TestUpdateGroup:

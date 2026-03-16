@@ -20,6 +20,7 @@ import { useAuth } from '@/lib/hooks/use-auth';
 import {
   useAddMember,
   useCurrentUser,
+  useGroupMembers,
   useHikeGroup,
   useRemoveMember,
   useUpdateHikeGroup,
@@ -36,6 +37,7 @@ export default function GroupSettingsScreen() {
   const { user } = useAuth();
 
   const { data: group, isLoading } = useHikeGroup(id ?? '', { enabled: !!id });
+  const { data: members = [], isLoading: membersLoading } = useGroupMembers(id ?? '', { enabled: !!id });
   const { data: currentUser } = useCurrentUser();
   const updateMutation = useUpdateHikeGroup();
   const addMemberMutation = useAddMember();
@@ -45,7 +47,7 @@ export default function GroupSettingsScreen() {
   const [groupName, setGroupName] = useState('');
   const [newEmail, setNewEmail] = useState('');
 
-  if (isLoading || !group) {
+  if (isLoading || membersLoading || !group) {
     return (
       <View style={styles.backdrop}>
         <View style={styles.cardWrap}>
@@ -58,7 +60,7 @@ export default function GroupSettingsScreen() {
   }
 
   const isSuperuser = currentUser?.role === 'superuser';
-  const isOwner = isSuperuser || (group.members?.some((m) => m.role === 'owner' && m.email === user?.email) ?? false);
+  const isOwner = isSuperuser || members.some((m) => m.role === 'owner' && m.email === user?.email);
 
   const handleSaveName = async () => {
     const trimmed = groupName.trim();
@@ -178,15 +180,15 @@ export default function GroupSettingsScreen() {
           {t('settings.members')}
         </Text>
         <ContentCard>
-          {(group.members ?? []).map((member) => (
-            <View key={member.uid || member.email} style={styles.memberRow}>
+          {members.map((member) => (
+            <View key={member.email} style={styles.memberRow}>
               <View style={styles.memberInfo}>
                 <Text style={[styles.memberEmail, { color: colors.text.primary }]}>
                   {member.email}
                 </Text>
-                {!!member.name && (
+                {!!member.display_name && (
                   <Text style={[styles.memberName, { color: colors.text.secondary }]}>
-                    {member.name}
+                    {member.display_name}
                   </Text>
                 )}
               </View>

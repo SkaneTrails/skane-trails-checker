@@ -11,6 +11,8 @@ import { createQueryWrapper } from '@/test/helpers';
 // Controllable mocks
 let mockGroupData: any = null;
 let mockGroupLoading = false;
+let mockMembersData: any[] = [];
+let mockMembersLoading = false;
 let mockCurrentUserData: any = null;
 const mockAddMemberMutateAsync = vi.fn().mockResolvedValue({});
 
@@ -70,6 +72,7 @@ vi.mock('@/lib/hooks/use-auth', () => ({
 
 vi.mock('@/lib/hooks/use-hike-groups', () => ({
   useHikeGroup: () => ({ data: mockGroupData, isLoading: mockGroupLoading }),
+  useGroupMembers: () => ({ data: mockMembersData, isLoading: mockMembersLoading }),
   useCurrentUser: () => ({ data: mockCurrentUserData }),
   useUpdateHikeGroup: () => ({ mutateAsync: vi.fn(), isPending: false }),
   useAddMember: () => ({ mutateAsync: mockAddMemberMutateAsync, isPending: false }),
@@ -89,11 +92,14 @@ describe('GroupSettingsScreen', () => {
     vi.clearAllMocks();
     mockGroupData = null;
     mockGroupLoading = false;
+    mockMembersData = [];
+    mockMembersLoading = false;
     mockCurrentUserData = null;
   });
 
   it('renders without crashing when group has no members', async () => {
-    mockGroupData = { group_id: 'group-1', name: 'Hemmestorp', created_at: '', last_updated: '' };
+    mockGroupData = { group_id: 'group-1', name: 'Hemmestorp', member_count: 0, created_at: '', last_updated: '' };
+    mockMembersData = [];
     mockCurrentUserData = { uid: 'u1', email: 'alice@test.com', role: 'member', group_id: 'group-1' };
 
     await renderScreen();
@@ -102,13 +108,8 @@ describe('GroupSettingsScreen', () => {
   });
 
   it('renders members list when group has members', async () => {
-    mockGroupData = {
-      group_id: 'group-1',
-      name: 'Hemmestorp',
-      members: [{ uid: 'u1', email: 'alice@test.com', name: 'Alice', role: 'owner' }],
-      created_at: '',
-      last_updated: '',
-    };
+    mockGroupData = { group_id: 'group-1', name: 'Hemmestorp', member_count: 1, created_at: '', last_updated: '' };
+    mockMembersData = [{ email: 'alice@test.com', group_id: 'group-1', role: 'owner', display_name: 'Alice' }];
     mockCurrentUserData = { uid: 'u1', email: 'alice@test.com', role: 'member', group_id: 'group-1' };
 
     await renderScreen();
@@ -117,7 +118,8 @@ describe('GroupSettingsScreen', () => {
   });
 
   it('shows add-member form for superuser on any group', async () => {
-    mockGroupData = { group_id: 'group-1', name: 'Hemmestorp', created_at: '', last_updated: '' };
+    mockGroupData = { group_id: 'group-1', name: 'Hemmestorp', member_count: 0, created_at: '', last_updated: '' };
+    mockMembersData = [];
     mockCurrentUserData = { uid: 'u2', email: 'super@test.com', role: 'superuser', group_id: null };
 
     await renderScreen();
@@ -126,13 +128,8 @@ describe('GroupSettingsScreen', () => {
   });
 
   it('hides add-member form for non-owner members', async () => {
-    mockGroupData = {
-      group_id: 'group-1',
-      name: 'Hemmestorp',
-      members: [{ uid: 'u9', email: 'owner@test.com', name: 'Owner', role: 'owner' }],
-      created_at: '',
-      last_updated: '',
-    };
+    mockGroupData = { group_id: 'group-1', name: 'Hemmestorp', member_count: 1, created_at: '', last_updated: '' };
+    mockMembersData = [{ email: 'owner@test.com', group_id: 'group-1', role: 'owner', display_name: 'Owner' }];
     mockCurrentUserData = { uid: 'u1', email: 'alice@test.com', role: 'member', group_id: 'group-1' };
 
     await renderScreen();

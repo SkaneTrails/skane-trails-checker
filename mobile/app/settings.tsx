@@ -113,7 +113,7 @@ export default function SettingsScreen() {
                     {group.name}
                   </Text>
                   <Text style={[styles.groupMeta, { color: colors.text.secondary }]}>
-                    {group.members?.length ?? 0} {t('settings.members').toLowerCase()}
+                    {group.member_count} {t('settings.members').toLowerCase()}
                   </Text>
                 </Pressable>
                 <Pressable
