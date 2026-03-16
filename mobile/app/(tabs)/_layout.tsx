@@ -1,6 +1,7 @@
 import { Redirect, Tabs } from 'expo-router';
 import { ActivityIndicator, Platform, View } from 'react-native';
 import { TabIcon } from '@/components/TabIcon';
+import { ApiClientError } from '@/lib/api';
 import { useAuth } from '@/lib/hooks/use-auth';
 import { useCurrentUser } from '@/lib/hooks/use-hike-groups';
 import { useTranslation } from '@/lib/i18n';
@@ -11,7 +12,7 @@ export default function TabLayout() {
   const { colors, shadows } = useTheme();
   const { t } = useTranslation();
   const { user, loading } = useAuth();
-  const { isLoading: userLoading, isError } = useCurrentUser({
+  const { isLoading: userLoading, error } = useCurrentUser({
     enabled: !loading && !!user,
   });
   const isWeb = Platform.OS === 'web';
@@ -31,8 +32,12 @@ export default function TabLayout() {
     );
   }
 
-  if (isError) {
+  if (error instanceof ApiClientError && error.status === 403) {
     return <Redirect href="/no-access" />;
+  }
+
+  if (error instanceof ApiClientError && error.status === 401) {
+    return <Redirect href="/sign-in" />;
   }
 
   const tabs = (

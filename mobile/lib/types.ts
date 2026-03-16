@@ -164,11 +164,13 @@ export interface AddMemberRequest {
   email: string;
 }
 
+export type UserRole = 'superuser' | 'admin' | 'member';
+
 // Current user info from GET /admin/me
 export interface CurrentUser {
   uid: string;
   email: string;
-  role: string;
+  role: UserRole;
   group_id: string | null;
   group_name: string | null;
 }
