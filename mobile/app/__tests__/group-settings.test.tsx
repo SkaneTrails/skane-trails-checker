@@ -15,6 +15,7 @@ let mockMembersData: any[] = [];
 let mockMembersLoading = false;
 let mockCurrentUserData: any = null;
 const mockAddMemberMutateAsync = vi.fn().mockResolvedValue({});
+const mockUpdateRoleMutate = vi.fn();
 
 vi.mock('expo-router', async () => ({
   useRouter: () => ({ push: vi.fn(), back: vi.fn(), replace: vi.fn() }),
@@ -77,6 +78,7 @@ vi.mock('@/lib/hooks/use-hike-groups', () => ({
   useUpdateHikeGroup: () => ({ mutateAsync: vi.fn(), isPending: false }),
   useAddMember: () => ({ mutateAsync: mockAddMemberMutateAsync, isPending: false }),
   useRemoveMember: () => ({ mutate: vi.fn(), isPending: false }),
+  useUpdateMemberRole: () => ({ mutate: mockUpdateRoleMutate, isPending: false }),
 }));
 
 async function renderScreen() {
@@ -135,5 +137,31 @@ describe('GroupSettingsScreen', () => {
     await renderScreen();
 
     expect(screen.queryByText('settings.addMember')).not.toBeInTheDocument();
+  });
+
+  it('shows role selector radio buttons in add-member form for admin', async () => {
+    mockGroupData = { group_id: 'group-1', name: 'Hemmestorp', member_count: 1, created_at: '', last_updated: '' };
+    mockMembersData = [{ email: 'alice@test.com', group_id: 'group-1', role: 'admin', display_name: 'Alice' }];
+    mockCurrentUserData = { uid: 'u1', email: 'alice@test.com', role: 'admin', group_id: 'group-1' };
+
+    await renderScreen();
+
+    expect(screen.getByText('settings.member')).toBeInTheDocument();
+    // 'settings.admin' appears twice: role badge + role selector
+    expect(screen.getAllByText('settings.admin').length).toBeGreaterThanOrEqual(2);
+  });
+
+  it('shows remove button for all non-self members when admin', async () => {
+    mockGroupData = { group_id: 'group-1', name: 'Hemmestorp', member_count: 2, created_at: '', last_updated: '' };
+    mockMembersData = [
+      { email: 'alice@test.com', group_id: 'group-1', role: 'admin', display_name: 'Alice' },
+      { email: 'bob@test.com', group_id: 'group-1', role: 'admin', display_name: 'Bob' },
+    ];
+    mockCurrentUserData = { uid: 'u1', email: 'alice@test.com', role: 'admin', group_id: 'group-1' };
+
+    await renderScreen();
+
+    const removeButtons = screen.getAllByText('settings.removeMember');
+    expect(removeButtons).toHaveLength(1);
   });
 });

@@ -19,6 +19,7 @@ from api.models.hike_group import (
     HikeGroupUpdate,
     MemberAdd,
     MemberResponse,
+    MemberUpdate,
 )
 from api.storage import hike_group_storage
 
@@ -29,6 +30,14 @@ def _require_superuser(user: AuthenticatedUser) -> None:
     """Require user to be a superuser."""
     if user.role != "superuser":
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Superuser access required")
+
+
+def _validate_email_path(email: str) -> str:
+    """Validate and normalize an email from a URL path parameter."""
+    normalized = email.strip().lower()
+    if "/" in normalized or "\\" in normalized:
+        raise HTTPException(status_code=400, detail="Invalid email address")
+    return normalized
 
 
 def _require_admin_or_superuser(user: AuthenticatedUser, group_id: str) -> None:
@@ -177,12 +186,44 @@ def add_member(
     return MemberResponse(email=body.email.lower(), group_id=group_id, role=body.role, display_name=body.display_name)
 
 
+@router.patch("/groups/{group_id}/members/{email:path}")
+def update_member_role(
+    group_id: str, email: str, body: MemberUpdate, user: Annotated[AuthenticatedUser, Depends(require_auth)]
+) -> MemberResponse:
+    """Update a member's role. Superuser or group admin."""
+    _require_admin_or_superuser(user, group_id)
+
+    normalized_email = _validate_email_path(email)
+    user_email = user.email.lower()
+
+    if normalized_email == user_email:
+        raise HTTPException(status_code=400, detail="Cannot change your own role")
+
+    if not hike_group_storage.get_hike_group(group_id):
+        raise HTTPException(status_code=404, detail="Group not found")
+
+    membership = hike_group_storage.get_user_membership(normalized_email)
+    if membership is None or membership.group_id != group_id:
+        raise HTTPException(status_code=404, detail="Member not found in this group")
+
+    if membership.role == body.role:
+        return MemberResponse(
+            email=normalized_email, group_id=group_id, role=body.role, display_name=membership.display_name
+        )
+
+    if not hike_group_storage.update_member_role(normalized_email, body.role):
+        raise HTTPException(status_code=404, detail="Member not found")
+    return MemberResponse(
+        email=normalized_email, group_id=group_id, role=body.role, display_name=membership.display_name
+    )
+
+
 @router.delete("/groups/{group_id}/members/{email:path}", status_code=204)
 def remove_member(group_id: str, email: str, user: Annotated[AuthenticatedUser, Depends(require_auth)]) -> None:
     """Remove a member from a group. Superuser or group admin."""
     _require_admin_or_superuser(user, group_id)
 
-    normalized_email = email.lower()
+    normalized_email = _validate_email_path(email)
     user_email = user.email.lower()
 
     if not hike_group_storage.get_hike_group(group_id):

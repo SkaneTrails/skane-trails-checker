@@ -166,6 +166,12 @@ export interface HikeGroupCreate {
 // Add member payload
 export interface AddMemberRequest {
   email: string;
+  role?: 'admin' | 'member';
+}
+
+// Update member payload
+export interface UpdateMemberRequest {
+  role: 'admin' | 'member';
 }
 
 export type UserRole = 'superuser' | 'admin' | 'member';

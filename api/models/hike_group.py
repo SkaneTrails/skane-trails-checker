@@ -46,6 +46,12 @@ class MemberAdd(BaseModel):
     display_name: str | None = None
 
 
+class MemberUpdate(BaseModel):
+    """Request body for updating a member's role."""
+
+    role: str = Field(pattern=r"^(admin|member)$")
+
+
 class CurrentUserResponse(BaseModel):
     """Current user info returned by GET /admin/me."""
 

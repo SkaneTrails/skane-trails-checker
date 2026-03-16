@@ -20,6 +20,7 @@ from api.storage.hike_group_storage import (
     remove_member,
     save_hike_group,
     update_hike_group,
+    update_member_role,
 )
 from api.storage.validation import InvalidDocumentIdError
 
@@ -282,3 +283,27 @@ class TestNormalizeEmail:
     def test_rejects_backslash(self) -> None:
         with pytest.raises(ValueError, match="path separators"):
             _normalize_email("bad\\email@example.com")
+
+
+class TestUpdateMemberRole:
+    def test_updates_existing_member(self, mock_collection) -> None:
+        doc_ref = MagicMock()
+        doc_get = MagicMock()
+        doc_get.exists = True
+        doc_ref.get.return_value = doc_get
+        mock_collection.document.return_value = doc_ref
+
+        result = update_member_role("user@example.com", "admin")
+        assert result is True
+        doc_ref.update.assert_called_once_with({"role": "admin"})
+
+    def test_returns_false_for_nonexistent(self, mock_collection) -> None:
+        doc_ref = MagicMock()
+        doc_get = MagicMock()
+        doc_get.exists = False
+        doc_ref.get.return_value = doc_get
+        mock_collection.document.return_value = doc_ref
+
+        result = update_member_role("nobody@example.com", "admin")
+        assert result is False
+        doc_ref.update.assert_not_called()

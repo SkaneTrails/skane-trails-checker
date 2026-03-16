@@ -102,7 +102,7 @@ repos:
         language: system
         types: [python]
         pass_filenames: false
-        args: [app/, --error-on-warning]
+        args: [app/, --error-on-warning, --extra-search-path, app/]
   - repo: https://github.com/antonbabenko/pre-commit-terraform
     # Terraform hooks
 

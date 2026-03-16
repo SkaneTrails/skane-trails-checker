@@ -107,4 +107,15 @@ describe('hikeGroupsApi', () => {
       );
     });
   });
+
+  describe('updateMemberRole', () => {
+    it('patches member role', async () => {
+      mockApiRequest.mockResolvedValue({ email: 'u@test.com', role: 'admin' });
+      await hikeGroupsApi.updateMemberRole('g1', 'u@test.com', { role: 'admin' });
+      expect(mockApiRequest).toHaveBeenCalledWith(
+        '/api/v1/admin/groups/g1/members/u%40test.com',
+        { method: 'PATCH', body: JSON.stringify({ role: 'admin' }) },
+      );
+    });
+  });
 });

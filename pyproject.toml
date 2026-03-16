@@ -107,6 +107,8 @@ package_module_name_map.fastapi = "fastapi"
 per_rule_ignores.DEP003 = [ "numpy" ]
 # These are local packages within the app/ directory
 per_rule_ignores.DEP001 = [ "api", "functions", "resources" ]
+# app is a local package (part of the project, not a dev dependency)
+per_rule_ignores.DEP004 = [ "app" ]
 # Dependencies not directly imported (test deps, implicit runtime deps like uvicorn/multipart)
 per_rule_ignores.DEP002 = [
   "pytest",
