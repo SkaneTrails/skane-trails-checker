@@ -163,3 +163,12 @@ export interface HikeGroupCreate {
 export interface AddMemberRequest {
   email: string;
 }
+
+// Current user info from GET /admin/me
+export interface CurrentUser {
+  uid: string;
+  email: string;
+  role: string;
+  group_id: string | null;
+  group_name: string | null;
+}

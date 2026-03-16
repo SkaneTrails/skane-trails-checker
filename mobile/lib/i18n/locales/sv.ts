@@ -221,6 +221,16 @@ const sv: Translations = {
     account: 'Konto',
     signOut: 'Logga ut',
   },
+
+  noAccess: {
+    title: 'Ingen åtkomst',
+    signedInAs: 'Inloggad som',
+    notInGroup: 'Ditt konto är inte medlem i någon vandringsgrupp.',
+    askAdmin: 'Be en gruppadmin att lägga till din e-postadress.',
+    signOutButton: 'Logga ut',
+    contactAdmin: 'Kontakta en gruppadmin om du tror att detta är fel.',
+    failedToSignOut: 'Kunde inte logga ut. Försök igen.',
+  },
 } as const;
 
 export default sv;

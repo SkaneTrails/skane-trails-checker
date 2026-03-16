@@ -1,6 +1,8 @@
-import { Tabs } from 'expo-router';
-import { Platform, View } from 'react-native';
+import { Redirect, Tabs } from 'expo-router';
+import { ActivityIndicator, Platform, View } from 'react-native';
 import { TabIcon } from '@/components/TabIcon';
+import { useAuth } from '@/lib/hooks/use-auth';
+import { useCurrentUser } from '@/lib/hooks/use-hike-groups';
 import { useTranslation } from '@/lib/i18n';
 import { blur, borderRadius, spacing, useTheme } from '@/lib/theme';
 import { cssShadow } from '@/lib/theme/styles';
@@ -8,7 +10,30 @@ import { cssShadow } from '@/lib/theme/styles';
 export default function TabLayout() {
   const { colors, shadows } = useTheme();
   const { t } = useTranslation();
+  const { user, loading } = useAuth();
+  const { isLoading: userLoading, isError } = useCurrentUser({
+    enabled: !loading && !!user,
+  });
   const isWeb = Platform.OS === 'web';
+
+  if (loading || userLoading) {
+    return (
+      <View
+        style={{
+          flex: 1,
+          alignItems: 'center',
+          justifyContent: 'center',
+          backgroundColor: colors.background,
+        }}
+      >
+        <ActivityIndicator size="large" color={colors.primary} />
+      </View>
+    );
+  }
+
+  if (isError) {
+    return <Redirect href="/no-access" />;
+  }
 
   const tabs = (
     <Tabs

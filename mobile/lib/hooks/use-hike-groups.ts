@@ -6,11 +6,25 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { hikeGroupsApi } from '@/lib/api';
 import type { AddMemberRequest, HikeGroupCreate } from '@/lib/types';
 
+export const currentUserKeys = {
+  all: ['admin', 'currentUser'] as const,
+};
+
 export const hikeGroupKeys = {
   all: ['hike-groups'] as const,
   list: ['hike-groups', 'list'] as const,
   detail: (id: string) => ['hike-groups', id] as const,
 };
+
+export function useCurrentUser(options?: { enabled?: boolean }) {
+  return useQuery({
+    queryKey: currentUserKeys.all,
+    queryFn: () => hikeGroupsApi.getCurrentUser(),
+    staleTime: 5 * 60 * 1000,
+    retry: false,
+    enabled: options?.enabled,
+  });
+}
 
 export function useHikeGroups() {
   return useQuery({
