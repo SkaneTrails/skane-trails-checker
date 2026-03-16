@@ -273,7 +273,7 @@ describe('useUploadGpx', () => {
     vi.clearAllMocks();
   });
 
-  it('calls uploadGpx API with file and source', async () => {
+  it('calls uploadGpx API with file', async () => {
     const uploadedTrail = { ...sampleTrail, trail_id: 'new1', name: 'Uploaded Trail' };
     mockTrailsApi.uploadGpx.mockResolvedValue([uploadedTrail]);
     const wrapper = createQueryWrapper();
@@ -281,11 +281,11 @@ describe('useUploadGpx', () => {
     const { result } = renderHook(() => useUploadGpx(), { wrapper });
 
     const mockFile = new File(['gpx content'], 'test.gpx', { type: 'application/gpx+xml' });
-    result.current.mutate({ file: mockFile, source: 'other_trails' });
+    result.current.mutate({ file: mockFile });
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
     expect(result.current.data).toEqual([uploadedTrail]);
-    expect(mockTrailsApi.uploadGpx).toHaveBeenCalledWith(mockFile, 'other_trails');
+    expect(mockTrailsApi.uploadGpx).toHaveBeenCalledWith(mockFile);
   });
 
   it('preserves server lastSyncTime when merging uploaded trails into cache', async () => {
@@ -394,7 +394,7 @@ describe('useSaveRecording', () => {
   });
 
   it('calls saveRecording API and invalidates queries', async () => {
-    const savedTrail = { ...sampleTrail, trail_id: 'rec1', name: 'Morning Walk', source: 'gps_recording' };
+    const savedTrail = { ...sampleTrail, trail_id: 'rec1', name: 'Morning Walk', source: 'other_trails' };
     mockTrailsApi.saveRecording.mockResolvedValue(savedTrail);
     mockTrailCache.get.mockResolvedValue({ trails: [sampleTrail], lastSyncTime: '2025-06-01T00:00:00Z' });
     const wrapper = createQueryWrapper();
@@ -406,9 +406,9 @@ describe('useSaveRecording', () => {
       { lat: 55.001, lng: 13.001, altitude: 110, timestamp: 1700000060000 },
     ];
 
-    await result.current.mutateAsync({ name: 'Morning Walk', points, source: 'gps_recording' });
+    await result.current.mutateAsync({ name: 'Morning Walk', points });
 
-    expect(mockTrailsApi.saveRecording).toHaveBeenCalledWith('Morning Walk', points, 'gps_recording');
+    expect(mockTrailsApi.saveRecording).toHaveBeenCalledWith('Morning Walk', points);
 
     await waitFor(() => {
       expect(mockTrailCache.set).toHaveBeenCalled();

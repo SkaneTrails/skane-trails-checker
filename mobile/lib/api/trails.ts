@@ -53,20 +53,20 @@ export const trailsApi = {
     });
   },
 
-  uploadGpx(file: File, source: string = 'other_trails'): Promise<Trail[]> {
+  uploadGpx(file: File): Promise<Trail[]> {
     const formData = new FormData();
     formData.append('file', file);
 
-    return apiRequest<Trail[]>(`/api/v1/trails/upload?source=${encodeURIComponent(source)}`, {
+    return apiRequest<Trail[]>('/api/v1/trails/upload', {
       method: 'POST',
       body: formData,
     });
   },
 
-  saveRecording(name: string, points: TrackingPoint[], source?: string): Promise<Trail> {
+  saveRecording(name: string, points: TrackingPoint[]): Promise<Trail> {
     return apiRequest<Trail>('/api/v1/trails/record', {
       method: 'POST',
-      body: JSON.stringify(toRecordingPayload(name, points, source)),
+      body: JSON.stringify(toRecordingPayload(name, points)),
     });
   },
 };

@@ -8,18 +8,13 @@
 import { useRouter } from 'expo-router';
 import { type ChangeEvent, useRef, useState } from 'react';
 import { Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { Button, Chip, ContentCard, EmptyState } from '@/components';
+import { Button, ContentCard, EmptyState } from '@/components';
 import { TabIcon } from '@/components/TabIcon';
 import { useUploadGpx } from '@/lib/hooks';
 import { useTranslation } from '@/lib/i18n';
 import { borderRadius, fontSize, fontWeight, sheet, spacing, useTheme } from '@/lib/theme';
 import { cssShadow, glassSheet } from '@/lib/theme/styles';
 import type { Trail } from '@/lib/types';
-
-const SOURCE_OPTIONS = [
-  { label: 'Other Trails', value: 'other_trails' },
-  { label: 'World Wide Hikes', value: 'world_wide_hikes' },
-] as const;
 
 export default function UploadScreen() {
   const { colors, shadows } = useTheme();
@@ -29,7 +24,6 @@ export default function UploadScreen() {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [source, setSource] = useState('other_trails');
   const [uploadedTrails, setUploadedTrails] = useState<Trail[] | null>(null);
 
   if (Platform.OS !== 'web') {
@@ -57,7 +51,7 @@ export default function UploadScreen() {
   const handleUpload = () => {
     if (!selectedFile) return;
     upload.mutate(
-      { file: selectedFile, source },
+      { file: selectedFile },
       {
         onSuccess: (trails) => {
           setUploadedTrails(trails);
@@ -108,24 +102,6 @@ export default function UploadScreen() {
         <Text style={[styles.description, { color: colors.text.secondary }]}>
           {t('upload.description')}
         </Text>
-
-        <View style={styles.sourceSection}>
-          <Text style={[styles.label, { color: colors.text.secondary }]}>
-            {t('upload.trailSource')}
-          </Text>
-          <View style={styles.chipRow}>
-            {SOURCE_OPTIONS.map((opt) => (
-              <Chip
-                key={opt.value}
-                label={t(
-                  `upload.${opt.value === 'other_trails' ? 'otherTrails' : 'worldWideHikes'}`,
-                )}
-                selected={source === opt.value}
-                onPress={() => setSource(opt.value)}
-              />
-            ))}
-          </View>
-        </View>
 
         <View style={styles.fileSection}>
           <input
@@ -234,18 +210,6 @@ const styles = StyleSheet.create({
   description: {
     fontSize: fontSize.md,
     marginBottom: spacing.xl,
-  },
-  label: {
-    fontSize: fontSize.sm,
-    fontWeight: fontWeight.semibold,
-    marginBottom: spacing.sm,
-  },
-  sourceSection: {
-    marginBottom: spacing.xl,
-  },
-  chipRow: {
-    flexDirection: 'row',
-    gap: spacing.sm,
   },
   fileSection: {
     marginBottom: spacing.xl,

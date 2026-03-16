@@ -103,7 +103,7 @@ export const TrailCard = ({ trail, onClose, onUpdate, isUpdating }: TrailCardPro
       {/* Date */}
       {trail.activity_date && (
         <Text style={[styles.dateText, { color: colors.text.muted }]}>
-          {trail.activity_date}
+          {new Date(trail.activity_date).toLocaleString(undefined, { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })}
         </Text>
       )}
 

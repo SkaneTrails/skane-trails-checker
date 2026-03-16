@@ -204,8 +204,8 @@ export function useUploadGpx() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: ({ file, source }: { file: File; source?: string }) =>
-      trailsApi.uploadGpx(file, source),
+    mutationFn: ({ file }: { file: File }) =>
+      trailsApi.uploadGpx(file),
     onSuccess: (newTrails) => {
       queryClient.invalidateQueries({ queryKey: trailKeys.all });
       // Merge new trails into cache in a single read-then-write to avoid
@@ -229,8 +229,8 @@ export function useSaveRecording() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: ({ name, points, source }: { name: string; points: TrackingPoint[]; source?: string }) =>
-      trailsApi.saveRecording(name, points, source),
+    mutationFn: ({ name, points }: { name: string; points: TrackingPoint[] }) =>
+      trailsApi.saveRecording(name, points),
     onSuccess: (savedTrail) => {
       queryClient.invalidateQueries({ queryKey: trailKeys.all });
       trailCache.get().then(({ trails, lastSyncTime }) => {
