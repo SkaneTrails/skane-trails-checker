@@ -32,6 +32,14 @@ def _require_superuser(user: AuthenticatedUser) -> None:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Superuser access required")
 
 
+def _validate_email_path(email: str) -> str:
+    """Validate and normalize an email from a URL path parameter."""
+    normalized = email.strip().lower()
+    if "/" in normalized or "\\" in normalized:
+        raise HTTPException(status_code=400, detail="Invalid email address")
+    return normalized
+
+
 def _require_admin_or_superuser(user: AuthenticatedUser, group_id: str) -> None:
     """Require user to be a superuser or admin of the specified group."""
     if user.role == "superuser":
@@ -185,7 +193,11 @@ def update_member_role(
     """Update a member's role. Superuser or group admin."""
     _require_admin_or_superuser(user, group_id)
 
-    normalized_email = email.lower()
+    normalized_email = _validate_email_path(email)
+    user_email = user.email.lower()
+
+    if normalized_email == user_email:
+        raise HTTPException(status_code=400, detail="Cannot change your own role")
 
     if not hike_group_storage.get_hike_group(group_id):
         raise HTTPException(status_code=404, detail="Group not found")
@@ -199,7 +211,8 @@ def update_member_role(
             email=normalized_email, group_id=group_id, role=body.role, display_name=membership.display_name
         )
 
-    hike_group_storage.update_member_role(normalized_email, body.role)
+    if not hike_group_storage.update_member_role(normalized_email, body.role):
+        raise HTTPException(status_code=404, detail="Member not found")
     return MemberResponse(
         email=normalized_email, group_id=group_id, role=body.role, display_name=membership.display_name
     )
@@ -210,7 +223,7 @@ def remove_member(group_id: str, email: str, user: Annotated[AuthenticatedUser, 
     """Remove a member from a group. Superuser or group admin."""
     _require_admin_or_superuser(user, group_id)
 
-    normalized_email = email.lower()
+    normalized_email = _validate_email_path(email)
     user_email = user.email.lower()
 
     if not hike_group_storage.get_hike_group(group_id):

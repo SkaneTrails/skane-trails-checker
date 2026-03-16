@@ -385,6 +385,11 @@ class TestRemoveMember:
         response = authenticated_client.delete("/api/v1/admin/groups/test-group/members/other@example.com")
         assert response.status_code == 404
 
+    def test_remove_member_invalid_email_path(self, authenticated_client):
+        """Email with path separators returns 400."""
+        response = authenticated_client.delete("/api/v1/admin/groups/test-group/members/bad/email@example.com")
+        assert response.status_code == 400
+
 
 class TestUpdateMemberRole:
     @patch("api.routers.hike_groups.hike_group_storage.update_member_role")
@@ -477,6 +482,34 @@ class TestUpdateMemberRole:
         )
         assert response.status_code == 200
         assert response.json()["role"] == "admin"
+
+    def test_update_role_self_forbidden(self, authenticated_client):
+        """Admin cannot change their own role."""
+        response = authenticated_client.patch(
+            "/api/v1/admin/groups/test-group/members/test@example.com", json={"role": "member"}
+        )
+        assert response.status_code == 400
+
+    def test_update_role_invalid_email_path(self, authenticated_client):
+        """Email with path separators returns 400."""
+        response = authenticated_client.patch(
+            "/api/v1/admin/groups/test-group/members/bad/email@example.com", json={"role": "admin"}
+        )
+        assert response.status_code == 400
+
+    @patch("api.routers.hike_groups.hike_group_storage.update_member_role")
+    @patch("api.routers.hike_groups.hike_group_storage.get_user_membership")
+    @patch("api.routers.hike_groups.hike_group_storage.get_hike_group")
+    def test_update_role_race_condition(self, mock_get, mock_membership, mock_update, authenticated_client):
+        """If member is deleted between check and update, return 404."""
+        mock_get.return_value = HikeGroupResponse(group_id="test-group", name="G", created_by="su@example.com")
+        mock_membership.return_value = GroupMember(email="other@example.com", group_id="test-group", role="member")
+        mock_update.return_value = False
+
+        response = authenticated_client.patch(
+            "/api/v1/admin/groups/test-group/members/other@example.com", json={"role": "admin"}
+        )
+        assert response.status_code == 404
 
 
 class TestHikeGroupStorage:

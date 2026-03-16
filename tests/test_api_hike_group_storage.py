@@ -273,6 +273,17 @@ class TestNormalizeEmail:
     def test_lowercases(self) -> None:
         assert _normalize_email("User@Example.COM") == "user@example.com"
 
+    def test_strips_whitespace(self) -> None:
+        assert _normalize_email("  user@example.com  ") == "user@example.com"
+
+    def test_rejects_forward_slash(self) -> None:
+        with pytest.raises(ValueError, match="path separators"):
+            _normalize_email("bad/email@example.com")
+
+    def test_rejects_backslash(self) -> None:
+        with pytest.raises(ValueError, match="path separators"):
+            _normalize_email("bad\\email@example.com")
+
 
 class TestUpdateMemberRole:
     def test_updates_existing_member(self, mock_collection) -> None:
@@ -296,14 +307,3 @@ class TestUpdateMemberRole:
         result = update_member_role("nobody@example.com", "admin")
         assert result is False
         doc_ref.update.assert_not_called()
-
-    def test_strips_whitespace(self) -> None:
-        assert _normalize_email("  user@example.com  ") == "user@example.com"
-
-    def test_rejects_forward_slash(self) -> None:
-        with pytest.raises(ValueError, match="path separators"):
-            _normalize_email("bad/email@example.com")
-
-    def test_rejects_backslash(self) -> None:
-        with pytest.raises(ValueError, match="path separators"):
-            _normalize_email("bad\\email@example.com")

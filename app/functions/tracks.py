@@ -6,7 +6,10 @@ import geopy.distance
 try:
     from app.resources.hikes_resources import DEFAULT_MAX_DISTANCE, DEFAULT_MIN_DISTANCE
 except ModuleNotFoundError:  # pragma: no cover
-    from resources.hikes_resources import DEFAULT_MAX_DISTANCE, DEFAULT_MIN_DISTANCE  # pragma: no cover
+    from resources.hikes_resources import (  # type: ignore[import-not-found]  # pragma: no cover
+        DEFAULT_MAX_DISTANCE,
+        DEFAULT_MIN_DISTANCE,
+    )
 
 logger = logging.getLogger(__name__)
 
