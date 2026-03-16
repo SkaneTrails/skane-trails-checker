@@ -6,9 +6,11 @@
 
 import { useState } from 'react';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Chip } from '@/components/Chip';
 import { useTranslation } from '@/lib/i18n';
 import { borderRadius, fontSize, fontWeight, spacing, useTheme } from '@/lib/theme';
 import type { Trail, TrailUpdate } from '@/lib/types';
+import { ColorPicker } from './ColorPicker';
 import { ElevationProfile } from './ElevationProfile';
 import { MapInfoCard } from './MapInfoCard';
 import { TabIcon } from './TabIcon';
@@ -34,12 +36,16 @@ export const TrailCard = ({ trail, onClose, onUpdate, isUpdating }: TrailCardPro
   const [editing, setEditing] = useState(false);
   const [editName, setEditName] = useState(trail.name);
   const [editDate, setEditDate] = useState(trail.activity_date ?? '');
+  const [editColor, setEditColor] = useState<string | null>(trail.line_color ?? null);
+  const [editPublic, setEditPublic] = useState(trail.is_public ?? false);
 
   const handleSave = () => {
     if (!onUpdate) return;
     const updates: TrailUpdate = {};
     if (editName !== trail.name) updates.name = editName;
     if (editDate !== (trail.activity_date ?? '')) updates.activity_date = editDate || undefined;
+    if (editColor !== (trail.line_color ?? null)) updates.line_color = editColor;
+    if (editPublic !== (trail.is_public ?? false)) updates.is_public = editPublic;
     if (Object.keys(updates).length === 0) {
       setEditing(false);
       return;
@@ -73,6 +79,31 @@ export const TrailCard = ({ trail, onClose, onUpdate, isUpdating }: TrailCardPro
             placeholder="YYYY-MM-DD"
             placeholderTextColor={colors.text.muted}
           />
+        </View>
+
+        <View style={styles.fieldRow}>
+          <Text style={[styles.fieldLabel, { color: colors.text.secondary }]}>
+            {t('trailCard.lineColor')}
+          </Text>
+          <ColorPicker selected={editColor} onSelect={setEditColor} />
+        </View>
+
+        <View style={styles.fieldRow}>
+          <Text style={[styles.fieldLabel, { color: colors.text.secondary }]}>
+            {t('trailCard.visibility')}
+          </Text>
+          <View style={styles.chipRow}>
+            <Chip
+              label={t('trailCard.privateTrail')}
+              selected={!editPublic}
+              onPress={() => setEditPublic(false)}
+            />
+            <Chip
+              label={t('trailCard.publicTrail')}
+              selected={editPublic}
+              onPress={() => setEditPublic(true)}
+            />
+          </View>
         </View>
 
         <View style={styles.buttonRow}>
@@ -195,6 +226,11 @@ const styles = StyleSheet.create({
     fontSize: fontSize.xs,
     fontWeight: fontWeight.semibold,
     marginBottom: spacing.xs,
+  },
+  chipRow: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+    flexWrap: 'wrap',
   },
   input: {
     borderWidth: 1,

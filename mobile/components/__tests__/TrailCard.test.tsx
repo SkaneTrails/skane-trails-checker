@@ -25,6 +25,12 @@ vi.mock('@/lib/theme', () => ({
         toExploreBg: '#FFF3E0',
         toExploreText: '#E65100',
       },
+      chip: {
+        activeBg: '#2E7D32',
+        activeText: '#fff',
+        bg: '#f5f5f5',
+        text: '#333',
+      },
       glass: {
         background: 'rgba(255,255,255,0.8)',
         backgroundDark: 'rgba(0,0,0,0.6)',
@@ -42,7 +48,7 @@ vi.mock('@/lib/theme', () => ({
   }),
   borderRadius: { sm: 4, md: 8, lg: 12, xl: 16, full: 9999 },
   fontSize: { xs: 10, sm: 12, md: 14, lg: 16, xl: 20, xxl: 24 },
-  fontWeight: { semibold: '600', bold: '700' },
+  fontWeight: { medium: '500', semibold: '600', bold: '700' },
   spacing: { xs: 4, sm: 8, md: 12, lg: 16, xl: 20 },
 }));
 
@@ -220,5 +226,47 @@ describe('TrailCard', () => {
 
     expect(onUpdate).not.toHaveBeenCalled();
     expect(screen.getByText('Söderåsen Loop')).toBeDefined();
+  });
+
+  it('shows color picker and visibility toggle in edit mode', () => {
+    render(<TrailCard trail={baseTrail} onClose={vi.fn()} onUpdate={vi.fn()} />);
+
+    fireEvent.click(screen.getByLabelText('trailCard.edit'));
+
+    expect(screen.getByText('trailCard.lineColor')).toBeDefined();
+    expect(screen.getByText('trailCard.visibility')).toBeDefined();
+    expect(screen.getByText('trailCard.privateTrail')).toBeDefined();
+    expect(screen.getByText('trailCard.publicTrail')).toBeDefined();
+  });
+
+  it('includes line_color in update when changed', () => {
+    const onUpdate = vi.fn();
+    const trail = { ...baseTrail, line_color: '#E53E3E' };
+    render(<TrailCard trail={trail} onClose={vi.fn()} onUpdate={onUpdate} />);
+
+    fireEvent.click(screen.getByLabelText('trailCard.edit'));
+    fireEvent.click(screen.getByLabelText('#4169E1'));
+    fireEvent.click(screen.getByText('common.save'));
+
+    expect(onUpdate).toHaveBeenCalledWith(
+      'trail-1',
+      { line_color: '#4169E1' },
+      expect.any(Function),
+    );
+  });
+
+  it('includes is_public in update when toggled', () => {
+    const onUpdate = vi.fn();
+    render(<TrailCard trail={baseTrail} onClose={vi.fn()} onUpdate={onUpdate} />);
+
+    fireEvent.click(screen.getByLabelText('trailCard.edit'));
+    fireEvent.click(screen.getByText('trailCard.publicTrail'));
+    fireEvent.click(screen.getByText('common.save'));
+
+    expect(onUpdate).toHaveBeenCalledWith(
+      'trail-1',
+      { is_public: true },
+      expect.any(Function),
+    );
   });
 });

@@ -158,6 +158,15 @@ const sv: Translations = {
     uploadSuccess: '{{count}} led(er) uppladdade!',
     viewTrails: 'Visa leder',
     webOnly: 'GPX-uppladdning är tillgänglig på webben',
+    hikeType: 'Vandringstyp',
+    completedHike: 'Genomförd vandring',
+    plannedHike: 'Planerad vandring',
+    lineColor: 'Ledfärg',
+    visibility: 'Synlighet',
+    publicTrail: 'Publik',
+    privateTrail: 'Privat',
+    publicHint: 'Synlig för alla grupper',
+    privateHint: 'Bara din grupp',
   },
 
   addSpot: {
@@ -179,6 +188,10 @@ const sv: Translations = {
     edit: 'Redigera',
     elevationGain: '+{{meters}} m',
     elevationLoss: '-{{meters}} m',
+    lineColor: 'Ledfärg',
+    visibility: 'Synlighet',
+    publicTrail: 'Publik',
+    privateTrail: 'Privat',
   },
 
   months: {
@@ -220,6 +233,9 @@ const sv: Translations = {
     groupSettings: 'Gruppinställningar',
     account: 'Konto',
     signOut: 'Logga ut',
+    trailColors: 'Ledfärger',
+    defaultPlannedColor: 'Standardfärg planerad',
+    defaultCompletedColor: 'Standardfärg genomförd',
   },
 
   noAccess: {
