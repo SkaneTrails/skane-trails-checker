@@ -145,6 +145,28 @@ class TestParseGpxUpload:
         assert trail.center.lat == pytest.approx(56.01, abs=0.01)
         assert trail.center.lng == pytest.approx(13.01, abs=0.01)
 
+    def test_parse_strips_empty_elevation_tags(self):
+        gpx_with_empty_ele = """<?xml version="1.0" encoding="UTF-8"?>
+<gpx version="1.1" creator="test" xmlns="http://www.topografix.com/GPX/1/1">
+  <trk>
+    <name>Trail with empty ele</name>
+    <trkseg>
+      <trkpt lat="56.0" lon="13.0"><ele> </ele></trkpt>
+      <trkpt lat="56.01" lon="13.01"><ele> </ele></trkpt>
+      <trkpt lat="56.02" lon="13.02"><ele> </ele></trkpt>
+    </trkseg>
+  </trk>
+</gpx>"""
+        trails = parse_gpx_upload(gpx_with_empty_ele.encode("utf-8"))
+        assert len(trails) == 1
+        assert trails[0].elevation_gain is None
+        assert trails[0].elevation_loss is None
+
+    def test_parse_whitespace_only_name_becomes_unnamed(self):
+        gpx_with_space_name = VALID_GPX.replace("<name>Test Trail</name>", "<name> </name>")
+        trails = parse_gpx_upload(gpx_with_space_name.encode("utf-8"))
+        assert trails[0].name == "Unnamed Trail 0"
+
 
 class TestUploadGpxEndpoint:
     @patch("api.routers.trails.trail_storage.update_sync_metadata")
