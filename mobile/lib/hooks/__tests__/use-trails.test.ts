@@ -2,6 +2,7 @@ import { renderHook, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { createQueryWrapper } from '@/test/helpers';
 import {
+  SYNC_POLL_INTERVAL,
   pollForChanges,
   sortTrails,
   useDeleteTrail,
@@ -216,32 +217,32 @@ describe('useTrails', () => {
     warnSpy.mockRestore();
   });
 
-  it('polls sync metadata and triggers background sync on change', async () => {
-    vi.useFakeTimers();
+  it('schedules polling with SYNC_POLL_INTERVAL after sync completes', async () => {
+    const setTimeoutSpy = vi.spyOn(global, 'setTimeout');
 
-    try {
-      // Initial mount: cache has data, server matches
-      mockTrailCache.get.mockResolvedValue({
-        trails: [sampleTrail],
-        lastSyncTime: '2025-06-01T00:00:00Z',
-      });
-      mockTrailsApi.getSyncMetadata.mockResolvedValue({
-        count: 1,
-        last_modified: '2025-06-01T00:00:00Z',
-      });
-      mockTrailsApi.getTrails.mockResolvedValue([sampleTrail]);
-      const wrapper = createQueryWrapper();
+    // Initial mount: cache has data, server matches
+    mockTrailCache.get.mockResolvedValue({
+      trails: [sampleTrail],
+      lastSyncTime: '2025-06-01T00:00:00Z',
+    });
+    mockTrailsApi.getSyncMetadata.mockResolvedValue({
+      count: 1,
+      last_modified: '2025-06-01T00:00:00Z',
+    });
+    mockTrailsApi.getTrails.mockResolvedValue([sampleTrail]);
+    const wrapper = createQueryWrapper();
 
-      renderHook(() => useTrails(), { wrapper });
+    renderHook(() => useTrails(), { wrapper });
 
-      // Wait for initial sync to complete
-      await vi.advanceTimersByTimeAsync(100);
+    // Wait for initial sync to complete
+    await waitFor(() => {
+      expect(setTimeoutSpy).toHaveBeenCalledWith(
+        expect.any(Function),
+        SYNC_POLL_INTERVAL,
+      );
+    });
 
-      // Verify the poll interval is set up (setInterval registered)
-      expect(vi.getTimerCount()).toBeGreaterThan(0);
-    } finally {
-      vi.useRealTimers();
-    }
+    setTimeoutSpy.mockRestore();
   });
 });
 

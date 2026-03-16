@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { TrailFilters } from '@/lib/api';
 import { trailsApi } from '@/lib/api';
 import { trailCache } from '@/lib/storage/trail-cache';
@@ -47,7 +47,13 @@ export function useTrails(filters: TrailFilters = {}) {
   const queryClient = useQueryClient();
   const hasSynced = useRef(false);
   const [syncDone, setSyncDone] = useState(false);
-  const queryKey = trailKeys.list(filters);
+  const queryKey = useMemo(() => trailKeys.list(filters), [
+    filters.source,
+    filters.search,
+    filters.min_distance_km,
+    filters.max_distance_km,
+    filters.status,
+  ]);
 
   const isUnfilteredQuery =
     !filters.source &&
@@ -78,16 +84,26 @@ export function useTrails(filters: TrailFilters = {}) {
   }, [queryClient, queryKey, isUnfilteredQuery]);
 
   // Poll sync metadata every 5 minutes to detect changes from other devices.
-  // Uses setInterval so the poll only starts after initial sync is complete.
+  // Uses self-scheduling setTimeout to prevent overlapping polls when a
+  // request takes longer than the interval (slow network / hung request).
+  const pollRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const schedulePoll = useCallback(() => {
+    pollRef.current = setTimeout(async () => {
+      await pollForChanges(queryClient, queryKey);
+      schedulePoll();
+    }, SYNC_POLL_INTERVAL);
+  }, [queryClient, queryKey]);
+
   useEffect(() => {
     if (!isUnfilteredQuery || !syncDone) return;
 
-    const intervalId = setInterval(() => {
-      pollForChanges(queryClient, queryKey);
-    }, SYNC_POLL_INTERVAL);
+    schedulePoll();
 
-    return () => clearInterval(intervalId);
-  }, [isUnfilteredQuery, syncDone, queryClient, queryKey]);
+    return () => {
+      if (pollRef.current) clearTimeout(pollRef.current);
+    };
+  }, [isUnfilteredQuery, syncDone, schedulePoll]);
 
   return query;
 }
