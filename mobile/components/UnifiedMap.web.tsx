@@ -107,10 +107,11 @@ export function UnifiedMap({
         mapInstanceRef.current.remove();
       }
 
-      const map = L.map(mapRef.current, { zoomControl: false }).setView(
-        DEFAULT_CENTER,
-        DEFAULT_ZOOM,
-      );
+      const map = L.map(mapRef.current, {
+        zoomControl: false,
+        // Canvas renderer with generous tolerance for easier touch selection on mobile
+        renderer: L.canvas({ tolerance: 15 }),
+      }).setView(DEFAULT_CENTER, DEFAULT_ZOOM);
       mapInstanceRef.current = map;
 
       // Zoom at bottom-right
