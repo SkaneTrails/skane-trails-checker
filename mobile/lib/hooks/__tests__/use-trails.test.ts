@@ -4,7 +4,9 @@ import { createQueryWrapper } from '@/test/helpers';
 import {
   sortTrails,
   useDeleteTrail,
+  useSaveRecording,
   useTrail,
+  useTrailDetails,
   useTrails,
   useUpdateTrail,
   useUploadGpx,
@@ -19,6 +21,7 @@ vi.mock('@/lib/api', () => ({
     deleteTrail: vi.fn(),
     uploadGpx: vi.fn(),
     getSyncMetadata: vi.fn(),
+    saveRecording: vi.fn(),
   },
 }));
 
@@ -197,6 +200,20 @@ describe('useTrails', () => {
     );
     warnSpy.mockRestore();
   });
+
+  it('handles sync failure gracefully when cache throws', async () => {
+    mockTrailCache.get.mockRejectedValueOnce(new Error('IndexedDB error'));
+    mockTrailsApi.getTrails.mockResolvedValue([sampleTrail]);
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const wrapper = createQueryWrapper();
+
+    renderHook(() => useTrails(), { wrapper });
+
+    await waitFor(() => {
+      expect(warnSpy).toHaveBeenCalledWith('Trail sync failed:', expect.any(Error));
+    });
+    warnSpy.mockRestore();
+  });
 });
 
 describe('useTrail', () => {
@@ -344,5 +361,57 @@ describe('sortTrails', () => {
 
   it('returns empty array for empty input', () => {
     expect(sortTrails([])).toEqual([]);
+  });
+});
+
+describe('useTrailDetails', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('fetches trail details by id', async () => {
+    const details = { trail_id: 'abc123', coordinates_full: [{ lat: 56.0, lng: 13.5 }] };
+    mockTrailsApi.getTrailDetails.mockResolvedValue(details);
+    const wrapper = createQueryWrapper();
+
+    const { result } = renderHook(() => useTrailDetails('abc123'), { wrapper });
+
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+    expect(result.current.data).toEqual(details);
+    expect(mockTrailsApi.getTrailDetails).toHaveBeenCalledWith('abc123');
+  });
+
+  it('does not fetch when id is empty', () => {
+    const wrapper = createQueryWrapper();
+    renderHook(() => useTrailDetails(''), { wrapper });
+    expect(mockTrailsApi.getTrailDetails).not.toHaveBeenCalled();
+  });
+});
+
+describe('useSaveRecording', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('calls saveRecording API and invalidates queries', async () => {
+    const savedTrail = { ...sampleTrail, trail_id: 'rec1', name: 'Morning Walk', source: 'gps_recording' };
+    mockTrailsApi.saveRecording.mockResolvedValue(savedTrail);
+    mockTrailCache.get.mockResolvedValue({ trails: [sampleTrail], lastSyncTime: '2025-06-01T00:00:00Z' });
+    const wrapper = createQueryWrapper();
+
+    const { result } = renderHook(() => useSaveRecording(), { wrapper });
+
+    const points = [
+      { lat: 55.0, lng: 13.0, altitude: 100, timestamp: 1700000000000 },
+      { lat: 55.001, lng: 13.001, altitude: 110, timestamp: 1700000060000 },
+    ];
+
+    await result.current.mutateAsync({ name: 'Morning Walk', points, source: 'gps_recording' });
+
+    expect(mockTrailsApi.saveRecording).toHaveBeenCalledWith('Morning Walk', points, 'gps_recording');
+
+    await waitFor(() => {
+      expect(mockTrailCache.set).toHaveBeenCalled();
+    });
   });
 });

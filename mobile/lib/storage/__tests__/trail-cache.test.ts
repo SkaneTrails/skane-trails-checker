@@ -96,5 +96,37 @@ describe('trailCache', () => {
         vi.restoreAllMocks();
       }
     });
+
+    it('handles set failure gracefully', async () => {
+      const originalOpen = globalThis.indexedDB?.open;
+      if (globalThis.indexedDB) {
+        vi.spyOn(globalThis.indexedDB, 'open').mockImplementation(() => {
+          throw new Error('DB error');
+        });
+      }
+
+      // Should not throw
+      await expect(trailCache.set([sampleTrail], '2025-06-01T00:00:00Z')).resolves.toBeUndefined();
+
+      if (originalOpen) {
+        vi.restoreAllMocks();
+      }
+    });
+
+    it('handles clear failure gracefully', async () => {
+      const originalOpen = globalThis.indexedDB?.open;
+      if (globalThis.indexedDB) {
+        vi.spyOn(globalThis.indexedDB, 'open').mockImplementation(() => {
+          throw new Error('DB error');
+        });
+      }
+
+      // Should not throw
+      await expect(trailCache.clear()).resolves.toBeUndefined();
+
+      if (originalOpen) {
+        vi.restoreAllMocks();
+      }
+    });
   });
 });

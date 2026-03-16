@@ -93,6 +93,27 @@ describe('ForagingSpotCard', () => {
     expect(onUpdate).toHaveBeenCalledWith('spot-1', { type: 'Porcini' }, expect.any(Function));
   });
 
+  it('calls onUpdate with changed month and notes', () => {
+    const onUpdate = vi.fn();
+    render(<ForagingSpotCard spot={baseSpot} onClose={vi.fn()} onUpdate={onUpdate} />);
+
+    fireEvent.click(screen.getByLabelText('foraging.editSpot'));
+    const monthInput = screen.getByDisplayValue('Aug');
+    fireEvent.change(monthInput, { target: { value: 'Sep' } });
+    const notesInput = screen.getByDisplayValue('Near the old oak tree');
+    fireEvent.change(notesInput, { target: { value: 'Under the birch' } });
+    fireEvent.click(screen.getByText('common.save'));
+
+    expect(onUpdate).toHaveBeenCalledWith('spot-1', { month: 'Sep', notes: 'Under the birch' }, expect.any(Function));
+  });
+
+  it('shows saving state when isUpdating is true', () => {
+    render(<ForagingSpotCard spot={baseSpot} onClose={vi.fn()} onUpdate={vi.fn()} isUpdating />);
+
+    fireEvent.click(screen.getByLabelText('foraging.editSpot'));
+    expect(screen.getByText('common.saving')).toBeDefined();
+  });
+
   it('exits edit mode without calling onUpdate when no changes', () => {
     const onUpdate = vi.fn();
     render(<ForagingSpotCard spot={baseSpot} onClose={vi.fn()} onUpdate={onUpdate} />);

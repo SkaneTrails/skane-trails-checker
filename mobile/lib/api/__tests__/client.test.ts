@@ -174,4 +174,29 @@ describe('apiRequest', () => {
     const callHeaders = mockFetch.mock.calls[0][1].headers;
     expect(callHeaders).not.toHaveProperty('Content-Type');
   });
+
+  it('uses fallback text when response.text() rejects on 401', async () => {
+    setAuthTokenGetter(async () => 'token');
+    const onUnauth = vi.fn();
+    setOnUnauthorized(onUnauth);
+
+    mockFetch.mockResolvedValue({
+      ok: false,
+      status: 401,
+      text: () => Promise.reject(new Error('stream error')),
+    });
+
+    await expect(apiRequest('/api/v1/trails')).rejects.toThrow('API Error 401: Unauthorized');
+    expect(onUnauth).toHaveBeenCalledWith(true);
+  });
+
+  it('uses fallback text when response.text() rejects on non-401 error', async () => {
+    mockFetch.mockResolvedValue({
+      ok: false,
+      status: 500,
+      text: () => Promise.reject(new Error('stream error')),
+    });
+
+    await expect(apiRequest('/api/v1/trails')).rejects.toThrow('API Error 500: Unknown error');
+  });
 });

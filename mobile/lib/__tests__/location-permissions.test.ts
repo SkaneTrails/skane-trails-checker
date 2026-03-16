@@ -169,6 +169,25 @@ describe('location-permissions', () => {
       );
     });
 
+    it('returns false when background is denied (not blocked)', async () => {
+      vi.mocked(Location.requestForegroundPermissionsAsync).mockResolvedValue({
+        status: 'granted' as Location.PermissionStatus,
+        canAskAgain: true,
+        granted: true,
+        expires: 'never',
+      });
+      vi.mocked(Location.requestBackgroundPermissionsAsync).mockResolvedValue({
+        status: 'denied' as Location.PermissionStatus,
+        canAskAgain: true,
+        granted: false,
+        expires: 'never',
+      });
+
+      const result = await requestTrackingPermissions(t);
+      expect(result).toBe(false);
+      expect(Alert.alert).not.toHaveBeenCalled();
+    });
+
     it('opens settings when user taps settings button on blocked foreground', async () => {
       vi.mocked(Location.requestForegroundPermissionsAsync).mockResolvedValue({
         status: 'denied' as Location.PermissionStatus,

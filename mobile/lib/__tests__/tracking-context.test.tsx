@@ -145,4 +145,18 @@ describe('useTracking', () => {
     expect(result.current.stats).not.toBeNull();
     expect(result.current.stats!.distanceKm).toBeGreaterThan(0);
   });
+
+  it('returns EMPTY_STATS fallback when points exist but stats not computed', () => {
+    const { result } = renderHook(() => useTracking(), { wrapper });
+    act(() => result.current.start());
+    act(() => {
+      result.current.addPoint({ lat: 55.0, lng: 13.0, altitude: 100, timestamp: 1700000000000 });
+    });
+    // With only 1 point, computeTrackingStats is not called → stats state is null
+    // But the context returns EMPTY_STATS as fallback when points.length > 0
+    expect(result.current.points).toHaveLength(1);
+    expect(result.current.stats).not.toBeNull();
+    expect(result.current.stats!.distanceKm).toBe(0);
+    expect(result.current.stats!.pointCount).toBe(0);
+  });
 });
