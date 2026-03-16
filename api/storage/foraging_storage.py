@@ -23,6 +23,7 @@ def _doc_to_foraging_spot(doc_id: str, data: dict) -> ForagingSpotResponse:
         created_at=data.get("created_at", ""),
         last_updated=data.get("last_updated", ""),
         created_by=data.get("created_by"),
+        group_id=data.get("group_id"),
     )
 
 
@@ -36,10 +37,22 @@ def get_foraging_spot(spot_id: str) -> ForagingSpotResponse | None:
     return _doc_to_foraging_spot(doc.id, data) if data else None
 
 
-def get_foraging_spots(month: str | None = None) -> list[ForagingSpotResponse]:
-    """Get foraging spots, optionally filtered by month."""
+def get_foraging_spots(month: str | None = None, group_id: str | None = None) -> list[ForagingSpotResponse]:
+    """Get foraging spots, optionally filtered by month and group.
+
+    Args:
+        month: Filter by month (Jan, Feb, etc.).
+        group_id: If provided, return only spots belonging to this group.
+            If None (superuser), return all spots.
+    """
     collection = get_collection("foraging_spots")
-    docs = collection.where("month", "==", month).stream() if month else collection.stream()
+
+    query = collection.where("group_id", "==", group_id) if group_id is not None else collection
+
+    if month:
+        query = query.where("month", "==", month)
+
+    docs = query.stream()
 
     spots = []
     for doc in docs:

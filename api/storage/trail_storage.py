@@ -2,6 +2,7 @@
 
 import logging
 from datetime import UTC, datetime
+from typing import Any
 
 from api.models.trail import Coordinate, SyncMetadata, TrailBounds, TrailDetailsResponse, TrailResponse
 from api.storage.firestore_client import get_collection
@@ -44,6 +45,7 @@ def _doc_to_trail(data: dict) -> TrailResponse:
         avg_inclination_deg=data.get("avg_inclination_deg"),
         max_inclination_deg=data.get("max_inclination_deg"),
         created_by=data.get("created_by"),
+        group_id=data.get("group_id"),
     )
 
 
@@ -61,30 +63,71 @@ def _doc_to_trail_details(data: dict) -> TrailDetailsResponse:
     )
 
 
-def get_all_trails(source: str | None = None, since: str | None = None) -> list[TrailResponse]:
-    """Get all trails, optionally filtered by source and/or created_at timestamp.
+def get_all_trails(
+    source: str | None = None, since: str | None = None, group_id: str | None = None
+) -> list[TrailResponse]:
+    """Get all trails, filtered by group and optionally by source/created_at.
 
     Args:
         source: Filter by trail source (planned_hikes, other_trails, world_wide_hikes).
         since: ISO timestamp — return only trails with created_at >= this value.
+        group_id: If provided, return trails belonging to this group PLUS
+            public trails (group_id is None). If not provided (superuser),
+            return all trails.
     """
-    logger.info("Loading trails (source=%s, since=%s)", source, since)
+    logger.info("Loading trails (source=%s, since=%s, group_id=%s)", source, since, group_id)
     collection = get_collection("trails")
 
-    query = collection.where("source", "==", source) if source else collection
-
-    if since:
-        query = query.where("created_at", ">=", since)
-
-    docs = query.stream()
-
-    trails = []
-    for doc in docs:
-        data = doc.to_dict()
-        if data:
-            trails.append(_doc_to_trail(data))
+    if group_id is not None:
+        trails = _fetch_group_and_public_trails(collection, group_id, source, since)
+    else:
+        trails = _fetch_all_trails(collection, source, since)
 
     logger.info("Loaded %d trails", len(trails))
+    return trails
+
+
+def _fetch_all_trails(collection: Any, source: str | None, since: str | None) -> list[TrailResponse]:
+    """Fetch all trails (superuser view)."""
+    query = collection.where("source", "==", source) if source else collection
+    if since:
+        query = query.where("created_at", ">=", since)
+    return [_doc_to_trail(data) for doc in query.stream() if (data := doc.to_dict())]
+
+
+def _fetch_group_and_public_trails(
+    collection: Any, group_id: str, source: str | None, since: str | None
+) -> list[TrailResponse]:
+    """Fetch trails belonging to a group plus public (no group_id) trails."""
+    trails = []
+    seen_ids: set[str] = set()
+
+    # Query 1: Group's own trails
+    group_query = collection.where("group_id", "==", group_id)
+    if source:
+        group_query = group_query.where("source", "==", source)
+    if since:
+        group_query = group_query.where("created_at", ">=", since)
+    for doc in group_query.stream():
+        data = doc.to_dict()
+        if data:
+            trail = _doc_to_trail(data)
+            trails.append(trail)
+            seen_ids.add(trail.trail_id)
+
+    # Query 2: Public trails (group_id == None)
+    public_query = collection.where("group_id", "==", None)
+    if source:
+        public_query = public_query.where("source", "==", source)
+    if since:
+        public_query = public_query.where("created_at", ">=", since)
+    for doc in public_query.stream():
+        data = doc.to_dict()
+        if data:
+            trail = _doc_to_trail(data)
+            if trail.trail_id not in seen_ids:
+                trails.append(trail)
+
     return trails
 
 

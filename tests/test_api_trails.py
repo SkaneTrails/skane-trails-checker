@@ -8,7 +8,7 @@ from fastapi.testclient import TestClient
 from api.main import app
 from api.models.trail import Coordinate, SyncMetadata, TrailBounds, TrailDetailsResponse, TrailResponse
 
-client = TestClient(app)
+TEST_GROUP_ID = "test-group"
 
 SAMPLE_TRAIL = TrailResponse(
     trail_id="abc123",
@@ -21,6 +21,7 @@ SAMPLE_TRAIL = TrailResponse(
     center=Coordinate(lat=56.05, lng=13.05),
     source="planned_hikes",
     last_updated="2026-01-01T00:00:00",
+    group_id=TEST_GROUP_ID,
 )
 
 SAMPLE_TRAIL_2 = TrailResponse(
@@ -35,6 +36,7 @@ SAMPLE_TRAIL_2 = TrailResponse(
     source="other_trails",
     last_updated="2026-01-15T00:00:00",
     elevation_gain=350.0,
+    group_id=TEST_GROUP_ID,
 )
 
 SAMPLE_DETAILS = TrailDetailsResponse(
@@ -46,19 +48,27 @@ SAMPLE_DETAILS = TrailDetailsResponse(
 
 class TestListTrails:
     @patch("api.routers.trails.trail_storage.get_all_trails")
-    def test_list_all_trails(self, mock_get_all):
+    def test_list_all_trails_superuser(self, mock_get_all, superuser_client):
+        """Superuser sees all trails (group_id=None passed to storage)."""
+        mock_get_all.return_value = [SAMPLE_TRAIL]
+        response = superuser_client.get("/api/v1/trails")
+        assert response.status_code == 200
+        mock_get_all.assert_called_once_with(source=None, since=None, group_id=None)
+
+    @patch("api.routers.trails.trail_storage.get_all_trails")
+    def test_list_all_trails(self, mock_get_all, authenticated_client):
         mock_get_all.return_value = [SAMPLE_TRAIL, SAMPLE_TRAIL_2]
-        response = client.get("/api/v1/trails")
+        response = authenticated_client.get("/api/v1/trails")
         assert response.status_code == 200
         data = response.json()
         assert len(data) == 2
         # Uploaded trails (other_trails) sorted before planned_hikes
         assert data[0]["trail_id"] == "def456"
         assert data[1]["trail_id"] == "abc123"
-        mock_get_all.assert_called_once_with(source=None, since=None)
+        mock_get_all.assert_called_once_with(source=None, since=None, group_id=TEST_GROUP_ID)
 
     @patch("api.routers.trails.trail_storage.get_all_trails")
-    def test_list_trails_sorts_uploaded_before_planned(self, mock_get_all):
+    def test_list_trails_sorts_uploaded_before_planned(self, mock_get_all, authenticated_client):
         """Uploaded trails (other_trails, world_wide_hikes) appear before planned_hikes."""
         planned_a = TrailResponse(
             trail_id="p1",
@@ -110,7 +120,7 @@ class TestListTrails:
         )
         # Return in arbitrary order from storage
         mock_get_all.return_value = [planned_b, uploaded_a, planned_a, uploaded_b]
-        response = client.get("/api/v1/trails")
+        response = authenticated_client.get("/api/v1/trails")
         assert response.status_code == 200
         data = response.json()
         ids = [t["trail_id"] for t in data]
@@ -118,72 +128,74 @@ class TestListTrails:
         assert ids == ["u2", "u1", "p1", "p2"]
 
     @patch("api.routers.trails.trail_storage.get_all_trails")
-    def test_list_trails_filter_by_source(self, mock_get_all):
+    def test_list_trails_filter_by_source(self, mock_get_all, authenticated_client):
         mock_get_all.return_value = [SAMPLE_TRAIL]
-        response = client.get("/api/v1/trails?source=planned_hikes")
+        response = authenticated_client.get("/api/v1/trails?source=planned_hikes")
         assert response.status_code == 200
         assert len(response.json()) == 1
-        mock_get_all.assert_called_once_with(source="planned_hikes", since=None)
+        mock_get_all.assert_called_once_with(source="planned_hikes", since=None, group_id=TEST_GROUP_ID)
 
     @patch("api.routers.trails.trail_storage.get_all_trails")
-    def test_list_trails_filter_by_search(self, mock_get_all):
+    def test_list_trails_filter_by_search(self, mock_get_all, authenticated_client):
         mock_get_all.return_value = [SAMPLE_TRAIL, SAMPLE_TRAIL_2]
-        response = client.get("/api/v1/trails?search=mountain")
+        response = authenticated_client.get("/api/v1/trails?search=mountain")
         assert response.status_code == 200
         data = response.json()
         assert len(data) == 1
         assert data[0]["name"] == "Mountain Hike"
 
     @patch("api.routers.trails.trail_storage.get_all_trails")
-    def test_list_trails_filter_by_distance(self, mock_get_all):
+    def test_list_trails_filter_by_distance(self, mock_get_all, authenticated_client):
         mock_get_all.return_value = [SAMPLE_TRAIL, SAMPLE_TRAIL_2]
-        response = client.get("/api/v1/trails?min_distance_km=10&max_distance_km=20")
+        response = authenticated_client.get("/api/v1/trails?min_distance_km=10&max_distance_km=20")
         assert response.status_code == 200
         data = response.json()
         assert len(data) == 1
         assert data[0]["trail_id"] == "def456"
 
     @patch("api.routers.trails.trail_storage.get_all_trails")
-    def test_list_trails_filter_by_status(self, mock_get_all):
+    def test_list_trails_filter_by_status(self, mock_get_all, authenticated_client):
         mock_get_all.return_value = [SAMPLE_TRAIL, SAMPLE_TRAIL_2]
-        response = client.get("/api/v1/trails?status=Explored!")
+        response = authenticated_client.get("/api/v1/trails?status=Explored!")
         assert response.status_code == 200
         data = response.json()
         assert len(data) == 1
         assert data[0]["status"] == "Explored!"
 
     @patch("api.routers.trails.trail_storage.get_all_trails")
-    def test_list_trails_empty(self, mock_get_all):
+    def test_list_trails_empty(self, mock_get_all, authenticated_client):
         mock_get_all.return_value = []
-        response = client.get("/api/v1/trails")
+        response = authenticated_client.get("/api/v1/trails")
         assert response.status_code == 200
         assert response.json() == []
 
     @patch("api.routers.trails.trail_storage.get_all_trails")
-    def test_list_trails_with_since(self, mock_get_all):
+    def test_list_trails_with_since(self, mock_get_all, authenticated_client):
         mock_get_all.return_value = [SAMPLE_TRAIL]
-        response = client.get("/api/v1/trails?since=2026-03-01T00:00:00Z")
+        response = authenticated_client.get("/api/v1/trails?since=2026-03-01T00:00:00Z")
         assert response.status_code == 200
         assert len(response.json()) == 1
-        mock_get_all.assert_called_once_with(source=None, since="2026-03-01T00:00:00Z")
+        mock_get_all.assert_called_once_with(source=None, since="2026-03-01T00:00:00Z", group_id=TEST_GROUP_ID)
 
     @patch("api.routers.trails.trail_storage.get_all_trails")
-    def test_list_trails_with_source_and_since(self, mock_get_all):
+    def test_list_trails_with_source_and_since(self, mock_get_all, authenticated_client):
         mock_get_all.return_value = [SAMPLE_TRAIL]
-        response = client.get("/api/v1/trails?source=planned_hikes&since=2026-03-01T00:00:00Z")
+        response = authenticated_client.get("/api/v1/trails?source=planned_hikes&since=2026-03-01T00:00:00Z")
         assert response.status_code == 200
-        mock_get_all.assert_called_once_with(source="planned_hikes", since="2026-03-01T00:00:00Z")
+        mock_get_all.assert_called_once_with(
+            source="planned_hikes", since="2026-03-01T00:00:00Z", group_id=TEST_GROUP_ID
+        )
 
     @patch("api.routers.trails.trail_storage.get_all_trails")
-    def test_list_trails_with_since_milliseconds(self, mock_get_all):
+    def test_list_trails_with_since_milliseconds(self, mock_get_all, authenticated_client):
         mock_get_all.return_value = [SAMPLE_TRAIL]
-        response = client.get("/api/v1/trails?since=2026-03-01T00:00:00.123Z")
+        response = authenticated_client.get("/api/v1/trails?since=2026-03-01T00:00:00.123Z")
         assert response.status_code == 200
         assert len(response.json()) == 1
-        mock_get_all.assert_called_once_with(source=None, since="2026-03-01T00:00:00.123Z")
+        mock_get_all.assert_called_once_with(source=None, since="2026-03-01T00:00:00.123Z", group_id=TEST_GROUP_ID)
 
-    def test_list_trails_rejects_invalid_since_format(self):
-        response = client.get("/api/v1/trails?since=2026-03-01")
+    def test_list_trails_rejects_invalid_since_format(self, authenticated_client):
+        response = authenticated_client.get("/api/v1/trails?since=2026-03-01")
         assert response.status_code == 422
 
 
@@ -191,7 +203,7 @@ class TestGetSyncMetadata:
     @patch("api.routers.trails.trail_storage.get_sync_metadata")
     def test_get_sync_metadata(self, mock_get_sync):
         mock_get_sync.return_value = SyncMetadata(count=42, last_modified="2026-03-01T12:00:00Z")
-        response = client.get("/api/v1/trails/sync")
+        response = TestClient(app).get("/api/v1/trails/sync")
         assert response.status_code == 200
         data = response.json()
         assert data["count"] == 42
@@ -200,7 +212,7 @@ class TestGetSyncMetadata:
     @patch("api.routers.trails.trail_storage.get_sync_metadata")
     def test_get_sync_metadata_empty(self, mock_get_sync):
         mock_get_sync.return_value = SyncMetadata(count=0, last_modified=None)
-        response = client.get("/api/v1/trails/sync")
+        response = TestClient(app).get("/api/v1/trails/sync")
         assert response.status_code == 200
         data = response.json()
         assert data["count"] == 0
@@ -209,9 +221,9 @@ class TestGetSyncMetadata:
 
 class TestGetTrail:
     @patch("api.routers.trails.trail_storage.get_trail")
-    def test_get_existing_trail(self, mock_get):
+    def test_get_existing_trail(self, mock_get, authenticated_client):
         mock_get.return_value = SAMPLE_TRAIL
-        response = client.get("/api/v1/trails/abc123")
+        response = authenticated_client.get("/api/v1/trails/abc123")
         assert response.status_code == 200
         data = response.json()
         assert data["trail_id"] == "abc123"
@@ -219,18 +231,28 @@ class TestGetTrail:
         assert len(data["coordinates_map"]) == 2
 
     @patch("api.routers.trails.trail_storage.get_trail")
-    def test_get_nonexistent_trail(self, mock_get):
+    def test_get_nonexistent_trail(self, mock_get, authenticated_client):
         mock_get.return_value = None
-        response = client.get("/api/v1/trails/nonexistent")
+        response = authenticated_client.get("/api/v1/trails/nonexistent")
         assert response.status_code == 404
         assert response.json()["detail"] == "Trail not found"
+
+    @patch("api.routers.trails.trail_storage.get_trail")
+    def test_get_trail_forbidden_wrong_group(self, mock_get, authenticated_client):
+        """Admin of one group cannot view another group's trail."""
+        other_group_trail = SAMPLE_TRAIL.model_copy(update={"group_id": "other-group"})
+        mock_get.return_value = other_group_trail
+        response = authenticated_client.get("/api/v1/trails/abc123")
+        assert response.status_code == 403
 
 
 class TestGetTrailDetails:
     @patch("api.routers.trails.trail_storage.get_trail_details")
-    def test_get_trail_details(self, mock_get):
-        mock_get.return_value = SAMPLE_DETAILS
-        response = client.get("/api/v1/trails/abc123/details")
+    @patch("api.routers.trails.trail_storage.get_trail")
+    def test_get_trail_details(self, mock_get_trail, mock_get_details, authenticated_client):
+        mock_get_trail.return_value = SAMPLE_TRAIL
+        mock_get_details.return_value = SAMPLE_DETAILS
+        response = authenticated_client.get("/api/v1/trails/abc123/details")
         assert response.status_code == 200
         data = response.json()
         assert data["trail_id"] == "abc123"
@@ -238,9 +260,25 @@ class TestGetTrailDetails:
         assert data["elevation_profile"] == [100.0, 150.0, 120.0]
 
     @patch("api.routers.trails.trail_storage.get_trail_details")
-    def test_get_trail_details_not_found(self, mock_get):
-        mock_get.return_value = None
-        response = client.get("/api/v1/trails/nonexistent/details")
+    @patch("api.routers.trails.trail_storage.get_trail")
+    def test_get_trail_details_not_found(self, mock_get_trail, mock_get_details, authenticated_client):
+        mock_get_trail.return_value = SAMPLE_TRAIL
+        mock_get_details.return_value = None
+        response = authenticated_client.get("/api/v1/trails/nonexistent/details")
+        assert response.status_code == 404
+
+    @patch("api.routers.trails.trail_storage.get_trail")
+    def test_get_trail_details_forbidden_wrong_group(self, mock_get_trail, authenticated_client):
+        """Admin of one group cannot view details for another group's trail."""
+        other_group_trail = SAMPLE_TRAIL.model_copy(update={"group_id": "other-group"})
+        mock_get_trail.return_value = other_group_trail
+        response = authenticated_client.get("/api/v1/trails/abc123/details")
+        assert response.status_code == 403
+
+    @patch("api.routers.trails.trail_storage.get_trail")
+    def test_get_trail_details_trail_not_found(self, mock_get_trail, authenticated_client):
+        mock_get_trail.return_value = None
+        response = authenticated_client.get("/api/v1/trails/abc123/details")
         assert response.status_code == 404
 
 
@@ -286,23 +324,40 @@ class TestUpdateTrail:
         assert response.status_code == 422
 
     @patch("api.routers.trails.trail_storage.get_trail")
-    def test_update_trail_forbidden_when_not_owner(self, mock_get, authenticated_client):
-        owned_by_other = SAMPLE_TRAIL.model_copy(update={"created_by": "other-user"})
-        mock_get.return_value = owned_by_other
+    def test_update_trail_forbidden_wrong_group(self, mock_get, authenticated_client):
+        other_group_trail = SAMPLE_TRAIL.model_copy(update={"group_id": "other-group"})
+        mock_get.return_value = other_group_trail
         response = authenticated_client.patch("/api/v1/trails/abc123", json={"name": "Stolen"})
         assert response.status_code == 403
-        assert "Not authorized" in response.json()["detail"]
+        assert "Admin access required" in response.json()["detail"]
+
+    @patch("api.routers.trails.trail_storage.get_trail")
+    def test_update_trail_forbidden_public_trail(self, mock_get, authenticated_client):
+        """Non-superusers cannot modify public (bootstrapped) trails."""
+        public_trail = SAMPLE_TRAIL.model_copy(update={"group_id": None})
+        mock_get.return_value = public_trail
+        response = authenticated_client.patch("/api/v1/trails/abc123", json={"name": "Stolen"})
+        assert response.status_code == 403
+        assert "Only superusers" in response.json()["detail"]
+
+    @patch("api.routers.trails.trail_storage.get_trail")
+    def test_update_trail_forbidden_member(self, mock_get, member_client):
+        """Members are view-only and cannot modify trails."""
+        mock_get.return_value = SAMPLE_TRAIL
+        response = member_client.patch("/api/v1/trails/abc123", json={"name": "Nope"})
+        assert response.status_code == 403
 
     @patch("api.routers.trails.trail_storage.get_trail")
     @patch("api.routers.trails.trail_storage.update_trail")
-    def test_update_trail_allowed_when_owner(self, mock_update, mock_get, authenticated_client):
-        owned = SAMPLE_TRAIL.model_copy(update={"created_by": "test-user"})
-        updated = owned.model_copy(update={"name": "My Trail"})
-        mock_get.side_effect = [owned, updated]
+    def test_update_trail_superuser_can_modify_any(self, mock_update, mock_get, superuser_client):
+        """Superuser can update any trail, including public ones."""
+        public_trail = SAMPLE_TRAIL.model_copy(update={"group_id": None})
+        updated = public_trail.model_copy(update={"name": "SU Edit"})
+        mock_get.side_effect = [public_trail, updated]
         mock_update.return_value = None
-        response = authenticated_client.patch("/api/v1/trails/abc123", json={"name": "My Trail"})
+        response = superuser_client.patch("/api/v1/trails/abc123", json={"name": "SU Edit"})
         assert response.status_code == 200
-        assert response.json()["name"] == "My Trail"
+        assert response.json()["name"] == "SU Edit"
 
     @patch("api.routers.trails.trail_storage.get_trail")
     @patch("api.routers.trails.trail_storage.update_trail")
@@ -347,21 +402,26 @@ class TestDeleteTrail:
         assert response.status_code == 404
 
     @patch("api.routers.trails.trail_storage.get_trail")
-    def test_delete_trail_forbidden_when_not_owner(self, mock_get, authenticated_client):
-        owned_by_other = SAMPLE_TRAIL.model_copy(update={"created_by": "other-user"})
-        mock_get.return_value = owned_by_other
+    def test_delete_trail_forbidden_wrong_group(self, mock_get, authenticated_client):
+        other_group_trail = SAMPLE_TRAIL.model_copy(update={"group_id": "other-group"})
+        mock_get.return_value = other_group_trail
         response = authenticated_client.delete("/api/v1/trails/abc123")
         assert response.status_code == 403
-        assert "Not authorized" in response.json()["detail"]
 
     @patch("api.routers.trails.trail_storage.get_trail")
-    @patch("api.routers.trails.trail_storage.delete_trail")
-    def test_delete_trail_allowed_when_no_created_by(self, mock_delete, mock_get, authenticated_client):
-        """Legacy trails without created_by can be deleted by any authenticated user."""
-        mock_get.return_value = SAMPLE_TRAIL  # created_by=None
-        mock_delete.return_value = None
+    def test_delete_trail_forbidden_public_trail(self, mock_get, authenticated_client):
+        """Non-superusers cannot delete public (bootstrapped) trails."""
+        public_trail = SAMPLE_TRAIL.model_copy(update={"group_id": None})
+        mock_get.return_value = public_trail
         response = authenticated_client.delete("/api/v1/trails/abc123")
-        assert response.status_code == 204
+        assert response.status_code == 403
+
+    @patch("api.routers.trails.trail_storage.get_trail")
+    def test_delete_trail_forbidden_member(self, mock_get, member_client):
+        """Members cannot delete trails."""
+        mock_get.return_value = SAMPLE_TRAIL
+        response = member_client.delete("/api/v1/trails/abc123")
+        assert response.status_code == 403
 
 
 class TestSaveRecording:
@@ -436,6 +496,11 @@ class TestSaveRecording:
     def test_save_recording_requires_auth(self, unauthenticated_client):
         response = unauthenticated_client.post("/api/v1/trails/record", json=self.SAMPLE_RECORDING)
         assert response.status_code == 401
+
+    def test_save_recording_forbidden_member(self, member_client):
+        """Members (view-only) cannot create recordings."""
+        response = member_client.post("/api/v1/trails/record", json=self.SAMPLE_RECORDING)
+        assert response.status_code == 403
 
     def test_save_recording_rejects_empty_name(self, authenticated_client):
         recording = {**self.SAMPLE_RECORDING, "name": ""}

@@ -147,6 +147,42 @@ class TestGetForagingSpots:
 
         assert result[0].created_by == "user-1"
 
+    def test_filters_by_group_id(self, mock_collection) -> None:
+        """When group_id is provided, only return spots for that group."""
+        mock_collection.where.return_value.stream.return_value = [
+            _make_doc("s1", {"type": "Mushroom", "lat": 56.0, "lng": 13.0, "group_id": "grp-1"})
+        ]
+
+        result = get_foraging_spots(group_id="grp-1")
+
+        assert len(result) == 1
+        assert result[0].group_id == "grp-1"
+        mock_collection.where.assert_called_once_with("group_id", "==", "grp-1")
+
+    def test_filters_by_group_and_month(self, mock_collection) -> None:
+        """Group + month filtering chains two where clauses."""
+        query = MagicMock()
+        mock_collection.where.return_value = query
+        query.where.return_value.stream.return_value = [
+            _make_doc("s1", {"type": "Berry", "lat": 56.0, "lng": 13.0, "month": "Jul", "group_id": "grp-1"})
+        ]
+
+        result = get_foraging_spots(month="Jul", group_id="grp-1")
+
+        assert len(result) == 1
+        mock_collection.where.assert_called_once_with("group_id", "==", "grp-1")
+        query.where.assert_called_once_with("month", "==", "Jul")
+
+    def test_maps_group_id(self, mock_collection) -> None:
+        """group_id field is mapped from Firestore documents."""
+        mock_collection.stream.return_value = [
+            _make_doc("s1", {"type": "Mushroom", "lat": 56.0, "lng": 13.0, "group_id": "grp-1"})
+        ]
+
+        result = get_foraging_spots()
+
+        assert result[0].group_id == "grp-1"
+
 
 class TestSaveForagingSpot:
     """Tests for save_foraging_spot."""

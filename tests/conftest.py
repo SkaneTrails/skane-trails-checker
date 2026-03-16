@@ -10,13 +10,43 @@ from fastapi.testclient import TestClient
 from api.auth import AuthenticatedUser, require_auth
 from api.main import app
 
+TEST_GROUP_ID = "test-group"
+
 
 @pytest.fixture
 def authenticated_client() -> Generator[TestClient]:
-    """Test client with auth dependency overridden to return a test user."""
+    """Test client with auth — admin user with group (for write tests)."""
 
     async def _mock_auth() -> AuthenticatedUser:
-        return AuthenticatedUser(uid="test-user", email="test@example.com", name="Test User")
+        return AuthenticatedUser(
+            uid="test-user", email="test@example.com", name="Test User", group_id=TEST_GROUP_ID, role="admin"
+        )
+
+    app.dependency_overrides[require_auth] = _mock_auth
+    yield TestClient(app)
+    app.dependency_overrides.clear()
+
+
+@pytest.fixture
+def member_client() -> Generator[TestClient]:
+    """Test client — member user (read-only within group)."""
+
+    async def _mock_auth() -> AuthenticatedUser:
+        return AuthenticatedUser(
+            uid="member-user", email="member@example.com", name="Member User", group_id=TEST_GROUP_ID, role="member"
+        )
+
+    app.dependency_overrides[require_auth] = _mock_auth
+    yield TestClient(app)
+    app.dependency_overrides.clear()
+
+
+@pytest.fixture
+def superuser_client() -> Generator[TestClient]:
+    """Test client — superuser (global access, no group)."""
+
+    async def _mock_auth() -> AuthenticatedUser:
+        return AuthenticatedUser(uid="su-user", email="su@example.com", name="Super User", role="superuser")
 
     app.dependency_overrides[require_auth] = _mock_auth
     yield TestClient(app)

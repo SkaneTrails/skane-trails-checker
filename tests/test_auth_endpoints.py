@@ -1,39 +1,38 @@
 """Tests verifying auth enforcement on API endpoints.
 
-Write endpoints (POST, PATCH, DELETE) should return 401 without auth.
-Read endpoints (GET) should remain publicly accessible.
+All data endpoints (GET, POST, PATCH, DELETE) require auth.
+Only public infrastructure endpoints (health, sync metadata) are unauthenticated.
+Places remain publicly readable.
 """
 
 import io
 from unittest.mock import patch
 
 
-class TestReadEndpointsArePublic:
-    """GET endpoints should work without authentication."""
-
-    @patch("api.routers.trails.trail_storage.get_all_trails")
-    def test_list_trails_no_auth(self, mock_get, unauthenticated_client):
-        mock_get.return_value = []
-        response = unauthenticated_client.get("/api/v1/trails")
-        assert response.status_code == 200
-
-    @patch("api.routers.foraging.foraging_storage.get_foraging_spots")
-    def test_list_foraging_spots_no_auth(self, mock_get, unauthenticated_client):
-        mock_get.return_value = []
-        response = unauthenticated_client.get("/api/v1/foraging/spots")
-        assert response.status_code == 200
-
-    @patch("api.routers.foraging.foraging_storage.get_foraging_types")
-    def test_list_foraging_types_no_auth(self, mock_get, unauthenticated_client):
-        mock_get.return_value = []
-        response = unauthenticated_client.get("/api/v1/foraging/types")
-        assert response.status_code == 200
+class TestPublicEndpoints:
+    """Endpoints that should work without authentication."""
 
     @patch("api.routers.places.places_storage.get_all_places")
     def test_list_places_no_auth(self, mock_get, unauthenticated_client):
         mock_get.return_value = []
         response = unauthenticated_client.get("/api/v1/places")
         assert response.status_code == 200
+
+
+class TestReadEndpointsRequireAuth:
+    """GET endpoints for group-scoped data should return 401 without auth."""
+
+    def test_list_trails_requires_auth(self, unauthenticated_client):
+        response = unauthenticated_client.get("/api/v1/trails")
+        assert response.status_code == 401
+
+    def test_list_foraging_spots_requires_auth(self, unauthenticated_client):
+        response = unauthenticated_client.get("/api/v1/foraging/spots")
+        assert response.status_code == 401
+
+    def test_list_foraging_types_requires_auth(self, unauthenticated_client):
+        response = unauthenticated_client.get("/api/v1/foraging/types")
+        assert response.status_code == 401
 
 
 class TestWriteEndpointsRequireAuth:

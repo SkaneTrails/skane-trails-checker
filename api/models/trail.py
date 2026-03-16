@@ -43,6 +43,7 @@ class TrailResponse(BaseModel):
     avg_inclination_deg: float | None = None
     max_inclination_deg: float | None = None
     created_by: str | None = Field(default=None, exclude=True)
+    group_id: str | None = None
 
     def to_dict(self) -> dict:
         """Convert to dictionary for Firestore storage."""
@@ -68,6 +69,7 @@ class TrailResponse(BaseModel):
             },
             "center": {"lat": float(self.center.lat), "lng": float(self.center.lng)},
             "source": self.source,
+            "group_id": self.group_id,
             "last_updated": self.last_updated,
         }
         self._add_optional_fields(data)
