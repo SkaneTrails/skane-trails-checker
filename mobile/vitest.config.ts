@@ -89,6 +89,9 @@ export default defineConfig({
     },
   },
   resolve: {
+    // Include .web.tsx/.web.ts as fallback extensions for platform-specific components
+    // that only have .web and .native variants (e.g., TrackingControls, UnifiedMap)
+    extensions: ['.tsx', '.ts', '.jsx', '.js', '.json', '.web.tsx', '.web.ts'],
     alias: {
       '@': path.resolve(__dirname, '.'),
       'react-native': path.resolve(__dirname, 'test/react-native-mock.tsx'),

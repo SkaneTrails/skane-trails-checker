@@ -19,6 +19,7 @@ import { TabIcon } from '@/components/TabIcon';
 import { useAuth } from '@/lib/hooks/use-auth';
 import {
   useAddMember,
+  useCurrentUser,
   useHikeGroup,
   useRemoveMember,
   useUpdateHikeGroup,
@@ -35,6 +36,7 @@ export default function GroupSettingsScreen() {
   const { user } = useAuth();
 
   const { data: group, isLoading } = useHikeGroup(id ?? '', { enabled: !!id });
+  const { data: currentUser } = useCurrentUser();
   const updateMutation = useUpdateHikeGroup();
   const addMemberMutation = useAddMember();
   const removeMemberMutation = useRemoveMember();
@@ -55,7 +57,8 @@ export default function GroupSettingsScreen() {
     );
   }
 
-  const isOwner = group.members.some((m) => m.role === 'owner' && m.email === user?.email);
+  const isSuperuser = currentUser?.role === 'superuser';
+  const isOwner = isSuperuser || (group.members?.some((m) => m.role === 'owner' && m.email === user?.email) ?? false);
 
   const handleSaveName = async () => {
     const trimmed = groupName.trim();
@@ -175,7 +178,7 @@ export default function GroupSettingsScreen() {
           {t('settings.members')}
         </Text>
         <ContentCard>
-          {group.members.map((member) => (
+          {(group.members ?? []).map((member) => (
             <View key={member.uid || member.email} style={styles.memberRow}>
               <View style={styles.memberInfo}>
                 <Text style={[styles.memberEmail, { color: colors.text.primary }]}>
