@@ -18,7 +18,7 @@ export function ColorPicker({ selected, onSelect }: ColorPickerProps) {
 
   return (
     <View style={styles.row}>
-      {TRAIL_COLORS.map(({ hex }) => {
+      {TRAIL_COLORS.map((hex) => {
         const isSelected = selected === hex;
         const needsBorder = hex === '#FFFFFF' || hex === '#ECC94B';
         return (

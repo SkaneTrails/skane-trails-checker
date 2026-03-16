@@ -71,7 +71,7 @@ export function TrailMap({ trails, onTrailSelect }: TrailMapProps) {
 
         const latlngs = trail.coordinates_map.map((c) => [c.lat, c.lng] as [number, number]);
         const isExplored = trail.status === 'Explored!';
-        const color = trail.line_color ?? (isExplored ? '#5B8DEF' : '#FF8000');
+        const color = trail.line_color ?? (isExplored ? '#4169E1' : '#E53E3E');
         const polyline = L.polyline(latlngs, {
           color,
           weight: isExplored ? 4 : 3,

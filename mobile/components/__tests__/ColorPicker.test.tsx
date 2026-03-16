@@ -16,7 +16,7 @@ describe('ColorPicker', () => {
   it('renders all trail color swatches', () => {
     render(<ColorPicker selected={null} onSelect={vi.fn()} />);
 
-    for (const { hex } of TRAIL_COLORS) {
+    for (const hex of TRAIL_COLORS) {
       expect(screen.getByLabelText(hex)).toBeDefined();
     }
   });
