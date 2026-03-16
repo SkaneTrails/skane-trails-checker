@@ -153,7 +153,7 @@ export interface HikeGroupMember {
 export interface HikeGroup {
   group_id: string;
   name: string;
-  members: HikeGroupMember[];
+  members?: HikeGroupMember[];
   created_at: string;
   last_updated: string;
 }
