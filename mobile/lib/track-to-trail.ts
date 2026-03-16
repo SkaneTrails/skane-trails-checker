@@ -129,11 +129,9 @@ export function computeTrackingStats(points: TrackingPoint[]): TrackingStats {
 export function toRecordingPayload(
   name: string,
   points: TrackingPoint[],
-  source: string = 'gps_recording',
 ): {
   name: string;
   coordinates: { lat: number; lng: number; altitude: number | null; timestamp: number }[];
-  source: string;
 } {
   return {
     name,
@@ -143,6 +141,5 @@ export function toRecordingPayload(
       altitude: p.altitude,
       timestamp: p.timestamp,
     })),
-    source,
   };
 }

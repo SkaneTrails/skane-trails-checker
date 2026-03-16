@@ -94,8 +94,17 @@ class TestParseGpxUpload:
         assert trails[0].name == "Trail One"
         assert trails[1].name == "Trail Two"
 
-    def test_parse_with_world_wide_source(self):
-        trails = parse_gpx_upload(VALID_GPX.encode("utf-8"), source="world_wide_hikes")
+    def test_parse_auto_detects_skane_source(self):
+        trails = parse_gpx_upload(VALID_GPX.encode("utf-8"))
+        assert trails[0].source == "other_trails"
+
+    def test_parse_auto_detects_worldwide_source(self):
+        worldwide_gpx = (
+            VALID_GPX.replace('lat="56.0"', 'lat="45.0"')
+            .replace('lat="56.01"', 'lat="45.01"')
+            .replace('lat="56.02"', 'lat="45.02"')
+        )
+        trails = parse_gpx_upload(worldwide_gpx.encode("utf-8"))
         assert trails[0].source == "world_wide_hikes"
 
     def test_parse_with_metadata_time(self):
@@ -175,18 +184,17 @@ class TestUploadGpxEndpoint:
     @patch("api.routers.trails.trail_storage.update_sync_metadata")
     @patch("api.routers.trails.trail_storage.save_trail")
     @patch("api.routers.trails.parse_gpx_upload")
-    def test_upload_with_source_param(self, mock_parse, mock_save, mock_sync, authenticated_client):
+    def test_upload_no_source_param(self, mock_parse, mock_save, mock_sync, authenticated_client):
+        """Source param is no longer accepted — auto-detected from coordinates."""
         mock_parse.return_value = [SAMPLE_TRAIL]
         mock_save.return_value = None
 
         response = authenticated_client.post(
-            "/api/v1/trails/upload?source=world_wide_hikes",
+            "/api/v1/trails/upload",
             files={"file": ("trail.gpx", io.BytesIO(VALID_GPX.encode()), "application/gpx+xml")},
         )
         assert response.status_code == 201
         mock_parse.assert_called_once()
-        _, kwargs = mock_parse.call_args
-        assert kwargs["source"] == "world_wide_hikes"
 
     def test_upload_non_gpx_file(self, authenticated_client):
         response = authenticated_client.post(
@@ -208,12 +216,20 @@ class TestUploadGpxEndpoint:
         assert response.status_code == 400
         assert "empty" in response.json()["detail"]
 
-    def test_upload_invalid_source(self, authenticated_client):
+    @patch("api.routers.trails.trail_storage.update_sync_metadata")
+    @patch("api.routers.trails.trail_storage.save_trail")
+    @patch("api.routers.trails.parse_gpx_upload")
+    def test_upload_ignores_source_query_param(self, mock_parse, mock_save, mock_sync, authenticated_client):
+        """Source query param is silently ignored (not a validation error)."""
+        mock_parse.return_value = [SAMPLE_TRAIL]
+        mock_save.return_value = None
+
         response = authenticated_client.post(
             "/api/v1/trails/upload?source=planned_hikes",
             files={"file": ("trail.gpx", io.BytesIO(VALID_GPX.encode()), "application/gpx+xml")},
         )
-        assert response.status_code == 422
+        assert response.status_code == 201
+        mock_parse.assert_called_once()
 
     @patch("api.routers.trails.parse_gpx_upload")
     def test_upload_invalid_gpx_content(self, mock_parse, authenticated_client):

@@ -116,19 +116,11 @@ def delete_trail(trail_id: str, user: Annotated[AuthenticatedUser, Depends(requi
 
 
 @router.post("/upload", status_code=201)
-def upload_gpx(
-    file: UploadFile,
-    user: Annotated[AuthenticatedUser, Depends(require_auth)],
-    source: Annotated[
-        str,
-        Query(
-            pattern=r"^(other_trails|world_wide_hikes)$", description="Trail source: other_trails or world_wide_hikes"
-        ),
-    ] = "other_trails",
-) -> list[TrailResponse]:
+def upload_gpx(file: UploadFile, user: Annotated[AuthenticatedUser, Depends(require_auth)]) -> list[TrailResponse]:
     """Upload a GPX file and save parsed trails to Firestore.
 
     Uploaded trails are marked as 'Explored!' since they represent completed hikes.
+    Source is auto-detected from coordinates (Skåne vs worldwide).
     Returns the list of saved trails.
     """
     if not file.filename or not file.filename.lower().endswith(".gpx"):
@@ -155,7 +147,7 @@ def upload_gpx(
         )
 
     try:
-        trails = parse_gpx_upload(content, source=source)
+        trails = parse_gpx_upload(content)
     except ValueError as e:
         detail = str(e)
         if "Invalid GPX file:" in detail:
@@ -181,9 +173,7 @@ def save_recording(body: RecordingCreate, user: Annotated[AuthenticatedUser, Dep
     distance, elevation, bounds, and simplified coordinates, then
     saves both the trail summary and full details to Firestore.
     """
-    trail, details = process_recording(
-        name=body.name, coordinates=body.coordinates, source=body.source, user_uid=user.uid
-    )
+    trail, details = process_recording(name=body.name, coordinates=body.coordinates, user_uid=user.uid)
 
     trail_storage.save_trail(trail)
     trail_storage.save_trail_details(details)

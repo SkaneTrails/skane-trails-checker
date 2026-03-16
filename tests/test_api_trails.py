@@ -376,7 +376,6 @@ class TestSaveRecording:
             {"lat": 55.603, "lng": 13.000, "altitude": 55.0, "timestamp": 1700000090000},
             {"lat": 55.604, "lng": 13.000, "altitude": 50.0, "timestamp": 1700000120000},
         ],
-        "source": "gps_recording",
     }
 
     @patch("api.routers.trails.trail_storage.save_trail_details")
@@ -390,7 +389,7 @@ class TestSaveRecording:
         data = response.json()
         assert data["name"] == "Morning Hike"
         assert data["status"] == "Explored!"
-        assert data["source"] == "gps_recording"
+        assert data["source"] == "other_trails"
         assert data["length_km"] > 0
         assert data["elevation_gain"] is not None
         assert data["duration_minutes"] == 2
@@ -432,7 +431,7 @@ class TestSaveRecording:
 
         response = authenticated_client.post("/api/v1/trails/record", json=recording)
         assert response.status_code == 201
-        assert response.json()["source"] == "gps_recording"
+        assert response.json()["source"] == "other_trails"
 
     def test_save_recording_requires_auth(self, unauthenticated_client):
         response = unauthenticated_client.post("/api/v1/trails/record", json=self.SAMPLE_RECORDING)
@@ -448,11 +447,6 @@ class TestSaveRecording:
             "name": "Short",
             "coordinates": [{"lat": 55.0, "lng": 13.0, "altitude": None, "timestamp": 1700000000000}],
         }
-        response = authenticated_client.post("/api/v1/trails/record", json=recording)
-        assert response.status_code == 422
-
-    def test_save_recording_rejects_invalid_source(self, authenticated_client):
-        recording = {**self.SAMPLE_RECORDING, "source": "invalid_source"}
         response = authenticated_client.post("/api/v1/trails/record", json=recording)
         assert response.status_code == 422
 

@@ -99,11 +99,11 @@ describe('trailsApi', () => {
       mockApiRequest.mockResolvedValue(uploaded);
 
       const file = new File(['<gpx/>'], 'test.gpx', { type: 'application/gpx+xml' });
-      const result = await trailsApi.uploadGpx(file, 'other_trails');
+      const result = await trailsApi.uploadGpx(file);
 
       expect(result).toEqual(uploaded);
       expect(mockApiRequest).toHaveBeenCalledWith(
-        '/api/v1/trails/upload?source=other_trails',
+        '/api/v1/trails/upload',
         expect.objectContaining({
           method: 'POST',
           body: expect.any(FormData),
@@ -128,7 +128,7 @@ describe('trailsApi', () => {
         { lat: 55.0, lng: 13.0, altitude: 100, timestamp: 1700000000000 },
         { lat: 55.001, lng: 13.001, altitude: 110, timestamp: 1700000060000 },
       ];
-      const result = await trailsApi.saveRecording('Morning Hike', points, 'gps_recording');
+      const result = await trailsApi.saveRecording('Morning Hike', points);
 
       expect(result).toEqual(saved);
       expect(mockApiRequest).toHaveBeenCalledWith('/api/v1/trails/record', {
@@ -138,7 +138,6 @@ describe('trailsApi', () => {
 
       const body = JSON.parse(mockApiRequest.mock.calls[0][1].body as string);
       expect(body.name).toBe('Morning Hike');
-      expect(body.source).toBe('gps_recording');
     });
 
     it('sends POST without source when not provided', async () => {

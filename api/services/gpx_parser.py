@@ -5,17 +5,19 @@ import logging
 import gpxpy
 
 from api.models.trail import TrailResponse
-from app.functions.trail_converter import gpx_track_to_trail
+from app.functions.trail_converter import detect_source, gpx_track_to_trail
 
 logger = logging.getLogger(__name__)
 
 
-def parse_gpx_upload(content: bytes, *, source: str = "other_trails") -> list[TrailResponse]:
+def parse_gpx_upload(content: bytes) -> list[TrailResponse]:
     """Parse GPX file content and return TrailResponse objects.
+
+    Source is auto-detected from coordinates: trails within Skåne's
+    bounding box are 'other_trails', everything else 'world_wide_hikes'.
 
     Args:
         content: Raw GPX file bytes
-        source: Trail source identifier ('other_trails' or 'world_wide_hikes')
 
     Returns:
         List of TrailResponse objects ready for storage
@@ -40,6 +42,9 @@ def parse_gpx_upload(content: bytes, *, source: str = "other_trails") -> list[Tr
     trails: list[TrailResponse] = []
     for i, track in enumerate(gpx_data.tracks):
         try:
+            points = (p for seg in track.segments for p in seg.points)
+            coords_gen = ((p.latitude, p.longitude) for p in points)
+            source = detect_source(coords_gen)
             trail = gpx_track_to_trail(track, source=source, index=i, status="Explored!", gpx_metadata=gpx_metadata)
             trails.append(trail)
         except ValueError:

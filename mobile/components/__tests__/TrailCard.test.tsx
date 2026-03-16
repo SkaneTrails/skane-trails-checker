@@ -102,10 +102,11 @@ describe('TrailCard', () => {
   });
 
   it('renders activity date', () => {
-    const trail = { ...baseTrail, activity_date: '2026-03-01' };
+    const trail = { ...baseTrail, activity_date: '2026-03-01T09:16:00+00:00' };
     render(<TrailCard trail={trail} onClose={vi.fn()} />);
 
-    expect(screen.getByText('2026-03-01')).toBeDefined();
+    const formatted = new Date('2026-03-01T09:16:00+00:00').toLocaleString(undefined, { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' });
+    expect(screen.getByText(formatted)).toBeDefined();
   });
 
   it('renders elevation gain and loss', () => {

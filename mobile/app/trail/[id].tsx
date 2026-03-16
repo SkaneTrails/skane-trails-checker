@@ -228,7 +228,7 @@ export default function TrailDetailScreen() {
                 {t('trail.activityLabel')}
               </Text>
               <Text style={[styles.infoText, { color: colors.text.secondary }]}>
-                {new Date(trail.activity_date).toLocaleDateString()}
+                {new Date(trail.activity_date).toLocaleString(undefined, { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })}
               </Text>
             </View>
           )}

@@ -2,6 +2,7 @@
 
 import hashlib
 import math
+from collections.abc import Iterable
 from datetime import UTC, datetime
 
 import gpxpy
@@ -12,6 +13,27 @@ from app.functions.tracks import simplify_track_coordinates
 
 _MIN_TIMESTAMPS_FOR_DURATION = 2
 _MIN_HORIZ_DIST_M = 1.0
+
+# Approximate bounding box for Skåne
+_SKANE_SOUTH = 55.35
+_SKANE_NORTH = 56.45
+_SKANE_WEST = 12.75
+_SKANE_EAST = 14.45
+
+
+def detect_source(coordinates: Iterable[tuple[float, float]]) -> str:
+    """Auto-detect trail source based on coordinates.
+
+    Accepts any iterable of (lat, lng) tuples so callers can pass
+    generator expressions for lazy evaluation with early exit.
+
+    Returns 'other_trails' if any coordinate falls within Skåne's
+    bounding box, otherwise 'world_wide_hikes'.
+    """
+    for lat, lng in coordinates:
+        if _SKANE_SOUTH <= lat <= _SKANE_NORTH and _SKANE_WEST <= lng <= _SKANE_EAST:
+            return "other_trails"
+    return "world_wide_hikes"
 
 
 def _compute_elevation_metrics(
