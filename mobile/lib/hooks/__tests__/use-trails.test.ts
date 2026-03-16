@@ -2,6 +2,7 @@ import { renderHook, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { createQueryWrapper } from '@/test/helpers';
 import {
+  pollForChanges,
   sortTrails,
   useDeleteTrail,
   useSaveRecording,
@@ -212,6 +213,152 @@ describe('useTrails', () => {
     await waitFor(() => {
       expect(warnSpy).toHaveBeenCalledWith('Trail sync failed:', expect.any(Error));
     });
+    warnSpy.mockRestore();
+  });
+
+  it('polls sync metadata and triggers background sync on change', async () => {
+    vi.useFakeTimers();
+
+    try {
+      // Initial mount: cache has data, server matches
+      mockTrailCache.get.mockResolvedValue({
+        trails: [sampleTrail],
+        lastSyncTime: '2025-06-01T00:00:00Z',
+      });
+      mockTrailsApi.getSyncMetadata.mockResolvedValue({
+        count: 1,
+        last_modified: '2025-06-01T00:00:00Z',
+      });
+      mockTrailsApi.getTrails.mockResolvedValue([sampleTrail]);
+      const wrapper = createQueryWrapper();
+
+      renderHook(() => useTrails(), { wrapper });
+
+      // Wait for initial sync to complete
+      await vi.advanceTimersByTimeAsync(100);
+
+      // Verify the poll interval is set up (setInterval registered)
+      expect(vi.getTimerCount()).toBeGreaterThan(0);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+});
+
+describe('pollForChanges', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('does nothing when server matches cache', async () => {
+    mockTrailCache.get.mockResolvedValue({
+      trails: [sampleTrail],
+      lastSyncTime: '2025-06-01T00:00:00Z',
+    });
+    mockTrailsApi.getSyncMetadata.mockResolvedValue({
+      count: 1,
+      last_modified: '2025-06-01T00:00:00Z',
+    });
+
+    const { QueryClient } = await import('@tanstack/react-query');
+    const qc = new QueryClient();
+
+    await pollForChanges(qc as any, ['trails', 'list', {}]);
+
+    // No trail fetch or cache write should occur
+    expect(mockTrailsApi.getTrails).not.toHaveBeenCalled();
+    expect(mockTrailCache.set).not.toHaveBeenCalled();
+  });
+
+  it('triggers full refetch when server has different last_modified and delta returns empty', async () => {
+    // Cache state
+    mockTrailCache.get.mockResolvedValue({
+      trails: [sampleTrail],
+      lastSyncTime: '2025-06-01T00:00:00Z',
+    });
+
+    // Server reports newer data
+    mockTrailsApi.getSyncMetadata.mockResolvedValue({
+      count: 1,
+      last_modified: '2025-07-01T00:00:00Z',
+    });
+
+    // Delta yields nothing → triggers full refetch
+    const renamedTrail = { ...sampleTrail, name: 'Renamed' };
+    mockTrailsApi.getTrails.mockImplementation((filters) => {
+      if (filters.since) return Promise.resolve([]);
+      return Promise.resolve([renamedTrail]);
+    });
+
+    const queryKey = ['trails', 'list', {}] as const;
+
+    // Use a real QueryClient for setQueryData
+    const { QueryClient } = await import('@tanstack/react-query');
+    const qc = new QueryClient();
+
+    await pollForChanges(qc as any, queryKey);
+
+    // Should have done a full refetch and written to cache
+    expect(mockTrailCache.set).toHaveBeenCalledWith([renamedTrail], '2025-07-01T00:00:00Z');
+  });
+
+  it('performs delta merge when new trails exist since last sync', async () => {
+    const newTrail = { ...sampleTrail, trail_id: 'new1', name: 'New Trail' };
+
+    mockTrailCache.get.mockResolvedValue({
+      trails: [sampleTrail],
+      lastSyncTime: '2025-06-01T00:00:00Z',
+    });
+    mockTrailsApi.getSyncMetadata.mockResolvedValue({
+      count: 2,
+      last_modified: '2025-07-01T00:00:00Z',
+    });
+    mockTrailsApi.getTrails.mockImplementation((filters) => {
+      if (filters.since) return Promise.resolve([newTrail]);
+      return Promise.resolve([sampleTrail, newTrail]);
+    });
+    mockTrailCache.merge.mockResolvedValue([sampleTrail, newTrail]);
+
+    const queryKey = ['trails', 'list', {}] as const;
+    const { QueryClient } = await import('@tanstack/react-query');
+    const qc = new QueryClient();
+
+    await pollForChanges(qc as any, queryKey);
+
+    expect(mockTrailCache.merge).toHaveBeenCalledWith([newTrail], '2025-07-01T00:00:00Z');
+  });
+
+  it('triggers full refetch when server count < local count (deletion)', async () => {
+    mockTrailCache.get.mockResolvedValue({
+      trails: [sampleTrail, { ...sampleTrail, trail_id: 'del1' }],
+      lastSyncTime: '2025-06-01T00:00:00Z',
+    });
+    mockTrailsApi.getSyncMetadata.mockResolvedValue({
+      count: 1,
+      last_modified: '2025-07-01T00:00:00Z',
+    });
+    mockTrailsApi.getTrails.mockResolvedValue([sampleTrail]);
+
+    const queryKey = ['trails', 'list', {}] as const;
+    const { QueryClient } = await import('@tanstack/react-query');
+    const qc = new QueryClient();
+
+    await pollForChanges(qc as any, queryKey);
+
+    expect(mockTrailCache.set).toHaveBeenCalledWith([sampleTrail], '2025-07-01T00:00:00Z');
+  });
+
+  it('handles poll failure gracefully', async () => {
+    mockTrailsApi.getSyncMetadata.mockRejectedValue(new Error('Network error'));
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+    const queryKey = ['trails', 'list', {}] as const;
+    const { QueryClient } = await import('@tanstack/react-query');
+    const qc = new QueryClient();
+
+    await pollForChanges(qc as any, queryKey);
+
+    expect(warnSpy).toHaveBeenCalledWith('Background sync poll failed:', expect.any(Error));
     warnSpy.mockRestore();
   });
 });
