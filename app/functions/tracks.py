@@ -5,12 +5,12 @@ import geopy.distance
 
 try:
     from app.resources.hikes_resources import DEFAULT_MAX_DISTANCE, DEFAULT_MIN_DISTANCE
-except ModuleNotFoundError:
-    from resources.hikes_resources import DEFAULT_MAX_DISTANCE, DEFAULT_MIN_DISTANCE
+except ModuleNotFoundError:  # pragma: no cover
+    from resources.hikes_resources import DEFAULT_MAX_DISTANCE, DEFAULT_MIN_DISTANCE  # pragma: no cover
 
 logger = logging.getLogger(__name__)
 
-if TYPE_CHECKING:
+if TYPE_CHECKING:  # pragma: no cover
     from api.models.trail import TrailResponse as Trail
 
 # Constants
@@ -157,6 +157,6 @@ def simplify_track_coordinates(coordinates: list, tolerance: float = 0.0001) -> 
         if has_elevation:
             return [(lat, lon, elev) for lat, lon, elev in simplified_3d.tolist()]
         return [(lat, lon) for lat, lon, _ in simplified_3d.tolist()]
-    except ImportError:
-        logger.warning("To enable track simplification, install rdp: uv add rdp")
-        return coordinates
+    except ImportError:  # pragma: no cover
+        logger.warning("To enable track simplification, install rdp: uv add rdp")  # pragma: no cover
+        return coordinates  # pragma: no cover

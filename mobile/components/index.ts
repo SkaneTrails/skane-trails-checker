@@ -14,6 +14,7 @@ export { ScreenLayout } from './ScreenLayout';
 export { StatCard } from './StatCard';
 export { StatusBadge } from './StatusBadge';
 export { TabIcon } from './TabIcon';
+export { TrackingControls } from './TrackingControls';
 export { TrailCard } from './TrailCard';
 export { TrailMap } from './TrailMap';
 export type { MapLayers } from './UnifiedMap';

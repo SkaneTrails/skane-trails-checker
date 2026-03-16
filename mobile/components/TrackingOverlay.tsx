@@ -3,15 +3,19 @@
  *
  * Shows real-time stats (distance, elapsed time, point count) and
  * controls (pause/resume/stop). When stopped, shows save form.
- * Platform-agnostic: works on both web (preview) and native (actual tracking).
+ *
+ * On native, pause/resume/stop buttons are hidden because
+ * TrackingControls.native.tsx provides FAB buttons that also
+ * manage the background GPS task via TrackingService.
  */
 
 import { useEffect, useRef, useState } from 'react';
-import { Alert, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Alert, Platform, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useSaveRecording } from '@/lib/hooks';
 import { useTranslation } from '@/lib/i18n';
 import { reverseGeocode } from '@/lib/reverse-geocode';
 import { useTracking } from '@/lib/tracking-context';
+import * as TrackingService from '@/lib/tracking-service';
 import { borderRadius, fontSize, fontWeight, spacing, useTheme } from '@/lib/theme';
 import { glassCard } from '@/lib/theme/styles';
 
@@ -74,7 +78,14 @@ export function TrackingOverlay() {
   const handleDiscard = () => {
     Alert.alert(t('tracking.discard'), t('tracking.discardConfirm'), [
       { text: t('common.cancel'), style: 'cancel' },
-      { text: t('tracking.discard'), style: 'destructive', onPress: reset },
+      {
+        text: t('tracking.discard'),
+        style: 'destructive',
+        onPress: () => {
+          void TrackingService.clearBuffer();
+          reset();
+        },
+      },
     ]);
   };
 
@@ -86,6 +97,7 @@ export function TrackingOverlay() {
       { name, points },
       {
         onSuccess: () => {
+          void TrackingService.clearBuffer();
           reset();
           setTrailName('');
         },
@@ -151,8 +163,8 @@ export function TrackingOverlay() {
         )}
       </View>
 
-      {/* Controls */}
-      {status === 'tracking' && (
+      {/* Controls — hidden on native where TrackingControls FAB handles them */}
+      {status === 'tracking' && Platform.OS === 'web' && (
         <View style={styles.controls}>
           <Pressable
             onPress={pause}
@@ -175,7 +187,7 @@ export function TrackingOverlay() {
         </View>
       )}
 
-      {status === 'paused' && (
+      {status === 'paused' && Platform.OS === 'web' && (
         <View style={styles.controls}>
           <Pressable
             onPress={resume}

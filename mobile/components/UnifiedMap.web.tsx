@@ -13,6 +13,7 @@ import { FALLBACK_PATH, ICON_PATHS } from './PlaceCategoryIcon';
 import { animation, iconSize, useTheme } from '@/lib/theme';
 import type { ColorTokens } from '@/lib/theme/colors';
 import type { ForagingSpot, ForagingType, Place, Trail } from '@/lib/types';
+import type { TrackingPoint } from '@/lib/track-to-trail';
 
 export interface MapLayers {
   trails: boolean;
@@ -27,6 +28,7 @@ interface UnifiedMapProps {
   places: Place[];
   layers: MapLayers;
   selectedTrailId?: string | null;
+  recordingPoints?: TrackingPoint[];
   onTrailSelect?: (trail: Trail) => void;
   onSpotSelect?: (spot: ForagingSpot) => void;
   onPlaceSelect?: (place: Place) => void;
@@ -105,10 +107,11 @@ export function UnifiedMap({
         mapInstanceRef.current.remove();
       }
 
-      const map = L.map(mapRef.current, { zoomControl: false }).setView(
-        DEFAULT_CENTER,
-        DEFAULT_ZOOM,
-      );
+      const map = L.map(mapRef.current, {
+        zoomControl: false,
+        // Canvas renderer with generous tolerance for easier touch selection on mobile
+        renderer: L.canvas({ tolerance: 15 }),
+      }).setView(DEFAULT_CENTER, DEFAULT_ZOOM);
       mapInstanceRef.current = map;
 
       // Zoom at bottom-right

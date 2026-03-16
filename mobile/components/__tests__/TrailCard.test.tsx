@@ -87,6 +87,27 @@ describe('TrailCard', () => {
     expect(screen.getByText('3h 15m')).toBeDefined();
   });
 
+  it('formats duration as minutes only when under 1 hour', () => {
+    const trail = { ...baseTrail, duration_minutes: 45 };
+    render(<TrailCard trail={trail} onClose={vi.fn()} />);
+
+    expect(screen.getByText('45m')).toBeDefined();
+  });
+
+  it('formats duration as hours only when no remaining minutes', () => {
+    const trail = { ...baseTrail, duration_minutes: 120 };
+    render(<TrailCard trail={trail} onClose={vi.fn()} />);
+
+    expect(screen.getByText('2h')).toBeDefined();
+  });
+
+  it('renders activity date', () => {
+    const trail = { ...baseTrail, activity_date: '2026-03-01' };
+    render(<TrailCard trail={trail} onClose={vi.fn()} />);
+
+    expect(screen.getByText('2026-03-01')).toBeDefined();
+  });
+
   it('renders elevation gain and loss', () => {
     render(<TrailCard trail={baseTrail} onClose={vi.fn()} />);
 
@@ -125,6 +146,37 @@ describe('TrailCard', () => {
     expect(onClose).toHaveBeenCalled();
   });
 
+  it('hides activity date when not provided', () => {
+    const trail = { ...baseTrail, activity_date: null };
+    render(<TrailCard trail={trail} onClose={vi.fn()} />);
+
+    // No date text should render
+    expect(screen.queryByText(/\d{4}/)).toBeNull();
+  });
+
+  it('exits edit mode without calling onUpdate when no changes made', () => {
+    const onUpdate = vi.fn();
+    render(<TrailCard trail={baseTrail} onClose={vi.fn()} onUpdate={onUpdate} />);
+
+    fireEvent.click(screen.getByLabelText('trailCard.edit'));
+    fireEvent.click(screen.getByText('common.save'));
+
+    expect(onUpdate).not.toHaveBeenCalled();
+    expect(screen.getByText('Söderåsen Loop')).toBeDefined();
+  });
+
+  it('shows saving state when isUpdating is true', () => {
+    render(<TrailCard trail={baseTrail} onClose={vi.fn()} onUpdate={vi.fn()} isUpdating />);
+
+    fireEvent.click(screen.getByLabelText('trailCard.edit'));
+    expect(screen.getByText('common.saving')).toBeDefined();
+  });
+
+  it('hides edit button when onUpdate is not provided', () => {
+    render(<TrailCard trail={baseTrail} onClose={vi.fn()} />);
+    expect(screen.queryByLabelText('trailCard.edit')).toBeNull();
+  });
+
   it('calls onUpdate with changed name when saving', () => {
     const onUpdate = vi.fn();
     render(<TrailCard trail={baseTrail} onClose={vi.fn()} onUpdate={onUpdate} />);
@@ -140,5 +192,32 @@ describe('TrailCard', () => {
       { name: 'New Name' },
       expect.any(Function),
     );
+  });
+
+  it('exits edit mode without calling onUpdate when no changes', () => {
+    const onUpdate = vi.fn();
+    render(<TrailCard trail={baseTrail} onClose={vi.fn()} onUpdate={onUpdate} />);
+
+    fireEvent.click(screen.getByLabelText('trailCard.edit'));
+    expect(screen.getByText('trailCard.edit')).toBeDefined();
+
+    fireEvent.click(screen.getByText('common.save'));
+
+    expect(onUpdate).not.toHaveBeenCalled();
+    // Back in view mode — title shows trail name
+    expect(screen.getByText('Söderåsen Loop')).toBeDefined();
+  });
+
+  it('cancels edit mode via cancel button', () => {
+    const onUpdate = vi.fn();
+    render(<TrailCard trail={baseTrail} onClose={vi.fn()} onUpdate={onUpdate} />);
+
+    fireEvent.click(screen.getByLabelText('trailCard.edit'));
+    const nameInput = screen.getByDisplayValue('Söderåsen Loop');
+    fireEvent.change(nameInput, { target: { value: 'Changed' } });
+    fireEvent.click(screen.getByText('common.cancel'));
+
+    expect(onUpdate).not.toHaveBeenCalled();
+    expect(screen.getByText('Söderåsen Loop')).toBeDefined();
   });
 });
