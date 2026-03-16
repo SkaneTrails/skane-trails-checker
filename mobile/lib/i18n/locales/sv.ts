@@ -221,7 +221,7 @@ const sv: Translations = {
     addMember: 'Lägg till medlem',
     emailPlaceholder: 'E-postadress',
     removeMember: 'Ta bort',
-    owner: 'Ägare',
+    admin: 'Admin',
     member: 'Medlem',
     leaveGroup: 'Lämna grupp',
     deleteGroup: 'Radera grupp',

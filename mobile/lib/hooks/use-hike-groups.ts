@@ -16,6 +16,11 @@ export const hikeGroupKeys = {
   detail: (id: string) => ['hike-groups', id] as const,
 };
 
+export const memberKeys = {
+  all: ['group-members'] as const,
+  list: (groupId: string) => ['group-members', groupId] as const,
+};
+
 export function useCurrentUser(options?: { enabled?: boolean }) {
   return useQuery({
     queryKey: currentUserKeys.all,
@@ -38,6 +43,14 @@ export function useHikeGroup(groupId: string, options?: { enabled?: boolean }) {
     queryKey: hikeGroupKeys.detail(groupId),
     queryFn: () => hikeGroupsApi.getGroup(groupId),
     enabled: options?.enabled,
+  });
+}
+
+export function useGroupMembers(groupId: string, options?: { enabled?: boolean }) {
+  return useQuery({
+    queryKey: memberKeys.list(groupId),
+    queryFn: () => hikeGroupsApi.getMembers(groupId),
+    enabled: (options?.enabled ?? true) && Boolean(groupId),
   });
 }
 
@@ -83,6 +96,7 @@ export function useAddMember() {
       hikeGroupsApi.addMember(groupId, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: hikeGroupKeys.all });
+      queryClient.invalidateQueries({ queryKey: memberKeys.all });
     },
   });
 }
@@ -95,6 +109,7 @@ export function useRemoveMember() {
       hikeGroupsApi.removeMember(groupId, memberEmail),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: hikeGroupKeys.all });
+      queryClient.invalidateQueries({ queryKey: memberKeys.all });
     },
   });
 }

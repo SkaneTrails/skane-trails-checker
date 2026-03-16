@@ -2,7 +2,7 @@
  * Hike group and admin API client.
  */
 
-import type { AddMemberRequest, CurrentUser, HikeGroup, HikeGroupCreate } from '../types';
+import type { AddMemberRequest, CurrentUser, HikeGroup, HikeGroupCreate, HikeGroupMember } from '../types';
 import { apiRequest } from './client';
 
 export const hikeGroupsApi = {
@@ -38,7 +38,11 @@ export const hikeGroupsApi = {
     });
   },
 
-  addMember(groupId: string, data: AddMemberRequest): Promise<HikeGroup> {
+  getMembers(groupId: string): Promise<HikeGroupMember[]> {
+    return apiRequest(`/api/v1/admin/groups/${encodeURIComponent(groupId)}/members`);
+  },
+
+  addMember(groupId: string, data: AddMemberRequest): Promise<HikeGroupMember> {
     return apiRequest(`/api/v1/admin/groups/${encodeURIComponent(groupId)}/members`, {
       method: 'POST',
       body: JSON.stringify(data),

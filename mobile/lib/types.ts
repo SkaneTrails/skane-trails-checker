@@ -141,19 +141,19 @@ export interface PlaceCategory {
   icon: string;
 }
 
-// Hike group member
+// Hike group member (matches backend MemberResponse)
 export interface HikeGroupMember {
-  uid: string;
   email: string;
-  name: string | null;
-  role: 'owner' | 'member';
+  group_id: string;
+  role: 'admin' | 'member';
+  display_name: string | null;
 }
 
 // Hike group
 export interface HikeGroup {
   group_id: string;
   name: string;
-  members?: HikeGroupMember[];
+  member_count: number;
   created_at: string;
   last_updated: string;
 }

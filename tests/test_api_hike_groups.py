@@ -9,6 +9,7 @@ SAMPLE_GROUP = HikeGroupResponse(
     group_id="group1",
     name="Hemmestorp",
     created_by="su@example.com",
+    member_count=2,
     created_at="2026-03-13T10:00:00",
     last_updated="2026-03-13T10:00:00",
 )
@@ -60,7 +61,10 @@ class TestListGroups:
         mock_get.return_value = [SAMPLE_GROUP, SAMPLE_GROUP_2]
         response = superuser_client.get("/api/v1/admin/groups")
         assert response.status_code == 200
-        assert len(response.json()) == 2
+        data = response.json()
+        assert len(data) == 2
+        assert data[0]["member_count"] == 2
+        assert data[1]["member_count"] == 0
 
     def test_list_groups_forbidden_for_admin(self, authenticated_client):
         response = authenticated_client.get("/api/v1/admin/groups")
@@ -127,10 +131,13 @@ class TestCreateGroup:
 class TestGetGroup:
     @patch("api.routers.hike_groups.hike_group_storage.get_hike_group")
     def test_get_group_as_member(self, mock_get, authenticated_client):
-        mock_get.return_value = HikeGroupResponse(group_id="test-group", name="My Group", created_by="su@example.com")
+        mock_get.return_value = HikeGroupResponse(
+            group_id="test-group", name="My Group", created_by="su@example.com", member_count=3
+        )
         response = authenticated_client.get("/api/v1/admin/groups/test-group")
         assert response.status_code == 200
         assert response.json()["name"] == "My Group"
+        assert response.json()["member_count"] == 3
 
     @patch("api.routers.hike_groups.hike_group_storage.get_hike_group")
     def test_get_group_not_found(self, mock_get, authenticated_client):
@@ -148,6 +155,7 @@ class TestGetGroup:
         mock_get.return_value = SAMPLE_GROUP
         response = superuser_client.get("/api/v1/admin/groups/group1")
         assert response.status_code == 200
+        assert response.json()["member_count"] == 2
 
 
 class TestUpdateGroup:
@@ -396,6 +404,19 @@ class TestHikeGroupStorage:
         assert result.name == "Test Group"
         assert result.created_by == "su@example.com"
 
+    def test_doc_to_hike_group_with_member_count(self):
+        from api.storage.hike_group_storage import _doc_to_hike_group
+
+        data = {
+            "name": "Group",
+            "created_by": "su@example.com",
+            "member_count": 5,
+            "created_at": "2026-01-01T00:00:00",
+            "last_updated": "2026-01-01T00:00:00",
+        }
+        result = _doc_to_hike_group("doc-id", data)
+        assert result.member_count == 5
+
     def test_doc_to_hike_group_defaults(self):
         from api.storage.hike_group_storage import _doc_to_hike_group
 
@@ -403,5 +424,6 @@ class TestHikeGroupStorage:
         assert result.group_id == "doc-id"
         assert result.name == ""
         assert result.created_by == ""
+        assert result.member_count == 0
         assert result.created_at == ""
         assert result.last_updated == ""

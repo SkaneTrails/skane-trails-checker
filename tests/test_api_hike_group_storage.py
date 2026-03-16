@@ -209,13 +209,13 @@ class TestAddMember:
     @patch("api.storage.hike_group_storage._utc_now_z", return_value="2026-03-13T10:00:00Z")
     def test_adds_member(self, mock_now, mock_collection) -> None:
         add_member("g1", "New@Example.COM", role="member", display_name="New User", invited_by="admin@example.com")
-        mock_collection.document.assert_called_once_with("new@example.com")
         saved = mock_collection.document.return_value.set.call_args[0][0]
         assert saved["group_id"] == "g1"
         assert saved["role"] == "member"
         assert saved["display_name"] == "New User"
         assert saved["invited_by"] == "admin@example.com"
         assert saved["joined_at"] == "2026-03-13T10:00:00Z"
+        mock_collection.document.return_value.update.assert_called_once()
 
 
 class TestRemoveMember:
@@ -223,12 +223,14 @@ class TestRemoveMember:
         doc_ref = MagicMock()
         doc_get = MagicMock()
         doc_get.exists = True
+        doc_get.to_dict.return_value = {"group_id": "g1", "role": "member"}
         doc_ref.get.return_value = doc_get
         mock_collection.document.return_value = doc_ref
 
         result = remove_member("user@example.com")
         assert result is True
         doc_ref.delete.assert_called_once()
+        doc_ref.update.assert_called_once()
 
     def test_returns_false_for_nonexistent(self, mock_collection) -> None:
         doc_ref = MagicMock()

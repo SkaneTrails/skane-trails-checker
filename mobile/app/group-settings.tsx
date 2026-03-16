@@ -20,6 +20,7 @@ import { useAuth } from '@/lib/hooks/use-auth';
 import {
   useAddMember,
   useCurrentUser,
+  useGroupMembers,
   useHikeGroup,
   useRemoveMember,
   useUpdateHikeGroup,
@@ -36,6 +37,7 @@ export default function GroupSettingsScreen() {
   const { user } = useAuth();
 
   const { data: group, isLoading } = useHikeGroup(id ?? '', { enabled: !!id });
+  const { data: members = [], isLoading: membersLoading } = useGroupMembers(id ?? '', { enabled: !!id });
   const { data: currentUser } = useCurrentUser();
   const updateMutation = useUpdateHikeGroup();
   const addMemberMutation = useAddMember();
@@ -45,7 +47,7 @@ export default function GroupSettingsScreen() {
   const [groupName, setGroupName] = useState('');
   const [newEmail, setNewEmail] = useState('');
 
-  if (isLoading || !group) {
+  if (isLoading || membersLoading || !group) {
     return (
       <View style={styles.backdrop}>
         <View style={styles.cardWrap}>
@@ -58,7 +60,7 @@ export default function GroupSettingsScreen() {
   }
 
   const isSuperuser = currentUser?.role === 'superuser';
-  const isOwner = isSuperuser || (group.members?.some((m) => m.role === 'owner' && m.email === user?.email) ?? false);
+  const isAdmin = isSuperuser || members.some((m) => m.role === 'admin' && m.email === user?.email);
 
   const handleSaveName = async () => {
     const trimmed = groupName.trim();
@@ -178,15 +180,15 @@ export default function GroupSettingsScreen() {
           {t('settings.members')}
         </Text>
         <ContentCard>
-          {(group.members ?? []).map((member) => (
-            <View key={member.uid || member.email} style={styles.memberRow}>
+          {members.map((member) => (
+            <View key={member.email} style={styles.memberRow}>
               <View style={styles.memberInfo}>
                 <Text style={[styles.memberEmail, { color: colors.text.primary }]}>
                   {member.email}
                 </Text>
-                {!!member.name && (
+                {!!member.display_name && (
                   <Text style={[styles.memberName, { color: colors.text.secondary }]}>
-                    {member.name}
+                    {member.display_name}
                   </Text>
                 )}
               </View>
@@ -196,7 +198,7 @@ export default function GroupSettingsScreen() {
                     styles.roleBadge,
                     {
                       backgroundColor:
-                        member.role === 'owner' ? colors.status.exploredBg : colors.chip.bg,
+                        member.role === 'admin' ? colors.status.exploredBg : colors.chip.bg,
                     },
                   ]}
                 >
@@ -205,14 +207,14 @@ export default function GroupSettingsScreen() {
                       styles.roleText,
                       {
                         color:
-                          member.role === 'owner' ? colors.status.exploredText : colors.chip.text,
+                          member.role === 'admin' ? colors.status.exploredText : colors.chip.text,
                       },
                     ]}
                   >
-                    {member.role === 'owner' ? t('settings.owner') : t('settings.member')}
+                    {member.role === 'admin' ? t('settings.admin') : t('settings.member')}
                   </Text>
                 </View>
-                {isOwner && member.role !== 'owner' && (
+                {isAdmin && member.role !== 'admin' && (
                   <Pressable
                     onPress={() => handleRemoveMember(member.email)}
                     accessibilityRole="button"
@@ -227,8 +229,8 @@ export default function GroupSettingsScreen() {
             </View>
           ))}
 
-          {/* Add member (owner only) */}
-          {isOwner && (
+          {/* Add member (admin only) */}
+          {isAdmin && (
           <View style={styles.addMemberRow}>
             <View style={styles.addMemberInput}>
               <FormField

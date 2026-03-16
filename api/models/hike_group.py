@@ -12,6 +12,7 @@ class HikeGroupResponse(BaseModel):
     group_id: str
     name: str
     created_by: str
+    member_count: int = 0
     created_at: str = ""
     last_updated: str = ""
 
