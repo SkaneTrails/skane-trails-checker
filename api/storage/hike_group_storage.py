@@ -17,6 +17,17 @@ from api.storage.validation import validate_document_id
 logger = logging.getLogger(__name__)
 
 GROUPS_COLLECTION = "hike_groups"
+
+
+def _normalize_email(email: str) -> str:
+    """Normalize and validate an email for use as a Firestore document ID."""
+    normalized = email.strip().lower()
+    if "/" in normalized or "\\" in normalized:
+        msg = f"Invalid email: contains path separators: {normalized}"
+        raise ValueError(msg)
+    return normalized
+
+
 MEMBERS_COLLECTION = "group_members"
 SUPERUSERS_COLLECTION = "superusers"
 
@@ -53,7 +64,7 @@ def _doc_to_hike_group(doc_id: str, data: dict) -> HikeGroupResponse:
 
 def is_superuser(email: str) -> bool:
     """Check if user is a superuser (has global access)."""
-    normalized_email = email.lower()
+    normalized_email = _normalize_email(email)
     doc = get_collection(SUPERUSERS_COLLECTION).document(normalized_email).get()
     return doc.exists
 
@@ -120,7 +131,7 @@ def group_name_exists(name: str, *, exclude_id: str | None = None) -> bool:
 
 def get_user_membership(email: str) -> GroupMember | None:
     """Get user's group membership. Returns None if not a member of any group."""
-    normalized_email = email.lower()
+    normalized_email = _normalize_email(email)
     doc = get_collection(MEMBERS_COLLECTION).document(normalized_email).get()
 
     if not doc.exists:
@@ -142,8 +153,8 @@ def get_user_membership(email: str) -> GroupMember | None:
 def add_member(
     group_id: str, email: str, role: str = "member", display_name: str | None = None, invited_by: str | None = None
 ) -> None:
-    """Add a user to a group. Uses email (lowercased) as document ID for O(1) lookup."""
-    normalized_email = email.lower()
+    """Add a user to a group. Uses email (normalized) as document ID for O(1) lookup."""
+    normalized_email = _normalize_email(email)
     now = _utc_now_z()
     get_collection(MEMBERS_COLLECTION).document(normalized_email).set(
         {"group_id": group_id, "role": role, "display_name": display_name, "joined_at": now, "invited_by": invited_by}
@@ -152,7 +163,7 @@ def add_member(
 
 def remove_member(email: str) -> bool:
     """Remove a user from their group. Returns True if member existed and was removed."""
-    normalized_email = email.lower()
+    normalized_email = _normalize_email(email)
     doc_ref = get_collection(MEMBERS_COLLECTION).document(normalized_email)
 
     if not doc_ref.get().exists:

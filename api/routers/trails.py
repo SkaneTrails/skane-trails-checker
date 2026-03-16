@@ -11,7 +11,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile
 
-from api.auth import AuthenticatedUser, require_auth
+from api.auth import AuthenticatedUser, require_auth, require_group
 from api.models.trail import (
     RecordingCreate,
     SyncMetadata,
@@ -67,7 +67,7 @@ def list_trails(
     Group members see their group's trails + public (bootstrapped) trails.
     Superusers see all trails.
     """
-    group_id = None if user.role == "superuser" else user.group_id
+    group_id = None if user.role == "superuser" else require_group(user)
     trails = trail_storage.get_all_trails(source=filters.source, since=filters.since, group_id=group_id)
 
     if filters.search:
@@ -193,9 +193,10 @@ def upload_gpx(file: UploadFile, user: Annotated[AuthenticatedUser, Depends(requ
             detail = "Invalid GPX file: the file could not be parsed"
         raise HTTPException(status_code=400, detail=detail) from e
 
+    group_id = None if user.role == "superuser" else require_group(user)
     for trail in trails:
         trail.created_by = user.uid
-        trail.group_id = user.group_id
+        trail.group_id = group_id
         trail_storage.save_trail(trail, update_sync=False)
 
     # Update sync metadata once after bulk save (not per-trail)
@@ -214,8 +215,9 @@ def save_recording(body: RecordingCreate, user: Annotated[AuthenticatedUser, Dep
     """
     _require_admin_role(user)
 
+    group_id = None if user.role == "superuser" else require_group(user)
     trail, details = process_recording(name=body.name, coordinates=body.coordinates, user_uid=user.uid)
-    trail.group_id = user.group_id
+    trail.group_id = group_id
 
     trail_storage.save_trail(trail)
     trail_storage.save_trail_details(details)

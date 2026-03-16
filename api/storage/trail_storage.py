@@ -92,7 +92,7 @@ def _fetch_all_trails(collection: Any, source: str | None, since: str | None) ->
     query = collection.where("source", "==", source) if source else collection
     if since:
         query = query.where("created_at", ">=", since)
-    return [_doc_to_trail(doc.to_dict()) for doc in query.stream() if doc.to_dict()]
+    return [_doc_to_trail(data) for doc in query.stream() if (data := doc.to_dict())]
 
 
 def _fetch_group_and_public_trails(

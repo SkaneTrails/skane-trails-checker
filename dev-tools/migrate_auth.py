@@ -39,8 +39,8 @@ def find_or_create_group(name: str, admin_email: str, *, dry_run: bool) -> str |
     existing = get_all_hike_groups()
     for group in existing:
         if group.name == name:
-            logger.info("Group '%s' already exists (id=%s)", name, group.id)
-            return group.id
+            logger.info("Group '%s' already exists (id=%s)", name, group.group_id)
+            return group.group_id
 
     if dry_run:
         logger.info("[DRY RUN] Would create group '%s'", name)

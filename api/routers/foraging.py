@@ -9,7 +9,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 
-from api.auth import AuthenticatedUser, require_auth
+from api.auth import AuthenticatedUser, require_auth, require_group
 from api.models.foraging import (
     ForagingSpotCreate,
     ForagingSpotResponse,
@@ -45,7 +45,7 @@ def list_foraging_spots(
     month: Annotated[str | None, Query(pattern=r"^(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)$")] = None,
 ) -> list[ForagingSpotResponse]:
     """List foraging spots for the user's group, optionally filtered by month."""
-    group_id = None if user.role == "superuser" else user.group_id
+    group_id = None if user.role == "superuser" else require_group(user)
     return foraging_storage.get_foraging_spots(month=month, group_id=group_id)
 
 
@@ -57,8 +57,9 @@ def create_foraging_spot(
     _require_admin_role(user)
 
     spot_data = body.model_dump()
+    group_id = None if user.role == "superuser" else require_group(user)
     spot_data["created_by"] = user.uid
-    spot_data["group_id"] = user.group_id
+    spot_data["group_id"] = group_id
     doc_id = foraging_storage.save_foraging_spot(spot_data)
 
     created = foraging_storage.get_foraging_spot(doc_id)

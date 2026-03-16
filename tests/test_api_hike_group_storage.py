@@ -8,6 +8,7 @@ import pytest
 from api.models.hike_group import HikeGroupResponse
 from api.storage.hike_group_storage import (
     GroupMember,
+    _normalize_email,
     add_member,
     delete_hike_group,
     get_all_hike_groups,
@@ -263,3 +264,19 @@ class TestListGroupMembers:
     def test_skips_none_data(self, mock_collection) -> None:
         mock_collection.where.return_value.stream.return_value = [_make_doc("u@x.com", None)]
         assert list_group_members("g1") == []
+
+
+class TestNormalizeEmail:
+    def test_lowercases(self) -> None:
+        assert _normalize_email("User@Example.COM") == "user@example.com"
+
+    def test_strips_whitespace(self) -> None:
+        assert _normalize_email("  user@example.com  ") == "user@example.com"
+
+    def test_rejects_forward_slash(self) -> None:
+        with pytest.raises(ValueError, match="path separators"):
+            _normalize_email("bad/email@example.com")
+
+    def test_rejects_backslash(self) -> None:
+        with pytest.raises(ValueError, match="path separators"):
+            _normalize_email("bad\\email@example.com")
