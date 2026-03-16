@@ -150,6 +150,25 @@ class TestDocToTrail:
 
         assert trail.created_by == "user-1"
 
+    def test_maps_group_id(self, mock_collection) -> None:
+        doc_with_group = {**SAMPLE_TRAIL, "group_id": "grp-1"}
+        mock_doc = MagicMock()
+        mock_doc.to_dict.return_value = doc_with_group
+        mock_collection.stream.return_value = [mock_doc]
+
+        trail = get_all_trails()[0]
+
+        assert trail.group_id == "grp-1"
+
+    def test_group_id_defaults_to_none(self, mock_collection) -> None:
+        mock_doc = MagicMock()
+        mock_doc.to_dict.return_value = SAMPLE_TRAIL  # no group_id
+        mock_collection.stream.return_value = [mock_doc]
+
+        trail = get_all_trails()[0]
+
+        assert trail.group_id is None
+
 
 class TestGetAllTrails:
     """Tests for get_all_trails."""
@@ -207,6 +226,109 @@ class TestGetAllTrails:
         assert len(result) == 1
         mock_collection.where.assert_called_once_with("source", "==", "planned_hikes")
         where_source.where.assert_called_once_with("created_at", ">=", "2026-03-01T00:00:00Z")
+
+    def test_filters_by_group_id(self, mock_collection) -> None:
+        """When group_id is provided, fetches group trails + public trails."""
+        group_query = MagicMock()
+        public_query = MagicMock()
+
+        # Mock collection.where to return different query objects based on args
+        def where_side_effect(field, op, value) -> MagicMock:
+            if field == "group_id" and value == "grp-1":
+                return group_query
+            if field == "group_id" and value is None:
+                return public_query
+            return MagicMock()
+
+        mock_collection.where.side_effect = where_side_effect
+        group_query.stream.return_value = [_make_doc({"trail_id": "t1", "name": "Group Trail", "group_id": "grp-1"})]
+        public_query.stream.return_value = [_make_doc({"trail_id": "t2", "name": "Public Trail"})]
+
+        result = get_all_trails(group_id="grp-1")
+
+        assert len(result) == 2
+        trail_ids = {t.trail_id for t in result}
+        assert trail_ids == {"t1", "t2"}
+
+    def test_group_filter_deduplicates(self, mock_collection) -> None:
+        """If a trail appears in both group and public results, it's not duplicated."""
+        group_query = MagicMock()
+        public_query = MagicMock()
+
+        def where_side_effect(field, op, value) -> MagicMock:
+            if field == "group_id" and value == "grp-1":
+                return group_query
+            if field == "group_id" and value is None:
+                return public_query
+            return MagicMock()
+
+        mock_collection.where.side_effect = where_side_effect
+        group_query.stream.return_value = [_make_doc({"trail_id": "t1", "name": "Trail"})]
+        public_query.stream.return_value = [
+            _make_doc({"trail_id": "t1", "name": "Trail"})  # same trail_id
+        ]
+
+        result = get_all_trails(group_id="grp-1")
+
+        assert len(result) == 1
+
+    def test_group_filter_with_source_only(self, mock_collection) -> None:
+        """Source without since chains within both group and public queries."""
+        group_query = MagicMock()
+        group_filtered = MagicMock()
+        public_query = MagicMock()
+        public_filtered = MagicMock()
+
+        def where_side_effect(field, op, value) -> MagicMock:
+            if field == "group_id" and value == "grp-1":
+                return group_query
+            if field == "group_id" and value is None:
+                return public_query
+            return MagicMock()
+
+        mock_collection.where.side_effect = where_side_effect
+        group_query.where.return_value = group_filtered
+        group_filtered.stream.return_value = [_make_doc({"trail_id": "t1", "name": "Group Trail"})]
+        public_query.where.return_value = public_filtered
+        public_filtered.stream.return_value = [_make_doc({"trail_id": "t2", "name": "Public Trail"})]
+
+        result = get_all_trails(source="planned_hikes", group_id="grp-1")
+
+        assert len(result) == 2
+        group_query.where.assert_called_once_with("source", "==", "planned_hikes")
+        public_query.where.assert_called_once_with("source", "==", "planned_hikes")
+
+    def test_group_filter_with_source_and_since(self, mock_collection) -> None:
+        """Source + since chains within both group and public queries."""
+        group_query = MagicMock()
+        group_source = MagicMock()
+        group_both = MagicMock()
+        public_query = MagicMock()
+        public_source = MagicMock()
+        public_both = MagicMock()
+
+        def where_side_effect(field, op, value) -> MagicMock:
+            if field == "group_id" and value == "grp-1":
+                return group_query
+            if field == "group_id" and value is None:
+                return public_query
+            return MagicMock()
+
+        mock_collection.where.side_effect = where_side_effect
+        group_query.where.return_value = group_source
+        group_source.where.return_value = group_both
+        group_both.stream.return_value = [_make_doc({"trail_id": "t1", "name": "Group Trail"})]
+        public_query.where.return_value = public_source
+        public_source.where.return_value = public_both
+        public_both.stream.return_value = [_make_doc({"trail_id": "t2", "name": "Public Trail"})]
+
+        result = get_all_trails(source="planned_hikes", since="2026-01-01T00:00:00Z", group_id="grp-1")
+
+        assert len(result) == 2
+        group_query.where.assert_called_once_with("source", "==", "planned_hikes")
+        group_source.where.assert_called_once_with("created_at", ">=", "2026-01-01T00:00:00Z")
+        public_query.where.assert_called_once_with("source", "==", "planned_hikes")
+        public_source.where.assert_called_once_with("created_at", ">=", "2026-01-01T00:00:00Z")
 
 
 class TestGetTrail:
@@ -474,6 +596,7 @@ class TestTrailResponseToDict:
         assert result["modified_at"] == "2026-01-01T00:00:00Z"
         assert result["activity_date"] == "2025-12-15"
         assert result["elevation_gain"] == 120.5
+        assert result["group_id"] is None  # not set = public
 
     def test_full_trail_to_dict_includes_new_fields(self) -> None:
         trail = TrailResponse(
@@ -550,6 +673,7 @@ class TestTrailResponseToDict:
         assert "duration_minutes" not in result
         assert "avg_inclination_deg" not in result
         assert "max_inclination_deg" not in result
+        assert result["group_id"] is None  # always present even when None
 
 
 class TestTrailDetailsToDict:

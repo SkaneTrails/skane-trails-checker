@@ -1,19 +1,9 @@
-"""Pydantic models for hike group API endpoints."""
+"""Pydantic models for hike group and admin API endpoints."""
 
 from pydantic import BaseModel, Field
 
 MAX_GROUP_NAME_LENGTH = 50
-MAX_MEMBERS = 20
 MAX_EMAIL_LENGTH = 200
-
-
-class HikeGroupMember(BaseModel):
-    """A member of a hike group."""
-
-    uid: str = ""
-    email: str
-    name: str | None = None
-    role: str = Field(default="member", pattern=r"^(owner|member)$")
 
 
 class HikeGroupResponse(BaseModel):
@@ -21,8 +11,7 @@ class HikeGroupResponse(BaseModel):
 
     group_id: str
     name: str
-    members: list[HikeGroupMember]
-    created_by: str = Field(exclude=True)
+    created_by: str
     created_at: str = ""
     last_updated: str = ""
 
@@ -39,7 +28,28 @@ class HikeGroupUpdate(BaseModel):
     name: str | None = Field(default=None, min_length=1, max_length=MAX_GROUP_NAME_LENGTH)
 
 
-class AddMemberRequest(BaseModel):
-    """Request body for adding a member to a hike group."""
+class MemberResponse(BaseModel):
+    """Group member data returned by the API."""
+
+    email: str
+    group_id: str
+    role: str
+    display_name: str | None = None
+
+
+class MemberAdd(BaseModel):
+    """Request body for adding a member to a group."""
 
     email: str = Field(min_length=1, max_length=MAX_EMAIL_LENGTH)
+    role: str = Field(default="member", pattern=r"^(admin|member)$")
+    display_name: str | None = None
+
+
+class CurrentUserResponse(BaseModel):
+    """Current user info returned by GET /admin/me."""
+
+    uid: str
+    email: str
+    role: str
+    group_id: str | None = None
+    group_name: str | None = None

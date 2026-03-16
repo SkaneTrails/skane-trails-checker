@@ -2,12 +2,9 @@
 
 from unittest.mock import patch
 
-from fastapi.testclient import TestClient
-
-from api.main import app
 from api.models.foraging import ForagingSpotResponse, ForagingTypeResponse
 
-client = TestClient(app)
+TEST_GROUP_ID = "test-group"
 
 SAMPLE_SPOT = ForagingSpotResponse(
     id="spot1",
@@ -19,38 +16,49 @@ SAMPLE_SPOT = ForagingSpotResponse(
     date="2026-09-15",
     created_at="2026-09-15T10:00:00",
     last_updated="2026-09-15T10:00:00",
+    group_id=TEST_GROUP_ID,
 )
 
-SAMPLE_SPOT_2 = ForagingSpotResponse(id="spot2", type="Blueberries", lat=56.1, lng=13.2, month="Jul")
+SAMPLE_SPOT_2 = ForagingSpotResponse(
+    id="spot2", type="Blueberries", lat=56.1, lng=13.2, month="Jul", group_id=TEST_GROUP_ID
+)
 
 SAMPLE_TYPE = ForagingTypeResponse(name="Mushrooms", icon="🍄", color="#8B4513")
 
 
 class TestListForagingSpots:
     @patch("api.routers.foraging.foraging_storage.get_foraging_spots")
-    def test_list_all_spots(self, mock_get):
-        mock_get.return_value = [SAMPLE_SPOT, SAMPLE_SPOT_2]
-        response = client.get("/api/v1/foraging/spots")
+    def test_list_all_spots_superuser(self, mock_get, superuser_client):
+        """Superuser sees all spots (group_id=None)."""
+        mock_get.return_value = [SAMPLE_SPOT]
+        response = superuser_client.get("/api/v1/foraging/spots")
         assert response.status_code == 200
-        assert len(response.json()) == 2
-        mock_get.assert_called_once_with(month=None)
+        mock_get.assert_called_once_with(month=None, group_id=None)
 
     @patch("api.routers.foraging.foraging_storage.get_foraging_spots")
-    def test_list_spots_by_month(self, mock_get):
+    def test_list_all_spots(self, mock_get, authenticated_client):
+        mock_get.return_value = [SAMPLE_SPOT, SAMPLE_SPOT_2]
+        response = authenticated_client.get("/api/v1/foraging/spots")
+        assert response.status_code == 200
+        assert len(response.json()) == 2
+        mock_get.assert_called_once_with(month=None, group_id=TEST_GROUP_ID)
+
+    @patch("api.routers.foraging.foraging_storage.get_foraging_spots")
+    def test_list_spots_by_month(self, mock_get, authenticated_client):
         mock_get.return_value = [SAMPLE_SPOT]
-        response = client.get("/api/v1/foraging/spots?month=Sep")
+        response = authenticated_client.get("/api/v1/foraging/spots?month=Sep")
         assert response.status_code == 200
         assert len(response.json()) == 1
-        mock_get.assert_called_once_with(month="Sep")
+        mock_get.assert_called_once_with(month="Sep", group_id=TEST_GROUP_ID)
 
-    def test_list_spots_invalid_month(self):
-        response = client.get("/api/v1/foraging/spots?month=September")
+    def test_list_spots_invalid_month(self, authenticated_client):
+        response = authenticated_client.get("/api/v1/foraging/spots?month=September")
         assert response.status_code == 422
 
     @patch("api.routers.foraging.foraging_storage.get_foraging_spots")
-    def test_list_spots_empty(self, mock_get):
+    def test_list_spots_empty(self, mock_get, authenticated_client):
         mock_get.return_value = []
-        response = client.get("/api/v1/foraging/spots")
+        response = authenticated_client.get("/api/v1/foraging/spots")
         assert response.status_code == 200
         assert response.json() == []
 
@@ -84,6 +92,13 @@ class TestCreateForagingSpot:
         saved_data = mock_save.call_args[0][0]
         assert saved_data["created_by"] == "test-user"
 
+    def test_create_spot_forbidden_member(self, member_client):
+        """Members cannot create spots."""
+        response = member_client.post(
+            "/api/v1/foraging/spots", json={"type": "Herbs", "lat": 56.2, "lng": 13.3, "month": "Jun"}
+        )
+        assert response.status_code == 403
+
     def test_create_spot_invalid_data(self, authenticated_client):
         response = authenticated_client.post(
             "/api/v1/foraging/spots", json={"type": "", "lat": 56.0, "lng": 13.0, "month": "Jan"}
@@ -113,30 +128,26 @@ class TestUpdateForagingSpot:
         assert response.status_code == 404
 
     @patch("api.routers.foraging.foraging_storage.get_foraging_spot")
-    def test_update_spot_forbidden_when_not_owner(self, mock_get, authenticated_client):
-        owned_by_other = SAMPLE_SPOT.model_copy(update={"created_by": "other-user"})
-        mock_get.return_value = owned_by_other
+    def test_update_spot_forbidden_wrong_group(self, mock_get, authenticated_client):
+        other_group_spot = SAMPLE_SPOT.model_copy(update={"group_id": "other-group"})
+        mock_get.return_value = other_group_spot
         response = authenticated_client.patch("/api/v1/foraging/spots/spot1", json={"notes": "test"})
         assert response.status_code == 403
-        assert "Not authorized" in response.json()["detail"]
+
+    @patch("api.routers.foraging.foraging_storage.get_foraging_spot")
+    def test_update_spot_forbidden_member(self, mock_get, member_client):
+        """Members (view-only) cannot modify foraging spots."""
+        mock_get.return_value = SAMPLE_SPOT
+        response = member_client.patch("/api/v1/foraging/spots/spot1", json={"notes": "test"})
+        assert response.status_code == 403
 
     @patch("api.routers.foraging.foraging_storage.update_foraging_spot")
     @patch("api.routers.foraging.foraging_storage.get_foraging_spot")
-    def test_update_spot_allowed_when_owner(self, mock_get, mock_update, authenticated_client):
-        owned_by_me = SAMPLE_SPOT.model_copy(update={"created_by": "test-user"})
-        mock_get.return_value = owned_by_me
+    def test_update_spot_superuser(self, mock_get, mock_update, superuser_client):
+        """Superuser can update any spot."""
+        mock_get.return_value = SAMPLE_SPOT
         mock_update.return_value = None
-        response = authenticated_client.patch("/api/v1/foraging/spots/spot1", json={"notes": "test"})
-        assert response.status_code == 204
-
-    @patch("api.routers.foraging.foraging_storage.update_foraging_spot")
-    @patch("api.routers.foraging.foraging_storage.get_foraging_spot")
-    def test_update_spot_allowed_when_no_created_by(self, mock_get, mock_update, authenticated_client):
-        """Legacy spots without created_by can be modified by any authenticated user."""
-        legacy_spot = SAMPLE_SPOT.model_copy(update={"created_by": None})
-        mock_get.return_value = legacy_spot
-        mock_update.return_value = None
-        response = authenticated_client.patch("/api/v1/foraging/spots/spot1", json={"notes": "test"})
+        response = superuser_client.patch("/api/v1/foraging/spots/spot1", json={"notes": "su edit"})
         assert response.status_code == 204
 
 
@@ -157,29 +168,34 @@ class TestDeleteForagingSpot:
         assert response.status_code == 404
 
     @patch("api.routers.foraging.foraging_storage.get_foraging_spot")
-    def test_delete_spot_forbidden_when_not_owner(self, mock_get, authenticated_client):
-        owned_by_other = SAMPLE_SPOT.model_copy(update={"created_by": "other-user"})
-        mock_get.return_value = owned_by_other
+    def test_delete_spot_forbidden_wrong_group(self, mock_get, authenticated_client):
+        other_group_spot = SAMPLE_SPOT.model_copy(update={"group_id": "other-group"})
+        mock_get.return_value = other_group_spot
         response = authenticated_client.delete("/api/v1/foraging/spots/spot1")
         assert response.status_code == 403
-        assert "Not authorized" in response.json()["detail"]
+
+    @patch("api.routers.foraging.foraging_storage.get_foraging_spot")
+    def test_delete_spot_forbidden_member(self, mock_get, member_client):
+        """Members cannot delete foraging spots."""
+        mock_get.return_value = SAMPLE_SPOT
+        response = member_client.delete("/api/v1/foraging/spots/spot1")
+        assert response.status_code == 403
 
     @patch("api.routers.foraging.foraging_storage.delete_foraging_spot")
     @patch("api.routers.foraging.foraging_storage.get_foraging_spot")
-    def test_delete_spot_allowed_when_no_created_by(self, mock_get, mock_delete, authenticated_client):
-        """Legacy spots without created_by can be deleted by any authenticated user."""
-        legacy_spot = SAMPLE_SPOT.model_copy(update={"created_by": None})
-        mock_get.return_value = legacy_spot
+    def test_delete_spot_superuser(self, mock_get, mock_delete, superuser_client):
+        """Superuser can delete any spot."""
+        mock_get.return_value = SAMPLE_SPOT
         mock_delete.return_value = None
-        response = authenticated_client.delete("/api/v1/foraging/spots/spot1")
+        response = superuser_client.delete("/api/v1/foraging/spots/spot1")
         assert response.status_code == 204
 
 
 class TestListForagingTypes:
     @patch("api.routers.foraging.foraging_storage.get_foraging_types")
-    def test_list_types(self, mock_get):
+    def test_list_types(self, mock_get, authenticated_client):
         mock_get.return_value = [SAMPLE_TYPE]
-        response = client.get("/api/v1/foraging/types")
+        response = authenticated_client.get("/api/v1/foraging/types")
         assert response.status_code == 200
         data = response.json()
         assert len(data) == 1

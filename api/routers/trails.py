@@ -1,4 +1,10 @@
-"""Trail API endpoints."""
+"""Trail API endpoints.
+
+Group-scoped access:
+- GET endpoints: any authenticated group member sees group + public trails
+- Write endpoints: admin of group (or superuser) only
+- Members are view-only
+"""
 
 import logging
 from typing import Annotated
@@ -25,6 +31,23 @@ MAX_GPX_SIZE = 10 * 1024 * 1024  # 10 MB (~5x largest Skåneleden GPX)
 router = APIRouter(prefix="/trails", tags=["trails"])
 
 
+def _require_write_access(user: AuthenticatedUser, trail: TrailResponse) -> None:
+    """Require admin/SU access to modify a trail."""
+    if user.role == "superuser":
+        return
+    if trail.group_id is None:
+        raise HTTPException(status_code=403, detail="Only superusers can modify public trails")
+    if user.role != "admin" or user.group_id != trail.group_id:
+        raise HTTPException(status_code=403, detail="Admin access required to modify group trails")
+
+
+def _require_admin_role(user: AuthenticatedUser) -> None:
+    """Require admin or superuser role for creating content."""
+    if user.role in ("admin", "superuser"):
+        return
+    raise HTTPException(status_code=403, detail="Admin access required")
+
+
 @router.get("/sync")
 def get_sync_metadata() -> SyncMetadata:
     """Get trail sync metadata (count + last_modified).
@@ -36,9 +59,16 @@ def get_sync_metadata() -> SyncMetadata:
 
 
 @router.get("")
-def list_trails(filters: Annotated[TrailFilterParams, Query()]) -> list[TrailResponse]:
-    """List all trails with optional filtering."""
-    trails = trail_storage.get_all_trails(source=filters.source, since=filters.since)
+def list_trails(
+    filters: Annotated[TrailFilterParams, Query()], user: Annotated[AuthenticatedUser, Depends(require_auth)]
+) -> list[TrailResponse]:
+    """List trails visible to the current user.
+
+    Group members see their group's trails + public (bootstrapped) trails.
+    Superusers see all trails.
+    """
+    group_id = None if user.role == "superuser" else user.group_id
+    trails = trail_storage.get_all_trails(source=filters.source, since=filters.since, group_id=group_id)
 
     if filters.search:
         query_lower = filters.search.lower()
@@ -61,17 +91,28 @@ def list_trails(filters: Annotated[TrailFilterParams, Query()]) -> list[TrailRes
 
 
 @router.get("/{trail_id}")
-def get_trail(trail_id: str) -> TrailResponse:
-    """Get a single trail by ID."""
+def get_trail(trail_id: str, user: Annotated[AuthenticatedUser, Depends(require_auth)]) -> TrailResponse:
+    """Get a single trail by ID. Must have access to the trail's group."""
     trail = trail_storage.get_trail(trail_id)
     if not trail:
         raise HTTPException(status_code=404, detail="Trail not found")
+
+    if trail.group_id is not None and user.role != "superuser" and user.group_id != trail.group_id:
+        raise HTTPException(status_code=403, detail="Not authorized to view this trail")
+
     return trail
 
 
 @router.get("/{trail_id}/details")
-def get_trail_details(trail_id: str) -> TrailDetailsResponse:
+def get_trail_details(trail_id: str, user: Annotated[AuthenticatedUser, Depends(require_auth)]) -> TrailDetailsResponse:
     """Get detailed trail data (full coordinates, elevation profile)."""
+    trail = trail_storage.get_trail(trail_id)
+    if not trail:
+        raise HTTPException(status_code=404, detail="Trail not found")
+
+    if trail.group_id is not None and user.role != "superuser" and user.group_id != trail.group_id:
+        raise HTTPException(status_code=403, detail="Not authorized to view this trail")
+
     details = trail_storage.get_trail_details(trail_id)
     if not details:
         raise HTTPException(status_code=404, detail="Trail details not found")
@@ -82,13 +123,12 @@ def get_trail_details(trail_id: str) -> TrailDetailsResponse:
 def update_trail(
     trail_id: str, body: TrailUpdate, user: Annotated[AuthenticatedUser, Depends(require_auth)]
 ) -> TrailResponse:
-    """Update trail fields (name, status, difficulty)."""
+    """Update trail fields (name, status, difficulty). Admin or superuser."""
     existing = trail_storage.get_trail(trail_id)
     if not existing:
         raise HTTPException(status_code=404, detail="Trail not found")
 
-    if existing.created_by and existing.created_by != user.uid:
-        raise HTTPException(status_code=403, detail="Not authorized to modify this trail")
+    _require_write_access(user, existing)
 
     updates = body.model_dump(exclude_none=True)
     if not updates:
@@ -104,13 +144,12 @@ def update_trail(
 
 @router.delete("/{trail_id}", status_code=204)
 def delete_trail(trail_id: str, user: Annotated[AuthenticatedUser, Depends(require_auth)]) -> None:
-    """Delete a trail and its details."""
+    """Delete a trail and its details. Admin or superuser."""
     existing = trail_storage.get_trail(trail_id)
     if not existing:
         raise HTTPException(status_code=404, detail="Trail not found")
 
-    if existing.created_by and existing.created_by != user.uid:
-        raise HTTPException(status_code=403, detail="Not authorized to delete this trail")
+    _require_write_access(user, existing)
 
     trail_storage.delete_trail(trail_id)
 
@@ -119,10 +158,10 @@ def delete_trail(trail_id: str, user: Annotated[AuthenticatedUser, Depends(requi
 def upload_gpx(file: UploadFile, user: Annotated[AuthenticatedUser, Depends(require_auth)]) -> list[TrailResponse]:
     """Upload a GPX file and save parsed trails to Firestore.
 
-    Uploaded trails are marked as 'Explored!' since they represent completed hikes.
-    Source is auto-detected from coordinates (Skåne vs worldwide).
-    Returns the list of saved trails.
+    Admin or superuser only. Trails are assigned to the user's group.
     """
+    _require_admin_role(user)
+
     if not file.filename or not file.filename.lower().endswith(".gpx"):
         raise HTTPException(status_code=400, detail="File must be a .gpx file")
 
@@ -156,6 +195,7 @@ def upload_gpx(file: UploadFile, user: Annotated[AuthenticatedUser, Depends(requ
 
     for trail in trails:
         trail.created_by = user.uid
+        trail.group_id = user.group_id
         trail_storage.save_trail(trail, update_sync=False)
 
     # Update sync metadata once after bulk save (not per-trail)
@@ -169,11 +209,13 @@ def upload_gpx(file: UploadFile, user: Annotated[AuthenticatedUser, Depends(requ
 def save_recording(body: RecordingCreate, user: Annotated[AuthenticatedUser, Depends(require_auth)]) -> TrailResponse:
     """Save a GPS recording as a trail.
 
-    Accepts raw GPS coordinates (from device tracking), computes
-    distance, elevation, bounds, and simplified coordinates, then
-    saves both the trail summary and full details to Firestore.
+    Admin or superuser only. Accepts raw GPS coordinates (from device tracking),
+    computes distance, elevation, bounds, and simplified coordinates.
     """
+    _require_admin_role(user)
+
     trail, details = process_recording(name=body.name, coordinates=body.coordinates, user_uid=user.uid)
+    trail.group_id = user.group_id
 
     trail_storage.save_trail(trail)
     trail_storage.save_trail_details(details)
