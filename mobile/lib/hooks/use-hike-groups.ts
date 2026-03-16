@@ -4,7 +4,7 @@
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { hikeGroupsApi } from '@/lib/api';
-import type { AddMemberRequest, HikeGroupCreate } from '@/lib/types';
+import type { AddMemberRequest, HikeGroupCreate, UpdateMemberRequest } from '@/lib/types';
 
 export const currentUserKeys = {
   all: ['admin', 'currentUser'] as const,
@@ -107,6 +107,19 @@ export function useRemoveMember() {
   return useMutation({
     mutationFn: ({ groupId, memberEmail }: { groupId: string; memberEmail: string }) =>
       hikeGroupsApi.removeMember(groupId, memberEmail),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: hikeGroupKeys.all });
+      queryClient.invalidateQueries({ queryKey: memberKeys.all });
+    },
+  });
+}
+
+export function useUpdateMemberRole() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ groupId, memberEmail, data }: { groupId: string; memberEmail: string; data: UpdateMemberRequest }) =>
+      hikeGroupsApi.updateMemberRole(groupId, memberEmail, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: hikeGroupKeys.all });
       queryClient.invalidateQueries({ queryKey: memberKeys.all });

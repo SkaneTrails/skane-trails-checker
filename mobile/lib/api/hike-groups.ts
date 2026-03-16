@@ -2,7 +2,7 @@
  * Hike group and admin API client.
  */
 
-import type { AddMemberRequest, CurrentUser, HikeGroup, HikeGroupCreate, HikeGroupMember } from '../types';
+import type { AddMemberRequest, CurrentUser, HikeGroup, HikeGroupCreate, HikeGroupMember, UpdateMemberRequest } from '../types';
 import { apiRequest } from './client';
 
 export const hikeGroupsApi = {
@@ -54,6 +54,16 @@ export const hikeGroupsApi = {
       `/api/v1/admin/groups/${encodeURIComponent(groupId)}/members/${encodeURIComponent(memberEmail)}`,
       {
         method: 'DELETE',
+      },
+    );
+  },
+
+  updateMemberRole(groupId: string, memberEmail: string, data: UpdateMemberRequest): Promise<HikeGroupMember> {
+    return apiRequest(
+      `/api/v1/admin/groups/${encodeURIComponent(groupId)}/members/${encodeURIComponent(memberEmail)}`,
+      {
+        method: 'PATCH',
+        body: JSON.stringify(data),
       },
     );
   },

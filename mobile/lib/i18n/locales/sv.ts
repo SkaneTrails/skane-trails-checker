@@ -221,6 +221,7 @@ const sv: Translations = {
     addMember: 'Lägg till medlem',
     emailPlaceholder: 'E-postadress',
     removeMember: 'Ta bort',
+    changeRole: 'Byt roll',
     admin: 'Admin',
     member: 'Medlem',
     leaveGroup: 'Lämna grupp',

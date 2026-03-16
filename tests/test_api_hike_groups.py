@@ -386,6 +386,99 @@ class TestRemoveMember:
         assert response.status_code == 404
 
 
+class TestUpdateMemberRole:
+    @patch("api.routers.hike_groups.hike_group_storage.update_member_role")
+    @patch("api.routers.hike_groups.hike_group_storage.get_user_membership")
+    @patch("api.routers.hike_groups.hike_group_storage.get_hike_group")
+    def test_update_role(self, mock_get, mock_membership, mock_update, authenticated_client):
+        mock_get.return_value = HikeGroupResponse(group_id="test-group", name="G", created_by="su@example.com")
+        mock_membership.return_value = GroupMember(email="other@example.com", group_id="test-group", role="member")
+        mock_update.return_value = True
+
+        response = authenticated_client.patch(
+            "/api/v1/admin/groups/test-group/members/other@example.com", json={"role": "admin"}
+        )
+        assert response.status_code == 200
+        assert response.json()["role"] == "admin"
+        mock_update.assert_called_once_with("other@example.com", "admin")
+
+    @patch("api.routers.hike_groups.hike_group_storage.get_user_membership")
+    @patch("api.routers.hike_groups.hike_group_storage.get_hike_group")
+    def test_update_role_no_change(self, mock_get, mock_membership, authenticated_client):
+        mock_get.return_value = HikeGroupResponse(group_id="test-group", name="G", created_by="su@example.com")
+        mock_membership.return_value = GroupMember(
+            email="other@example.com", group_id="test-group", role="admin", display_name="Other"
+        )
+
+        response = authenticated_client.patch(
+            "/api/v1/admin/groups/test-group/members/other@example.com", json={"role": "admin"}
+        )
+        assert response.status_code == 200
+        assert response.json()["role"] == "admin"
+
+    @patch("api.routers.hike_groups.hike_group_storage.get_user_membership")
+    @patch("api.routers.hike_groups.hike_group_storage.get_hike_group")
+    def test_update_role_member_not_found(self, mock_get, mock_membership, authenticated_client):
+        mock_get.return_value = HikeGroupResponse(group_id="test-group", name="G", created_by="su@example.com")
+        mock_membership.return_value = None
+
+        response = authenticated_client.patch(
+            "/api/v1/admin/groups/test-group/members/nobody@example.com", json={"role": "admin"}
+        )
+        assert response.status_code == 404
+
+    @patch("api.routers.hike_groups.hike_group_storage.get_user_membership")
+    @patch("api.routers.hike_groups.hike_group_storage.get_hike_group")
+    def test_update_role_different_group(self, mock_get, mock_membership, authenticated_client):
+        mock_get.return_value = HikeGroupResponse(group_id="test-group", name="G", created_by="su@example.com")
+        mock_membership.return_value = GroupMember(email="other@example.com", group_id="different-group", role="member")
+
+        response = authenticated_client.patch(
+            "/api/v1/admin/groups/test-group/members/other@example.com", json={"role": "admin"}
+        )
+        assert response.status_code == 404
+
+    @patch("api.routers.hike_groups.hike_group_storage.get_hike_group")
+    def test_update_role_group_not_found(self, mock_get, authenticated_client):
+        mock_get.return_value = None
+        response = authenticated_client.patch(
+            "/api/v1/admin/groups/test-group/members/other@example.com", json={"role": "admin"}
+        )
+        assert response.status_code == 404
+
+    def test_update_role_wrong_group(self, authenticated_client):
+        response = authenticated_client.patch(
+            "/api/v1/admin/groups/other-group/members/other@example.com", json={"role": "admin"}
+        )
+        assert response.status_code == 403
+
+    def test_update_role_forbidden_for_member(self, member_client):
+        response = member_client.patch(
+            "/api/v1/admin/groups/test-group/members/other@example.com", json={"role": "admin"}
+        )
+        assert response.status_code == 403
+
+    def test_update_role_invalid_role(self, authenticated_client):
+        response = authenticated_client.patch(
+            "/api/v1/admin/groups/test-group/members/other@example.com", json={"role": "superuser"}
+        )
+        assert response.status_code == 422
+
+    @patch("api.routers.hike_groups.hike_group_storage.update_member_role")
+    @patch("api.routers.hike_groups.hike_group_storage.get_user_membership")
+    @patch("api.routers.hike_groups.hike_group_storage.get_hike_group")
+    def test_update_role_superuser(self, mock_get, mock_membership, mock_update, superuser_client):
+        mock_get.return_value = HikeGroupResponse(group_id="group1", name="G", created_by="su@example.com")
+        mock_membership.return_value = GroupMember(email="user@example.com", group_id="group1", role="member")
+        mock_update.return_value = True
+
+        response = superuser_client.patch(
+            "/api/v1/admin/groups/group1/members/user@example.com", json={"role": "admin"}
+        )
+        assert response.status_code == 200
+        assert response.json()["role"] == "admin"
+
+
 class TestHikeGroupStorage:
     """Tests for the storage layer mapping function."""
 

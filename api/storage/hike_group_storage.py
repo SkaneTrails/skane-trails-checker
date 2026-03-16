@@ -187,6 +187,17 @@ def remove_member(email: str) -> bool:
     return True
 
 
+def update_member_role(email: str, role: str) -> bool:
+    """Update a member's role. Returns True if member exists and was updated."""
+    normalized_email = _normalize_email(email)
+    doc_ref = get_collection(MEMBERS_COLLECTION).document(normalized_email)
+    doc = doc_ref.get()
+    if not doc.exists:
+        return False
+    doc_ref.update({"role": role})
+    return True
+
+
 def list_group_members(group_id: str) -> list[GroupMember]:
     """Get all members of a group."""
     query = get_collection(MEMBERS_COLLECTION).where("group_id", "==", group_id)
