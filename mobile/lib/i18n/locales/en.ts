@@ -221,7 +221,7 @@ const en = {
     addMember: 'Add Member',
     emailPlaceholder: 'Email address',
     removeMember: 'Remove',
-    owner: 'Owner',
+    admin: 'Admin',
     member: 'Member',
     leaveGroup: 'Leave Group',
     deleteGroup: 'Delete Group',

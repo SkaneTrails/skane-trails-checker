@@ -1,6 +1,6 @@
 /**
  * Tests for group-settings screen — ensures it handles groups with
- * undefined/empty members and grants superusers owner-level access.
+ * undefined/empty members and grants superusers admin-level access.
  */
 
 import { render, screen } from '@testing-library/react';
@@ -109,7 +109,7 @@ describe('GroupSettingsScreen', () => {
 
   it('renders members list when group has members', async () => {
     mockGroupData = { group_id: 'group-1', name: 'Hemmestorp', member_count: 1, created_at: '', last_updated: '' };
-    mockMembersData = [{ email: 'alice@test.com', group_id: 'group-1', role: 'owner', display_name: 'Alice' }];
+    mockMembersData = [{ email: 'alice@test.com', group_id: 'group-1', role: 'admin', display_name: 'Alice' }];
     mockCurrentUserData = { uid: 'u1', email: 'alice@test.com', role: 'member', group_id: 'group-1' };
 
     await renderScreen();
@@ -127,9 +127,9 @@ describe('GroupSettingsScreen', () => {
     expect(screen.getByText('settings.addMember')).toBeInTheDocument();
   });
 
-  it('hides add-member form for non-owner members', async () => {
+  it('hides add-member form for non-admin members', async () => {
     mockGroupData = { group_id: 'group-1', name: 'Hemmestorp', member_count: 1, created_at: '', last_updated: '' };
-    mockMembersData = [{ email: 'owner@test.com', group_id: 'group-1', role: 'owner', display_name: 'Owner' }];
+    mockMembersData = [{ email: 'admin@test.com', group_id: 'group-1', role: 'admin', display_name: 'Admin' }];
     mockCurrentUserData = { uid: 'u1', email: 'alice@test.com', role: 'member', group_id: 'group-1' };
 
     await renderScreen();

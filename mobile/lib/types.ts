@@ -145,7 +145,7 @@ export interface PlaceCategory {
 export interface HikeGroupMember {
   email: string;
   group_id: string;
-  role: string;
+  role: 'admin' | 'member';
   display_name: string | null;
 }
 

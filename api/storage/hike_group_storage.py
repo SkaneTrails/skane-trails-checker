@@ -10,6 +10,8 @@ import logging
 from dataclasses import dataclass
 from datetime import UTC, datetime
 
+from google.cloud.firestore_v1 import Increment
+
 from api.models.hike_group import HikeGroupResponse
 from api.storage.firestore_client import get_collection
 from api.storage.validation import validate_document_id
@@ -54,6 +56,7 @@ def _doc_to_hike_group(doc_id: str, data: dict) -> HikeGroupResponse:
         group_id=doc_id,
         name=data.get("name", ""),
         created_by=data.get("created_by", ""),
+        member_count=data.get("member_count", 0),
         created_at=data.get("created_at", ""),
         last_updated=data.get("last_updated", ""),
     )
@@ -129,6 +132,11 @@ def group_name_exists(name: str, *, exclude_id: str | None = None) -> bool:
 # --- Membership operations ---
 
 
+def _increment_member_count(group_id: str, delta: int) -> None:
+    """Atomically increment/decrement member_count on a group document."""
+    get_collection(GROUPS_COLLECTION).document(group_id).update({"member_count": Increment(delta)})
+
+
 def get_user_membership(email: str) -> GroupMember | None:
     """Get user's group membership. Returns None if not a member of any group."""
     normalized_email = _normalize_email(email)
@@ -159,17 +167,23 @@ def add_member(
     get_collection(MEMBERS_COLLECTION).document(normalized_email).set(
         {"group_id": group_id, "role": role, "display_name": display_name, "joined_at": now, "invited_by": invited_by}
     )
+    _increment_member_count(group_id, 1)
 
 
 def remove_member(email: str) -> bool:
     """Remove a user from their group. Returns True if member existed and was removed."""
     normalized_email = _normalize_email(email)
     doc_ref = get_collection(MEMBERS_COLLECTION).document(normalized_email)
+    doc = doc_ref.get()
 
-    if not doc_ref.get().exists:
+    if not doc.exists:
         return False
 
+    data = doc.to_dict()
+    group_id = data.get("group_id") if data else None
     doc_ref.delete()
+    if group_id:
+        _increment_member_count(group_id, -1)
     return True
 
 

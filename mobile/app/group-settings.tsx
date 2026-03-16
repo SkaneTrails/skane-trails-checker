@@ -60,7 +60,7 @@ export default function GroupSettingsScreen() {
   }
 
   const isSuperuser = currentUser?.role === 'superuser';
-  const isOwner = isSuperuser || members.some((m) => m.role === 'owner' && m.email === user?.email);
+  const isAdmin = isSuperuser || members.some((m) => m.role === 'admin' && m.email === user?.email);
 
   const handleSaveName = async () => {
     const trimmed = groupName.trim();
@@ -198,7 +198,7 @@ export default function GroupSettingsScreen() {
                     styles.roleBadge,
                     {
                       backgroundColor:
-                        member.role === 'owner' ? colors.status.exploredBg : colors.chip.bg,
+                        member.role === 'admin' ? colors.status.exploredBg : colors.chip.bg,
                     },
                   ]}
                 >
@@ -207,14 +207,14 @@ export default function GroupSettingsScreen() {
                       styles.roleText,
                       {
                         color:
-                          member.role === 'owner' ? colors.status.exploredText : colors.chip.text,
+                          member.role === 'admin' ? colors.status.exploredText : colors.chip.text,
                       },
                     ]}
                   >
-                    {member.role === 'owner' ? t('settings.owner') : t('settings.member')}
+                    {member.role === 'admin' ? t('settings.admin') : t('settings.member')}
                   </Text>
                 </View>
-                {isOwner && member.role !== 'owner' && (
+                {isAdmin && member.role !== 'admin' && (
                   <Pressable
                     onPress={() => handleRemoveMember(member.email)}
                     accessibilityRole="button"
@@ -229,8 +229,8 @@ export default function GroupSettingsScreen() {
             </View>
           ))}
 
-          {/* Add member (owner only) */}
-          {isOwner && (
+          {/* Add member (admin only) */}
+          {isAdmin && (
           <View style={styles.addMemberRow}>
             <View style={styles.addMemberInput}>
               <FormField

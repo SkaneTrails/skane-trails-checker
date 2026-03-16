@@ -67,10 +67,7 @@ def get_current_user_info(user: Annotated[AuthenticatedUser, Depends(require_aut
 def list_groups(user: Annotated[AuthenticatedUser, Depends(require_auth)]) -> list[HikeGroupResponse]:
     """List all groups. Superuser only."""
     _require_superuser(user)
-    groups = hike_group_storage.get_all_hike_groups()
-    for group in groups:
-        group.member_count = len(hike_group_storage.list_group_members(group.group_id))
-    return groups
+    return hike_group_storage.get_all_hike_groups()
 
 
 @router.post("/groups", status_code=201)
@@ -97,7 +94,6 @@ def get_group(group_id: str, user: Annotated[AuthenticatedUser, Depends(require_
     group = hike_group_storage.get_hike_group(group_id)
     if not group:
         raise HTTPException(status_code=404, detail="Group not found")
-    group.member_count = len(hike_group_storage.list_group_members(group_id))
     return group
 
 
