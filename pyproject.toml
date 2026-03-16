@@ -156,6 +156,6 @@ report.exclude_lines = [
   "if __name__ == .__main__.:",
   "pragma: no cover",
 ]
-report.fail_under = 97
+report.fail_under = 99
 report.precision = 2
 report.skip_empty = true

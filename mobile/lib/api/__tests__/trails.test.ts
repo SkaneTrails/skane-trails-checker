@@ -118,4 +118,39 @@ describe('trailsApi', () => {
       await expect(trailsApi.uploadGpx(file)).rejects.toThrow('API Error 400: Bad request');
     });
   });
+
+  describe('saveRecording', () => {
+    it('sends POST with recording payload', async () => {
+      const saved = { trail_id: 'rec1', name: 'Morning Hike' };
+      mockApiRequest.mockResolvedValue(saved);
+
+      const points = [
+        { lat: 55.0, lng: 13.0, altitude: 100, timestamp: 1700000000000 },
+        { lat: 55.001, lng: 13.001, altitude: 110, timestamp: 1700000060000 },
+      ];
+      const result = await trailsApi.saveRecording('Morning Hike', points, 'gps_recording');
+
+      expect(result).toEqual(saved);
+      expect(mockApiRequest).toHaveBeenCalledWith('/api/v1/trails/record', {
+        method: 'POST',
+        body: expect.any(String),
+      });
+
+      const body = JSON.parse(mockApiRequest.mock.calls[0][1].body as string);
+      expect(body.name).toBe('Morning Hike');
+      expect(body.source).toBe('gps_recording');
+    });
+
+    it('sends POST without source when not provided', async () => {
+      mockApiRequest.mockResolvedValue({ trail_id: 'rec2', name: 'Walk' });
+
+      const points = [
+        { lat: 55.0, lng: 13.0, altitude: 100, timestamp: 1700000000000 },
+      ];
+      await trailsApi.saveRecording('Walk', points);
+
+      const body = JSON.parse(mockApiRequest.mock.calls[0][1].body as string);
+      expect(body.name).toBe('Walk');
+    });
+  });
 });

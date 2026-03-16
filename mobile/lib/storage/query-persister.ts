@@ -20,11 +20,13 @@ const MAX_AGE = 1000 * 60 * 60 * 24;
 
 function getDb() {
   return openDB(DB_NAME, DB_VERSION, {
+    /* v8 ignore start — IDB upgrade callback runs once on DB creation */
     upgrade(db) {
       if (!db.objectStoreNames.contains(STORE_NAME)) {
         db.createObjectStore(STORE_NAME);
       }
     },
+    /* v8 ignore stop */
   });
 }
 

@@ -12,7 +12,7 @@ logger = logging.getLogger(__name__)
 COLLECTION = "hike_groups"
 
 
-def _utc_now_z() -> str:
+def _utc_now_z() -> str:  # pragma: no cover
     return datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 

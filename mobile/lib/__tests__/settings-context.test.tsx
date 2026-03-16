@@ -120,4 +120,10 @@ describe('useSettings — place category filtering', () => {
     const saved = JSON.parse(lastCall?.[1] as string);
     expect(saved.enabledPlaceCategories).toContain('boende');
   });
+
+  it('throws when used outside SettingsProvider', () => {
+    expect(() => {
+      renderHook(() => useSettings());
+    }).toThrow('useSettings must be used within a SettingsProvider');
+  });
 });
