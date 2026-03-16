@@ -34,6 +34,8 @@ export interface Trail {
   duration_minutes?: number | null;
   avg_inclination_deg?: number | null;
   max_inclination_deg?: number | null;
+  line_color?: string | null;
+  is_public?: boolean;
 }
 
 // Full trail details with all coordinates and elevation
@@ -52,6 +54,8 @@ export interface TrailUpdate {
   difficulty?: string;
   activity_date?: string;
   activity_type?: string;
+  line_color?: string | null;
+  is_public?: boolean;
 }
 
 // Sync metadata for delta trail fetching

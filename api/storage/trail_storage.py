@@ -46,6 +46,8 @@ def _doc_to_trail(data: dict) -> TrailResponse:
         max_inclination_deg=data.get("max_inclination_deg"),
         created_by=data.get("created_by"),
         group_id=data.get("group_id"),
+        line_color=data.get("line_color"),
+        is_public=data.get("is_public", False),
     )
 
 
@@ -98,35 +100,40 @@ def _fetch_all_trails(collection: Any, source: str | None, since: str | None) ->
 def _fetch_group_and_public_trails(
     collection: Any, group_id: str, source: str | None, since: str | None
 ) -> list[TrailResponse]:
-    """Fetch trails belonging to a group plus public (no group_id) trails."""
+    """Fetch trails belonging to a group plus public/bootstrapped trails.
+
+    Returns the union of:
+    1. Trails belonging to the user's group
+    2. Bootstrapped trails (group_id == None, legacy public data)
+    3. Trails explicitly marked as public (is_public == True) from any group
+    """
     trails = []
     seen_ids: set[str] = set()
 
-    # Query 1: Group's own trails
-    group_query = collection.where("group_id", "==", group_id)
-    if source:
-        group_query = group_query.where("source", "==", source)
-    if since:
-        group_query = group_query.where("created_at", ">=", since)
-    for doc in group_query.stream():
-        data = doc.to_dict()
-        if data:
-            trail = _doc_to_trail(data)
-            trails.append(trail)
-            seen_ids.add(trail.trail_id)
+    def _apply_filters(query: Any) -> Any:
+        if source:
+            query = query.where("source", "==", source)
+        if since:
+            query = query.where("created_at", ">=", since)
+        return query
 
-    # Query 2: Public trails (group_id == None)
-    public_query = collection.where("group_id", "==", None)
-    if source:
-        public_query = public_query.where("source", "==", source)
-    if since:
-        public_query = public_query.where("created_at", ">=", since)
-    for doc in public_query.stream():
-        data = doc.to_dict()
-        if data:
-            trail = _doc_to_trail(data)
-            if trail.trail_id not in seen_ids:
-                trails.append(trail)
+    def _collect(query: Any) -> None:
+        for doc in query.stream():
+            data = doc.to_dict()
+            if data:
+                trail = _doc_to_trail(data)
+                if trail.trail_id not in seen_ids:
+                    trails.append(trail)
+                    seen_ids.add(trail.trail_id)
+
+    # Query 1: Group's own trails
+    _collect(_apply_filters(collection.where("group_id", "==", group_id)))
+
+    # Query 2: Bootstrapped trails (group_id == None)
+    _collect(_apply_filters(collection.where("group_id", "==", None)))
+
+    # Query 3: Explicitly public trails from other groups
+    _collect(_apply_filters(collection.where("is_public", "==", True)))
 
     return trails
 

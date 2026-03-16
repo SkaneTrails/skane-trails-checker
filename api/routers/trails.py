@@ -13,6 +13,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile
 
 from api.auth import AuthenticatedUser, require_auth, require_group
 from api.models.trail import (
+    TRAIL_COLORS,
     RecordingCreate,
     SyncMetadata,
     TrailDetailsResponse,
@@ -155,12 +156,28 @@ def delete_trail(trail_id: str, user: Annotated[AuthenticatedUser, Depends(requi
 
 
 @router.post("/upload", status_code=201)
-def upload_gpx(file: UploadFile, user: Annotated[AuthenticatedUser, Depends(require_auth)]) -> list[TrailResponse]:
+def upload_gpx(
+    file: UploadFile,
+    user: Annotated[AuthenticatedUser, Depends(require_auth)],
+    status: Annotated[str | None, Query(pattern=r"^(To Explore|Explored!)$")] = None,
+    line_color: Annotated[str | None, Query()] = None,
+    is_public: Annotated[bool, Query(description="Public trail visible to all groups")] = False,
+) -> list[TrailResponse]:
     """Upload a GPX file and save parsed trails to Firestore.
 
     Admin or superuser only. Trails are assigned to the user's group.
+
+    Query params:
+        status: Trail status ('To Explore' or 'Explored!'). Default: 'Explored!'
+        line_color: Hex color for map polyline (one of TRAIL_COLORS).
+        is_public: Whether the trail is visible to all groups. Default: false.
     """
     _require_admin_role(user)
+
+    if line_color is not None and line_color not in TRAIL_COLORS:
+        raise HTTPException(
+            status_code=400, detail=f"Invalid color '{line_color}'. Must be one of: {sorted(TRAIL_COLORS)}"
+        )
 
     if not file.filename or not file.filename.lower().endswith(".gpx"):
         raise HTTPException(status_code=400, detail="File must be a .gpx file")
@@ -194,9 +211,14 @@ def upload_gpx(file: UploadFile, user: Annotated[AuthenticatedUser, Depends(requ
         raise HTTPException(status_code=400, detail=detail) from e
 
     group_id = None if user.role == "superuser" else require_group(user)
+    trail_status = status or "Explored!"
     for trail in trails:
         trail.created_by = user.uid
         trail.group_id = group_id
+        trail.status = trail_status
+        trail.is_public = is_public
+        if line_color is not None:
+            trail.line_color = line_color
         trail_storage.save_trail(trail, update_sync=False)
 
     # Update sync metadata once after bulk save (not per-trail)

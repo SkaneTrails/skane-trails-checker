@@ -12,6 +12,12 @@ export interface TrailFilters {
   since?: string;
 }
 
+export interface UploadGpxOptions {
+  status?: 'To Explore' | 'Explored!';
+  line_color?: string;
+  is_public?: boolean;
+}
+
 function buildQuery(filters: TrailFilters): string {
   const params = new URLSearchParams();
   for (const [key, value] of Object.entries(filters)) {
@@ -53,11 +59,17 @@ export const trailsApi = {
     });
   },
 
-  uploadGpx(file: File): Promise<Trail[]> {
+  uploadGpx(file: File, options: UploadGpxOptions = {}): Promise<Trail[]> {
     const formData = new FormData();
     formData.append('file', file);
 
-    return apiRequest<Trail[]>('/api/v1/trails/upload', {
+    const params = new URLSearchParams();
+    if (options.status) params.set('status', options.status);
+    if (options.line_color) params.set('line_color', options.line_color);
+    if (options.is_public !== undefined) params.set('is_public', String(options.is_public));
+    const qs = params.toString();
+
+    return apiRequest<Trail[]>(`/api/v1/trails/upload${qs ? `?${qs}` : ''}`, {
       method: 'POST',
       body: formData,
     });

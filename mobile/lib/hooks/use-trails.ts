@@ -204,8 +204,8 @@ export function useUploadGpx() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: ({ file }: { file: File }) =>
-      trailsApi.uploadGpx(file),
+    mutationFn: ({ file, ...options }: { file: File } & Parameters<typeof trailsApi.uploadGpx>[1]) =>
+      trailsApi.uploadGpx(file, options),
     onSuccess: (newTrails) => {
       queryClient.invalidateQueries({ queryKey: trailKeys.all });
       // Merge new trails into cache in a single read-then-write to avoid
