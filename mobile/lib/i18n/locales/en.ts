@@ -221,6 +221,16 @@ const en = {
     account: 'Account',
     signOut: 'Sign Out',
   },
+
+  noAccess: {
+    title: 'No Access',
+    signedInAs: 'Signed in as',
+    notInGroup: 'Your account is not a member of any hike group.',
+    askAdmin: 'Ask a group admin to add your email address.',
+    signOutButton: 'Sign Out',
+    contactAdmin: 'Contact a group admin if you believe this is a mistake.',
+    failedToSignOut: 'Failed to sign out. Try again.',
+  },
 };
 
 /** Recursive type mapping every leaf to `string`. */
