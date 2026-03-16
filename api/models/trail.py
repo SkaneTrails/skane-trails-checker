@@ -1,6 +1,21 @@
 """Pydantic models for trail API endpoints."""
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
+
+TRAIL_COLORS: frozenset[str] = frozenset(
+    {
+        "#E53E3E",  # Red
+        "#4169E1",  # Blue
+        "#ECC94B",  # Yellow
+        "#38A169",  # Green
+        "#FF8000",  # Orange
+        "#805AD5",  # Purple
+        "#63B3ED",  # Light Blue
+        "#ED64A6",  # Pink
+        "#FFFFFF",  # White
+        "#1A1A1A",  # Black
+    }
+)
 
 
 class Coordinate(BaseModel):
@@ -44,6 +59,16 @@ class TrailResponse(BaseModel):
     max_inclination_deg: float | None = None
     created_by: str | None = Field(default=None, exclude=True)
     group_id: str | None = None
+    line_color: str | None = None
+    is_public: bool = False
+
+    @field_validator("line_color")
+    @classmethod
+    def validate_line_color(cls, v: str | None) -> str | None:
+        if v is not None and v not in TRAIL_COLORS:
+            msg = f"Invalid color '{v}'. Must be one of: {sorted(TRAIL_COLORS)}"
+            raise ValueError(msg)
+        return v
 
     def to_dict(self) -> dict:
         """Convert to dictionary for Firestore storage."""
@@ -70,6 +95,7 @@ class TrailResponse(BaseModel):
             "center": {"lat": float(self.center.lat), "lng": float(self.center.lng)},
             "source": self.source,
             "group_id": self.group_id,
+            "is_public": self.is_public,
             "last_updated": self.last_updated,
         }
         self._add_optional_fields(data)
@@ -83,6 +109,7 @@ class TrailResponse(BaseModel):
             "created_at": self.created_at,
             "modified_at": self.modified_at,
             "created_by": self.created_by,
+            "line_color": self.line_color,
         }
         data.update({k: v for k, v in optional_str.items() if v is not None})
 
@@ -149,6 +176,16 @@ class TrailUpdate(BaseModel):
     difficulty: str | None = Field(default=None, max_length=50)
     activity_date: str | None = Field(default=None, max_length=50)
     activity_type: str | None = Field(default=None, max_length=100)
+    line_color: str | None = None
+    is_public: bool | None = None
+
+    @field_validator("line_color")
+    @classmethod
+    def validate_line_color(cls, v: str | None) -> str | None:
+        if v is not None and v not in TRAIL_COLORS:
+            msg = f"Invalid color '{v}'. Must be one of: {sorted(TRAIL_COLORS)}"
+            raise ValueError(msg)
+        return v
 
 
 class TrailFilterParams(BaseModel):

@@ -433,7 +433,7 @@ describe('useUploadGpx', () => {
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
     expect(result.current.data).toEqual([uploadedTrail]);
-    expect(mockTrailsApi.uploadGpx).toHaveBeenCalledWith(mockFile);
+    expect(mockTrailsApi.uploadGpx).toHaveBeenCalledWith(mockFile, {});
   });
 
   it('preserves server lastSyncTime when merging uploaded trails into cache', async () => {

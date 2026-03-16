@@ -7,6 +7,7 @@ import {
   SettingsProvider,
   useSettings,
 } from '../settings-context';
+import { DEFAULT_COMPLETED_COLOR, DEFAULT_PLANNED_COLOR } from '../trail-colors';
 
 const mockAsyncStorage = vi.mocked(AsyncStorage);
 
@@ -125,5 +126,68 @@ describe('useSettings — place category filtering', () => {
     expect(() => {
       renderHook(() => useSettings());
     }).toThrow('useSettings must be used within a SettingsProvider');
+  });
+});
+
+describe('useSettings — default trail colors', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('defaults to standard planned and completed colors', async () => {
+    mockAsyncStorage.getItem.mockResolvedValue(null);
+    const wrapper = createWrapper();
+
+    const { result } = renderHook(() => useSettings(), { wrapper });
+
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+    expect(result.current.defaultPlannedColor).toBe(DEFAULT_PLANNED_COLOR);
+    expect(result.current.defaultCompletedColor).toBe(DEFAULT_COMPLETED_COLOR);
+  });
+
+  it('loads persisted trail colors from AsyncStorage', async () => {
+    const stored = { language: 'en', themeId: 'outdoor', defaultPlannedColor: '#38A169', defaultCompletedColor: '#805AD5' };
+    mockAsyncStorage.getItem.mockResolvedValue(JSON.stringify(stored));
+    const wrapper = createWrapper();
+
+    const { result } = renderHook(() => useSettings(), { wrapper });
+
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+    expect(result.current.defaultPlannedColor).toBe('#38A169');
+    expect(result.current.defaultCompletedColor).toBe('#805AD5');
+  });
+
+  it('setDefaultPlannedColor updates and persists', async () => {
+    mockAsyncStorage.getItem.mockResolvedValue(null);
+    const wrapper = createWrapper();
+
+    const { result } = renderHook(() => useSettings(), { wrapper });
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+
+    await act(async () => {
+      await result.current.setDefaultPlannedColor('#FF8000');
+    });
+
+    expect(result.current.defaultPlannedColor).toBe('#FF8000');
+    const lastCall = mockAsyncStorage.setItem.mock.calls.at(-1);
+    const saved = JSON.parse(lastCall?.[1] as string);
+    expect(saved.defaultPlannedColor).toBe('#FF8000');
+  });
+
+  it('setDefaultCompletedColor updates and persists', async () => {
+    mockAsyncStorage.getItem.mockResolvedValue(null);
+    const wrapper = createWrapper();
+
+    const { result } = renderHook(() => useSettings(), { wrapper });
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+
+    await act(async () => {
+      await result.current.setDefaultCompletedColor('#ED64A6');
+    });
+
+    expect(result.current.defaultCompletedColor).toBe('#ED64A6');
+    const lastCall = mockAsyncStorage.setItem.mock.calls.at(-1);
+    const saved = JSON.parse(lastCall?.[1] as string);
+    expect(saved.defaultCompletedColor).toBe('#ED64A6');
   });
 });

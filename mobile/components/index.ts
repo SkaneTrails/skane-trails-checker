@@ -1,6 +1,7 @@
 export { BottomSheet } from './BottomSheet';
 export { Button } from './Button';
 export { Chip } from './Chip';
+export { ColorPicker } from './ColorPicker';
 export { ContentCard } from './ContentCard';
 export { EmptyState } from './EmptyState';
 export { FloatingButton } from './FloatingButton';

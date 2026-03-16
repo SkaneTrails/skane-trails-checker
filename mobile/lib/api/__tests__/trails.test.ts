@@ -117,6 +117,34 @@ describe('trailsApi', () => {
       const file = new File(['<gpx/>'], 'test.gpx');
       await expect(trailsApi.uploadGpx(file)).rejects.toThrow('API Error 400: Bad request');
     });
+
+    it('appends query params from upload options', async () => {
+      mockApiRequest.mockResolvedValue([]);
+
+      const file = new File(['<gpx/>'], 'test.gpx');
+      await trailsApi.uploadGpx(file, {
+        status: 'To Explore',
+        line_color: '#E53E3E',
+        is_public: true,
+      });
+
+      expect(mockApiRequest).toHaveBeenCalledWith(
+        '/api/v1/trails/upload?status=To+Explore&line_color=%23E53E3E&is_public=true',
+        expect.objectContaining({ method: 'POST' }),
+      );
+    });
+
+    it('omits undefined options from query string', async () => {
+      mockApiRequest.mockResolvedValue([]);
+
+      const file = new File(['<gpx/>'], 'test.gpx');
+      await trailsApi.uploadGpx(file, { status: 'Explored!' });
+
+      expect(mockApiRequest).toHaveBeenCalledWith(
+        '/api/v1/trails/upload?status=Explored%21',
+        expect.objectContaining({ method: 'POST' }),
+      );
+    });
   });
 
   describe('saveRecording', () => {

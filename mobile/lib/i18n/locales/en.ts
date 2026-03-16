@@ -158,6 +158,15 @@ const en = {
     uploadSuccess: '{{count}} trail(s) uploaded successfully!',
     viewTrails: 'View Trails',
     webOnly: 'GPX upload is currently available on web only',
+    hikeType: 'Hike Type',
+    completedHike: 'Completed Hike',
+    plannedHike: 'Planned Hike',
+    lineColor: 'Trail Color',
+    visibility: 'Visibility',
+    publicTrail: 'Public',
+    privateTrail: 'Private',
+    publicHint: 'Visible to all groups',
+    privateHint: 'Only your group',
   },
 
   addSpot: {
@@ -179,6 +188,10 @@ const en = {
     edit: 'Edit',
     elevationGain: '+{{meters}} m',
     elevationLoss: '-{{meters}} m',
+    lineColor: 'Trail Color',
+    visibility: 'Visibility',
+    publicTrail: 'Public',
+    privateTrail: 'Private',
   },
 
   months: {
@@ -220,6 +233,9 @@ const en = {
     groupSettings: 'Group Settings',
     account: 'Account',
     signOut: 'Sign Out',
+    trailColors: 'Trail Colors',
+    defaultPlannedColor: 'Default planned color',
+    defaultCompletedColor: 'Default completed color',
   },
 
   noAccess: {

@@ -383,6 +383,37 @@ class TestUpdateTrail:
         assert response.json()["activity_type"] == "Running"
         mock_update.assert_called_once_with("abc123", {"activity_type": "Running"})
 
+    @patch("api.routers.trails.trail_storage.get_trail")
+    @patch("api.routers.trails.trail_storage.update_trail")
+    def test_update_trail_line_color(self, mock_update, mock_get, authenticated_client):
+        """Updates line_color via PATCH endpoint."""
+        updated_trail = SAMPLE_TRAIL.model_copy(update={"line_color": "#E53E3E"})
+        mock_get.side_effect = [SAMPLE_TRAIL, updated_trail]
+        mock_update.return_value = None
+
+        response = authenticated_client.patch("/api/v1/trails/abc123", json={"line_color": "#E53E3E"})
+        assert response.status_code == 200
+        assert response.json()["line_color"] == "#E53E3E"
+        mock_update.assert_called_once_with("abc123", {"line_color": "#E53E3E"})
+
+    def test_update_trail_invalid_line_color(self, authenticated_client):
+        """Invalid line_color returns 422 validation error."""
+        response = authenticated_client.patch("/api/v1/trails/abc123", json={"line_color": "#BADCOL"})
+        assert response.status_code == 422
+
+    @patch("api.routers.trails.trail_storage.get_trail")
+    @patch("api.routers.trails.trail_storage.update_trail")
+    def test_update_trail_is_public(self, mock_update, mock_get, authenticated_client):
+        """Updates is_public via PATCH endpoint."""
+        updated_trail = SAMPLE_TRAIL.model_copy(update={"is_public": True})
+        mock_get.side_effect = [SAMPLE_TRAIL, updated_trail]
+        mock_update.return_value = None
+
+        response = authenticated_client.patch("/api/v1/trails/abc123", json={"is_public": True})
+        assert response.status_code == 200
+        assert response.json()["is_public"] is True
+        mock_update.assert_called_once_with("abc123", {"is_public": True})
+
 
 class TestDeleteTrail:
     @patch("api.routers.trails.trail_storage.get_trail")
