@@ -1,6 +1,7 @@
 """GPX file parsing service for trail uploads."""
 
 import logging
+import re
 
 import gpxpy
 
@@ -8,6 +9,9 @@ from api.models.trail import TrailResponse
 from app.functions.trail_converter import detect_source, gpx_track_to_trail
 
 logger = logging.getLogger(__name__)
+
+# Matches <ele> tags with only whitespace (no numeric value)
+_EMPTY_ELE_RE = re.compile(r"<ele>\s*</ele>")
 
 
 def parse_gpx_upload(content: bytes) -> list[TrailResponse]:
@@ -26,7 +30,9 @@ def parse_gpx_upload(content: bytes) -> list[TrailResponse]:
         ValueError: If the GPX file is invalid or contains no tracks
     """
     try:
-        gpx_data = gpxpy.parse(content.decode("utf-8"))
+        xml = content.decode("utf-8")
+        xml = _EMPTY_ELE_RE.sub("", xml)
+        gpx_data = gpxpy.parse(xml)
     except Exception as e:
         msg = f"Invalid GPX file: {e}"
         raise ValueError(msg) from e
