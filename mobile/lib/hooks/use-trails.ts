@@ -1,10 +1,12 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { TrailFilters } from '@/lib/api';
 import { trailsApi } from '@/lib/api';
 import { trailCache } from '@/lib/storage/trail-cache';
 import type { TrackingPoint } from '@/lib/track-to-trail';
 import type { Trail, TrailUpdate } from '@/lib/types';
+
+export const SYNC_POLL_INTERVAL = 5 * 60 * 1000; // 5 minutes
 
 /**
  * Sort trails so uploaded trails appear before planned ones.
@@ -45,7 +47,13 @@ export function useTrails(filters: TrailFilters = {}) {
   const queryClient = useQueryClient();
   const hasSynced = useRef(false);
   const [syncDone, setSyncDone] = useState(false);
-  const queryKey = trailKeys.list(filters);
+  const queryKey = useMemo(() => trailKeys.list(filters), [
+    filters.source,
+    filters.search,
+    filters.min_distance_km,
+    filters.max_distance_km,
+    filters.status,
+  ]);
 
   const isUnfilteredQuery =
     !filters.source &&
@@ -74,6 +82,28 @@ export function useTrails(filters: TrailFilters = {}) {
 
     syncTrails(queryClient, queryKey).finally(() => setSyncDone(true));
   }, [queryClient, queryKey, isUnfilteredQuery]);
+
+  // Poll sync metadata every 5 minutes to detect changes from other devices.
+  // Uses self-scheduling setTimeout to prevent overlapping polls when a
+  // request takes longer than the interval (slow network / hung request).
+  const pollRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const schedulePoll = useCallback(() => {
+    pollRef.current = setTimeout(async () => {
+      await pollForChanges(queryClient, queryKey);
+      schedulePoll();
+    }, SYNC_POLL_INTERVAL);
+  }, [queryClient, queryKey]);
+
+  useEffect(() => {
+    if (!isUnfilteredQuery || !syncDone) return;
+
+    schedulePoll();
+
+    return () => {
+      if (pollRef.current) clearTimeout(pollRef.current);
+    };
+  }, [isUnfilteredQuery, syncDone, schedulePoll]);
 
   return query;
 }
@@ -148,6 +178,58 @@ async function fullRefetch(
   const syncTime = lastModified ?? new Date().toISOString();
   await trailCache.set(allTrails, syncTime);
   queryClient.setQueryData(queryKey, allTrails);
+}
+
+/**
+ * Poll sync metadata once, and if the server's last_modified differs
+ * from the local cache, trigger a delta or full refetch.
+ */
+export async function pollForChanges(
+  queryClient: ReturnType<typeof useQueryClient>,
+  queryKey: readonly unknown[],
+): Promise<void> {
+  try {
+    const syncMeta = await trailsApi.getSyncMetadata();
+    const cached = await trailCache.get();
+
+    // No changes
+    if (
+      syncMeta.last_modified === cached.lastSyncTime &&
+      syncMeta.count === cached.trails.length
+    ) {
+      return;
+    }
+
+    // Deletion detected
+    if (syncMeta.count < cached.trails.length) {
+      await fullRefetch(queryClient, queryKey, syncMeta.last_modified);
+      return;
+    }
+
+    // Delta fetch
+    if (cached.lastSyncTime && cached.trails.length > 0) {
+      try {
+        const newTrails = await trailsApi.getTrails({ since: cached.lastSyncTime });
+        if (newTrails.length > 0) {
+          const merged = await trailCache.merge(
+            newTrails,
+            syncMeta.last_modified ?? new Date().toISOString(),
+          );
+          queryClient.setQueryData(queryKey, merged);
+        } else {
+          await fullRefetch(queryClient, queryKey, syncMeta.last_modified);
+        }
+      } catch {
+        await fullRefetch(queryClient, queryKey, syncMeta.last_modified);
+      }
+      return;
+    }
+
+    // No cache — full fetch
+    await fullRefetch(queryClient, queryKey, syncMeta.last_modified);
+  } catch (error) {
+    console.warn('Background sync poll failed:', error);
+  }
 }
 
 export function useTrail(id: string) {
