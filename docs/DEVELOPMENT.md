@@ -154,7 +154,7 @@ gcloud auth application-default login
 uv run python dev-tools/setup_mobile_env.py
 ```
 
-This populates `EXPO_PUBLIC_API_URL`, Firebase config, and OAuth client IDs from GCP Secret Manager. Use `--force` to overwrite an existing file.
+This populates `EXPO_PUBLIC_API_URL`, Firebase config, and the web OAuth client ID from GCP Secret Manager. Use `--force` to overwrite an existing file.
 
 #### First-Time Development Build
 

@@ -113,7 +113,7 @@ def main() -> None:
     for env_var, value in env_vars.items():
         lines.append(f"{env_var}={value}")
 
-    ENV_FILE.write_text("\n".join(lines) + "\n")
+    ENV_FILE.write_text("\n".join(lines) + "\n", encoding="utf-8")
     print(f"\n✅ Written to {ENV_FILE.relative_to(REPO_ROOT)}")
 
 
