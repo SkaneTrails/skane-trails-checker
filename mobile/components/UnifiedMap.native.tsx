@@ -14,9 +14,8 @@ import {
   Layer,
   UserLocation,
   type CameraRef,
-  type MapRef,
 } from '@maplibre/maplibre-react-native';
-import { type NativeSyntheticEvent, StyleSheet, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 import { foragingColorMap } from '@/lib/foraging-colors';
 import { useTheme } from '@/lib/theme';
 import type { ForagingSpot, ForagingType, Place, Trail } from '@/lib/types';
@@ -56,7 +55,7 @@ const MAP_STYLE = {
       type: 'raster' as const,
       tiles: ['https://tile.openstreetmap.org/{z}/{x}/{y}.png'],
       tileSize: 256,
-      attribution: 'OpenStreetMap contributors',
+      attribution: '\u00a9 OpenStreetMap contributors',
       maxzoom: 19,
     },
   },

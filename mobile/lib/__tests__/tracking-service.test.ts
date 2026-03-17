@@ -62,8 +62,8 @@ describe('tracking-service', () => {
       'background-location-tracking',
       expect.objectContaining({
         accuracy: Location.Accuracy.High,
-        timeInterval: 5000,
-        distanceInterval: 10,
+        timeInterval: 3000,
+        distanceInterval: 5,
       }),
     );
   });

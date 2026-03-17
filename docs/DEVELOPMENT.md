@@ -270,14 +270,13 @@ The Android app records hikes with the screen off using a foreground service:
 
 The app requests these Android permissions (configured in `app.json`):
 
-| Permission                    | Purpose                             |
-| ----------------------------- | ----------------------------------- |
-| `ACCESS_FINE_LOCATION`        | GPS coordinates while app is open   |
-| `ACCESS_COARSE_LOCATION`      | Approximate location fallback       |
-| `ACCESS_BACKGROUND_LOCATION`  | GPS with screen off                 |
-| `FOREGROUND_SERVICE`          | Keep tracking alive in background   |
-| `FOREGROUND_SERVICE_LOCATION` | Location-type foreground service    |
-| `RECEIVE_BOOT_COMPLETED`      | Resume tracking after device reboot |
+| Permission                    | Purpose                           |
+| ----------------------------- | --------------------------------- |
+| `ACCESS_FINE_LOCATION`        | GPS coordinates while app is open |
+| `ACCESS_COARSE_LOCATION`      | Approximate location fallback     |
+| `ACCESS_BACKGROUND_LOCATION`  | GPS with screen off               |
+| `FOREGROUND_SERVICE`          | Keep tracking alive in background |
+| `FOREGROUND_SERVICE_LOCATION` | Location-type foreground service  |
 
 Background location requires a two-step permission flow: foreground first, then background (Android 10+ requirement).
 

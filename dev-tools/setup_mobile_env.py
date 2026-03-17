@@ -11,6 +11,8 @@ Requirements:
 """
 
 import argparse
+import shutil
+import subprocess
 import sys
 from pathlib import Path
 
@@ -23,7 +25,6 @@ except ImportError:
 
 REPO_ROOT = Path(__file__).parent.parent
 ENV_FILE = REPO_ROOT / "mobile" / ".env.development"
-PROJECT_ID = "hikes-482104"
 
 # Secret Manager name → .env variable name
 SECRET_MAPPINGS = {
@@ -42,9 +43,33 @@ DERIVED_VALUES = {
 }
 
 
-def fetch_secret(client: secretmanager.SecretManagerServiceClient, secret_name: str) -> str | None:
+def get_gcp_project() -> str:
+    """Get GCP project ID from gcloud config."""
+    gcloud_path = shutil.which("gcloud")
+    if not gcloud_path:
+        print("❌ gcloud CLI not found in PATH")
+        print("\n💡 Install gcloud: https://cloud.google.com/sdk/docs/install")
+        sys.exit(1)
+
+    try:
+        result = subprocess.run(  # noqa: S603
+            [gcloud_path, "config", "get-value", "project"], capture_output=True, text=True, check=True
+        )
+        project = result.stdout.strip()
+        if not project:
+            print("❌ No GCP project set in gcloud config")
+            print("\n💡 Set project with: gcloud config set project YOUR_PROJECT_ID")
+            sys.exit(1)
+        return project
+    except subprocess.CalledProcessError:
+        print("❌ Failed to get GCP project from gcloud")
+        print("\n💡 Authenticate with: gcloud auth application-default login")
+        sys.exit(1)
+
+
+def fetch_secret(client: secretmanager.SecretManagerServiceClient, project_id: str, secret_name: str) -> str | None:
     """Fetch latest version of a secret."""
-    name = f"projects/{PROJECT_ID}/secrets/{secret_name}/versions/latest"
+    name = f"projects/{project_id}/secrets/{secret_name}/versions/latest"
     try:
         response = client.access_secret_version(request={"name": name})
         return response.payload.data.decode("UTF-8").strip()
@@ -62,14 +87,15 @@ def main() -> None:
         print(f"✅ {ENV_FILE.relative_to(REPO_ROOT)} already exists. Use --force to overwrite.")
         sys.exit(0)
 
-    print(f"🔑 Fetching secrets from project {PROJECT_ID}...")
+    project_id = get_gcp_project()
+    print(f"🔑 Fetching secrets from project {project_id}...")
     client = secretmanager.SecretManagerServiceClient()
 
     env_vars: dict[str, str] = {}
 
     # Fetch from Secret Manager
     for secret_name, env_var in SECRET_MAPPINGS.items():
-        value = fetch_secret(client, secret_name)
+        value = fetch_secret(client, project_id, secret_name)
         if value:
             env_vars[env_var] = value
             print(f"  ✅ {env_var}")
@@ -77,9 +103,9 @@ def main() -> None:
             print(f"  ⏭️  {env_var} (skipped)")
 
     # Derive values from project ID
-    project_id = env_vars.get("EXPO_PUBLIC_FIREBASE_PROJECT_ID", PROJECT_ID)
+    firebase_project = env_vars.get("EXPO_PUBLIC_FIREBASE_PROJECT_ID", project_id)
     for env_var, template in DERIVED_VALUES.items():
-        env_vars[env_var] = template.format(project_id=project_id)
+        env_vars[env_var] = template.format(project_id=firebase_project)
         print(f"  ✅ {env_var} (derived)")
 
     # Write .env.development

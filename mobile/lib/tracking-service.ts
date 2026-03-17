@@ -22,6 +22,8 @@ import type { TrackingPoint } from '@/lib/track-to-trail';
 const TRACKING_TASK = 'background-location-tracking';
 const STORAGE_KEY = '@skane_trails_tracking_buffer';
 const FLUSH_INTERVAL_MS = 30_000;
+const GPS_TIME_INTERVAL = 3000;
+const GPS_DISTANCE_INTERVAL = 5;
 
 type PointListener = (point: TrackingPoint) => void;
 
@@ -53,7 +55,7 @@ function getState(): TrackingState {
  * Guarded to avoid duplicate registration on Fast Refresh.
  */
 if (!TaskManager.isTaskDefined(TRACKING_TASK)) {
-  TaskManager.defineTask(TRACKING_TASK, ({ data, error }) => {
+  TaskManager.defineTask(TRACKING_TASK, async ({ data, error }) => {
     if (error) return;
 
     const locations = (data as { locations?: Location.LocationObject[] })?.locations;
@@ -109,8 +111,8 @@ export async function startTracking(onPoint: PointListener): Promise<void> {
 
   await Location.startLocationUpdatesAsync(TRACKING_TASK, {
     accuracy: Location.Accuracy.High,
-    timeInterval: 3000,
-    distanceInterval: 5,
+    timeInterval: GPS_TIME_INTERVAL,
+    distanceInterval: GPS_DISTANCE_INTERVAL,
     foregroundService: {
       notificationTitle: 'Recording hike',
       notificationBody: 'GPS tracking active',
@@ -133,8 +135,8 @@ export async function resumeTracking(onPoint: PointListener): Promise<void> {
 
   await Location.startLocationUpdatesAsync(TRACKING_TASK, {
     accuracy: Location.Accuracy.High,
-    timeInterval: 5000,
-    distanceInterval: 10,
+    timeInterval: GPS_TIME_INTERVAL,
+    distanceInterval: GPS_DISTANCE_INTERVAL,
     foregroundService: {
       notificationTitle: 'Recording hike',
       notificationBody: 'GPS tracking active',

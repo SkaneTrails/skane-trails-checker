@@ -94,7 +94,7 @@ const AuthProviderImpl = ({ children }: AuthProviderProps) => {
 
   // Configure Google Sign-In for native platforms
   useEffect(() => {
-    if (Platform.OS !== 'web') {
+    if (Platform.OS !== 'web' && process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID) {
       GoogleSignin.configure({
         webClientId: process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID,
       });
