@@ -13,6 +13,7 @@ const en = {
     error: 'Error',
     loading: 'Loading...',
     saving: 'Saving...',
+    deleting: 'Deleting...',
     retry: 'Retry',
     goBack: 'Go Back',
     all: 'All',

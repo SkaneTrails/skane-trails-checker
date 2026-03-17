@@ -5,7 +5,7 @@
  */
 
 import { useState } from 'react';
-import { Platform, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Alert, Platform, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { Chip } from '@/components/Chip';
 import { useTranslation } from '@/lib/i18n';
 import { borderRadius, fontSize, fontWeight, spacing, useTheme } from '@/lib/theme';
@@ -20,7 +20,7 @@ interface TrailCardProps {
   onClose: () => void;
   onUpdate?: (trailId: string, data: TrailUpdate, onSuccess: () => void) => void;
   isUpdating?: boolean;
-  onDelete?: (trailId: string) => void;
+  onDelete?: (trailId: string, onSuccess: () => void) => void;
   isDeleting?: boolean;
 }
 
@@ -133,22 +133,18 @@ export const TrailCard = ({ trail, onClose, onUpdate, isUpdating, onDelete, isDe
             style={[styles.deleteButton, { borderColor: colors.error }]}
             onPress={() => {
               const message = t('trail.deleteConfirm', { name: trail.name });
+              const doDelete = () => onDelete(trail.trail_id, onClose);
               if (Platform.OS === 'web') {
                 if (window.confirm(message)) {
-                  onDelete(trail.trail_id);
-                  onClose();
+                  doDelete();
                 }
               } else {
-                const { Alert } = require('react-native');
                 Alert.alert(
                   t('trail.deleteTrail'),
                   message,
                   [
                     { text: t('common.cancel'), style: 'cancel' },
-                    { text: t('trail.deleteTrail'), style: 'destructive', onPress: () => {
-                      onDelete(trail.trail_id);
-                      onClose();
-                    }},
+                    { text: t('trail.deleteTrail'), style: 'destructive', onPress: doDelete },
                   ],
                 );
               }
@@ -156,7 +152,7 @@ export const TrailCard = ({ trail, onClose, onUpdate, isUpdating, onDelete, isDe
             disabled={isDeleting}
           >
             <Text style={{ color: colors.error, fontSize: fontSize.sm, fontWeight: fontWeight.semibold }}>
-              {isDeleting ? '...' : t('trail.deleteTrail')}
+              {isDeleting ? t('common.deleting') : t('trail.deleteTrail')}
             </Text>
           </Pressable>
         )}

@@ -182,7 +182,7 @@ export default function MapScreen() {
             onClose={() => setSelected(null)}
             onUpdate={handleTrailUpdate}
             isUpdating={updateTrail.isPending}
-            onDelete={(id) => deleteTrail.mutate(id)}
+            onDelete={(id, onSuccess) => deleteTrail.mutate(id, { onSuccess })}
             isDeleting={deleteTrail.isPending}
           />
         )}
