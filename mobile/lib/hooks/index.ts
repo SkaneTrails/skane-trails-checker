@@ -29,4 +29,5 @@ export {
   useTrails,
   useUpdateTrail,
   useUploadGpx,
+  filterTrails,
 } from './use-trails';
