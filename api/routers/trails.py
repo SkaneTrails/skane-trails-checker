@@ -203,7 +203,7 @@ def upload_gpx(
         )
 
     try:
-        trails = parse_gpx_upload(content)
+        parsed = parse_gpx_upload(content)
     except ValueError as e:
         detail = str(e)
         if "Invalid GPX file:" in detail:
@@ -212,7 +212,8 @@ def upload_gpx(
 
     group_id = None if user.role == "superuser" else require_group(user)
     trail_status = status or "Explored!"
-    for trail in trails:
+    trails: list[TrailResponse] = []
+    for trail, details in parsed:
         trail.created_by = user.uid
         trail.group_id = group_id
         trail.status = trail_status
@@ -220,6 +221,8 @@ def upload_gpx(
         if line_color is not None:
             trail.line_color = line_color
         trail_storage.save_trail(trail, update_sync=False)
+        trail_storage.save_trail_details(details)
+        trails.append(trail)
 
     # Update sync metadata once after bulk save (not per-trail)
     trail_storage.update_sync_metadata()
