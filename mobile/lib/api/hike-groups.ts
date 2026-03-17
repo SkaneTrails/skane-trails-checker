@@ -1,41 +1,49 @@
 /**
- * Hike group API client.
+ * Hike group and admin API client.
  */
 
-import type { AddMemberRequest, HikeGroup, HikeGroupCreate } from '../types';
+import type { AddMemberRequest, CurrentUser, HikeGroup, HikeGroupCreate, HikeGroupMember, Superuser, UpdateMemberRequest } from '../types';
 import { apiRequest } from './client';
 
 export const hikeGroupsApi = {
+  getCurrentUser(): Promise<CurrentUser> {
+    return apiRequest('/api/v1/admin/me');
+  },
+
   getGroups(): Promise<HikeGroup[]> {
-    return apiRequest('/api/v1/hike-groups');
+    return apiRequest('/api/v1/admin/groups');
   },
 
   getGroup(groupId: string): Promise<HikeGroup> {
-    return apiRequest(`/api/v1/hike-groups/${encodeURIComponent(groupId)}`);
+    return apiRequest(`/api/v1/admin/groups/${encodeURIComponent(groupId)}`);
   },
 
   createGroup(data: HikeGroupCreate): Promise<HikeGroup> {
-    return apiRequest('/api/v1/hike-groups', {
+    return apiRequest('/api/v1/admin/groups', {
       method: 'POST',
       body: JSON.stringify(data),
     });
   },
 
   updateGroup(groupId: string, data: { name: string }): Promise<HikeGroup> {
-    return apiRequest(`/api/v1/hike-groups/${encodeURIComponent(groupId)}`, {
+    return apiRequest(`/api/v1/admin/groups/${encodeURIComponent(groupId)}`, {
       method: 'PATCH',
       body: JSON.stringify(data),
     });
   },
 
   deleteGroup(groupId: string): Promise<void> {
-    return apiRequest(`/api/v1/hike-groups/${encodeURIComponent(groupId)}`, {
+    return apiRequest(`/api/v1/admin/groups/${encodeURIComponent(groupId)}`, {
       method: 'DELETE',
     });
   },
 
-  addMember(groupId: string, data: AddMemberRequest): Promise<HikeGroup> {
-    return apiRequest(`/api/v1/hike-groups/${encodeURIComponent(groupId)}/members`, {
+  getMembers(groupId: string): Promise<HikeGroupMember[]> {
+    return apiRequest(`/api/v1/admin/groups/${encodeURIComponent(groupId)}/members`);
+  },
+
+  addMember(groupId: string, data: AddMemberRequest): Promise<HikeGroupMember> {
+    return apiRequest(`/api/v1/admin/groups/${encodeURIComponent(groupId)}/members`, {
       method: 'POST',
       body: JSON.stringify(data),
     });
@@ -43,10 +51,37 @@ export const hikeGroupsApi = {
 
   removeMember(groupId: string, memberEmail: string): Promise<void> {
     return apiRequest(
-      `/api/v1/hike-groups/${encodeURIComponent(groupId)}/members/${encodeURIComponent(memberEmail)}`,
+      `/api/v1/admin/groups/${encodeURIComponent(groupId)}/members/${encodeURIComponent(memberEmail)}`,
       {
         method: 'DELETE',
       },
     );
+  },
+
+  updateMemberRole(groupId: string, memberEmail: string, data: UpdateMemberRequest): Promise<HikeGroupMember> {
+    return apiRequest(
+      `/api/v1/admin/groups/${encodeURIComponent(groupId)}/members/${encodeURIComponent(memberEmail)}`,
+      {
+        method: 'PATCH',
+        body: JSON.stringify(data),
+      },
+    );
+  },
+
+  getSuperusers(): Promise<Superuser[]> {
+    return apiRequest('/api/v1/admin/superusers');
+  },
+
+  addSuperuser(email: string): Promise<Superuser> {
+    return apiRequest('/api/v1/admin/superusers', {
+      method: 'POST',
+      body: JSON.stringify({ email }),
+    });
+  },
+
+  removeSuperuser(email: string): Promise<void> {
+    return apiRequest(`/api/v1/admin/superusers/${encodeURIComponent(email)}`, {
+      method: 'DELETE',
+    });
   },
 };

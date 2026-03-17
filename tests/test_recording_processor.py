@@ -115,66 +115,72 @@ class TestProcessRecording:
         )
 
     def test_returns_trail_and_details(self):
-        trail, details = process_recording("Test Hike", self._sample_coords(), "gps_recording", "user-1")
+        trail, details = process_recording("Test Hike", self._sample_coords(), "user-1")
         assert trail.trail_id
         assert trail.name == "Test Hike"
         assert details.trail_id == trail.trail_id
 
     def test_trail_marked_explored(self):
-        trail, _ = process_recording("Test", self._sample_coords(), "gps_recording", "user-1")
+        trail, _ = process_recording("Test", self._sample_coords(), "user-1")
         assert trail.status == "Explored!"
 
-    def test_source_preserved(self):
-        trail, _ = process_recording("Test", self._sample_coords(), "other_trails", "user-1")
+    def test_source_auto_detected_skane(self):
+        trail, _ = process_recording("Test", self._sample_coords(), "user-1")
         assert trail.source == "other_trails"
 
+    def test_source_auto_detected_worldwide(self):
+        base_time = 1700000000000
+        coords = _make_coords([(45.0, 7.0, 1000.0, base_time), (45.001, 7.001, 1050.0, base_time + 60_000)])
+        trail, _ = process_recording("Alps Hike", coords, "user-1")
+        assert trail.source == "world_wide_hikes"
+
     def test_length_calculated(self):
-        trail, _ = process_recording("Test", self._sample_coords(), "gps_recording", "user-1")
+        trail, _ = process_recording("Test", self._sample_coords(), "user-1")
         assert trail.length_km > 0
         # 4 points with 0.001° lat difference ≈ 0.111 km each ≈ 0.44 km total
         assert 0.3 < trail.length_km < 0.6
 
     def test_bounds_calculated(self):
-        trail, _ = process_recording("Test", self._sample_coords(), "gps_recording", "user-1")
+        trail, _ = process_recording("Test", self._sample_coords(), "user-1")
         assert trail.bounds.south == pytest.approx(55.600)
         assert trail.bounds.north == pytest.approx(55.604)
 
     def test_center_calculated(self):
-        trail, _ = process_recording("Test", self._sample_coords(), "gps_recording", "user-1")
+        trail, _ = process_recording("Test", self._sample_coords(), "user-1")
         assert trail.center.lat == pytest.approx(55.602, abs=0.001)
         assert trail.center.lng == pytest.approx(13.000, abs=0.001)
 
     def test_elevation_metrics(self):
-        trail, _ = process_recording("Test", self._sample_coords(), "gps_recording", "user-1")
+        trail, _ = process_recording("Test", self._sample_coords(), "user-1")
         assert trail.elevation_gain is not None
         assert trail.elevation_loss is not None
         assert trail.elevation_gain > 0
         assert trail.elevation_loss > 0
 
     def test_duration_from_timestamps(self):
-        trail, _ = process_recording("Test", self._sample_coords(), "gps_recording", "user-1")
+        trail, _ = process_recording("Test", self._sample_coords(), "user-1")
         # 120000 ms = 2 minutes
         assert trail.duration_minutes == 2
 
     def test_activity_date_from_first_timestamp(self):
-        trail, _ = process_recording("Test", self._sample_coords(), "gps_recording", "user-1")
+        trail, _ = process_recording("Test", self._sample_coords(), "user-1")
         assert trail.activity_date is not None
 
     def test_activity_type_is_hiking(self):
-        trail, _ = process_recording("Test", self._sample_coords(), "gps_recording", "user-1")
+        trail, _ = process_recording("Test", self._sample_coords(), "user-1")
         assert trail.activity_type == "hiking"
 
     def test_created_by_set(self):
-        trail, _ = process_recording("Test", self._sample_coords(), "gps_recording", "user-1")
+        trail, _ = process_recording("Test", self._sample_coords(), "user-1")
         assert trail.created_by == "user-1"
 
     def test_details_has_full_coordinates(self):
         coords = self._sample_coords()
-        _, details = process_recording("Test", coords, "gps_recording", "user-1")
+        _, details = process_recording("Test", coords, "user-1")
         assert len(details.coordinates_full) == len(coords)
 
     def test_details_has_elevation_profile(self):
-        _, details = process_recording("Test", self._sample_coords(), "gps_recording", "user-1")
+        _, details = process_recording("Test", self._sample_coords(), "user-1")
         assert details.elevation_profile is not None
         assert len(details.elevation_profile) == 5
 
@@ -187,35 +193,35 @@ class TestProcessRecording:
                 (55.602, 13.000, None, base_time + 120_000),
             ]
         )
-        trail, details = process_recording("Test", coords, "gps_recording", "user-1")
+        trail, details = process_recording("Test", coords, "user-1")
         assert trail.elevation_gain is None
         assert trail.elevation_loss is None
         assert details.elevation_profile is None
 
     def test_stable_trail_id(self):
         coords = self._sample_coords()
-        trail1, _ = process_recording("Test", coords, "gps_recording", "user-1")
-        trail2, _ = process_recording("Test", coords, "gps_recording", "user-2")
+        trail1, _ = process_recording("Test", coords, "user-1")
+        trail2, _ = process_recording("Test", coords, "user-2")
         assert trail1.trail_id == trail2.trail_id  # Same name + coords = same ID
 
     def test_different_names_yield_different_ids(self):
         coords = self._sample_coords()
-        trail1, _ = process_recording("Hike A", coords, "gps_recording", "user-1")
-        trail2, _ = process_recording("Hike B", coords, "gps_recording", "user-1")
+        trail1, _ = process_recording("Hike A", coords, "user-1")
+        trail2, _ = process_recording("Hike B", coords, "user-1")
         assert trail1.trail_id != trail2.trail_id
 
     def test_different_timestamps_yield_different_ids(self):
         coords1 = _make_coords([(55.0, 13.0, 100.0, 1700000000000), (55.001, 13.001, 110.0, 1700000060000)])
         coords2 = _make_coords([(55.0, 13.0, 100.0, 1700100000000), (55.001, 13.001, 110.0, 1700100060000)])
-        trail1, _ = process_recording("Same Name", coords1, "gps_recording", "user-1")
-        trail2, _ = process_recording("Same Name", coords2, "gps_recording", "user-1")
+        trail1, _ = process_recording("Same Name", coords1, "user-1")
+        trail2, _ = process_recording("Same Name", coords2, "user-1")
         assert trail1.trail_id != trail2.trail_id
 
     def test_coordinates_map_simplified(self):
         # Create a long trail with many points
         base_time = 1700000000000
         coords = _make_coords([(55.0 + i * 0.0001, 13.0, 100.0, base_time + i * 5000) for i in range(500)])
-        trail, details = process_recording("Long", coords, "gps_recording", "user-1")
+        trail, details = process_recording("Long", coords, "user-1")
         # Simplified should be shorter than full
         assert len(trail.coordinates_map) < len(details.coordinates_full)
         assert len(details.coordinates_full) == 500
@@ -223,5 +229,5 @@ class TestProcessRecording:
     def test_zero_duration_not_stored(self):
         """Zero duration from identical timestamps should be None."""
         coords = _make_coords([(55.600, 13.000, 50.0, 1700000000000), (55.601, 13.000, 55.0, 1700000000000)])
-        trail, _ = process_recording("Test", coords, "gps_recording", "user-1")
+        trail, _ = process_recording("Test", coords, "user-1")
         assert trail.duration_minutes is None

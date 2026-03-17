@@ -34,6 +34,8 @@ export interface Trail {
   duration_minutes?: number | null;
   avg_inclination_deg?: number | null;
   max_inclination_deg?: number | null;
+  line_color?: string | null;
+  is_public?: boolean;
 }
 
 // Full trail details with all coordinates and elevation
@@ -52,6 +54,8 @@ export interface TrailUpdate {
   difficulty?: string;
   activity_date?: string;
   activity_type?: string;
+  line_color?: string | null;
+  is_public?: boolean;
 }
 
 // Sync metadata for delta trail fetching
@@ -137,19 +141,19 @@ export interface PlaceCategory {
   icon: string;
 }
 
-// Hike group member
+// Hike group member (matches backend MemberResponse)
 export interface HikeGroupMember {
-  uid: string;
   email: string;
-  name: string | null;
-  role: 'owner' | 'member';
+  group_id: string;
+  role: 'admin' | 'member';
+  display_name: string | null;
 }
 
 // Hike group
 export interface HikeGroup {
   group_id: string;
   name: string;
-  members: HikeGroupMember[];
+  member_count: number;
   created_at: string;
   last_updated: string;
 }
@@ -162,4 +166,26 @@ export interface HikeGroupCreate {
 // Add member payload
 export interface AddMemberRequest {
   email: string;
+  role?: 'admin' | 'member';
+}
+
+// Update member payload
+export interface UpdateMemberRequest {
+  role: 'admin' | 'member';
+}
+
+export type UserRole = 'superuser' | 'admin' | 'member';
+
+// Superuser entry from GET /admin/superusers
+export interface Superuser {
+  email: string;
+}
+
+// Current user info from GET /admin/me
+export interface CurrentUser {
+  uid: string;
+  email: string;
+  role: UserRole;
+  group_id: string | null;
+  group_name: string | null;
 }

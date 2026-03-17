@@ -10,6 +10,7 @@ import type React from 'react';
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import type { AppLanguage } from './i18n/language-state';
 import { setCurrentLanguage } from './i18n/language-state';
+import { DEFAULT_COMPLETED_COLOR, DEFAULT_PLANNED_COLOR } from './trail-colors';
 
 export type { AppLanguage } from './i18n/language-state';
 
@@ -32,22 +33,30 @@ interface Settings {
   language: AppLanguage;
   themeId: string;
   enabledPlaceCategories: string[];
+  defaultPlannedColor: string;
+  defaultCompletedColor: string;
 }
 
 interface SettingsContextType {
   language: AppLanguage;
   themeId: string;
   enabledPlaceCategories: string[];
+  defaultPlannedColor: string;
+  defaultCompletedColor: string;
   isLoading: boolean;
   setLanguage: (language: AppLanguage) => void;
   setEnabledPlaceCategories: (categories: string[]) => void;
   togglePlaceCategory: (slug: string) => void;
+  setDefaultPlannedColor: (color: string) => void;
+  setDefaultCompletedColor: (color: string) => void;
 }
 
 const defaultSettings: Settings = {
   language: 'en',
   themeId: 'outdoor',
   enabledPlaceCategories: DEFAULT_PLACE_CATEGORIES,
+  defaultPlannedColor: DEFAULT_PLANNED_COLOR,
+  defaultCompletedColor: DEFAULT_COMPLETED_COLOR,
 };
 
 const SettingsContext = createContext<SettingsContextType | null>(null);
@@ -71,6 +80,14 @@ export const SettingsProvider = ({ children }: { children: React.ReactNode }) =>
             enabledPlaceCategories: Array.isArray(parsed.enabledPlaceCategories)
               ? parsed.enabledPlaceCategories
               : DEFAULT_PLACE_CATEGORIES,
+            defaultPlannedColor:
+              typeof parsed.defaultPlannedColor === 'string'
+                ? parsed.defaultPlannedColor
+                : DEFAULT_PLANNED_COLOR,
+            defaultCompletedColor:
+              typeof parsed.defaultCompletedColor === 'string'
+                ? parsed.defaultCompletedColor
+                : DEFAULT_COMPLETED_COLOR,
           });
         }
       } catch {
@@ -114,17 +131,37 @@ export const SettingsProvider = ({ children }: { children: React.ReactNode }) =>
     });
   }, []);
 
+  const setDefaultPlannedColor = useCallback((color: string) => {
+    setSettings((prev) => {
+      const updated = { ...prev, defaultPlannedColor: color };
+      AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+      return updated;
+    });
+  }, []);
+
+  const setDefaultCompletedColor = useCallback((color: string) => {
+    setSettings((prev) => {
+      const updated = { ...prev, defaultCompletedColor: color };
+      AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+      return updated;
+    });
+  }, []);
+
   const value = useMemo<SettingsContextType>(
     () => ({
       language: settings.language,
       themeId: settings.themeId,
       enabledPlaceCategories: settings.enabledPlaceCategories,
+      defaultPlannedColor: settings.defaultPlannedColor,
+      defaultCompletedColor: settings.defaultCompletedColor,
       isLoading,
       setLanguage,
       setEnabledPlaceCategories,
       togglePlaceCategory,
+      setDefaultPlannedColor,
+      setDefaultCompletedColor,
     }),
-    [settings, isLoading, setLanguage, setEnabledPlaceCategories, togglePlaceCategory],
+    [settings, isLoading, setLanguage, setEnabledPlaceCategories, togglePlaceCategory, setDefaultPlannedColor, setDefaultCompletedColor],
   );
 
   return <SettingsContext.Provider value={value}>{children}</SettingsContext.Provider>;

@@ -134,16 +134,15 @@ describe('toRecordingPayload', () => {
     ];
     const payload = toRecordingPayload('My Hike', points);
     expect(payload.name).toBe('My Hike');
-    expect(payload.source).toBe('gps_recording');
     expect(payload.coordinates).toHaveLength(2);
     expect(payload.coordinates[0].lat).toBe(55.0);
     expect(payload.coordinates[0].altitude).toBe(100);
     expect(payload.coordinates[0].timestamp).toBe(1700000000000);
   });
 
-  it('uses custom source', () => {
+  it('does not include source in payload', () => {
     const points = [makePoint(55, 13), makePoint(55.1, 13.1)];
-    const payload = toRecordingPayload('Hike', points, 'other_trails');
-    expect(payload.source).toBe('other_trails');
+    const payload = toRecordingPayload('Hike', points);
+    expect(payload).not.toHaveProperty('source');
   });
 });

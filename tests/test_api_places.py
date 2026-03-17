@@ -103,10 +103,10 @@ class TestGlobalExceptionHandler:
 
 class TestInvalidDocumentIdHandler:
     @patch("api.routers.trails.trail_storage.get_trail")
-    def test_invalid_document_id_returns_400(self, mock_get_trail):
+    def test_invalid_document_id_returns_400(self, mock_get_trail, authenticated_client):
         from api.storage.validation import InvalidDocumentIdError
 
         mock_get_trail.side_effect = InvalidDocumentIdError("Invalid trail_id: contains invalid characters")
-        response = client.get("/api/v1/trails/bad-id")
+        response = authenticated_client.get("/api/v1/trails/bad-id")
         assert response.status_code == 400
         assert "invalid characters" in response.json()["detail"]

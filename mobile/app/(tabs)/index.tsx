@@ -1,5 +1,6 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Alert, Platform, StyleSheet, View } from 'react-native';
+import { useLocalSearchParams } from 'expo-router';
 import { FloatingButton } from '@/components/FloatingButton';
 import { FloatingCardOverlay } from '@/components/FloatingCardOverlay';
 import { ForagingSpotCard } from '@/components/ForagingSpotCard';
@@ -11,6 +12,7 @@ import { TrackingOverlay } from '@/components/TrackingOverlay';
 import { TrailCard } from '@/components/TrailCard';
 import { type MapLayers, UnifiedMap } from '@/components/UnifiedMap';
 import {
+  useDeleteTrail,
   useForagingSpots,
   useForagingTypes,
   usePlaces,
@@ -34,6 +36,7 @@ export default function MapScreen() {
   const { colors } = useTheme();
   const { t } = useTranslation();
   const { enabledPlaceCategories } = useSettings();
+  const { trailId } = useLocalSearchParams<{ trailId?: string }>();
 
   const { data: trails, isFetching: trailsFetching } = useTrails();
   const { data: spots } = useForagingSpots();
@@ -41,6 +44,7 @@ export default function MapScreen() {
   const { data: places } = usePlaces();
   const { points: recordingPoints } = useTracking();
   const updateTrail = useUpdateTrail();
+  const deleteTrail = useDeleteTrail();
   const updateSpot = useUpdateForagingSpot();
 
   const filteredPlaces = useMemo(
@@ -60,6 +64,17 @@ export default function MapScreen() {
   const [showLayers, setShowLayers] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
   const [selected, setSelected] = useState<SelectedItem | null>(null);
+
+  // When navigating from trail list with trailId param, select and focus that trail
+  const [focusBounds, setFocusBounds] = useState<{ north: number; south: number; east: number; west: number } | null>(null);
+
+  useEffect(() => {
+    if (!trailId || !trails) return;
+    const trail = trails.find((t) => t.trail_id === trailId);
+    if (!trail) return;
+    setSelected({ type: 'trail', data: trail });
+    setFocusBounds({ ...trail.bounds });
+  }, [trailId, trails]);
 
   const layerList: MapLayer[] = [
     { id: 'trails', label: t('tabs.trails'), icon: '', color: colors.layer.trails, enabled: mapLayers.trails },
@@ -109,6 +124,7 @@ export default function MapScreen() {
         places={filteredPlaces}
         layers={mapLayers}
         selectedTrailId={selectedTrailId}
+        focusBounds={focusBounds}
         recordingPoints={recordingPoints}
         onTrailSelect={handleTrailSelect}
         onSpotSelect={handleSpotSelect}
@@ -166,6 +182,8 @@ export default function MapScreen() {
             onClose={() => setSelected(null)}
             onUpdate={handleTrailUpdate}
             isUpdating={updateTrail.isPending}
+            onDelete={(id, onSuccess) => deleteTrail.mutate(id, { onSuccess })}
+            isDeleting={deleteTrail.isPending}
           />
         )}
 

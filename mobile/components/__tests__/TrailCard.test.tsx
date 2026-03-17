@@ -1,4 +1,5 @@
 import { fireEvent, render, screen } from '@testing-library/react';
+import { Alert, Platform } from 'react-native';
 import type { Trail } from '@/lib/types';
 import { TrailCard } from '../TrailCard';
 
@@ -25,6 +26,12 @@ vi.mock('@/lib/theme', () => ({
         toExploreBg: '#FFF3E0',
         toExploreText: '#E65100',
       },
+      chip: {
+        activeBg: '#2E7D32',
+        activeText: '#fff',
+        bg: '#f5f5f5',
+        text: '#333',
+      },
       glass: {
         background: 'rgba(255,255,255,0.8)',
         backgroundDark: 'rgba(0,0,0,0.6)',
@@ -42,7 +49,7 @@ vi.mock('@/lib/theme', () => ({
   }),
   borderRadius: { sm: 4, md: 8, lg: 12, xl: 16, full: 9999 },
   fontSize: { xs: 10, sm: 12, md: 14, lg: 16, xl: 20, xxl: 24 },
-  fontWeight: { semibold: '600', bold: '700' },
+  fontWeight: { medium: '500', semibold: '600', bold: '700' },
   spacing: { xs: 4, sm: 8, md: 12, lg: 16, xl: 20 },
 }));
 
@@ -102,10 +109,11 @@ describe('TrailCard', () => {
   });
 
   it('renders activity date', () => {
-    const trail = { ...baseTrail, activity_date: '2026-03-01' };
+    const trail = { ...baseTrail, activity_date: '2026-03-01T09:16:00+00:00' };
     render(<TrailCard trail={trail} onClose={vi.fn()} />);
 
-    expect(screen.getByText('2026-03-01')).toBeDefined();
+    const formatted = new Date('2026-03-01T09:16:00+00:00').toLocaleString(undefined, { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' });
+    expect(screen.getByText(formatted)).toBeDefined();
   });
 
   it('renders elevation gain and loss', () => {
@@ -219,5 +227,145 @@ describe('TrailCard', () => {
 
     expect(onUpdate).not.toHaveBeenCalled();
     expect(screen.getByText('Söderåsen Loop')).toBeDefined();
+  });
+
+  it('shows color picker and visibility toggle in edit mode', () => {
+    render(<TrailCard trail={baseTrail} onClose={vi.fn()} onUpdate={vi.fn()} />);
+
+    fireEvent.click(screen.getByLabelText('trailCard.edit'));
+
+    expect(screen.getByText('trailCard.lineColor')).toBeDefined();
+    expect(screen.getByText('trailCard.visibility')).toBeDefined();
+    expect(screen.getByText('trailCard.privateTrail')).toBeDefined();
+    expect(screen.getByText('trailCard.publicTrail')).toBeDefined();
+  });
+
+  it('includes line_color in update when changed', () => {
+    const onUpdate = vi.fn();
+    const trail = { ...baseTrail, line_color: '#E53E3E' };
+    render(<TrailCard trail={trail} onClose={vi.fn()} onUpdate={onUpdate} />);
+
+    fireEvent.click(screen.getByLabelText('trailCard.edit'));
+    fireEvent.click(screen.getByLabelText('#4169E1'));
+    fireEvent.click(screen.getByText('common.save'));
+
+    expect(onUpdate).toHaveBeenCalledWith(
+      'trail-1',
+      { line_color: '#4169E1' },
+      expect.any(Function),
+    );
+  });
+
+  it('includes is_public in update when toggled', () => {
+    const onUpdate = vi.fn();
+    render(<TrailCard trail={baseTrail} onClose={vi.fn()} onUpdate={onUpdate} />);
+
+    fireEvent.click(screen.getByLabelText('trailCard.edit'));
+    fireEvent.click(screen.getByText('trailCard.publicTrail'));
+    fireEvent.click(screen.getByText('common.save'));
+
+    expect(onUpdate).toHaveBeenCalledWith(
+      'trail-1',
+      { is_public: true },
+      expect.any(Function),
+    );
+  });
+
+  it('toggles back to private after setting public', () => {
+    const onUpdate = vi.fn();
+    const trail = { ...baseTrail, is_public: true };
+    render(<TrailCard trail={trail} onClose={vi.fn()} onUpdate={onUpdate} />);
+
+    fireEvent.click(screen.getByLabelText('trailCard.edit'));
+    fireEvent.click(screen.getByText('trailCard.privateTrail'));
+    fireEvent.click(screen.getByText('common.save'));
+
+    expect(onUpdate).toHaveBeenCalledWith(
+      'trail-1',
+      { is_public: false },
+      expect.any(Function),
+    );
+  });
+
+  it('shows delete button in edit mode when onDelete provided', () => {
+    render(<TrailCard trail={baseTrail} onClose={vi.fn()} onUpdate={vi.fn()} onDelete={vi.fn()} />);
+
+    fireEvent.click(screen.getByLabelText('trailCard.edit'));
+    expect(screen.getByText('trail.deleteTrail')).toBeDefined();
+  });
+
+  it('hides delete button in edit mode when onDelete not provided', () => {
+    render(<TrailCard trail={baseTrail} onClose={vi.fn()} onUpdate={vi.fn()} />);
+
+    fireEvent.click(screen.getByLabelText('trailCard.edit'));
+    expect(screen.queryByText('trail.deleteTrail')).toBeNull();
+  });
+
+  it('does not show delete button in display mode', () => {
+    render(<TrailCard trail={baseTrail} onClose={vi.fn()} onDelete={vi.fn()} />);
+    expect(screen.queryByText('trail.deleteTrail')).toBeNull();
+  });
+
+  it('calls onDelete with trail id and onSuccess after web confirm', () => {
+    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true);
+    const onDelete = vi.fn();
+    const onClose = vi.fn();
+    render(<TrailCard trail={baseTrail} onClose={onClose} onUpdate={vi.fn()} onDelete={onDelete} />);
+
+    fireEvent.click(screen.getByLabelText('trailCard.edit'));
+    fireEvent.click(screen.getByText('trail.deleteTrail'));
+
+    expect(confirmSpy).toHaveBeenCalled();
+    expect(onDelete).toHaveBeenCalledWith('trail-1', onClose);
+    confirmSpy.mockRestore();
+  });
+
+  it('does not call onDelete when confirm is cancelled', () => {
+    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(false);
+    const onDelete = vi.fn();
+    render(<TrailCard trail={baseTrail} onClose={vi.fn()} onUpdate={vi.fn()} onDelete={onDelete} />);
+
+    fireEvent.click(screen.getByLabelText('trailCard.edit'));
+    fireEvent.click(screen.getByText('trail.deleteTrail'));
+
+    expect(onDelete).not.toHaveBeenCalled();
+    confirmSpy.mockRestore();
+  });
+
+  it('shows deleting label when isDeleting is true', () => {
+    render(<TrailCard trail={baseTrail} onClose={vi.fn()} onUpdate={vi.fn()} onDelete={vi.fn()} isDeleting />);
+
+    fireEvent.click(screen.getByLabelText('trailCard.edit'));
+    expect(screen.getByText('common.deleting')).toBeDefined();
+  });
+
+  it('uses Alert.alert on native platform', () => {
+    const originalOS = Platform.OS;
+    Platform.OS = 'ios' as typeof Platform.OS;
+    const alertSpy = vi.spyOn(Alert, 'alert').mockImplementation(() => {});
+    const onDelete = vi.fn();
+    const onClose = vi.fn();
+
+    render(<TrailCard trail={baseTrail} onClose={onClose} onUpdate={vi.fn()} onDelete={onDelete} />);
+
+    fireEvent.click(screen.getByLabelText('trailCard.edit'));
+    fireEvent.click(screen.getByText('trail.deleteTrail'));
+
+    expect(alertSpy).toHaveBeenCalledWith(
+      'trail.deleteTrail',
+      expect.any(String),
+      expect.arrayContaining([
+        expect.objectContaining({ style: 'cancel' }),
+        expect.objectContaining({ style: 'destructive' }),
+      ]),
+    );
+
+    // Simulate pressing the destructive button
+    const destructiveButton = alertSpy.mock.calls[0][2]!.find((b: any) => b.style === 'destructive');
+    destructiveButton!.onPress!();
+    expect(onDelete).toHaveBeenCalledWith('trail-1', onClose);
+
+    alertSpy.mockRestore();
+    Platform.OS = originalOS;
   });
 });

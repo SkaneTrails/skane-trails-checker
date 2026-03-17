@@ -2,6 +2,7 @@
 
 import hashlib
 import math
+from collections.abc import Iterable
 from datetime import UTC, datetime
 
 import gpxpy
@@ -12,6 +13,27 @@ from app.functions.tracks import simplify_track_coordinates
 
 _MIN_TIMESTAMPS_FOR_DURATION = 2
 _MIN_HORIZ_DIST_M = 1.0
+
+# Approximate bounding box for Skåne
+_SKANE_SOUTH = 55.35
+_SKANE_NORTH = 56.45
+_SKANE_WEST = 12.75
+_SKANE_EAST = 14.45
+
+
+def detect_source(coordinates: Iterable[tuple[float, float]]) -> str:
+    """Auto-detect trail source based on coordinates.
+
+    Accepts any iterable of (lat, lng) tuples so callers can pass
+    generator expressions for lazy evaluation with early exit.
+
+    Returns 'other_trails' if any coordinate falls within Skåne's
+    bounding box, otherwise 'world_wide_hikes'.
+    """
+    for lat, lng in coordinates:
+        if _SKANE_SOUTH <= lat <= _SKANE_NORTH and _SKANE_WEST <= lng <= _SKANE_EAST:
+            return "other_trails"
+    return "world_wide_hikes"
 
 
 def _compute_elevation_metrics(
@@ -139,7 +161,7 @@ def gpx_track_to_trail(
 
     # Generate stable trail_id from track name, index, and first coordinate
     # Include first coordinate to ensure uniqueness across files with same track names
-    name = gpx_track.name or f"Unnamed Trail {index}"
+    name = (gpx_track.name or "").strip() or f"Unnamed Trail {index}"
     first_coord = f"{all_coordinates[0][0]:.6f},{all_coordinates[0][1]:.6f}"
     trail_id = hashlib.md5(f"{source}_{name}_{index}_{first_coord}".encode()).hexdigest()[:12]  # noqa: S324
 

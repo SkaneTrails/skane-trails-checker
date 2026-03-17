@@ -8,29 +8,29 @@
 import { useRouter } from 'expo-router';
 import { type ChangeEvent, useRef, useState } from 'react';
 import { Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { Button, Chip, ContentCard, EmptyState } from '@/components';
+import { Button, ColorPicker, ContentCard, EmptyState } from '@/components';
+import { Chip } from '@/components/Chip';
 import { TabIcon } from '@/components/TabIcon';
 import { useUploadGpx } from '@/lib/hooks';
 import { useTranslation } from '@/lib/i18n';
+import { useSettings } from '@/lib/settings-context';
 import { borderRadius, fontSize, fontWeight, sheet, spacing, useTheme } from '@/lib/theme';
 import { cssShadow, glassSheet } from '@/lib/theme/styles';
 import type { Trail } from '@/lib/types';
-
-const SOURCE_OPTIONS = [
-  { label: 'Other Trails', value: 'other_trails' },
-  { label: 'World Wide Hikes', value: 'world_wide_hikes' },
-] as const;
 
 export default function UploadScreen() {
   const { colors, shadows } = useTheme();
   const { t } = useTranslation();
   const router = useRouter();
   const upload = useUploadGpx();
+  const { defaultPlannedColor, defaultCompletedColor } = useSettings();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [source, setSource] = useState('other_trails');
   const [uploadedTrails, setUploadedTrails] = useState<Trail[] | null>(null);
+  const [hikeType, setHikeType] = useState<'completed' | 'planned'>('completed');
+  const [lineColor, setLineColor] = useState<string>(defaultCompletedColor);
+  const [isPublic, setIsPublic] = useState(false);
 
   if (Platform.OS !== 'web') {
     return (
@@ -54,10 +54,21 @@ export default function UploadScreen() {
     }
   };
 
+  const handleHikeTypeChange = (type: 'completed' | 'planned') => {
+    setHikeType(type);
+    setLineColor(type === 'completed' ? defaultCompletedColor : defaultPlannedColor);
+    if (type === 'completed') setIsPublic(false);
+  };
+
   const handleUpload = () => {
     if (!selectedFile) return;
     upload.mutate(
-      { file: selectedFile, source },
+      {
+        file: selectedFile,
+        status: hikeType === 'completed' ? 'Explored!' : 'To Explore',
+        line_color: lineColor,
+        is_public: isPublic,
+      },
       {
         onSuccess: (trails) => {
           setUploadedTrails(trails);
@@ -109,24 +120,6 @@ export default function UploadScreen() {
           {t('upload.description')}
         </Text>
 
-        <View style={styles.sourceSection}>
-          <Text style={[styles.label, { color: colors.text.secondary }]}>
-            {t('upload.trailSource')}
-          </Text>
-          <View style={styles.chipRow}>
-            {SOURCE_OPTIONS.map((opt) => (
-              <Chip
-                key={opt.value}
-                label={t(
-                  `upload.${opt.value === 'other_trails' ? 'otherTrails' : 'worldWideHikes'}`,
-                )}
-                selected={source === opt.value}
-                onPress={() => setSource(opt.value)}
-              />
-            ))}
-          </View>
-        </View>
-
         <View style={styles.fileSection}>
           <input
             ref={fileInputRef}
@@ -141,6 +134,57 @@ export default function UploadScreen() {
             </Text>
           )}
         </View>
+
+        {/* Hike Type */}
+        <View style={styles.fieldSection}>
+          <Text style={[styles.fieldLabel, { color: colors.text.secondary }]}>
+            {t('upload.hikeType')}
+          </Text>
+          <View style={styles.chipRow}>
+            <Chip
+              label={t('upload.completedHike')}
+              selected={hikeType === 'completed'}
+              onPress={() => handleHikeTypeChange('completed')}
+            />
+            <Chip
+              label={t('upload.plannedHike')}
+              selected={hikeType === 'planned'}
+              onPress={() => handleHikeTypeChange('planned')}
+            />
+          </View>
+        </View>
+
+        {/* Trail Color */}
+        <View style={styles.fieldSection}>
+          <Text style={[styles.fieldLabel, { color: colors.text.secondary }]}>
+            {t('upload.lineColor')}
+          </Text>
+          <ColorPicker selected={lineColor} onSelect={setLineColor} />
+        </View>
+
+        {/* Visibility (planned only) */}
+        {hikeType === 'planned' && (
+          <View style={styles.fieldSection}>
+            <Text style={[styles.fieldLabel, { color: colors.text.secondary }]}>
+              {t('upload.visibility')}
+            </Text>
+            <View style={styles.chipRow}>
+              <Chip
+                label={t('upload.privateTrail')}
+                selected={!isPublic}
+                onPress={() => setIsPublic(false)}
+              />
+              <Chip
+                label={t('upload.publicTrail')}
+                selected={isPublic}
+                onPress={() => setIsPublic(true)}
+              />
+            </View>
+            <Text style={[styles.hint, { color: colors.text.muted }]}>
+              {isPublic ? t('upload.publicHint') : t('upload.privateHint')}
+            </Text>
+          </View>
+        )}
 
         <View style={styles.actions}>
           <Button
@@ -235,23 +279,30 @@ const styles = StyleSheet.create({
     fontSize: fontSize.md,
     marginBottom: spacing.xl,
   },
-  label: {
-    fontSize: fontSize.sm,
-    fontWeight: fontWeight.semibold,
-    marginBottom: spacing.sm,
-  },
-  sourceSection: {
-    marginBottom: spacing.xl,
-  },
-  chipRow: {
-    flexDirection: 'row',
-    gap: spacing.sm,
-  },
   fileSection: {
     marginBottom: spacing.xl,
   },
   fileName: {
     fontSize: fontSize.sm,
+  },
+  fieldSection: {
+    marginBottom: spacing.xl,
+  },
+  fieldLabel: {
+    fontSize: fontSize.sm,
+    fontWeight: fontWeight.semibold,
+    marginBottom: spacing.sm,
+    textTransform: 'uppercase' as const,
+    letterSpacing: 0.5,
+  },
+  chipRow: {
+    flexDirection: 'row' as const,
+    gap: spacing.sm,
+    flexWrap: 'wrap' as const,
+  },
+  hint: {
+    fontSize: fontSize.sm,
+    marginTop: spacing.xs,
   },
   actions: {
     marginBottom: spacing.lg,

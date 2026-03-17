@@ -14,7 +14,7 @@ import {
   Text,
   View,
 } from 'react-native';
-import { Button, ContentCard, FormField } from '@/components';
+import { Button, ColorPicker, ContentCard, FormField } from '@/components';
 import { Chip } from '@/components/Chip';
 import { TabIcon } from '@/components/TabIcon';
 import { useAuth } from '@/lib/hooks/use-auth';
@@ -28,7 +28,7 @@ import { themes } from '@/lib/theme/themes';
 export default function SettingsScreen() {
   const { colors, shadows } = useTheme();
   const { t } = useTranslation();
-  const { language, setLanguage, themeId } = useSettings();
+  const { language, setLanguage, themeId, defaultPlannedColor, defaultCompletedColor, setDefaultPlannedColor, setDefaultCompletedColor } = useSettings();
   const { signOut } = useAuth();
   const router = useRouter();
 
@@ -113,7 +113,7 @@ export default function SettingsScreen() {
                     {group.name}
                   </Text>
                   <Text style={[styles.groupMeta, { color: colors.text.secondary }]}>
-                    {group.members.length} {t('settings.members').toLowerCase()}
+                    {group.member_count} {t('settings.members').toLowerCase()}
                   </Text>
                 </Pressable>
                 <Pressable
@@ -191,6 +191,22 @@ export default function SettingsScreen() {
             ))}
           </View>
           <Text style={[styles.hint, { color: colors.text.muted }]}>{t('settings.onlyTheme')}</Text>
+        </ContentCard>
+
+        {/* Trail Colors Section */}
+        <Text style={[styles.sectionTitle, { color: colors.text.primary }]}>
+          {t('settings.trailColors')}
+        </Text>
+        <ContentCard>
+          <Text style={[styles.colorLabel, { color: colors.text.secondary }]}>
+            {t('settings.defaultCompletedColor')}
+          </Text>
+          <ColorPicker selected={defaultCompletedColor} onSelect={setDefaultCompletedColor} />
+          <View style={styles.colorSpacer} />
+          <Text style={[styles.colorLabel, { color: colors.text.secondary }]}>
+            {t('settings.defaultPlannedColor')}
+          </Text>
+          <ColorPicker selected={defaultPlannedColor} onSelect={setDefaultPlannedColor} />
         </ContentCard>
 
         {/* Account Section */}
@@ -284,5 +300,13 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
     marginTop: spacing.md,
     justifyContent: 'flex-end',
+  },
+  colorLabel: {
+    fontSize: fontSize.sm,
+    fontWeight: fontWeight.medium,
+    marginBottom: spacing.xs,
+  },
+  colorSpacer: {
+    height: spacing.md,
   },
 });

@@ -5,6 +5,7 @@ import math
 from datetime import UTC, datetime
 
 from api.models.trail import Coordinate, RecordingCoordinate, TrailBounds, TrailDetailsResponse, TrailResponse
+from app.functions.trail_converter import detect_source
 
 _MIN_HORIZ_DIST_M = 1.0
 _MS_PER_MINUTE = 60_000
@@ -67,13 +68,15 @@ def _simplify_coordinates(coords: list[tuple[float, ...]], tolerance: float = 0.
 
 
 def process_recording(
-    name: str, coordinates: list[RecordingCoordinate], source: str, user_uid: str
+    name: str, coordinates: list[RecordingCoordinate], user_uid: str
 ) -> tuple[TrailResponse, TrailDetailsResponse]:
     """Convert GPS recording coordinates to Trail + TrailDetails.
 
+    Source is auto-detected from coordinates.
     Returns a (TrailResponse, TrailDetailsResponse) tuple ready for storage.
     """
     all_coords = [(c.lat, c.lng) for c in coordinates]
+    source = detect_source(all_coords)
     lats = [c.lat for c in coordinates]
     lngs = [c.lng for c in coordinates]
 

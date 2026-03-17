@@ -6,7 +6,7 @@
  * Fully free — no API key or billing required.
  */
 
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import MapLibreGL from '@maplibre/maplibre-react-native';
 import { StyleSheet, View } from 'react-native';
 import { foragingColorMap } from '@/lib/foraging-colors';
@@ -29,6 +29,7 @@ interface UnifiedMapProps {
   places: Place[];
   layers: MapLayers;
   selectedTrailId?: string | null;
+  focusBounds?: { north: number; south: number; east: number; west: number } | null;
   recordingPoints?: TrackingPoint[];
   onTrailSelect?: (trail: Trail) => void;
   onSpotSelect?: (spot: ForagingSpot) => void;
@@ -67,10 +68,10 @@ const OSM_STYLE: MapLibreGL.StyleURL = {
   ],
 } as unknown as MapLibreGL.StyleURL;
 
-function trailToGeoJSON(trail: Trail): GeoJSON.Feature<GeoJSON.LineString> {
+function trailToGeoJSON(trail: Trail, fallbackColor: string): GeoJSON.Feature<GeoJSON.LineString> {
   return {
     type: 'Feature',
-    properties: { id: trail.trail_id },
+    properties: { id: trail.trail_id, color: trail.line_color ?? fallbackColor },
     geometry: {
       type: 'LineString',
       coordinates: (trail.coordinates_map ?? []).map((c) => [c.lng, c.lat]),
@@ -96,6 +97,7 @@ export function UnifiedMap({
   places,
   layers,
   selectedTrailId,
+  focusBounds,
   recordingPoints,
   onTrailSelect,
   onSpotSelect,
@@ -116,14 +118,26 @@ export function UnifiedMap({
     ? trails.filter((t) => t.status !== 'Explored!' && t.coordinates_map?.length)
     : [];
 
+  // Focus map on bounds when requested (e.g. from trail list navigation)
+  useEffect(() => {
+    if (!focusBounds || !cameraRef.current) return;
+    const { north, south, east, west } = focusBounds;
+    cameraRef.current.fitBounds(
+      [east, north],
+      [west, south],
+      40,
+      1000,
+    );
+  }, [focusBounds]);
+
   const exploredGeoJSON: GeoJSON.FeatureCollection = {
     type: 'FeatureCollection',
-    features: exploredTrails.map(trailToGeoJSON),
+    features: exploredTrails.map((t) => trailToGeoJSON(t, colors.explored)),
   };
 
   const unexploredGeoJSON: GeoJSON.FeatureCollection = {
     type: 'FeatureCollection',
-    features: unexploredTrails.map(trailToGeoJSON),
+    features: unexploredTrails.map((t) => trailToGeoJSON(t, colors.toExplore)),
   };
 
   const spotsGeoJSON: GeoJSON.FeatureCollection = layers.foraging
@@ -198,7 +212,7 @@ export function UnifiedMap({
           <MapLibreGL.LineLayer
             id="explored-trails-line"
             style={{
-              lineColor: colors.explored,
+              lineColor: ['get', 'color'],
               lineWidth: 4,
               lineCap: 'round',
               lineJoin: 'round',
@@ -219,7 +233,7 @@ export function UnifiedMap({
           <MapLibreGL.LineLayer
             id="unexplored-trails-line"
             style={{
-              lineColor: colors.toExplore,
+              lineColor: ['get', 'color'],
               lineWidth: 3,
               lineCap: 'round',
               lineJoin: 'round',
@@ -231,16 +245,17 @@ export function UnifiedMap({
         {selectedTrailId && (() => {
           const selectedTrail = trails.find((t) => t.trail_id === selectedTrailId);
           if (!selectedTrail?.coordinates_map?.length) return null;
+          const selectedColor = selectedTrail.line_color ?? (selectedTrail.status === 'Explored!' ? colors.explored : colors.toExplore);
           const selectedGeoJSON: GeoJSON.FeatureCollection = {
             type: 'FeatureCollection',
-            features: [trailToGeoJSON(selectedTrail)],
+            features: [trailToGeoJSON(selectedTrail, selectedColor)],
           };
           return (
             <MapLibreGL.ShapeSource id="selected-trail" shape={selectedGeoJSON}>
               <MapLibreGL.LineLayer
                 id="selected-trail-line"
                 style={{
-                  lineColor: selectedTrail.status === 'Explored!' ? colors.explored : colors.toExplore,
+                  lineColor: ['get', 'color'],
                   lineWidth: 7,
                   lineCap: 'round',
                   lineJoin: 'round',

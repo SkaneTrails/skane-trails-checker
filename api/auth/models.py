@@ -11,3 +11,5 @@ class AuthenticatedUser:
     email: str
     name: str | None = None
     picture: str | None = None
+    group_id: str | None = None
+    role: str = "member"

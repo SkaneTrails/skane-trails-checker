@@ -1,6 +1,9 @@
-import { Tabs } from 'expo-router';
-import { Platform, View } from 'react-native';
+import { Redirect, Tabs } from 'expo-router';
+import { ActivityIndicator, Platform, View } from 'react-native';
 import { TabIcon } from '@/components/TabIcon';
+import { ApiClientError } from '@/lib/api';
+import { useAuth } from '@/lib/hooks/use-auth';
+import { useCurrentUser } from '@/lib/hooks/use-hike-groups';
 import { useTranslation } from '@/lib/i18n';
 import { blur, borderRadius, spacing, useTheme } from '@/lib/theme';
 import { cssShadow } from '@/lib/theme/styles';
@@ -8,7 +11,34 @@ import { cssShadow } from '@/lib/theme/styles';
 export default function TabLayout() {
   const { colors, shadows } = useTheme();
   const { t } = useTranslation();
+  const { user, loading } = useAuth();
+  const { data: currentUser, isLoading: userLoading, error } = useCurrentUser({
+    enabled: !loading && !!user,
+  });
   const isWeb = Platform.OS === 'web';
+
+  if (loading || userLoading) {
+    return (
+      <View
+        style={{
+          flex: 1,
+          alignItems: 'center',
+          justifyContent: 'center',
+          backgroundColor: colors.background,
+        }}
+      >
+        <ActivityIndicator size="large" color={colors.primary} />
+      </View>
+    );
+  }
+
+  if (error instanceof ApiClientError && error.status === 403) {
+    return <Redirect href="/no-access" />;
+  }
+
+  if (error instanceof ApiClientError && error.status === 401) {
+    return <Redirect href="/sign-in" />;
+  }
 
   const tabs = (
     <Tabs
@@ -76,6 +106,14 @@ export default function TabLayout() {
         options={{
           title: t('tabs.places'),
           tabBarIcon: ({ color }) => <TabIcon name="pin" color={color} />,
+        }}
+      />
+      <Tabs.Screen
+        name="admin"
+        options={{
+          title: t('tabs.admin'),
+          tabBarIcon: ({ color }) => <TabIcon name="shield" color={color} />,
+          href: currentUser?.role === 'superuser' ? undefined : null,
         }}
       />
 

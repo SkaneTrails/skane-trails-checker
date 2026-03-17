@@ -19,9 +19,12 @@ import { TabIcon } from '@/components/TabIcon';
 import { useAuth } from '@/lib/hooks/use-auth';
 import {
   useAddMember,
+  useCurrentUser,
+  useGroupMembers,
   useHikeGroup,
   useRemoveMember,
   useUpdateHikeGroup,
+  useUpdateMemberRole,
 } from '@/lib/hooks/use-hike-groups';
 import { useTranslation } from '@/lib/i18n';
 import { borderRadius, fontSize, fontWeight, sheet, spacing, useTheme } from '@/lib/theme';
@@ -35,15 +38,19 @@ export default function GroupSettingsScreen() {
   const { user } = useAuth();
 
   const { data: group, isLoading } = useHikeGroup(id ?? '', { enabled: !!id });
+  const { data: members = [], isLoading: membersLoading } = useGroupMembers(id ?? '', { enabled: !!id });
+  const { data: currentUser } = useCurrentUser();
   const updateMutation = useUpdateHikeGroup();
   const addMemberMutation = useAddMember();
   const removeMemberMutation = useRemoveMember();
+  const updateRoleMutation = useUpdateMemberRole();
 
   const [editingName, setEditingName] = useState(false);
   const [groupName, setGroupName] = useState('');
   const [newEmail, setNewEmail] = useState('');
+  const [newMemberRole, setNewMemberRole] = useState<'admin' | 'member'>('member');
 
-  if (isLoading || !group) {
+  if (isLoading || membersLoading || !group) {
     return (
       <View style={styles.backdrop}>
         <View style={styles.cardWrap}>
@@ -55,7 +62,8 @@ export default function GroupSettingsScreen() {
     );
   }
 
-  const isOwner = group.members.some((m) => m.role === 'owner' && m.email === user?.email);
+  const isSuperuser = currentUser?.role === 'superuser';
+  const isAdmin = isSuperuser || members.some((m) => m.role === 'admin' && m.email === user?.email);
 
   const handleSaveName = async () => {
     const trimmed = groupName.trim();
@@ -72,9 +80,19 @@ export default function GroupSettingsScreen() {
     if (!trimmed) return;
     await addMemberMutation.mutateAsync({
       groupId: group.group_id,
-      data: { email: trimmed },
+      data: { email: trimmed, role: newMemberRole },
     });
     setNewEmail('');
+    setNewMemberRole('member');
+  };
+
+  const handleToggleRole = (memberEmail: string, currentRole: 'admin' | 'member') => {
+    const newRole = currentRole === 'admin' ? 'member' : 'admin';
+    updateRoleMutation.mutate({
+      groupId: group.group_id,
+      memberEmail,
+      data: { role: newRole },
+    });
   };
 
   const handleRemoveMember = (memberEmail: string) => {
@@ -175,41 +193,71 @@ export default function GroupSettingsScreen() {
           {t('settings.members')}
         </Text>
         <ContentCard>
-          {group.members.map((member) => (
-            <View key={member.uid || member.email} style={styles.memberRow}>
+          {members.map((member) => (
+            <View key={member.email} style={styles.memberRow}>
               <View style={styles.memberInfo}>
                 <Text style={[styles.memberEmail, { color: colors.text.primary }]}>
                   {member.email}
                 </Text>
-                {!!member.name && (
+                {!!member.display_name && (
                   <Text style={[styles.memberName, { color: colors.text.secondary }]}>
-                    {member.name}
+                    {member.display_name}
                   </Text>
                 )}
               </View>
               <View style={styles.memberActions}>
-                <View
-                  style={[
-                    styles.roleBadge,
-                    {
-                      backgroundColor:
-                        member.role === 'owner' ? colors.status.exploredBg : colors.chip.bg,
-                    },
-                  ]}
-                >
-                  <Text
+                {isAdmin && member.email !== user?.email ? (
+                  <Pressable
+                    onPress={() => handleToggleRole(member.email, member.role)}
+                    accessibilityRole="button"
+                    accessibilityLabel={t('settings.changeRole')}
+                  >
+                    <View
+                      style={[
+                        styles.roleBadge,
+                        {
+                          backgroundColor:
+                            member.role === 'admin' ? colors.status.exploredBg : colors.chip.bg,
+                        },
+                      ]}
+                    >
+                      <Text
+                        style={[
+                          styles.roleText,
+                          {
+                            color:
+                              member.role === 'admin' ? colors.status.exploredText : colors.chip.text,
+                          },
+                        ]}
+                      >
+                        {member.role === 'admin' ? t('settings.admin') : t('settings.member')}
+                      </Text>
+                    </View>
+                  </Pressable>
+                ) : (
+                  <View
                     style={[
-                      styles.roleText,
+                      styles.roleBadge,
                       {
-                        color:
-                          member.role === 'owner' ? colors.status.exploredText : colors.chip.text,
+                        backgroundColor:
+                          member.role === 'admin' ? colors.status.exploredBg : colors.chip.bg,
                       },
                     ]}
                   >
-                    {member.role === 'owner' ? t('settings.owner') : t('settings.member')}
-                  </Text>
-                </View>
-                {isOwner && member.role !== 'owner' && (
+                    <Text
+                      style={[
+                        styles.roleText,
+                        {
+                          color:
+                            member.role === 'admin' ? colors.status.exploredText : colors.chip.text,
+                        },
+                      ]}
+                    >
+                      {member.role === 'admin' ? t('settings.admin') : t('settings.member')}
+                    </Text>
+                  </View>
+                )}
+                {isAdmin && member.email !== user?.email && (
                   <Pressable
                     onPress={() => handleRemoveMember(member.email)}
                     accessibilityRole="button"
@@ -224,24 +272,55 @@ export default function GroupSettingsScreen() {
             </View>
           ))}
 
-          {/* Add member (owner only) */}
-          {isOwner && (
-          <View style={styles.addMemberRow}>
-            <View style={styles.addMemberInput}>
-              <FormField
-                label={t('settings.addMember')}
-                value={newEmail}
-                onChangeText={setNewEmail}
-                placeholder={t('settings.emailPlaceholder')}
-                keyboardType="email-address"
-                autoCapitalize="none"
+          {/* Add member (admin only) */}
+          {isAdmin && (
+          <View style={styles.addMemberSection}>
+            <View style={styles.addMemberRow}>
+              <View style={styles.addMemberInput}>
+                <FormField
+                  label={t('settings.addMember')}
+                  value={newEmail}
+                  onChangeText={setNewEmail}
+                  placeholder={t('settings.emailPlaceholder')}
+                  keyboardType="email-address"
+                  autoCapitalize="none"
+                />
+              </View>
+              <Button
+                title={t('settings.addMember')}
+                onPress={handleAddMember}
+                disabled={!newEmail.trim() || addMemberMutation.isPending}
               />
             </View>
-            <Button
-              title={t('settings.addMember')}
-              onPress={handleAddMember}
-              disabled={!newEmail.trim() || addMemberMutation.isPending}
-            />
+            <View style={styles.roleSelector}>
+              {(['member', 'admin'] as const).map((role) => (
+                <Pressable
+                  key={role}
+                  onPress={() => setNewMemberRole(role)}
+                  accessibilityRole="radio"
+                  accessibilityState={{ selected: newMemberRole === role }}
+                  style={[
+                    styles.roleOption,
+                    {
+                      backgroundColor:
+                        newMemberRole === role ? colors.primary : colors.chip.bg,
+                    },
+                  ]}
+                >
+                  <Text
+                    style={[
+                      styles.roleOptionText,
+                      {
+                        color:
+                          newMemberRole === role ? colors.text.inverse : colors.chip.text,
+                      },
+                    ]}
+                  >
+                    {role === 'admin' ? t('settings.admin') : t('settings.member')}
+                  </Text>
+                </Pressable>
+              ))}
+            </View>
           </View>
           )}
         </ContentCard>
@@ -349,13 +428,30 @@ const styles = StyleSheet.create({
     fontSize: fontSize.xs,
     fontWeight: fontWeight.medium,
   },
-  addMemberRow: {
+  addMemberSection: {
     marginTop: spacing.md,
+    gap: spacing.sm,
+  },
+  addMemberRow: {
     flexDirection: 'row',
     alignItems: 'flex-end',
     gap: spacing.sm,
   },
   addMemberInput: {
     flex: 1,
+  },
+  roleSelector: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+  },
+  roleOption: {
+    flex: 1,
+    paddingVertical: spacing.xs,
+    borderRadius: borderRadius.sm,
+    alignItems: 'center',
+  },
+  roleOptionText: {
+    fontSize: fontSize.sm,
+    fontWeight: fontWeight.medium,
   },
 });

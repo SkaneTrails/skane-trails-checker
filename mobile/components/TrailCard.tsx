@@ -5,10 +5,12 @@
  */
 
 import { useState } from 'react';
-import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Alert, Platform, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Chip } from '@/components/Chip';
 import { useTranslation } from '@/lib/i18n';
 import { borderRadius, fontSize, fontWeight, spacing, useTheme } from '@/lib/theme';
 import type { Trail, TrailUpdate } from '@/lib/types';
+import { ColorPicker } from './ColorPicker';
 import { ElevationProfile } from './ElevationProfile';
 import { MapInfoCard } from './MapInfoCard';
 import { TabIcon } from './TabIcon';
@@ -18,6 +20,8 @@ interface TrailCardProps {
   onClose: () => void;
   onUpdate?: (trailId: string, data: TrailUpdate, onSuccess: () => void) => void;
   isUpdating?: boolean;
+  onDelete?: (trailId: string, onSuccess: () => void) => void;
+  isDeleting?: boolean;
 }
 
 function formatDuration(minutes: number): string {
@@ -28,18 +32,22 @@ function formatDuration(minutes: number): string {
   return `${h}h ${m}m`;
 }
 
-export const TrailCard = ({ trail, onClose, onUpdate, isUpdating }: TrailCardProps) => {
+export const TrailCard = ({ trail, onClose, onUpdate, isUpdating, onDelete, isDeleting }: TrailCardProps) => {
   const { colors } = useTheme();
   const { t } = useTranslation();
   const [editing, setEditing] = useState(false);
   const [editName, setEditName] = useState(trail.name);
   const [editDate, setEditDate] = useState(trail.activity_date ?? '');
+  const [editColor, setEditColor] = useState<string | null>(trail.line_color ?? null);
+  const [editPublic, setEditPublic] = useState(trail.is_public ?? false);
 
   const handleSave = () => {
     if (!onUpdate) return;
     const updates: TrailUpdate = {};
     if (editName !== trail.name) updates.name = editName;
     if (editDate !== (trail.activity_date ?? '')) updates.activity_date = editDate || undefined;
+    if (editColor !== (trail.line_color ?? null)) updates.line_color = editColor;
+    if (editPublic !== (trail.is_public ?? false)) updates.is_public = editPublic;
     if (Object.keys(updates).length === 0) {
       setEditing(false);
       return;
@@ -75,6 +83,31 @@ export const TrailCard = ({ trail, onClose, onUpdate, isUpdating }: TrailCardPro
           />
         </View>
 
+        <View style={styles.fieldRow}>
+          <Text style={[styles.fieldLabel, { color: colors.text.secondary }]}>
+            {t('trailCard.lineColor')}
+          </Text>
+          <ColorPicker selected={editColor} onSelect={setEditColor} />
+        </View>
+
+        <View style={styles.fieldRow}>
+          <Text style={[styles.fieldLabel, { color: colors.text.secondary }]}>
+            {t('trailCard.visibility')}
+          </Text>
+          <View style={styles.chipRow}>
+            <Chip
+              label={t('trailCard.privateTrail')}
+              selected={!editPublic}
+              onPress={() => setEditPublic(false)}
+            />
+            <Chip
+              label={t('trailCard.publicTrail')}
+              selected={editPublic}
+              onPress={() => setEditPublic(true)}
+            />
+          </View>
+        </View>
+
         <View style={styles.buttonRow}>
           <Pressable
             style={[styles.secondaryButton, { borderColor: colors.border }]}
@@ -94,6 +127,35 @@ export const TrailCard = ({ trail, onClose, onUpdate, isUpdating }: TrailCardPro
             </Text>
           </Pressable>
         </View>
+
+        {onDelete && (
+          <Pressable
+            style={[styles.deleteButton, { borderColor: colors.error }]}
+            onPress={() => {
+              const message = t('trail.deleteConfirm', { name: trail.name });
+              const doDelete = () => onDelete(trail.trail_id, onClose);
+              if (Platform.OS === 'web') {
+                if (window.confirm(message)) {
+                  doDelete();
+                }
+              } else {
+                Alert.alert(
+                  t('trail.deleteTrail'),
+                  message,
+                  [
+                    { text: t('common.cancel'), style: 'cancel' },
+                    { text: t('trail.deleteTrail'), style: 'destructive', onPress: doDelete },
+                  ],
+                );
+              }
+            }}
+            disabled={isDeleting}
+          >
+            <Text style={{ color: colors.error, fontSize: fontSize.sm, fontWeight: fontWeight.semibold }}>
+              {isDeleting ? t('common.deleting') : t('trail.deleteTrail')}
+            </Text>
+          </Pressable>
+        )}
       </MapInfoCard>
     );
   }
@@ -103,7 +165,7 @@ export const TrailCard = ({ trail, onClose, onUpdate, isUpdating }: TrailCardPro
       {/* Date */}
       {trail.activity_date && (
         <Text style={[styles.dateText, { color: colors.text.muted }]}>
-          {trail.activity_date}
+          {new Date(trail.activity_date).toLocaleString(undefined, { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })}
         </Text>
       )}
 
@@ -196,6 +258,11 @@ const styles = StyleSheet.create({
     fontWeight: fontWeight.semibold,
     marginBottom: spacing.xs,
   },
+  chipRow: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+    flexWrap: 'wrap',
+  },
   input: {
     borderWidth: 1,
     borderRadius: borderRadius.sm,
@@ -220,5 +287,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: spacing.sm,
     borderRadius: borderRadius.sm,
+  },
+  deleteButton: {
+    alignItems: 'center',
+    paddingVertical: spacing.sm,
+    borderRadius: borderRadius.sm,
+    borderWidth: 1,
+    marginTop: spacing.md,
   },
 });

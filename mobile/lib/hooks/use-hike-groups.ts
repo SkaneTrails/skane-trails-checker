@@ -4,13 +4,36 @@
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { hikeGroupsApi } from '@/lib/api';
-import type { AddMemberRequest, HikeGroupCreate } from '@/lib/types';
+import type { AddMemberRequest, HikeGroupCreate, UpdateMemberRequest } from '@/lib/types';
+
+export const currentUserKeys = {
+  all: ['admin', 'currentUser'] as const,
+};
 
 export const hikeGroupKeys = {
   all: ['hike-groups'] as const,
   list: ['hike-groups', 'list'] as const,
   detail: (id: string) => ['hike-groups', id] as const,
 };
+
+export const memberKeys = {
+  all: ['group-members'] as const,
+  list: (groupId: string) => ['group-members', groupId] as const,
+};
+
+export const superuserKeys = {
+  all: ['superusers'] as const,
+};
+
+export function useCurrentUser(options?: { enabled?: boolean }) {
+  return useQuery({
+    queryKey: currentUserKeys.all,
+    queryFn: () => hikeGroupsApi.getCurrentUser(),
+    staleTime: 5 * 60 * 1000,
+    retry: false,
+    enabled: options?.enabled,
+  });
+}
 
 export function useHikeGroups() {
   return useQuery({
@@ -24,6 +47,14 @@ export function useHikeGroup(groupId: string, options?: { enabled?: boolean }) {
     queryKey: hikeGroupKeys.detail(groupId),
     queryFn: () => hikeGroupsApi.getGroup(groupId),
     enabled: options?.enabled,
+  });
+}
+
+export function useGroupMembers(groupId: string, options?: { enabled?: boolean }) {
+  return useQuery({
+    queryKey: memberKeys.list(groupId),
+    queryFn: () => hikeGroupsApi.getMembers(groupId),
+    enabled: (options?.enabled ?? true) && Boolean(groupId),
   });
 }
 
@@ -69,6 +100,7 @@ export function useAddMember() {
       hikeGroupsApi.addMember(groupId, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: hikeGroupKeys.all });
+      queryClient.invalidateQueries({ queryKey: memberKeys.all });
     },
   });
 }
@@ -81,6 +113,51 @@ export function useRemoveMember() {
       hikeGroupsApi.removeMember(groupId, memberEmail),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: hikeGroupKeys.all });
+      queryClient.invalidateQueries({ queryKey: memberKeys.all });
+    },
+  });
+}
+
+export function useUpdateMemberRole() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ groupId, memberEmail, data }: { groupId: string; memberEmail: string; data: UpdateMemberRequest }) =>
+      hikeGroupsApi.updateMemberRole(groupId, memberEmail, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: hikeGroupKeys.all });
+      queryClient.invalidateQueries({ queryKey: memberKeys.all });
+    },
+  });
+}
+
+// --- Superuser hooks ---
+
+export function useSuperusers() {
+  return useQuery({
+    queryKey: superuserKeys.all,
+    queryFn: () => hikeGroupsApi.getSuperusers(),
+  });
+}
+
+export function useAddSuperuser() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (email: string) => hikeGroupsApi.addSuperuser(email),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: superuserKeys.all });
+    },
+  });
+}
+
+export function useRemoveSuperuser() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (email: string) => hikeGroupsApi.removeSuperuser(email),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: superuserKeys.all });
     },
   });
 }

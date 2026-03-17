@@ -18,8 +18,22 @@ interface ElevationProfileProps {
 }
 
 const MAX_POINTS = 120;
-const MAX_SCALE_M = 400;
+const SKANE_SCALE_M = 150;
+const WORLD_SCALE_M = 400;
 const LABEL_WIDTH = 32;
+
+// Approximate bounding box for Skåne
+const SKANE_BOUNDS = { south: 55.35, north: 56.45, west: 12.75, east: 14.45 };
+
+function isInSkane(coords: Coordinate[]): boolean {
+  return coords.some(
+    (c) =>
+      c.lat >= SKANE_BOUNDS.south &&
+      c.lat <= SKANE_BOUNDS.north &&
+      c.lng >= SKANE_BOUNDS.west &&
+      c.lng <= SKANE_BOUNDS.east,
+  );
+}
 
 function downsample(coords: Coordinate[], maxPoints: number): Coordinate[] {
   if (coords.length <= maxPoints) return coords;
@@ -53,6 +67,8 @@ export const ElevationProfile = ({
   const minElev = Math.min(...sampledElevations);
   const maxElev = Math.max(...sampledElevations);
   const elevRange = maxElev - minElev;
+  const baseScale = isInSkane(coordinates) ? SKANE_SCALE_M : WORLD_SCALE_M;
+  const scaleM = Math.max(baseScale, elevRange);
 
   const padY = 4;
   const drawHeight = height - padY * 2;
@@ -60,14 +76,14 @@ export const ElevationProfile = ({
 
   const points = sampledElevations.map((elev, i) => {
     const x = (i / (sampledElevations.length - 1)) * chartWidth;
-    const y = padY + drawHeight - ((elev - minElev) / MAX_SCALE_M) * drawHeight;
+    const y = padY + drawHeight - ((elev - minElev) / scaleM) * drawHeight;
     return { x, y };
   });
 
   const linePath = points.map((p, i) => `${i === 0 ? 'M' : 'L'}${p.x},${p.y}`).join(' ');
   const fillPath = `${linePath} L${chartWidth},${height} L0,${height} Z`;
 
-  const maxY = padY + drawHeight - (elevRange / MAX_SCALE_M) * drawHeight;
+  const maxY = padY + drawHeight - (elevRange / scaleM) * drawHeight;
 
   return (
     <Svg width={width} height={height} viewBox={`0 0 ${width} ${height}`}>

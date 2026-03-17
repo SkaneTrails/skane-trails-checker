@@ -8,9 +8,11 @@ export {
   useUpdateForagingType,
 } from './use-foraging';
 export {
+  currentUserKeys,
   hikeGroupKeys,
   useAddMember,
   useCreateHikeGroup,
+  useCurrentUser,
   useDeleteHikeGroup,
   useHikeGroup,
   useHikeGroups,
@@ -27,4 +29,5 @@ export {
   useTrails,
   useUpdateTrail,
   useUploadGpx,
+  filterTrails,
 } from './use-trails';

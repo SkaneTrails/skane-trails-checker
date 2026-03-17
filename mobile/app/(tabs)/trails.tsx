@@ -1,5 +1,5 @@
 import { useRouter } from 'expo-router';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
@@ -11,8 +11,7 @@ import {
   View,
 } from 'react-native';
 import { Chip, ContentCard, EmptyState, ScreenLayout, StatusBadge } from '@/components';
-import type { TrailFilters } from '@/lib/api';
-import { useTrails } from '@/lib/hooks';
+import { filterTrails, useTrails } from '@/lib/hooks';
 import { useTranslation } from '@/lib/i18n';
 import { borderRadius, fontSize, fontWeight, letterSpacing, spacing, useTheme } from '@/lib/theme';
 import { glassPill } from '@/lib/theme/styles';
@@ -24,7 +23,7 @@ function TrailItem({ trail }: { trail: Trail }) {
   const { t } = useTranslation();
 
   return (
-    <Pressable onPress={() => router.push(`/trail/${trail.trail_id}`)}>
+    <Pressable onPress={() => router.navigate({ pathname: '/(tabs)', params: { trailId: trail.trail_id } })}>
       <ContentCard>
         <View style={styles.cardHeader}>
           <Text style={[styles.trailName, { color: colors.text.primary }]} numberOfLines={1}>
@@ -67,15 +66,15 @@ export default function TrailsScreen() {
     { label: t('trails.toExplore'), value: 'To Explore' },
   ] as const;
 
-  const filters: TrailFilters = {
-    ...(search.trim() ? { search: search.trim() } : {}),
-    ...(statusFilter ? { status: statusFilter } : {}),
-  };
+  const { data: allTrails, isLoading, isFetching, error, refetch } = useTrails();
 
-  const { data: trails, isLoading, isFetching, error, refetch } = useTrails(filters);
+  const trails = useMemo(
+    () => filterTrails(allTrails ?? [], { search: search.trim() || undefined, status: statusFilter }),
+    [allTrails, search, statusFilter],
+  );
 
-  const trailCount = trails?.length ?? 0;
-  const explored = trails?.filter((tr) => tr.status === 'Explored!').length ?? 0;
+  const trailCount = trails.length;
+  const explored = trails.filter((tr) => tr.status === 'Explored!').length;
 
   if (error && trailCount === 0) {
     return (

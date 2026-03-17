@@ -7,7 +7,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from api.main import app
-from api.models.trail import Coordinate, TrailBounds, TrailResponse
+from api.models.trail import Coordinate, TrailBounds, TrailDetailsResponse, TrailResponse
 from api.services.gpx_parser import parse_gpx_upload
 
 client = TestClient(app)
@@ -75,32 +75,55 @@ SAMPLE_TRAIL = TrailResponse(
     last_updated="2026-01-15T10:00:00",
 )
 
+SAMPLE_DETAILS = TrailDetailsResponse(
+    trail_id="abc123",
+    coordinates_full=[
+        Coordinate(lat=56.0, lng=13.0),
+        Coordinate(lat=56.01, lng=13.01),
+        Coordinate(lat=56.02, lng=13.02),
+    ],
+)
+
 
 class TestParseGpxUpload:
     def test_parse_valid_gpx(self):
-        trails = parse_gpx_upload(VALID_GPX.encode("utf-8"))
-        assert len(trails) == 1
-        trail = trails[0]
+        results = parse_gpx_upload(VALID_GPX.encode("utf-8"))
+        assert len(results) == 1
+        trail, details = results[0]
         assert trail.name == "Test Trail"
         assert trail.status == "Explored!"
         assert trail.source == "other_trails"
         assert trail.length_km > 0
         assert trail.elevation_gain is not None
         assert trail.elevation_loss is not None
+        assert details.trail_id == trail.trail_id
+        assert len(details.coordinates_full) == 3
+        assert details.elevation_profile is not None
 
     def test_parse_multi_track_gpx(self):
-        trails = parse_gpx_upload(MULTI_TRACK_GPX.encode("utf-8"))
-        assert len(trails) == 2
-        assert trails[0].name == "Trail One"
-        assert trails[1].name == "Trail Two"
+        results = parse_gpx_upload(MULTI_TRACK_GPX.encode("utf-8"))
+        assert len(results) == 2
+        assert results[0][0].name == "Trail One"
+        assert results[1][0].name == "Trail Two"
+        assert results[0][1].trail_id == results[0][0].trail_id
+        assert results[1][1].trail_id == results[1][0].trail_id
 
-    def test_parse_with_world_wide_source(self):
-        trails = parse_gpx_upload(VALID_GPX.encode("utf-8"), source="world_wide_hikes")
-        assert trails[0].source == "world_wide_hikes"
+    def test_parse_auto_detects_skane_source(self):
+        results = parse_gpx_upload(VALID_GPX.encode("utf-8"))
+        assert results[0][0].source == "other_trails"
+
+    def test_parse_auto_detects_worldwide_source(self):
+        worldwide_gpx = (
+            VALID_GPX.replace('lat="56.0"', 'lat="45.0"')
+            .replace('lat="56.01"', 'lat="45.01"')
+            .replace('lat="56.02"', 'lat="45.02"')
+        )
+        results = parse_gpx_upload(worldwide_gpx.encode("utf-8"))
+        assert results[0][0].source == "world_wide_hikes"
 
     def test_parse_with_metadata_time(self):
-        trails = parse_gpx_upload(VALID_GPX.encode("utf-8"))
-        assert trails[0].activity_date == "2026-01-15T10:00:00+00:00"
+        results = parse_gpx_upload(VALID_GPX.encode("utf-8"))
+        assert results[0][0].activity_date == "2026-01-15T10:00:00+00:00"
 
     def test_parse_invalid_xml(self):
         with pytest.raises(ValueError, match="Invalid GPX file"):
@@ -115,36 +138,59 @@ class TestParseGpxUpload:
             parse_gpx_upload(EMPTY_TRACK_GPX.encode("utf-8"))
 
     def test_parse_preserves_elevation_data(self):
-        trails = parse_gpx_upload(VALID_GPX.encode("utf-8"))
-        trail = trails[0]
+        results = parse_gpx_upload(VALID_GPX.encode("utf-8"))
+        trail = results[0][0]
         assert trail.elevation_gain is not None
         assert trail.elevation_loss is not None
         assert trail.elevation_gain >= 0
         assert trail.elevation_loss >= 0
 
     def test_parse_calculates_bounds(self):
-        trails = parse_gpx_upload(VALID_GPX.encode("utf-8"))
-        trail = trails[0]
+        results = parse_gpx_upload(VALID_GPX.encode("utf-8"))
+        trail = results[0][0]
         assert trail.bounds.south == pytest.approx(56.0)
         assert trail.bounds.north == pytest.approx(56.02)
         assert trail.bounds.west == pytest.approx(13.0)
         assert trail.bounds.east == pytest.approx(13.02)
 
     def test_parse_calculates_center(self):
-        trails = parse_gpx_upload(VALID_GPX.encode("utf-8"))
-        trail = trails[0]
+        results = parse_gpx_upload(VALID_GPX.encode("utf-8"))
+        trail = results[0][0]
         assert trail.center.lat == pytest.approx(56.01, abs=0.01)
         assert trail.center.lng == pytest.approx(13.01, abs=0.01)
+
+    def test_parse_strips_empty_elevation_tags(self):
+        gpx_with_empty_ele = """<?xml version="1.0" encoding="UTF-8"?>
+<gpx version="1.1" creator="test" xmlns="http://www.topografix.com/GPX/1/1">
+  <trk>
+    <name>Trail with empty ele</name>
+    <trkseg>
+      <trkpt lat="56.0" lon="13.0"><ele> </ele></trkpt>
+      <trkpt lat="56.01" lon="13.01"><ele> </ele></trkpt>
+      <trkpt lat="56.02" lon="13.02"><ele> </ele></trkpt>
+    </trkseg>
+  </trk>
+</gpx>"""
+        results = parse_gpx_upload(gpx_with_empty_ele.encode("utf-8"))
+        assert len(results) == 1
+        assert results[0][0].elevation_gain is None
+        assert results[0][0].elevation_loss is None
+        assert results[0][1].elevation_profile is None
+
+    def test_parse_whitespace_only_name_becomes_unnamed(self):
+        gpx_with_space_name = VALID_GPX.replace("<name>Test Trail</name>", "<name> </name>")
+        results = parse_gpx_upload(gpx_with_space_name.encode("utf-8"))
+        assert results[0][0].name == "Unnamed Trail 0"
 
 
 class TestUploadGpxEndpoint:
     @patch("api.routers.trails.trail_storage.update_sync_metadata")
+    @patch("api.routers.trails.trail_storage.save_trail_details")
     @patch("api.routers.trails.trail_storage.save_trail")
     @patch("api.routers.trails.parse_gpx_upload")
-    def test_upload_sets_created_by(self, mock_parse, mock_save, mock_sync, authenticated_client):
+    def test_upload_sets_created_by(self, mock_parse, mock_save, mock_save_details, mock_sync, authenticated_client):
         trail = SAMPLE_TRAIL.model_copy()
-        mock_parse.return_value = [trail]
-        mock_save.return_value = None
+        mock_parse.return_value = [(trail, SAMPLE_DETAILS)]
 
         authenticated_client.post(
             "/api/v1/trails/upload",
@@ -154,11 +200,13 @@ class TestUploadGpxEndpoint:
         assert saved_trail.created_by == "test-user"
 
     @patch("api.routers.trails.trail_storage.update_sync_metadata")
+    @patch("api.routers.trails.trail_storage.save_trail_details")
     @patch("api.routers.trails.trail_storage.save_trail")
     @patch("api.routers.trails.parse_gpx_upload")
-    def test_upload_valid_gpx(self, mock_parse, mock_save, mock_sync, authenticated_client):
-        mock_parse.return_value = [SAMPLE_TRAIL]
-        mock_save.return_value = None
+    def test_upload_valid_gpx(self, mock_parse, mock_save, mock_save_details, mock_sync, authenticated_client):
+        trail = SAMPLE_TRAIL.model_copy()
+        details = SAMPLE_DETAILS.model_copy()
+        mock_parse.return_value = [(trail, details)]
 
         response = authenticated_client.post(
             "/api/v1/trails/upload",
@@ -169,24 +217,25 @@ class TestUploadGpxEndpoint:
         assert len(data) == 1
         assert data[0]["name"] == "Test Trail"
         assert data[0]["status"] == "Explored!"
-        mock_save.assert_called_once_with(SAMPLE_TRAIL, update_sync=False)
+        mock_save.assert_called_once_with(trail, update_sync=False)
+        mock_save_details.assert_called_once_with(details)
         mock_sync.assert_called_once()
 
     @patch("api.routers.trails.trail_storage.update_sync_metadata")
+    @patch("api.routers.trails.trail_storage.save_trail_details")
     @patch("api.routers.trails.trail_storage.save_trail")
     @patch("api.routers.trails.parse_gpx_upload")
-    def test_upload_with_source_param(self, mock_parse, mock_save, mock_sync, authenticated_client):
-        mock_parse.return_value = [SAMPLE_TRAIL]
-        mock_save.return_value = None
+    def test_upload_no_source_param(self, mock_parse, mock_save, mock_save_details, mock_sync, authenticated_client):
+        """Source param is no longer accepted — auto-detected from coordinates."""
+        trail = SAMPLE_TRAIL.model_copy()
+        mock_parse.return_value = [(trail, SAMPLE_DETAILS.model_copy())]
 
         response = authenticated_client.post(
-            "/api/v1/trails/upload?source=world_wide_hikes",
+            "/api/v1/trails/upload",
             files={"file": ("trail.gpx", io.BytesIO(VALID_GPX.encode()), "application/gpx+xml")},
         )
         assert response.status_code == 201
         mock_parse.assert_called_once()
-        _, kwargs = mock_parse.call_args
-        assert kwargs["source"] == "world_wide_hikes"
 
     def test_upload_non_gpx_file(self, authenticated_client):
         response = authenticated_client.post(
@@ -208,12 +257,23 @@ class TestUploadGpxEndpoint:
         assert response.status_code == 400
         assert "empty" in response.json()["detail"]
 
-    def test_upload_invalid_source(self, authenticated_client):
+    @patch("api.routers.trails.trail_storage.update_sync_metadata")
+    @patch("api.routers.trails.trail_storage.save_trail_details")
+    @patch("api.routers.trails.trail_storage.save_trail")
+    @patch("api.routers.trails.parse_gpx_upload")
+    def test_upload_ignores_source_query_param(
+        self, mock_parse, mock_save, mock_save_details, mock_sync, authenticated_client
+    ):
+        """Source query param is silently ignored (not a validation error)."""
+        trail = SAMPLE_TRAIL.model_copy()
+        mock_parse.return_value = [(trail, SAMPLE_DETAILS.model_copy())]
+
         response = authenticated_client.post(
             "/api/v1/trails/upload?source=planned_hikes",
             files={"file": ("trail.gpx", io.BytesIO(VALID_GPX.encode()), "application/gpx+xml")},
         )
-        assert response.status_code == 422
+        assert response.status_code == 201
+        mock_parse.assert_called_once()
 
     @patch("api.routers.trails.parse_gpx_upload")
     def test_upload_invalid_gpx_content(self, mock_parse, authenticated_client):
@@ -226,12 +286,15 @@ class TestUploadGpxEndpoint:
         assert "Invalid GPX file" in response.json()["detail"]
 
     @patch("api.routers.trails.trail_storage.update_sync_metadata")
+    @patch("api.routers.trails.trail_storage.save_trail_details")
     @patch("api.routers.trails.trail_storage.save_trail")
     @patch("api.routers.trails.parse_gpx_upload")
-    def test_upload_multiple_tracks(self, mock_parse, mock_save, mock_sync, authenticated_client):
+    def test_upload_multiple_tracks(self, mock_parse, mock_save, mock_save_details, mock_sync, authenticated_client):
+        trail1 = SAMPLE_TRAIL.model_copy()
+        details1 = SAMPLE_DETAILS.model_copy()
         trail2 = SAMPLE_TRAIL.model_copy(update={"trail_id": "def456", "name": "Trail Two"})
-        mock_parse.return_value = [SAMPLE_TRAIL, trail2]
-        mock_save.return_value = None
+        details2 = SAMPLE_DETAILS.model_copy(update={"trail_id": "def456"})
+        mock_parse.return_value = [(trail1, details1), (trail2, details2)]
 
         response = authenticated_client.post(
             "/api/v1/trails/upload",
@@ -240,6 +303,7 @@ class TestUploadGpxEndpoint:
         assert response.status_code == 201
         assert len(response.json()) == 2
         assert mock_save.call_count == 2
+        assert mock_save_details.call_count == 2
         mock_sync.assert_called_once()
 
     @patch("api.routers.trails.parse_gpx_upload")
@@ -261,3 +325,130 @@ class TestUploadGpxEndpoint:
         assert response.status_code == 413
         assert "too large" in response.json()["detail"]
         assert "bytes" in response.json()["detail"]
+
+    @patch("api.routers.trails.trail_storage.update_sync_metadata")
+    @patch("api.routers.trails.trail_storage.save_trail_details")
+    @patch("api.routers.trails.trail_storage.save_trail")
+    @patch("api.routers.trails.parse_gpx_upload")
+    def test_upload_with_planned_status(
+        self, mock_parse, mock_save, mock_save_details, mock_sync, authenticated_client
+    ):
+        """Upload with status=To Explore sets planned status on trails."""
+        trail = SAMPLE_TRAIL.model_copy()
+        mock_parse.return_value = [(trail, SAMPLE_DETAILS)]
+
+        response = authenticated_client.post(
+            "/api/v1/trails/upload?status=To%20Explore",
+            files={"file": ("trail.gpx", io.BytesIO(VALID_GPX.encode()), "application/gpx+xml")},
+        )
+        assert response.status_code == 201
+        saved_trail = mock_save.call_args[0][0]
+        assert saved_trail.status == "To Explore"
+
+    @patch("api.routers.trails.trail_storage.update_sync_metadata")
+    @patch("api.routers.trails.trail_storage.save_trail_details")
+    @patch("api.routers.trails.trail_storage.save_trail")
+    @patch("api.routers.trails.parse_gpx_upload")
+    def test_upload_defaults_to_explored_status(
+        self, mock_parse, mock_save, mock_save_details, mock_sync, authenticated_client
+    ):
+        """Without status param, trails default to Explored!"""
+        trail = SAMPLE_TRAIL.model_copy()
+        mock_parse.return_value = [(trail, SAMPLE_DETAILS)]
+
+        response = authenticated_client.post(
+            "/api/v1/trails/upload",
+            files={"file": ("trail.gpx", io.BytesIO(VALID_GPX.encode()), "application/gpx+xml")},
+        )
+        assert response.status_code == 201
+        saved_trail = mock_save.call_args[0][0]
+        assert saved_trail.status == "Explored!"
+
+    @patch("api.routers.trails.trail_storage.update_sync_metadata")
+    @patch("api.routers.trails.trail_storage.save_trail_details")
+    @patch("api.routers.trails.trail_storage.save_trail")
+    @patch("api.routers.trails.parse_gpx_upload")
+    def test_upload_with_line_color(self, mock_parse, mock_save, mock_save_details, mock_sync, authenticated_client):
+        """Upload with line_color sets color on all trails."""
+        trail = SAMPLE_TRAIL.model_copy()
+        mock_parse.return_value = [(trail, SAMPLE_DETAILS)]
+
+        response = authenticated_client.post(
+            "/api/v1/trails/upload?line_color=%23E53E3E",
+            files={"file": ("trail.gpx", io.BytesIO(VALID_GPX.encode()), "application/gpx+xml")},
+        )
+        assert response.status_code == 201
+        saved_trail = mock_save.call_args[0][0]
+        assert saved_trail.line_color == "#E53E3E"
+
+    @patch("api.routers.trails.trail_storage.update_sync_metadata")
+    @patch("api.routers.trails.trail_storage.save_trail_details")
+    @patch("api.routers.trails.trail_storage.save_trail")
+    @patch("api.routers.trails.parse_gpx_upload")
+    def test_upload_without_line_color_leaves_none(
+        self, mock_parse, mock_save, mock_save_details, mock_sync, authenticated_client
+    ):
+        """Without line_color, trail.line_color remains None."""
+        trail = SAMPLE_TRAIL.model_copy()
+        mock_parse.return_value = [(trail, SAMPLE_DETAILS)]
+
+        response = authenticated_client.post(
+            "/api/v1/trails/upload",
+            files={"file": ("trail.gpx", io.BytesIO(VALID_GPX.encode()), "application/gpx+xml")},
+        )
+        assert response.status_code == 201
+        saved_trail = mock_save.call_args[0][0]
+        assert saved_trail.line_color is None
+
+    def test_upload_with_invalid_line_color(self, authenticated_client):
+        """Upload with invalid line_color returns 400."""
+        response = authenticated_client.post(
+            "/api/v1/trails/upload?line_color=%23BADCOL",
+            files={"file": ("trail.gpx", io.BytesIO(VALID_GPX.encode()), "application/gpx+xml")},
+        )
+        assert response.status_code == 400
+        assert "Invalid color" in response.json()["detail"]
+
+    @patch("api.routers.trails.trail_storage.update_sync_metadata")
+    @patch("api.routers.trails.trail_storage.save_trail_details")
+    @patch("api.routers.trails.trail_storage.save_trail")
+    @patch("api.routers.trails.parse_gpx_upload")
+    def test_upload_with_is_public(self, mock_parse, mock_save, mock_save_details, mock_sync, authenticated_client):
+        """Upload with is_public=true makes trails publicly visible."""
+        trail = SAMPLE_TRAIL.model_copy()
+        mock_parse.return_value = [(trail, SAMPLE_DETAILS)]
+
+        response = authenticated_client.post(
+            "/api/v1/trails/upload?is_public=true",
+            files={"file": ("trail.gpx", io.BytesIO(VALID_GPX.encode()), "application/gpx+xml")},
+        )
+        assert response.status_code == 201
+        saved_trail = mock_save.call_args[0][0]
+        assert saved_trail.is_public is True
+
+    @patch("api.routers.trails.trail_storage.update_sync_metadata")
+    @patch("api.routers.trails.trail_storage.save_trail_details")
+    @patch("api.routers.trails.trail_storage.save_trail")
+    @patch("api.routers.trails.parse_gpx_upload")
+    def test_upload_is_public_defaults_to_false(
+        self, mock_parse, mock_save, mock_save_details, mock_sync, authenticated_client
+    ):
+        """Without is_public param, trails default to private."""
+        trail = SAMPLE_TRAIL.model_copy()
+        mock_parse.return_value = [(trail, SAMPLE_DETAILS)]
+
+        response = authenticated_client.post(
+            "/api/v1/trails/upload",
+            files={"file": ("trail.gpx", io.BytesIO(VALID_GPX.encode()), "application/gpx+xml")},
+        )
+        assert response.status_code == 201
+        saved_trail = mock_save.call_args[0][0]
+        assert saved_trail.is_public is False
+
+    def test_upload_rejects_invalid_status(self, authenticated_client):
+        """Upload with invalid status returns 422."""
+        response = authenticated_client.post(
+            "/api/v1/trails/upload?status=Bad%20Status",
+            files={"file": ("trail.gpx", io.BytesIO(VALID_GPX.encode()), "application/gpx+xml")},
+        )
+        assert response.status_code == 422

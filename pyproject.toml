@@ -73,6 +73,9 @@ lint.ignore = [
   "D",       # Docstring rules (too verbose for now)
   "DTZ007",  # Datetime without timezone (not critical for this use case)
   "E501",    # Line too long (handled by formatter)
+  "FBT001",  # Boolean positional argument (FastAPI Query parameters)
+  "FBT002",  # Boolean default positional argument (FastAPI Query parameters)
+  "FBT003",  # Boolean positional value (Firestore FieldFilter)
   "INP001",  # Implicit namespace package (dev-tools pattern)
   "PLC0415", # Import not at top-level (needed for optional dependencies like rdp/numpy)
   "S113",    # Request without timeout (not critical for weather API)
@@ -104,6 +107,8 @@ package_module_name_map.fastapi = "fastapi"
 per_rule_ignores.DEP003 = [ "numpy" ]
 # These are local packages within the app/ directory
 per_rule_ignores.DEP001 = [ "api", "functions", "resources" ]
+# app is a local package (part of the project, not a dev dependency)
+per_rule_ignores.DEP004 = [ "app" ]
 # Dependencies not directly imported (test deps, implicit runtime deps like uvicorn/multipart)
 per_rule_ignores.DEP002 = [
   "pytest",
