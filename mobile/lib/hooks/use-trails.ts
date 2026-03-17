@@ -1,6 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import type { TrailFilters } from '@/lib/api';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { trailsApi } from '@/lib/api';
 import { trailCache } from '@/lib/storage/trail-cache';
 import type { TrackingPoint } from '@/lib/track-to-trail';
@@ -10,7 +9,7 @@ export const SYNC_POLL_INTERVAL = 5 * 60 * 1000; // 5 minutes
 
 export interface ClientTrailFilters {
   search?: string;
-  status?: string;
+  status?: Trail['status'];
   min_distance_km?: number;
   max_distance_km?: number;
 }
@@ -42,7 +41,7 @@ export const trailKeys = {
  * Sync-on-mount trail hook.
  *
  * Always fetches the full unfiltered trail list via sync mechanism.
- * For client-side filtering, use the returned data with useFilteredTrails.
+ * For client-side filtering, use the returned data with filterTrails().
  */
 export function useTrails() {
   const queryClient = useQueryClient();
@@ -92,7 +91,7 @@ export function useTrails() {
 
 /**
  * Apply search, status, and distance filters client-side.
- * Returns a filtered + sorted subset of the provided trails.
+ * Returns a filtered subset of the provided trails.
  */
 export function filterTrails(trails: Trail[], filters: ClientTrailFilters): Trail[] {
   let result = trails;
