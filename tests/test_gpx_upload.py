@@ -204,7 +204,9 @@ class TestUploadGpxEndpoint:
     @patch("api.routers.trails.trail_storage.save_trail")
     @patch("api.routers.trails.parse_gpx_upload")
     def test_upload_valid_gpx(self, mock_parse, mock_save, mock_save_details, mock_sync, authenticated_client):
-        mock_parse.return_value = [(SAMPLE_TRAIL, SAMPLE_DETAILS)]
+        trail = SAMPLE_TRAIL.model_copy()
+        details = SAMPLE_DETAILS.model_copy()
+        mock_parse.return_value = [(trail, details)]
 
         response = authenticated_client.post(
             "/api/v1/trails/upload",
@@ -215,8 +217,8 @@ class TestUploadGpxEndpoint:
         assert len(data) == 1
         assert data[0]["name"] == "Test Trail"
         assert data[0]["status"] == "Explored!"
-        mock_save.assert_called_once_with(SAMPLE_TRAIL, update_sync=False)
-        mock_save_details.assert_called_once_with(SAMPLE_DETAILS)
+        mock_save.assert_called_once_with(trail, update_sync=False)
+        mock_save_details.assert_called_once_with(details)
         mock_sync.assert_called_once()
 
     @patch("api.routers.trails.trail_storage.update_sync_metadata")
@@ -225,7 +227,8 @@ class TestUploadGpxEndpoint:
     @patch("api.routers.trails.parse_gpx_upload")
     def test_upload_no_source_param(self, mock_parse, mock_save, mock_save_details, mock_sync, authenticated_client):
         """Source param is no longer accepted — auto-detected from coordinates."""
-        mock_parse.return_value = [(SAMPLE_TRAIL, SAMPLE_DETAILS)]
+        trail = SAMPLE_TRAIL.model_copy()
+        mock_parse.return_value = [(trail, SAMPLE_DETAILS.model_copy())]
 
         response = authenticated_client.post(
             "/api/v1/trails/upload",
@@ -262,7 +265,8 @@ class TestUploadGpxEndpoint:
         self, mock_parse, mock_save, mock_save_details, mock_sync, authenticated_client
     ):
         """Source query param is silently ignored (not a validation error)."""
-        mock_parse.return_value = [(SAMPLE_TRAIL, SAMPLE_DETAILS)]
+        trail = SAMPLE_TRAIL.model_copy()
+        mock_parse.return_value = [(trail, SAMPLE_DETAILS.model_copy())]
 
         response = authenticated_client.post(
             "/api/v1/trails/upload?source=planned_hikes",
@@ -286,9 +290,11 @@ class TestUploadGpxEndpoint:
     @patch("api.routers.trails.trail_storage.save_trail")
     @patch("api.routers.trails.parse_gpx_upload")
     def test_upload_multiple_tracks(self, mock_parse, mock_save, mock_save_details, mock_sync, authenticated_client):
+        trail1 = SAMPLE_TRAIL.model_copy()
+        details1 = SAMPLE_DETAILS.model_copy()
         trail2 = SAMPLE_TRAIL.model_copy(update={"trail_id": "def456", "name": "Trail Two"})
         details2 = SAMPLE_DETAILS.model_copy(update={"trail_id": "def456"})
-        mock_parse.return_value = [(SAMPLE_TRAIL, SAMPLE_DETAILS), (trail2, details2)]
+        mock_parse.return_value = [(trail1, details1), (trail2, details2)]
 
         response = authenticated_client.post(
             "/api/v1/trails/upload",
