@@ -42,6 +42,7 @@ from api.storage.trail_storage import (  # noqa: E402
     get_sync_metadata,
     get_trail,
     save_trail,
+    save_trail_details,
     update_sync_metadata,
 )
 
@@ -377,7 +378,9 @@ def _find_duplicate(
     return None, ""
 
 
-def _process_trail(trail: object, existing_trails: list, *, duplicates: str, dry_run: bool) -> tuple[str, list]:
+def _process_trail(
+    trail: object, details: object, existing_trails: list, *, duplicates: str, dry_run: bool
+) -> tuple[str, list]:
     """Process a single trail for import. Returns (action, updated_trails).
 
     Action is one of: "imported", "replaced", "skipped".
@@ -392,6 +395,7 @@ def _process_trail(trail: object, existing_trails: list, *, duplicates: str, dry
             print(f"  📋 Would import: {trail.name} ({km:.1f} km, elev={elev}, dur={dur})")
         else:
             save_trail(trail, update_sync=False)
+            save_trail_details(details)
             existing_trails.append(trail)
             print(f"  ✅ Imported: {trail.name}")
         return "imported", existing_trails
@@ -406,6 +410,7 @@ def _process_trail(trail: object, existing_trails: list, *, duplicates: str, dry
         if not dry_run:
             delete_trail(duplicate.trail_id, update_sync=False)
             save_trail(trail, update_sync=False)
+            save_trail_details(details)
             existing_trails = [t for t in existing_trails if t.trail_id != duplicate.trail_id]
             existing_trails.append(trail)
         print(f"  {'📋 Would replace' if dry_run else '🔄 Replaced'}: {label}")
@@ -414,6 +419,7 @@ def _process_trail(trail: object, existing_trails: list, *, duplicates: str, dry
     # keep-both
     if not dry_run:
         save_trail(trail, update_sync=False)
+        save_trail_details(details)
         existing_trails.append(trail)
     print(f"  {'📋 Would keep both' if dry_run else '\u2795 Keeping both'}: {label}")
     return "imported", existing_trails
@@ -448,14 +454,16 @@ def cmd_trails_import(args: argparse.Namespace) -> None:
     for gpx_file in gpx_files:
         try:
             content = gpx_file.read_bytes()
-            parsed_trails = parse_gpx_upload(content, source=source)
+            parsed_trails = parse_gpx_upload(content)
         except (ValueError, Exception) as e:
             counts["errors"] += 1
             print(f"  ❌ Parse error: {gpx_file.name} — {e}")
             continue
 
-        for trail in parsed_trails:
-            action, existing_trails = _process_trail(trail, existing_trails, duplicates=duplicates, dry_run=dry_run)
+        for trail, details in parsed_trails:
+            action, existing_trails = _process_trail(
+                trail, details, existing_trails, duplicates=duplicates, dry_run=dry_run
+            )
             counts[action] += 1
 
     if not dry_run and (counts["imported"] > 0 or counts["replaced"] > 0):
