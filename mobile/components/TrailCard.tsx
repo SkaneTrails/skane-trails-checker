@@ -5,7 +5,7 @@
  */
 
 import { useState } from 'react';
-import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Platform, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { Chip } from '@/components/Chip';
 import { useTranslation } from '@/lib/i18n';
 import { borderRadius, fontSize, fontWeight, spacing, useTheme } from '@/lib/theme';
@@ -20,6 +20,8 @@ interface TrailCardProps {
   onClose: () => void;
   onUpdate?: (trailId: string, data: TrailUpdate, onSuccess: () => void) => void;
   isUpdating?: boolean;
+  onDelete?: (trailId: string) => void;
+  isDeleting?: boolean;
 }
 
 function formatDuration(minutes: number): string {
@@ -30,7 +32,7 @@ function formatDuration(minutes: number): string {
   return `${h}h ${m}m`;
 }
 
-export const TrailCard = ({ trail, onClose, onUpdate, isUpdating }: TrailCardProps) => {
+export const TrailCard = ({ trail, onClose, onUpdate, isUpdating, onDelete, isDeleting }: TrailCardProps) => {
   const { colors } = useTheme();
   const { t } = useTranslation();
   const [editing, setEditing] = useState(false);
@@ -125,6 +127,39 @@ export const TrailCard = ({ trail, onClose, onUpdate, isUpdating }: TrailCardPro
             </Text>
           </Pressable>
         </View>
+
+        {onDelete && (
+          <Pressable
+            style={[styles.deleteButton, { borderColor: colors.error }]}
+            onPress={() => {
+              const message = t('trail.deleteConfirm', { name: trail.name });
+              if (Platform.OS === 'web') {
+                if (window.confirm(message)) {
+                  onDelete(trail.trail_id);
+                  onClose();
+                }
+              } else {
+                const { Alert } = require('react-native');
+                Alert.alert(
+                  t('trail.deleteTrail'),
+                  message,
+                  [
+                    { text: t('common.cancel'), style: 'cancel' },
+                    { text: t('trail.deleteTrail'), style: 'destructive', onPress: () => {
+                      onDelete(trail.trail_id);
+                      onClose();
+                    }},
+                  ],
+                );
+              }
+            }}
+            disabled={isDeleting}
+          >
+            <Text style={{ color: colors.error, fontSize: fontSize.sm, fontWeight: fontWeight.semibold }}>
+              {isDeleting ? '...' : t('trail.deleteTrail')}
+            </Text>
+          </Pressable>
+        )}
       </MapInfoCard>
     );
   }
@@ -256,5 +291,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: spacing.sm,
     borderRadius: borderRadius.sm,
+  },
+  deleteButton: {
+    alignItems: 'center',
+    paddingVertical: spacing.sm,
+    borderRadius: borderRadius.sm,
+    borderWidth: 1,
+    marginTop: spacing.md,
   },
 });
