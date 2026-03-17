@@ -28,6 +28,7 @@ interface UnifiedMapProps {
   places: Place[];
   layers: MapLayers;
   selectedTrailId?: string | null;
+  focusBounds?: { north: number; south: number; east: number; west: number } | null;
   recordingPoints?: TrackingPoint[];
   onTrailSelect?: (trail: Trail) => void;
   onSpotSelect?: (spot: ForagingSpot) => void;
@@ -63,6 +64,7 @@ export function UnifiedMap({
   places,
   layers,
   selectedTrailId,
+  focusBounds,
   onTrailSelect,
   onSpotSelect,
   onPlaceSelect,
@@ -164,6 +166,16 @@ export function UnifiedMap({
     };
   }, []);
 
+  // Focus map on bounds when requested (e.g. from trail list navigation)
+  useEffect(() => {
+    if (!focusBounds || !mapReady || !mapInstanceRef.current) return;
+    const { north, south, east, west } = focusBounds;
+    mapInstanceRef.current.fitBounds(
+      [[south, west], [north, east]],
+      { padding: [40, 40], maxZoom: 14 },
+    );
+  }, [focusBounds, mapReady]);
+
   // Update trail layer
   useEffect(() => {
     const group = layerGroupsRef.current.trails;
@@ -182,7 +194,8 @@ export function UnifiedMap({
         const latlngs = trail.coordinates_map.map((c) => [c.lat, c.lng] as [number, number]);
         const isExplored = trail.status === 'Explored!';
         const isSelected = trail.trail_id === selectedTrailIdRef.current;
-        const color = isExplored ? colorsRef.current.explored : colorsRef.current.toExplore;
+        const statusColor = isExplored ? colorsRef.current.explored : colorsRef.current.toExplore;
+        const color = trail.line_color ?? statusColor;
         const baseWeight = isExplored ? 4 : 3;
 
         const polyline = L.polyline(latlngs, {

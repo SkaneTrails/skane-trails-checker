@@ -24,7 +24,7 @@ function TrailItem({ trail }: { trail: Trail }) {
   const { t } = useTranslation();
 
   return (
-    <Pressable onPress={() => router.push(`/trail/${trail.trail_id}`)}>
+    <Pressable onPress={() => router.navigate({ pathname: '/(tabs)', params: { trailId: trail.trail_id } })}>
       <ContentCard>
         <View style={styles.cardHeader}>
           <Text style={[styles.trailName, { color: colors.text.primary }]} numberOfLines={1}>
