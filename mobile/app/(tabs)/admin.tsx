@@ -8,7 +8,6 @@ import { useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
-  FlatList,
   Pressable,
   ScrollView,
   Text,

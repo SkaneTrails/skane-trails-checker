@@ -37,7 +37,7 @@ def _require_superuser(user: AuthenticatedUser) -> None:
 def _validate_email_path(email: str) -> str:
     """Validate and normalize an email from a URL path parameter."""
     normalized = email.strip().lower()
-    if "/" in normalized or "\\" in normalized:
+    if not normalized or "/" in normalized or "\\" in normalized:
         raise HTTPException(status_code=400, detail="Invalid email address")
     return normalized
 
@@ -257,7 +257,7 @@ def add_superuser(body: SuperuserAdd, user: Annotated[AuthenticatedUser, Depends
     """Add a superuser. Superuser only."""
     _require_superuser(user)
 
-    normalized = body.email.strip().lower()
+    normalized = _validate_email_path(body.email)
     if hike_group_storage.is_superuser(normalized):
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=f"{normalized} is already a superuser")
 

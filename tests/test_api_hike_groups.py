@@ -605,6 +605,14 @@ class TestAddSuperuser:
         response = superuser_client.post("/api/v1/admin/superusers", json={"email": ""})
         assert response.status_code == 422
 
+    def test_add_superuser_whitespace_only_email(self, superuser_client):
+        response = superuser_client.post("/api/v1/admin/superusers", json={"email": "   "})
+        assert response.status_code == 400
+
+    def test_add_superuser_path_separator_email(self, superuser_client):
+        response = superuser_client.post("/api/v1/admin/superusers", json={"email": "bad/email@example.com"})
+        assert response.status_code == 400
+
 
 class TestRemoveSuperuser:
     @patch("api.routers.hike_groups.hike_group_storage.remove_superuser")
