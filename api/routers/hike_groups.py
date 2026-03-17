@@ -20,6 +20,8 @@ from api.models.hike_group import (
     MemberAdd,
     MemberResponse,
     MemberUpdate,
+    SuperuserAdd,
+    SuperuserResponse,
 )
 from api.storage import hike_group_storage
 
@@ -237,3 +239,44 @@ def remove_member(group_id: str, email: str, user: Annotated[AuthenticatedUser, 
         raise HTTPException(status_code=400, detail="Cannot remove yourself from the group")
 
     hike_group_storage.remove_member(normalized_email)
+
+
+# --- Superuser management ---
+
+
+@router.get("/superusers")
+def list_superusers(user: Annotated[AuthenticatedUser, Depends(require_auth)]) -> list[SuperuserResponse]:
+    """List all superusers. Superuser only."""
+    _require_superuser(user)
+    emails = hike_group_storage.list_superusers()
+    return [SuperuserResponse(email=e) for e in emails]
+
+
+@router.post("/superusers", status_code=201)
+def add_superuser(body: SuperuserAdd, user: Annotated[AuthenticatedUser, Depends(require_auth)]) -> SuperuserResponse:
+    """Add a superuser. Superuser only."""
+    _require_superuser(user)
+
+    normalized = body.email.strip().lower()
+    if hike_group_storage.is_superuser(normalized):
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=f"{normalized} is already a superuser")
+
+    hike_group_storage.add_superuser(normalized)
+    return SuperuserResponse(email=normalized)
+
+
+@router.delete("/superusers/{email:path}", status_code=204)
+def remove_superuser(email: str, user: Annotated[AuthenticatedUser, Depends(require_auth)]) -> None:
+    """Remove a superuser. Superuser only. Cannot remove yourself."""
+    _require_superuser(user)
+
+    normalized_email = _validate_email_path(email)
+    user_email = user.email.lower()
+
+    if normalized_email == user_email:
+        raise HTTPException(status_code=400, detail="Cannot remove yourself as superuser")
+
+    if not hike_group_storage.is_superuser(normalized_email):
+        raise HTTPException(status_code=404, detail="Superuser not found")
+
+    hike_group_storage.remove_superuser(normalized_email)

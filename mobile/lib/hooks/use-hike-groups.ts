@@ -21,6 +21,10 @@ export const memberKeys = {
   list: (groupId: string) => ['group-members', groupId] as const,
 };
 
+export const superuserKeys = {
+  all: ['superusers'] as const,
+};
+
 export function useCurrentUser(options?: { enabled?: boolean }) {
   return useQuery({
     queryKey: currentUserKeys.all,
@@ -123,6 +127,37 @@ export function useUpdateMemberRole() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: hikeGroupKeys.all });
       queryClient.invalidateQueries({ queryKey: memberKeys.all });
+    },
+  });
+}
+
+// --- Superuser hooks ---
+
+export function useSuperusers() {
+  return useQuery({
+    queryKey: superuserKeys.all,
+    queryFn: () => hikeGroupsApi.getSuperusers(),
+  });
+}
+
+export function useAddSuperuser() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (email: string) => hikeGroupsApi.addSuperuser(email),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: superuserKeys.all });
+    },
+  });
+}
+
+export function useRemoveSuperuser() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (email: string) => hikeGroupsApi.removeSuperuser(email),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: superuserKeys.all });
     },
   });
 }

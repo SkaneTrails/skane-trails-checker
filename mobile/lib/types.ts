@@ -176,6 +176,11 @@ export interface UpdateMemberRequest {
 
 export type UserRole = 'superuser' | 'admin' | 'member';
 
+// Superuser entry from GET /admin/superusers
+export interface Superuser {
+  email: string;
+}
+
 // Current user info from GET /admin/me
 export interface CurrentUser {
   uid: string;

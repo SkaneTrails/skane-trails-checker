@@ -60,3 +60,15 @@ class CurrentUserResponse(BaseModel):
     role: str
     group_id: str | None = None
     group_name: str | None = None
+
+
+class SuperuserAdd(BaseModel):
+    """Request body for adding a superuser."""
+
+    email: str = Field(min_length=1, max_length=MAX_EMAIL_LENGTH)
+
+
+class SuperuserResponse(BaseModel):
+    """Superuser email returned by the API."""
+
+    email: str
