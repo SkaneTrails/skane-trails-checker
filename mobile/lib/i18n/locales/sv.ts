@@ -13,6 +13,7 @@ const sv: Translations = {
     error: 'Fel',
     loading: 'Laddar...',
     saving: 'Sparar...',
+    deleting: 'Raderar...',
     retry: 'Försök igen',
     goBack: 'Tillbaka',
     all: 'Alla',

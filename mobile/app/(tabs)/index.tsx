@@ -12,6 +12,7 @@ import { TrackingOverlay } from '@/components/TrackingOverlay';
 import { TrailCard } from '@/components/TrailCard';
 import { type MapLayers, UnifiedMap } from '@/components/UnifiedMap';
 import {
+  useDeleteTrail,
   useForagingSpots,
   useForagingTypes,
   usePlaces,
@@ -43,6 +44,7 @@ export default function MapScreen() {
   const { data: places } = usePlaces();
   const { points: recordingPoints } = useTracking();
   const updateTrail = useUpdateTrail();
+  const deleteTrail = useDeleteTrail();
   const updateSpot = useUpdateForagingSpot();
 
   const filteredPlaces = useMemo(
@@ -180,6 +182,8 @@ export default function MapScreen() {
             onClose={() => setSelected(null)}
             onUpdate={handleTrailUpdate}
             isUpdating={updateTrail.isPending}
+            onDelete={(id, onSuccess) => deleteTrail.mutate(id, { onSuccess })}
+            isDeleting={deleteTrail.isPending}
           />
         )}
 
