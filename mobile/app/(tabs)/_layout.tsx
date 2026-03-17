@@ -12,7 +12,7 @@ export default function TabLayout() {
   const { colors, shadows } = useTheme();
   const { t } = useTranslation();
   const { user, loading } = useAuth();
-  const { isLoading: userLoading, error } = useCurrentUser({
+  const { data: currentUser, isLoading: userLoading, error } = useCurrentUser({
     enabled: !loading && !!user,
   });
   const isWeb = Platform.OS === 'web';
@@ -106,6 +106,14 @@ export default function TabLayout() {
         options={{
           title: t('tabs.places'),
           tabBarIcon: ({ color }) => <TabIcon name="pin" color={color} />,
+        }}
+      />
+      <Tabs.Screen
+        name="admin"
+        options={{
+          title: t('tabs.admin'),
+          tabBarIcon: ({ color }) => <TabIcon name="shield" color={color} />,
+          href: currentUser?.role === 'superuser' ? undefined : null,
         }}
       />
 

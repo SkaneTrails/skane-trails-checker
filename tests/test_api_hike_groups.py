@@ -553,3 +553,87 @@ class TestHikeGroupStorage:
         assert result.member_count == 0
         assert result.created_at == ""
         assert result.last_updated == ""
+
+
+class TestListSuperusers:
+    @patch("api.routers.hike_groups.hike_group_storage.list_superusers")
+    def test_list_superusers(self, mock_list, superuser_client):
+        mock_list.return_value = ["su@example.com", "admin2@example.com"]
+        response = superuser_client.get("/api/v1/admin/superusers")
+        assert response.status_code == 200
+        data = response.json()
+        assert len(data) == 2
+        assert data[0]["email"] == "su@example.com"
+
+    @patch("api.routers.hike_groups.hike_group_storage.list_superusers")
+    def test_list_superusers_empty(self, mock_list, superuser_client):
+        mock_list.return_value = []
+        response = superuser_client.get("/api/v1/admin/superusers")
+        assert response.status_code == 200
+        assert response.json() == []
+
+    def test_list_superusers_forbidden_for_admin(self, authenticated_client):
+        response = authenticated_client.get("/api/v1/admin/superusers")
+        assert response.status_code == 403
+
+    def test_list_superusers_forbidden_for_member(self, member_client):
+        response = member_client.get("/api/v1/admin/superusers")
+        assert response.status_code == 403
+
+
+class TestAddSuperuser:
+    @patch("api.routers.hike_groups.hike_group_storage.add_superuser")
+    @patch("api.routers.hike_groups.hike_group_storage.is_superuser")
+    def test_add_superuser(self, mock_is_su, mock_add, superuser_client):
+        mock_is_su.return_value = False
+        response = superuser_client.post("/api/v1/admin/superusers", json={"email": "new@example.com"})
+        assert response.status_code == 201
+        assert response.json()["email"] == "new@example.com"
+        mock_add.assert_called_once_with("new@example.com")
+
+    @patch("api.routers.hike_groups.hike_group_storage.is_superuser")
+    def test_add_superuser_already_exists(self, mock_is_su, superuser_client):
+        mock_is_su.return_value = True
+        response = superuser_client.post("/api/v1/admin/superusers", json={"email": "existing@example.com"})
+        assert response.status_code == 409
+
+    def test_add_superuser_forbidden_for_admin(self, authenticated_client):
+        response = authenticated_client.post("/api/v1/admin/superusers", json={"email": "new@example.com"})
+        assert response.status_code == 403
+
+    def test_add_superuser_empty_email(self, superuser_client):
+        response = superuser_client.post("/api/v1/admin/superusers", json={"email": ""})
+        assert response.status_code == 422
+
+    def test_add_superuser_whitespace_only_email(self, superuser_client):
+        response = superuser_client.post("/api/v1/admin/superusers", json={"email": "   "})
+        assert response.status_code == 400
+
+    def test_add_superuser_path_separator_email(self, superuser_client):
+        response = superuser_client.post("/api/v1/admin/superusers", json={"email": "bad/email@example.com"})
+        assert response.status_code == 400
+
+
+class TestRemoveSuperuser:
+    @patch("api.routers.hike_groups.hike_group_storage.remove_superuser")
+    @patch("api.routers.hike_groups.hike_group_storage.is_superuser")
+    def test_remove_superuser(self, mock_is_su, mock_remove, superuser_client):
+        mock_is_su.return_value = True
+        response = superuser_client.delete("/api/v1/admin/superusers/other@example.com")
+        assert response.status_code == 204
+        mock_remove.assert_called_once_with("other@example.com")
+
+    def test_remove_self_forbidden(self, superuser_client):
+        response = superuser_client.delete("/api/v1/admin/superusers/su@example.com")
+        assert response.status_code == 400
+        assert "Cannot remove yourself" in response.json()["detail"]
+
+    @patch("api.routers.hike_groups.hike_group_storage.is_superuser")
+    def test_remove_nonexistent_superuser(self, mock_is_su, superuser_client):
+        mock_is_su.return_value = False
+        response = superuser_client.delete("/api/v1/admin/superusers/nobody@example.com")
+        assert response.status_code == 404
+
+    def test_remove_superuser_forbidden_for_admin(self, authenticated_client):
+        response = authenticated_client.delete("/api/v1/admin/superusers/su@example.com")
+        assert response.status_code == 403

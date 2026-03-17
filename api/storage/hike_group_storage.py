@@ -72,6 +72,28 @@ def is_superuser(email: str) -> bool:
     return doc.exists
 
 
+def list_superusers() -> list[str]:
+    """List all superuser emails."""
+    emails = []
+    for doc in get_collection(SUPERUSERS_COLLECTION).stream():
+        data = doc.to_dict()
+        emails.append(data.get("email", doc.id) if data else doc.id)
+    return emails
+
+
+def add_superuser(email: str) -> None:
+    """Grant superuser access to a user."""
+    normalized_email = _normalize_email(email)
+    now = _utc_now_z()
+    get_collection(SUPERUSERS_COLLECTION).document(normalized_email).set({"email": normalized_email, "created_at": now})
+
+
+def remove_superuser(email: str) -> None:
+    """Revoke superuser access from a user."""
+    normalized_email = _normalize_email(email)
+    get_collection(SUPERUSERS_COLLECTION).document(normalized_email).delete()
+
+
 # --- Group operations ---
 
 

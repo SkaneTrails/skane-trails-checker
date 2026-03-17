@@ -10,6 +10,7 @@ const en = {
     cancel: 'Cancel',
     save: 'Save',
     delete: 'Delete',
+    error: 'Error',
     loading: 'Loading...',
     saving: 'Saving...',
     retry: 'Retry',
@@ -24,6 +25,7 @@ const en = {
     foraging: 'Foraging',
     places: 'Places',
     settings: 'Settings',
+    admin: 'Admin',
   },
 
   signIn: {
@@ -247,6 +249,31 @@ const en = {
     signOutButton: 'Sign Out',
     contactAdmin: 'Contact a group admin if you believe this is a mistake.',
     failedToSignOut: 'Failed to sign out. Try again.',
+  },
+
+  admin: {
+    title: 'Admin',
+    subtitle: 'Superuser Dashboard',
+    accessRequired: 'Admin Access Required',
+    accessRequiredMessage: 'You need superuser access to view this page.',
+    loggedInAs: 'Logged in as',
+    groups: 'Groups',
+    newGroup: 'New',
+    noGroups: 'No groups yet',
+    superusers: 'Superusers',
+    addSuperuser: 'Add Superuser',
+    emailPlaceholder: 'Email address',
+    removeSuperuser: 'Remove',
+    removeSuperuserConfirm: 'Remove {{email}} as superuser?',
+    noSuperusers: 'No superusers',
+    failedToAddSuperuser: 'Failed to add superuser',
+    failedToRemoveSuperuser: 'Failed to remove superuser',
+    failedToCreateGroup: 'Failed to create group',
+    role: {
+      superuser: 'Superuser',
+      admin: 'Admin',
+      member: 'Member',
+    },
   },
 };
 

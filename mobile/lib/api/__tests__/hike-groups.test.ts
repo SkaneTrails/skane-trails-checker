@@ -118,4 +118,35 @@ describe('hikeGroupsApi', () => {
       );
     });
   });
+
+  describe('getSuperusers', () => {
+    it('fetches superusers list', async () => {
+      mockApiRequest.mockResolvedValue([{ email: 'su@test.com' }]);
+      const result = await hikeGroupsApi.getSuperusers();
+      expect(mockApiRequest).toHaveBeenCalledWith('/api/v1/admin/superusers');
+      expect(result).toEqual([{ email: 'su@test.com' }]);
+    });
+  });
+
+  describe('addSuperuser', () => {
+    it('posts superuser email', async () => {
+      mockApiRequest.mockResolvedValue({ email: 'new@test.com' });
+      await hikeGroupsApi.addSuperuser('new@test.com');
+      expect(mockApiRequest).toHaveBeenCalledWith('/api/v1/admin/superusers', {
+        method: 'POST',
+        body: JSON.stringify({ email: 'new@test.com' }),
+      });
+    });
+  });
+
+  describe('removeSuperuser', () => {
+    it('deletes superuser by email', async () => {
+      mockApiRequest.mockResolvedValue(undefined);
+      await hikeGroupsApi.removeSuperuser('old@test.com');
+      expect(mockApiRequest).toHaveBeenCalledWith(
+        '/api/v1/admin/superusers/old%40test.com',
+        { method: 'DELETE' },
+      );
+    });
+  });
 });

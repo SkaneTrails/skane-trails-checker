@@ -10,6 +10,7 @@ from api.storage.hike_group_storage import (
     GroupMember,
     _normalize_email,
     add_member,
+    add_superuser,
     delete_hike_group,
     get_all_hike_groups,
     get_hike_group,
@@ -17,7 +18,9 @@ from api.storage.hike_group_storage import (
     group_name_exists,
     is_superuser,
     list_group_members,
+    list_superusers,
     remove_member,
+    remove_superuser,
     save_hike_group,
     update_hike_group,
     update_member_role,
@@ -307,3 +310,47 @@ class TestUpdateMemberRole:
         result = update_member_role("nobody@example.com", "admin")
         assert result is False
         doc_ref.update.assert_not_called()
+
+
+class TestListSuperusers:
+    def test_returns_emails(self, mock_collection) -> None:
+        mock_collection.stream.return_value = [
+            _make_doc("su@example.com", {"email": "su@example.com"}),
+            _make_doc("admin2@example.com", {"email": "admin2@example.com"}),
+        ]
+        result = list_superusers()
+        assert result == ["su@example.com", "admin2@example.com"]
+
+    def test_returns_empty(self, mock_collection) -> None:
+        mock_collection.stream.return_value = []
+        assert list_superusers() == []
+
+    def test_falls_back_to_doc_id(self, mock_collection) -> None:
+        mock_collection.stream.return_value = [_make_doc("legacy@example.com", {})]
+        result = list_superusers()
+        assert result == ["legacy@example.com"]
+
+    def test_falls_back_to_doc_id_when_data_is_none(self, mock_collection) -> None:
+        doc = MagicMock()
+        doc.id = "none@example.com"
+        doc.to_dict.return_value = None
+        mock_collection.stream.return_value = [doc]
+        result = list_superusers()
+        assert result == ["none@example.com"]
+
+
+class TestAddSuperuser:
+    def test_adds_superuser(self, mock_collection) -> None:
+        add_superuser("NEW@Example.com")
+        mock_collection.document.assert_called_once_with("new@example.com")
+        mock_collection.document.return_value.set.assert_called_once()
+        call_data = mock_collection.document.return_value.set.call_args[0][0]
+        assert call_data["email"] == "new@example.com"
+        assert "created_at" in call_data
+
+
+class TestRemoveSuperuser:
+    def test_removes_superuser(self, mock_collection) -> None:
+        remove_superuser("USER@example.com")
+        mock_collection.document.assert_called_once_with("user@example.com")
+        mock_collection.document.return_value.delete.assert_called_once()

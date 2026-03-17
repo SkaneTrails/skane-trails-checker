@@ -10,6 +10,7 @@ const sv: Translations = {
     cancel: 'Avbryt',
     save: 'Spara',
     delete: 'Radera',
+    error: 'Fel',
     loading: 'Laddar...',
     saving: 'Sparar...',
     retry: 'Försök igen',
@@ -24,6 +25,7 @@ const sv: Translations = {
     foraging: 'Plocka',
     places: 'Platser',
     settings: 'Inställningar',
+    admin: 'Admin',
   },
 
   signIn: {
@@ -247,6 +249,31 @@ const sv: Translations = {
     signOutButton: 'Logga ut',
     contactAdmin: 'Kontakta en gruppadmin om du tror att detta är fel.',
     failedToSignOut: 'Kunde inte logga ut. Försök igen.',
+  },
+
+  admin: {
+    title: 'Admin',
+    subtitle: 'Superanvändarpanel',
+    accessRequired: 'Adminåtkomst krävs',
+    accessRequiredMessage: 'Du behöver superanvändarbehörighet för att se denna sida.',
+    loggedInAs: 'Inloggad som',
+    groups: 'Grupper',
+    newGroup: 'Ny',
+    noGroups: 'Inga grupper ännu',
+    superusers: 'Superanvändare',
+    addSuperuser: 'Lägg till superanvändare',
+    emailPlaceholder: 'E-postadress',
+    removeSuperuser: 'Ta bort',
+    removeSuperuserConfirm: 'Ta bort {{email}} som superanvändare?',
+    noSuperusers: 'Inga superanvändare',
+    failedToAddSuperuser: 'Kunde inte lägga till superanvändare',
+    failedToRemoveSuperuser: 'Kunde inte ta bort superanvändare',
+    failedToCreateGroup: 'Kunde inte skapa grupp',
+    role: {
+      superuser: 'Superanvändare',
+      admin: 'Admin',
+      member: 'Medlem',
+    },
   },
 } as const;
 
