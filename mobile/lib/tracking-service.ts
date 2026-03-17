@@ -58,7 +58,6 @@ if (!TaskManager.isTaskDefined(TRACKING_TASK)) {
 
     const locations = (data as { locations?: Location.LocationObject[] })?.locations;
     if (!locations) return;
-
     const state = getState();
     for (const loc of locations) {
       const point: TrackingPoint = {
@@ -110,8 +109,8 @@ export async function startTracking(onPoint: PointListener): Promise<void> {
 
   await Location.startLocationUpdatesAsync(TRACKING_TASK, {
     accuracy: Location.Accuracy.High,
-    timeInterval: 5000,
-    distanceInterval: 10,
+    timeInterval: 3000,
+    distanceInterval: 5,
     foregroundService: {
       notificationTitle: 'Recording hike',
       notificationBody: 'GPS tracking active',

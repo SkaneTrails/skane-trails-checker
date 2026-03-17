@@ -1,12 +1,16 @@
 /**
  * Authentication hook for Firebase Auth with Google Sign-In.
  *
- * Uses Firebase signInWithPopup for web and expo-auth-session for native.
- * When Firebase is not configured (no env vars), provides a mock user
- * in __DEV__ mode so local development works without Firebase setup.
+ * Uses Firebase signInWithPopup for web and @react-native-google-signin
+ * for native Android/iOS. When Firebase is not configured (no env vars),
+ * provides a mock user in __DEV__ mode so local development works without
+ * Firebase setup.
  */
 
-import * as Google from 'expo-auth-session/providers/google';
+import {
+  GoogleSignin,
+  isSuccessResponse,
+} from '@react-native-google-signin/google-signin';
 import {
   signOut as firebaseSignOut,
   GoogleAuthProvider,
@@ -88,17 +92,14 @@ const AuthProviderImpl = ({ children }: AuthProviderProps) => {
 
   const googleProvider = Platform.OS === 'web' ? new GoogleAuthProvider() : null;
 
-  const [_request, response, promptAsync] = Google.useAuthRequest(
-    Platform.OS !== 'web'
-      ? {
-          iosClientId: process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID,
-          androidClientId: process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID,
-          responseType: 'id_token',
-        }
-      : {
-          webClientId: process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID,
-        },
-  );
+  // Configure Google Sign-In for native platforms
+  useEffect(() => {
+    if (Platform.OS !== 'web') {
+      GoogleSignin.configure({
+        webClientId: process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID,
+      });
+    }
+  }, []);
 
   useEffect(() => {
     setAuthTokenGetter(async () => {
@@ -146,56 +147,39 @@ const AuthProviderImpl = ({ children }: AuthProviderProps) => {
     return unsubscribe;
   }, []);
 
-  useEffect(() => {
-    if (Platform.OS === 'web') return;
-
-    if (response?.type === 'success') {
-      const { id_token, access_token } = response.params;
-
-      if (!id_token) {
-        if (__DEV__) {
-          console.error('No id_token in response. Received:', Object.keys(response.params));
-        }
-        setError('No ID token received from Google');
-        return;
-      }
-
-      const credential = GoogleAuthProvider.credential(id_token, access_token);
-
-      signInWithCredential(auth as NonNullable<typeof auth>, credential)
-        .then(() => setError(null))
-        .catch((err) => {
-          if (__DEV__) {
-            console.error('signInWithCredential error:', err);
-          }
-          setError('Sign-in failed. Please try again.');
-        });
-    } else if (response?.type === 'error') {
-      setError(response.error?.message ?? 'Sign-in failed');
-    }
-  }, [response]);
-
   const signIn = useCallback(async () => {
     setError(null);
     try {
       if (Platform.OS === 'web' && googleProvider) {
         await signInWithPopup(auth as NonNullable<typeof auth>, googleProvider);
       } else {
-        await promptAsync();
+        const response = await GoogleSignin.signIn();
+        if (isSuccessResponse(response)) {
+          const idToken = response.data.idToken;
+          if (!idToken) {
+            setError('No ID token received from Google');
+            return;
+          }
+          const credential = GoogleAuthProvider.credential(idToken);
+          await signInWithCredential(auth as NonNullable<typeof auth>, credential);
+        }
       }
     } catch (err) {
       if (__DEV__) {
         console.error('signIn error:', err);
       }
       const errorMessage = err instanceof Error ? err.message : '';
-      if (!errorMessage.includes('popup-closed-by-user')) {
+      if (!errorMessage.includes('popup-closed-by-user') && !errorMessage.includes('SIGN_IN_CANCELLED')) {
         setError('Sign-in failed. Please try again.');
       }
     }
-  }, [promptAsync, googleProvider]);
+  }, [googleProvider]);
 
   const signOut = useCallback(async () => {
     try {
+      if (Platform.OS !== 'web') {
+        await GoogleSignin.signOut();
+      }
       await firebaseSignOut(auth as NonNullable<typeof auth>);
       setError(null);
     } catch (_err) {

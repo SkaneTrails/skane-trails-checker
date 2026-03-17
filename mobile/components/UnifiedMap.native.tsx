@@ -1,5 +1,5 @@
 /**
- * Native map implementation using MapLibre GL with OpenStreetMap tiles.
+ * Native map implementation using MapLibre GL v11 with CARTO Voyager tiles.
  *
  * Renders trails as line layers, foraging spots as circle markers,
  * and place icons when zoomed in. Supports live recording polyline.
@@ -7,14 +7,20 @@
  */
 
 import { useEffect, useRef, useState } from 'react';
-import MapLibreGL from '@maplibre/maplibre-react-native';
-import { StyleSheet, View } from 'react-native';
+import {
+  Map,
+  Camera,
+  GeoJSONSource,
+  Layer,
+  UserLocation,
+  type CameraRef,
+  type MapRef,
+} from '@maplibre/maplibre-react-native';
+import { type NativeSyntheticEvent, StyleSheet, View } from 'react-native';
 import { foragingColorMap } from '@/lib/foraging-colors';
 import { useTheme } from '@/lib/theme';
 import type { ForagingSpot, ForagingType, Place, Trail } from '@/lib/types';
 import type { TrackingPoint } from '@/lib/track-to-trail';
-
-MapLibreGL.setAccessToken(null);
 
 export interface MapLayers {
   trails: boolean;
@@ -41,32 +47,23 @@ const DEFAULT_CENTER: [number, number] = [13.4, 55.95];
 const DEFAULT_ZOOM = 7;
 const PLACES_MIN_ZOOM = 13;
 const RECORDING_COLOR = '#ef4444';
-/**
- * Inline MapLibre style spec using OpenStreetMap raster tiles.
- * Avoids depending on the MapLibre demo endpoint which is rate-limited
- * and not intended for production use.
- */
-const OSM_STYLE: MapLibreGL.StyleURL = {
-  version: 8,
+
+/** OpenStreetMap raster tiles — free, no API key required. */
+const MAP_STYLE = {
+  version: 8 as const,
   sources: {
     osm: {
-      type: 'raster',
+      type: 'raster' as const,
       tiles: ['https://tile.openstreetmap.org/{z}/{x}/{y}.png'],
       tileSize: 256,
-      attribution: '&copy; OpenStreetMap contributors',
+      attribution: 'OpenStreetMap contributors',
       maxzoom: 19,
     },
   },
   layers: [
-    {
-      id: 'osm-tiles',
-      type: 'raster',
-      source: 'osm',
-      minzoom: 0,
-      maxzoom: 19,
-    },
+    { id: 'osm-tiles', type: 'raster' as const, source: 'osm', minzoom: 0, maxzoom: 19 },
   ],
-} as unknown as MapLibreGL.StyleURL;
+};
 
 function trailToGeoJSON(trail: Trail, fallbackColor: string): GeoJSON.Feature<GeoJSON.LineString> {
   return {
@@ -105,7 +102,7 @@ export function UnifiedMap({
   onMapClick,
 }: UnifiedMapProps) {
   const { colors } = useTheme();
-  const cameraRef = useRef<MapLibreGL.Camera>(null);
+  const cameraRef = useRef<CameraRef>(null);
   const [currentZoom, setCurrentZoom] = useState(DEFAULT_ZOOM);
 
   const colorMap = foragingColorMap(foragingTypes);
@@ -122,12 +119,10 @@ export function UnifiedMap({
   useEffect(() => {
     if (!focusBounds || !cameraRef.current) return;
     const { north, south, east, west } = focusBounds;
-    cameraRef.current.fitBounds(
-      [east, north],
-      [west, south],
-      40,
-      1000,
-    );
+    cameraRef.current.fitBounds([west, south, east, north], {
+      padding: { top: 40, right: 40, bottom: 40, left: 40 },
+      duration: 1000,
+    });
   }, [focusBounds]);
 
   const exploredGeoJSON: GeoJSON.FeatureCollection = {
@@ -174,72 +169,78 @@ export function UnifiedMap({
 
   return (
     <View style={styles.container}>
-      <MapLibreGL.MapView
+      <Map
         style={styles.map}
-        styleJSON={JSON.stringify(OSM_STYLE)}
+        mapStyle={MAP_STYLE}
         logoEnabled={false}
         attributionPosition={{ bottom: 8, right: 8 }}
+
         onPress={(e) => {
-          const coords = e.geometry as GeoJSON.Point;
-          onMapClick?.(coords.coordinates[1], coords.coordinates[0]);
+          const { lngLat } = e.nativeEvent;
+          onMapClick?.(lngLat[1], lngLat[0]);
         }}
         onRegionDidChange={(e) => {
-          if (e.properties?.zoomLevel != null) {
-            setCurrentZoom(e.properties.zoomLevel as number);
-          }
+          const zoom = e.nativeEvent?.zoom;
+          if (zoom != null) setCurrentZoom(zoom);
         }}
       >
-        <MapLibreGL.Camera
+        <Camera
           ref={cameraRef}
-          defaultSettings={{
-            centerCoordinate: DEFAULT_CENTER,
-            zoomLevel: DEFAULT_ZOOM,
+          initialViewState={{
+            center: DEFAULT_CENTER,
+            zoom: DEFAULT_ZOOM,
           }}
         />
 
-        <MapLibreGL.UserLocation visible />
+        <UserLocation visible />
 
         {/* Explored trails */}
-        <MapLibreGL.ShapeSource
+        <GeoJSONSource
           id="explored-trails"
-          shape={exploredGeoJSON}
+          data={exploredGeoJSON}
           onPress={(e) => {
-            const trailId = e.features?.[0]?.properties?.id;
+            const trailId = e.nativeEvent.features?.[0]?.properties?.id;
             const trail = trails.find((t) => t.trail_id === trailId);
             if (trail) onTrailSelect?.(trail);
           }}
         >
-          <MapLibreGL.LineLayer
+          <Layer
             id="explored-trails-line"
-            style={{
-              lineColor: ['get', 'color'],
-              lineWidth: 4,
-              lineCap: 'round',
-              lineJoin: 'round',
+            type="line"
+            paint={{
+              'line-color': ['get', 'color'],
+              'line-width': 4,
+            }}
+            layout={{
+              'line-cap': 'round',
+              'line-join': 'round',
             }}
           />
-        </MapLibreGL.ShapeSource>
+        </GeoJSONSource>
 
         {/* Unexplored trails */}
-        <MapLibreGL.ShapeSource
+        <GeoJSONSource
           id="unexplored-trails"
-          shape={unexploredGeoJSON}
+          data={unexploredGeoJSON}
           onPress={(e) => {
-            const trailId = e.features?.[0]?.properties?.id;
+            const trailId = e.nativeEvent.features?.[0]?.properties?.id;
             const trail = trails.find((t) => t.trail_id === trailId);
             if (trail) onTrailSelect?.(trail);
           }}
         >
-          <MapLibreGL.LineLayer
+          <Layer
             id="unexplored-trails-line"
-            style={{
-              lineColor: ['get', 'color'],
-              lineWidth: 3,
-              lineCap: 'round',
-              lineJoin: 'round',
+            type="line"
+            paint={{
+              'line-color': ['get', 'color'],
+              'line-width': 3,
+            }}
+            layout={{
+              'line-cap': 'round',
+              'line-join': 'round',
             }}
           />
-        </MapLibreGL.ShapeSource>
+        </GeoJSONSource>
 
         {/* Selected trail highlight */}
         {selectedTrailId && (() => {
@@ -251,92 +252,100 @@ export function UnifiedMap({
             features: [trailToGeoJSON(selectedTrail, selectedColor)],
           };
           return (
-            <MapLibreGL.ShapeSource id="selected-trail" shape={selectedGeoJSON}>
-              <MapLibreGL.LineLayer
+            <GeoJSONSource id="selected-trail" data={selectedGeoJSON}>
+              <Layer
                 id="selected-trail-line"
-                style={{
-                  lineColor: ['get', 'color'],
-                  lineWidth: 7,
-                  lineCap: 'round',
-                  lineJoin: 'round',
+                type="line"
+                paint={{
+                  'line-color': ['get', 'color'],
+                  'line-width': 7,
+                }}
+                layout={{
+                  'line-cap': 'round',
+                  'line-join': 'round',
                 }}
               />
-            </MapLibreGL.ShapeSource>
+            </GeoJSONSource>
           );
         })()}
 
         {/* Foraging spots */}
-        <MapLibreGL.ShapeSource
+        <GeoJSONSource
           id="foraging-spots"
-          shape={spotsGeoJSON}
+          data={spotsGeoJSON}
           onPress={(e) => {
-            const spotId = e.features?.[0]?.properties?.id;
+            const spotId = e.nativeEvent.features?.[0]?.properties?.id;
             const spot = foragingSpots.find((s) => s.id === spotId);
             if (spot) onSpotSelect?.(spot);
           }}
         >
-          <MapLibreGL.CircleLayer
+          <Layer
             id="foraging-spots-circle"
-            style={{
-              circleRadius: 8,
-              circleColor: ['get', 'color'],
-              circleStrokeWidth: 2,
-              circleStrokeColor: '#ffffff',
+            type="circle"
+            paint={{
+              'circle-radius': 8,
+              'circle-color': ['get', 'color'],
+              'circle-stroke-width': 2,
+              'circle-stroke-color': '#ffffff',
             }}
           />
-        </MapLibreGL.ShapeSource>
+        </GeoJSONSource>
 
         {/* Places */}
-        <MapLibreGL.ShapeSource
+        <GeoJSONSource
           id="places"
-          shape={placesGeoJSON}
+          data={placesGeoJSON}
           onPress={(e) => {
-            const placeId = e.features?.[0]?.properties?.id;
+            const placeId = e.nativeEvent.features?.[0]?.properties?.id;
             const place = places.find((p) => p.place_id === placeId);
             if (place) onPlaceSelect?.(place);
           }}
         >
-          <MapLibreGL.CircleLayer
+          <Layer
             id="places-circle"
-            style={{
-              circleRadius: 6,
-              circleColor: colors.layer.places,
-              circleStrokeWidth: 1.5,
-              circleStrokeColor: '#ffffff',
+            type="circle"
+            paint={{
+              'circle-radius': 6,
+              'circle-color': colors.layer.places,
+              'circle-stroke-width': 1.5,
+              'circle-stroke-color': '#ffffff',
             }}
           />
-          <MapLibreGL.SymbolLayer
+          <Layer
             id="places-label"
-            style={{
-              textField: ['get', 'name'],
-              textSize: 11,
-              textOffset: [0, 1.5],
-              textAnchor: 'top',
-              textColor: colors.text.primary,
-              textHaloColor: '#ffffff',
-              textHaloWidth: 1,
+            type="symbol"
+            layout={{
+              'text-field': ['get', 'name'],
+              'text-size': 11,
+              'text-offset': [0, 1.5],
+              'text-anchor': 'top',
+            }}
+            paint={{
+              'text-color': colors.text.primary,
+              'text-halo-color': '#ffffff',
+              'text-halo-width': 1,
             }}
           />
-        </MapLibreGL.ShapeSource>
+        </GeoJSONSource>
 
         {/* Live recording polyline */}
         {recordingPoints && recordingPoints.length >= 2 && (
-          <MapLibreGL.ShapeSource
-            id="recording"
-            shape={recordingToGeoJSON(recordingPoints)}
-          >
-            <MapLibreGL.LineLayer
+          <GeoJSONSource id="recording" data={recordingToGeoJSON(recordingPoints)}>
+            <Layer
               id="recording-line"
-              style={{
-                lineColor: RECORDING_COLOR,
-                lineWidth: 4,
-                lineCap: 'round',
-                lineJoin: 'round',
+              type="line"
+              paint={{
+                'line-color': RECORDING_COLOR,
+                'line-width': 4,
+              }}
+              layout={{
+                'line-cap': 'round',
+                'line-join': 'round',
               }}
             />
-          </MapLibreGL.ShapeSource>
+          </GeoJSONSource>
         )}
-      </MapLibreGL.MapView>
+      </Map>
     </View>
   );
 }

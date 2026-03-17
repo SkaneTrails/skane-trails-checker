@@ -128,6 +128,34 @@ The app supports building a standalone Android APK with native maps (MapLibre GL
 
 > **USB Debugging:** On your phone, go to Settings → About Phone → tap "Build Number" 7 times to enable Developer Options. Then enable "USB Debugging" in Developer Options.
 
+#### Java / JAVA_HOME Setup (Windows)
+
+The Android build uses the JDK bundled with Android Studio. Set `JAVA_HOME` to point to it:
+
+```powershell
+# PowerShell (current session)
+$env:JAVA_HOME = "C:\Program Files\Android\Android Studio\jbr"
+
+# Or set permanently via System Environment Variables
+[System.Environment]::SetEnvironmentVariable("JAVA_HOME", "C:\Program Files\Android\Android Studio\jbr", "User")
+```
+
+Verify: `& "$env:JAVA_HOME\bin\java" -version` should show Java 21+.
+
+#### Production Environment Setup
+
+To connect the Android app to the production API and Firebase Auth:
+
+```bash
+# Authenticate with GCP
+gcloud auth application-default login
+
+# Fetch secrets and create mobile/.env.development
+uv run python dev-tools/setup_mobile_env.py
+```
+
+This populates `EXPO_PUBLIC_API_URL`, Firebase config, and OAuth client IDs from GCP Secret Manager. Use `--force` to overwrite an existing file.
+
 #### First-Time Development Build
 
 The Android app requires an Expo development build (not Expo Go) because it uses custom native modules (`@maplibre/maplibre-react-native`, `expo-location` background tracking).
@@ -145,11 +173,13 @@ npx expo run:android
 This will:
 
 1. Generate the `android/` directory with native project files
-1. Compile the native code
+1. Compile the native code (Gradle build)
 1. Install the app on your connected device
 1. Start the Metro bundler
 
 > **First build takes several minutes.** Subsequent builds are much faster as Gradle caches compiled code.
+
+> **React version:** React must be pinned to `19.2.3` (exact, no caret) to match `react-native-renderer`. If `pnpm install` bumps it, run: `pnpm add react@19.2.3 --save-exact`
 
 #### Running After First Build
 
@@ -196,9 +226,11 @@ EXPO_PUBLIC_API_URL=http://<your-computer-ip>:8000
 
 Use your computer's local IP (not `localhost`) since the phone connects over WiFi. Find it with `ipconfig` (Windows) or `ifconfig` (macOS/Linux).
 
-#### Native Map (MapLibre + OpenStreetMap)
+#### Native Map (MapLibre GL v11 + OpenStreetMap)
 
-The native Android map uses [MapLibre GL](https://github.com/maplibre/maplibre-react-native) with OpenStreetMap tiles — **no API key or billing required**. This keeps the project within its zero-cost constraint.
+The native Android map uses [MapLibre GL v11](https://github.com/maplibre/maplibre-react-native) with OpenStreetMap raster tiles — **no API key or billing required**. This keeps the project within its zero-cost constraint.
+
+> **Why v11?** MapLibre React Native v10 has a rendering bug with React Native's New Architecture (Fabric) where tile layers fail to paint despite loading successfully. v11 (beta) resolves this with a rewritten TurboModule-based renderer.
 
 Both web (Leaflet) and native (MapLibre) render the same OpenStreetMap tile data, ensuring visual consistency across platforms.
 
@@ -228,7 +260,7 @@ All business logic (hooks, types, API client, TrackingContext, TrackingOverlay) 
 
 The Android app records hikes with the screen off using a foreground service:
 
-- `expo-location` provides GPS coordinates (high accuracy, 5s interval, 10m minimum movement)
+- `expo-location` provides GPS coordinates (high accuracy, 3s interval, 5m minimum movement)
 - `expo-task-manager` registers a background task that survives screen lock
 - A persistent notification shows "Recording hike" while tracking is active
 - Coordinates are flushed to AsyncStorage every 30s for crash recovery
@@ -238,25 +270,28 @@ The Android app records hikes with the screen off using a foreground service:
 
 The app requests these Android permissions (configured in `app.json`):
 
-| Permission                    | Purpose                           |
-| ----------------------------- | --------------------------------- |
-| `ACCESS_FINE_LOCATION`        | GPS coordinates while app is open |
-| `ACCESS_COARSE_LOCATION`      | Approximate location fallback     |
-| `ACCESS_BACKGROUND_LOCATION`  | GPS with screen off               |
-| `FOREGROUND_SERVICE`          | Keep tracking alive in background |
-| `FOREGROUND_SERVICE_LOCATION` | Location-type foreground service  |
+| Permission                    | Purpose                             |
+| ----------------------------- | ----------------------------------- |
+| `ACCESS_FINE_LOCATION`        | GPS coordinates while app is open   |
+| `ACCESS_COARSE_LOCATION`      | Approximate location fallback       |
+| `ACCESS_BACKGROUND_LOCATION`  | GPS with screen off                 |
+| `FOREGROUND_SERVICE`          | Keep tracking alive in background   |
+| `FOREGROUND_SERVICE_LOCATION` | Location-type foreground service    |
+| `RECEIVE_BOOT_COMPLETED`      | Resume tracking after device reboot |
 
 Background location requires a two-step permission flow: foreground first, then background (Android 10+ requirement).
 
 #### Troubleshooting
 
-| Problem                              | Solution                                                                   |
-| ------------------------------------ | -------------------------------------------------------------------------- |
-| `INSTALL_FAILED_UPDATE_INCOMPATIBLE` | Uninstall the existing app: `adb uninstall com.skanetrails.checker`        |
-| Build fails with SDK errors          | Open `mobile/android/` in Android Studio and let it sync Gradle            |
-| App can't reach API                  | Check `EXPO_PUBLIC_API_URL` uses your computer's LAN IP, not localhost     |
-| GPS not recording in background      | Ensure "Allow all the time" location permission is granted                 |
-| Emulator has no GPS                  | Use Android Studio's Extended Controls (three dots) to set a mock location |
+| Problem                              | Solution                                                                                    |
+| ------------------------------------ | ------------------------------------------------------------------------------------------- |
+| `INSTALL_FAILED_UPDATE_INCOMPATIBLE` | Uninstall the existing app: `adb uninstall com.skanetrails.checker`                         |
+| Build fails with SDK errors          | Open `mobile/android/` in Android Studio and let it sync Gradle                             |
+| Build fails with Kotlin errors       | Ensure Gradle wrapper version is 8.x (not 9.x) in `gradle-wrapper.properties`               |
+| `JAVA_HOME` not set                  | Set to Android Studio JBR: `$env:JAVA_HOME = "C:\Program Files\Android\Android Studio\jbr"` |
+| App can't reach API                  | Check `EXPO_PUBLIC_API_URL` uses your computer's LAN IP, not localhost                      |
+| GPS not recording in background      | Ensure "Allow all the time" location permission is granted                                  |
+| Emulator has no GPS                  | Use Android Studio's Extended Controls (three dots) to set a mock location                  |
 
 ## Project Structure
 

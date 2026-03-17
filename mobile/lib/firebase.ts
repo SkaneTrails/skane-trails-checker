@@ -7,7 +7,15 @@
  */
 
 import { type FirebaseApp, initializeApp } from 'firebase/app';
-import { type Auth, GoogleAuthProvider, getAuth } from 'firebase/auth';
+import {
+  type Auth,
+  getAuth,
+  GoogleAuthProvider,
+  getReactNativePersistence,
+  initializeAuth,
+} from 'firebase/auth';
+import ReactNativeAsyncStorage from '@react-native-async-storage/async-storage';
+import { Platform } from 'react-native';
 
 const firebaseConfig = {
   apiKey: process.env.EXPO_PUBLIC_FIREBASE_API_KEY,
@@ -29,7 +37,12 @@ let googleProvider: GoogleAuthProvider | null = null;
 
 if (isFirebaseConfigured) {
   app = initializeApp(firebaseConfig);
-  auth = getAuth(app);
+  auth =
+    Platform.OS === 'web'
+      ? getAuth(app)
+      : initializeAuth(app, {
+          persistence: getReactNativePersistence(ReactNativeAsyncStorage),
+        });
   googleProvider = new GoogleAuthProvider();
 }
 
