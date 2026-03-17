@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { createQueryWrapper } from '@/test/helpers';
 import {
   SYNC_POLL_INTERVAL,
+  filterTrails,
   pollForChanges,
   sortTrails,
   useDeleteTrail,
@@ -70,17 +71,6 @@ describe('useTrails', () => {
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
     expect(result.current.data).toEqual([sampleTrail]);
     expect(mockTrailsApi.getTrails).toHaveBeenCalledWith({});
-  });
-
-  it('passes filters to API', async () => {
-    mockTrailsApi.getTrails.mockResolvedValue([]);
-    const wrapper = createQueryWrapper();
-
-    renderHook(() => useTrails({ source: 'planned_hikes' }), { wrapper });
-
-    await waitFor(() => {
-      expect(mockTrailsApi.getTrails).toHaveBeenCalledWith({ source: 'planned_hikes' });
-    });
   });
 
   it('seeds React Query from IndexedDB cache on mount', async () => {
@@ -264,7 +254,7 @@ describe('pollForChanges', () => {
     const { QueryClient } = await import('@tanstack/react-query');
     const qc = new QueryClient();
 
-    await pollForChanges(qc as any, ['trails', 'list', {}]);
+    await pollForChanges(qc as any, ['trails', 'list']);
 
     // No trail fetch or cache write should occur
     expect(mockTrailsApi.getTrails).not.toHaveBeenCalled();
@@ -291,7 +281,7 @@ describe('pollForChanges', () => {
       return Promise.resolve([renamedTrail]);
     });
 
-    const queryKey = ['trails', 'list', {}] as const;
+    const queryKey = ['trails', 'list'] as const;
 
     // Use a real QueryClient for setQueryData
     const { QueryClient } = await import('@tanstack/react-query');
@@ -320,7 +310,7 @@ describe('pollForChanges', () => {
     });
     mockTrailCache.merge.mockResolvedValue([sampleTrail, newTrail]);
 
-    const queryKey = ['trails', 'list', {}] as const;
+    const queryKey = ['trails', 'list'] as const;
     const { QueryClient } = await import('@tanstack/react-query');
     const qc = new QueryClient();
 
@@ -340,7 +330,7 @@ describe('pollForChanges', () => {
     });
     mockTrailsApi.getTrails.mockResolvedValue([sampleTrail]);
 
-    const queryKey = ['trails', 'list', {}] as const;
+    const queryKey = ['trails', 'list'] as const;
     const { QueryClient } = await import('@tanstack/react-query');
     const qc = new QueryClient();
 
@@ -353,7 +343,7 @@ describe('pollForChanges', () => {
     mockTrailsApi.getSyncMetadata.mockRejectedValue(new Error('Network error'));
     const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
 
-    const queryKey = ['trails', 'list', {}] as const;
+    const queryKey = ['trails', 'list'] as const;
     const { QueryClient } = await import('@tanstack/react-query');
     const qc = new QueryClient();
 
@@ -509,6 +499,52 @@ describe('sortTrails', () => {
 
   it('returns empty array for empty input', () => {
     expect(sortTrails([])).toEqual([]);
+  });
+});
+
+describe('filterTrails', () => {
+  const makeTrail = (overrides: Partial<typeof sampleTrail>) => ({
+    ...sampleTrail,
+    ...overrides,
+  });
+
+  const trails = [
+    makeTrail({ trail_id: '1', name: 'Hovdala Castle Loop', status: 'Explored!', length_km: 8.2 }),
+    makeTrail({ trail_id: '2', name: 'Söderåsen Ridge', status: 'To Explore', length_km: 15.0 }),
+    makeTrail({ trail_id: '3', name: 'Hovdala Lake Trail', status: 'To Explore', length_km: 5.5 }),
+  ];
+
+  it('returns all trails when no filters provided', () => {
+    expect(filterTrails(trails, {})).toEqual(trails);
+  });
+
+  it('filters by search (case-insensitive substring)', () => {
+    const result = filterTrails(trails, { search: 'hovdala' });
+    expect(result.map((t) => t.trail_id)).toEqual(['1', '3']);
+  });
+
+  it('filters by status', () => {
+    const result = filterTrails(trails, { status: 'To Explore' });
+    expect(result.map((t) => t.trail_id)).toEqual(['2', '3']);
+  });
+
+  it('filters by min_distance_km', () => {
+    const result = filterTrails(trails, { min_distance_km: 10 });
+    expect(result.map((t) => t.trail_id)).toEqual(['2']);
+  });
+
+  it('filters by max_distance_km', () => {
+    const result = filterTrails(trails, { max_distance_km: 8.2 });
+    expect(result.map((t) => t.trail_id)).toEqual(['1', '3']);
+  });
+
+  it('combines multiple filters', () => {
+    const result = filterTrails(trails, { search: 'hovdala', status: 'To Explore' });
+    expect(result.map((t) => t.trail_id)).toEqual(['3']);
+  });
+
+  it('returns empty array when nothing matches', () => {
+    expect(filterTrails(trails, { search: 'nonexistent' })).toEqual([]);
   });
 });
 

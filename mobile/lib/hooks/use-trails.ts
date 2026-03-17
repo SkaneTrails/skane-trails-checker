@@ -1,12 +1,18 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import type { TrailFilters } from '@/lib/api';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { trailsApi } from '@/lib/api';
 import { trailCache } from '@/lib/storage/trail-cache';
 import type { TrackingPoint } from '@/lib/track-to-trail';
 import type { Trail, TrailUpdate } from '@/lib/types';
 
 export const SYNC_POLL_INTERVAL = 5 * 60 * 1000; // 5 minutes
+
+export interface ClientTrailFilters {
+  search?: string;
+  status?: Trail['status'];
+  min_distance_km?: number;
+  max_distance_km?: number;
+}
 
 /**
  * Sort trails so uploaded trails appear before planned ones.
@@ -25,7 +31,7 @@ export function sortTrails(trails: Trail[]): Trail[] {
 
 export const trailKeys = {
   all: ['trails'] as const,
-  list: (filters: TrailFilters) => ['trails', 'list', filters] as const,
+  list: () => ['trails', 'list'] as const,
   detail: (id: string) => ['trails', 'detail', id] as const,
   details: (id: string) => ['trails', 'details', id] as const,
   sync: ['trails', 'sync'] as const,
@@ -34,42 +40,20 @@ export const trailKeys = {
 /**
  * Sync-on-mount trail hook.
  *
- * 1. Load cached trails from IndexedDB → seed React Query immediately
- * 2. Background-check sync metadata endpoint (1 Firestore read)
- * 3. If server count < local count → full refetch (deletion case)
- * 4. If server has newer data → delta fetch (since=lastSyncTime)
- * 5. Merge new trails into cache + React Query
- *
- * useQuery is disabled until sync completes (or fails) so the default
- * full-fetch only runs when there's no cached data to work from.
+ * Always fetches the full unfiltered trail list via sync mechanism.
+ * For client-side filtering, use the returned data with filterTrails().
  */
-export function useTrails(filters: TrailFilters = {}) {
+export function useTrails() {
   const queryClient = useQueryClient();
   const hasSynced = useRef(false);
   const [syncDone, setSyncDone] = useState(false);
-  const queryKey = useMemo(() => trailKeys.list(filters), [
-    filters.source,
-    filters.search,
-    filters.min_distance_km,
-    filters.max_distance_km,
-    filters.status,
-  ]);
-
-  const isUnfilteredQuery =
-    !filters.source &&
-    !filters.search &&
-    !filters.min_distance_km &&
-    !filters.max_distance_km &&
-    !filters.status;
+  const queryKey = trailKeys.list();
 
   const query = useQuery({
     queryKey,
-    queryFn: () => trailsApi.getTrails(filters),
+    queryFn: () => trailsApi.getTrails({}),
     select: sortTrails,
-    // For unfiltered queries, disable the automatic fetch until sync decides
-    // whether a full fetch is actually needed (saves Firestore reads).
-    // Filtered queries always fetch directly (no cache for those).
-    enabled: !isUnfilteredQuery || syncDone,
+    enabled: syncDone,
   });
 
   // Sync-on-mount: seed cache, then background delta sync
@@ -77,11 +61,8 @@ export function useTrails(filters: TrailFilters = {}) {
     if (hasSynced.current) return;
     hasSynced.current = true;
 
-    // Only sync for the unfiltered query to avoid double-syncing
-    if (!isUnfilteredQuery) return;
-
     syncTrails(queryClient, queryKey).finally(() => setSyncDone(true));
-  }, [queryClient, queryKey, isUnfilteredQuery]);
+  }, [queryClient, queryKey]);
 
   // Poll sync metadata every 5 minutes to detect changes from other devices.
   // Uses self-scheduling setTimeout to prevent overlapping polls when a
@@ -96,16 +77,43 @@ export function useTrails(filters: TrailFilters = {}) {
   }, [queryClient, queryKey]);
 
   useEffect(() => {
-    if (!isUnfilteredQuery || !syncDone) return;
+    if (!syncDone) return;
 
     schedulePoll();
 
     return () => {
       if (pollRef.current) clearTimeout(pollRef.current);
     };
-  }, [isUnfilteredQuery, syncDone, schedulePoll]);
+  }, [syncDone, schedulePoll]);
 
   return query;
+}
+
+/**
+ * Apply search, status, and distance filters client-side.
+ * Returns a filtered subset of the provided trails.
+ */
+export function filterTrails(trails: Trail[], filters: ClientTrailFilters): Trail[] {
+  let result = trails;
+
+  if (filters.search) {
+    const q = filters.search.toLowerCase();
+    result = result.filter((t) => t.name.toLowerCase().includes(q));
+  }
+
+  if (filters.status) {
+    result = result.filter((t) => t.status === filters.status);
+  }
+
+  if (filters.min_distance_km != null) {
+    result = result.filter((t) => t.length_km >= filters.min_distance_km!);
+  }
+
+  if (filters.max_distance_km != null) {
+    result = result.filter((t) => t.length_km <= filters.max_distance_km!);
+  }
+
+  return result;
 }
 
 async function syncTrails(
