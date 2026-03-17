@@ -1,4 +1,5 @@
 import { fireEvent, render, screen } from '@testing-library/react';
+import { Alert, Platform } from 'react-native';
 import type { Trail } from '@/lib/types';
 import { TrailCard } from '../TrailCard';
 
@@ -270,6 +271,22 @@ describe('TrailCard', () => {
     );
   });
 
+  it('toggles back to private after setting public', () => {
+    const onUpdate = vi.fn();
+    const trail = { ...baseTrail, is_public: true };
+    render(<TrailCard trail={trail} onClose={vi.fn()} onUpdate={onUpdate} />);
+
+    fireEvent.click(screen.getByLabelText('trailCard.edit'));
+    fireEvent.click(screen.getByText('trailCard.privateTrail'));
+    fireEvent.click(screen.getByText('common.save'));
+
+    expect(onUpdate).toHaveBeenCalledWith(
+      'trail-1',
+      { is_public: false },
+      expect.any(Function),
+    );
+  });
+
   it('shows delete button in edit mode when onDelete provided', () => {
     render(<TrailCard trail={baseTrail} onClose={vi.fn()} onUpdate={vi.fn()} onDelete={vi.fn()} />);
 
@@ -320,5 +337,35 @@ describe('TrailCard', () => {
 
     fireEvent.click(screen.getByLabelText('trailCard.edit'));
     expect(screen.getByText('common.deleting')).toBeDefined();
+  });
+
+  it('uses Alert.alert on native platform', () => {
+    const originalOS = Platform.OS;
+    Platform.OS = 'ios' as typeof Platform.OS;
+    const alertSpy = vi.spyOn(Alert, 'alert').mockImplementation(() => {});
+    const onDelete = vi.fn();
+    const onClose = vi.fn();
+
+    render(<TrailCard trail={baseTrail} onClose={onClose} onUpdate={vi.fn()} onDelete={onDelete} />);
+
+    fireEvent.click(screen.getByLabelText('trailCard.edit'));
+    fireEvent.click(screen.getByText('trail.deleteTrail'));
+
+    expect(alertSpy).toHaveBeenCalledWith(
+      'trail.deleteTrail',
+      expect.any(String),
+      expect.arrayContaining([
+        expect.objectContaining({ style: 'cancel' }),
+        expect.objectContaining({ style: 'destructive' }),
+      ]),
+    );
+
+    // Simulate pressing the destructive button
+    const destructiveButton = alertSpy.mock.calls[0][2]!.find((b: any) => b.style === 'destructive');
+    destructiveButton!.onPress!();
+    expect(onDelete).toHaveBeenCalledWith('trail-1', onClose);
+
+    alertSpy.mockRestore();
+    Platform.OS = originalOS;
   });
 });
