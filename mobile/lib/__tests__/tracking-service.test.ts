@@ -23,6 +23,8 @@ import * as TaskManager from 'expo-task-manager';
 
 // Must import AFTER mocks are set up
 let TrackingService: typeof import('@/lib/tracking-service');
+let GPS_TIME_INTERVAL: number;
+let GPS_DISTANCE_INTERVAL: number;
 
 describe('tracking-service', () => {
   beforeEach(async () => {
@@ -36,6 +38,8 @@ describe('tracking-service', () => {
     // Re-import to reset module-level state
     vi.resetModules();
     TrackingService = await import('@/lib/tracking-service');
+    GPS_TIME_INTERVAL = TrackingService.GPS_TIME_INTERVAL;
+    GPS_DISTANCE_INTERVAL = TrackingService.GPS_DISTANCE_INTERVAL;
   });
 
   afterEach(() => {
@@ -62,9 +66,9 @@ describe('tracking-service', () => {
       'background-location-tracking',
       expect.objectContaining({
         accuracy: Location.Accuracy.High,
-        timeInterval: 5000,
-        distanceInterval: 10,
-      }),
+        timeInterval: GPS_TIME_INTERVAL,
+        distanceInterval: GPS_DISTANCE_INTERVAL,
+      })
     );
   });
 
