@@ -21,11 +21,11 @@ Usage:
     # Download multiple regions
     uv run python dev-tools/import_sentiero_italia.py download --region Sicilia --region Sardegna
 
-    # Import merged GPX into Firestore
-    uv run python dev-tools/import_sentiero_italia.py import-trails --project <project_id>
+    # Import merged GPX into Firestore (reads .env for Firestore config)
+    uv run python dev-tools/import_sentiero_italia.py import-trails
 
     # Import only specific regions
-    uv run python dev-tools/import_sentiero_italia.py import-trails --project <id> --region Sicilia
+    uv run python dev-tools/import_sentiero_italia.py import-trails --region Sicilia
 """
 
 import argparse
@@ -225,7 +225,7 @@ def _get_output_path(regions: list[str] | None) -> Path:
     return TRACKS_DIR / f"sentiero-italia-{suffix}.gpx"
 
 
-def import_trails_cmd(project: str, database: str, regions: list[str] | None = None) -> None:
+def import_trails_cmd(regions: list[str] | None = None) -> None:
     """Import merged GPX file into Firestore as world_wide_hikes."""
     gpx_file = _get_output_path(regions)
 
@@ -234,14 +234,7 @@ def import_trails_cmd(project: str, database: str, regions: list[str] | None = N
         print("Run 'download' first to create it.")
         sys.exit(1)
 
-    import_gpx_to_firestore(
-        gpx_file,
-        source="world_wide_hikes",
-        project=project,
-        database=database,
-        status="To Explore",
-        existing_name_prefix="SI ",
-    )
+    import_gpx_to_firestore(gpx_file, source="world_wide_hikes", status="To Explore", existing_name_prefix="SI ")
 
 
 def main() -> None:
@@ -253,7 +246,7 @@ Examples:
   %(prog)s list-regions
   %(prog)s download --region Sicilia
   %(prog)s download --region Sicilia --region Sardegna
-  %(prog)s import-trails --project my-gcp-project --region Sicilia
+  %(prog)s import-trails --region Sicilia
         """,
     )
     subparsers = parser.add_subparsers(dest="command", required=True)
@@ -265,8 +258,6 @@ Examples:
     dl_parser.add_argument("--skip-simplify", action="store_true", help="Skip RDP simplification step")
 
     imp_parser = subparsers.add_parser("import-trails", help="Import merged GPX into Firestore")
-    imp_parser.add_argument("--project", required=True, help="GCP project ID")
-    imp_parser.add_argument("--database", default="", help="Firestore database ID")
     imp_parser.add_argument("--region", action="append", help="Filter by region (repeatable)")
 
     args = parser.parse_args()
@@ -299,13 +290,13 @@ Examples:
         print(f"GPX files: {gpx_dir}")
         print(f"Merged file: {output_file}")
         print("\nTo import into Firestore:")
-        print("  uv run python dev-tools/import_sentiero_italia.py import-trails --project <project_id>")
+        print("  uv run python dev-tools/import_sentiero_italia.py import-trails")
         if regions:
             region_args = " ".join(f"--region {r}" for r in regions)
             print(f"  (add {region_args} to match what you downloaded)")
 
     elif args.command == "import-trails":
-        import_trails_cmd(args.project, args.database, args.region)
+        import_trails_cmd(args.region)
 
 
 if __name__ == "__main__":

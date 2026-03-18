@@ -177,23 +177,22 @@ def simplify_gpx(gpx_file: Path, *, tolerance: float = RDP_TOLERANCE) -> tuple[i
 # ---------------------------------------------------------------------------
 
 
-def import_gpx_to_firestore(  # noqa: C901, PLR0912, PLR0913
+def import_gpx_to_firestore(  # noqa: C901, PLR0912, PLR0915
     gpx_file: Path,
     *,
     source: str,
-    project: str,
-    database: str = "",
     status: str = "To Explore",
     existing_name_prefix: str = "",
     post_process: TrailPostProcessor | Callable[..., None] | None = None,
 ) -> tuple[int, int, int]:
     """Import tracks from a merged GPX file into Firestore.
 
+    Firestore connection is configured via .env (loaded automatically).
+    Requires FIRESTORE_PROJECT_ID and FIRESTORE_DATABASE_ID.
+
     Args:
         gpx_file: Path to the merged/simplified GPX file.
         source: Firestore source value (e.g. "planned_hikes", "world_wide_hikes").
-        project: GCP project ID.
-        database: Firestore database ID (empty string = default).
         status: Default trail status.
         existing_name_prefix: If set, skip tracks whose name starts with this
             prefix and already exists in Firestore (for idempotent re-runs).
@@ -206,16 +205,23 @@ def import_gpx_to_firestore(  # noqa: C901, PLR0912, PLR0913
     import os
     import sys
 
-    os.environ["GOOGLE_CLOUD_PROJECT"] = project
-    os.environ["FIRESTORE_PROJECT_ID"] = project
-    os.environ["FIRESTORE_DATABASE_ID"] = database or "(default)"
-    if database:
-        os.environ["FIRESTORE_DATABASE"] = database
-
     # Ensure project root is on sys.path so api/app packages are importable
     project_root = str(Path(__file__).resolve().parent.parent)
     if project_root not in sys.path:
         sys.path.insert(0, project_root)
+
+    from app.functions.env_loader import load_env_if_needed
+
+    load_env_if_needed()
+
+    project = os.environ.get("FIRESTORE_PROJECT_ID", "")
+    database = os.environ.get("FIRESTORE_DATABASE_ID", "")
+    if not project or not database:
+        print("ERROR: FIRESTORE_PROJECT_ID and FIRESTORE_DATABASE_ID must be set.")
+        print("Run: uv run python dev-tools/setup_env.py")
+        sys.exit(1)
+
+    print(f"Firestore: {project} / {database}")
 
     # Late imports — only needed when actually writing to Firestore
     from api.storage.firestore_client import get_collection
