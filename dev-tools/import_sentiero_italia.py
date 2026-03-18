@@ -26,6 +26,9 @@ Usage:
 
     # Import only specific regions
     uv run python dev-tools/import_sentiero_italia.py import-trails --region Sicilia
+
+    # Import POIs (bus/train stations, water points, parking) as places
+    uv run python dev-tools/import_sentiero_italia.py import-places
 """
 
 import argparse
@@ -39,6 +42,7 @@ import urllib.request
 from pathlib import Path
 
 from gpx_pipeline import download_file, import_gpx_to_firestore, merge_gpx_files, simplify_gpx
+from sentiero_italia_firestore import import_places
 
 WFS_BASE = "https://sentieroitaliamappe.cai.it/index.php/lizmap/service?repository=sicaipubblico&project=SICAI_Pubblico"
 GPX_BASE = "https://sentieroitalia.cai.it/gpxfiles"
@@ -237,6 +241,11 @@ def import_trails_cmd(regions: list[str] | None = None) -> None:
     import_gpx_to_firestore(gpx_file, source="world_wide_hikes", status="To Explore", existing_name_prefix="SI ")
 
 
+def import_places_cmd(regions: list[str] | None = None) -> None:
+    """Import POIs as places into Firestore."""
+    import_places(regions, output_dir=OUTPUT_DIR)
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(
         description="Download and import Sentiero Italia CAI trail GPX files",
@@ -247,6 +256,7 @@ Examples:
   %(prog)s download --region Sicilia
   %(prog)s download --region Sicilia --region Sardegna
   %(prog)s import-trails --region Sicilia
+  %(prog)s import-places
         """,
     )
     subparsers = parser.add_subparsers(dest="command", required=True)
@@ -259,6 +269,9 @@ Examples:
 
     imp_parser = subparsers.add_parser("import-trails", help="Import merged GPX into Firestore")
     imp_parser.add_argument("--region", action="append", help="Filter by region (repeatable)")
+
+    places_parser = subparsers.add_parser("import-places", help="Import POIs as places into Firestore")
+    places_parser.add_argument("--region", action="append", help="Filter by region (repeatable)")
 
     args = parser.parse_args()
 
@@ -291,12 +304,16 @@ Examples:
         print(f"Merged file: {output_file}")
         print("\nTo import into Firestore:")
         print("  uv run python dev-tools/import_sentiero_italia.py import-trails")
+        print("  uv run python dev-tools/import_sentiero_italia.py import-places")
         if regions:
             region_args = " ".join(f"--region {r}" for r in regions)
             print(f"  (add {region_args} to match what you downloaded)")
 
     elif args.command == "import-trails":
         import_trails_cmd(args.region)
+
+    elif args.command == "import-places":
+        import_places_cmd(args.region)
 
 
 if __name__ == "__main__":

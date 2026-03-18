@@ -182,9 +182,23 @@ def _extract_track_metadata(track, tappa_meta: dict) -> dict:  # noqa: ANN001
     return cai_meta
 
 
-def import_places(project: str, database: str, regions: list[str] | None = None, *, output_dir: Path) -> None:
+def import_places(regions: list[str] | None = None, *, output_dir: Path) -> None:
     """Import POIs (bus/train stations, water points, parking) as places."""
     import os
+    import sys
+
+    sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+
+    from app.functions.env_loader import load_env_if_needed
+
+    load_env_if_needed()
+
+    project = os.environ.get("FIRESTORE_PROJECT_ID", "")
+    database = os.environ.get("FIRESTORE_DATABASE_ID", "")
+    if not project or not database:
+        print("ERROR: FIRESTORE_PROJECT_ID and FIRESTORE_DATABASE_ID must be set.")
+        print("Run: uv run python dev-tools/setup_env.py")
+        sys.exit(1)
 
     from api.storage.places_storage import save_place
 
@@ -193,10 +207,6 @@ def import_places(project: str, database: str, regions: list[str] | None = None,
         print(f"POI data not found: {poi_path}")
         print("Run 'download' first to fetch POI data.")
         return
-
-    os.environ["GOOGLE_CLOUD_PROJECT"] = project
-    if database:
-        os.environ["FIRESTORE_DATABASE"] = database
 
     with poi_path.open(encoding="utf-8") as f:
         data = json.load(f)
