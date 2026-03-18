@@ -7,7 +7,15 @@
  */
 
 import { type FirebaseApp, initializeApp } from 'firebase/app';
-import { type Auth, GoogleAuthProvider, getAuth } from 'firebase/auth';
+import {
+  type Auth,
+  getAuth,
+  GoogleAuthProvider,
+  getReactNativePersistence,
+  initializeAuth,
+} from 'firebase/auth';
+import ReactNativeAsyncStorage from '@react-native-async-storage/async-storage';
+import { Platform } from 'react-native';
 
 const firebaseConfig = {
   apiKey: process.env.EXPO_PUBLIC_FIREBASE_API_KEY,
@@ -29,7 +37,18 @@ let googleProvider: GoogleAuthProvider | null = null;
 
 if (isFirebaseConfigured) {
   app = initializeApp(firebaseConfig);
-  auth = getAuth(app);
+  if (Platform.OS === 'web') {
+    auth = getAuth(app);
+  } else {
+    try {
+      auth = initializeAuth(app, {
+        persistence: getReactNativePersistence(ReactNativeAsyncStorage),
+      });
+    } catch {
+      // Already initialized (e.g. Fast Refresh) — reuse existing instance
+      auth = getAuth(app);
+    }
+  }
   googleProvider = new GoogleAuthProvider();
 }
 
