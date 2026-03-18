@@ -22,8 +22,8 @@ import type { TrackingPoint } from '@/lib/track-to-trail';
 const TRACKING_TASK = 'background-location-tracking';
 const STORAGE_KEY = '@skane_trails_tracking_buffer';
 const FLUSH_INTERVAL_MS = 30_000;
-const GPS_TIME_INTERVAL = 3000;
-const GPS_DISTANCE_INTERVAL = 5;
+export const GPS_TIME_INTERVAL = 3_000;
+export const GPS_DISTANCE_INTERVAL = 5;
 
 type PointListener = (point: TrackingPoint) => void;
 

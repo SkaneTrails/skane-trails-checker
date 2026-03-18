@@ -9,7 +9,9 @@
 
 import {
   GoogleSignin,
+  isErrorWithCode,
   isSuccessResponse,
+  statusCodes,
 } from '@react-native-google-signin/google-signin';
 import {
   signOut as firebaseSignOut,
@@ -171,8 +173,11 @@ const AuthProviderImpl = ({ children }: AuthProviderProps) => {
       if (__DEV__) {
         console.error('signIn error:', err);
       }
-      const errorMessage = err instanceof Error ? err.message : '';
-      if (!errorMessage.includes('popup-closed-by-user') && !errorMessage.includes('SIGN_IN_CANCELLED')) {
+      const isWebPopupClosed =
+        err instanceof Error && err.message.includes('popup-closed-by-user');
+      const isNativeCancelled =
+        isErrorWithCode(err) && err.code === statusCodes.SIGN_IN_CANCELLED;
+      if (!isWebPopupClosed && !isNativeCancelled) {
         setError('Sign-in failed. Please try again.');
       }
     }

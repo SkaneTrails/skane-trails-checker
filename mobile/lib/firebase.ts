@@ -37,12 +37,18 @@ let googleProvider: GoogleAuthProvider | null = null;
 
 if (isFirebaseConfigured) {
   app = initializeApp(firebaseConfig);
-  auth =
-    Platform.OS === 'web'
-      ? getAuth(app)
-      : initializeAuth(app, {
-          persistence: getReactNativePersistence(ReactNativeAsyncStorage),
-        });
+  if (Platform.OS === 'web') {
+    auth = getAuth(app);
+  } else {
+    try {
+      auth = initializeAuth(app, {
+        persistence: getReactNativePersistence(ReactNativeAsyncStorage),
+      });
+    } catch {
+      // Already initialized (e.g. Fast Refresh) — reuse existing instance
+      auth = getAuth(app);
+    }
+  }
   googleProvider = new GoogleAuthProvider();
 }
 

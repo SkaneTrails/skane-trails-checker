@@ -1,5 +1,5 @@
 /**
- * Native map implementation using MapLibre GL v11 with CARTO Voyager tiles.
+ * Native map implementation using MapLibre GL v11 with OpenStreetMap raster tiles.
  *
  * Renders trails as line layers, foraging spots as circle markers,
  * and place icons when zoomed in. Supports live recording polyline.
