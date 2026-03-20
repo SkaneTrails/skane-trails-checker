@@ -9,7 +9,7 @@ default_language_version:
   python: python3.14
 repos:
   - repo: https://github.com/tox-dev/pyproject-fmt
-    rev: "v2.18.1"
+    rev: "v2.19.0"
     hooks:
       - id: pyproject-fmt
   - repo: https://github.com/abravalheri/validate-pyproject
@@ -84,7 +84,7 @@ repos:
         files: \.(json|toml)$
         exclude: ^(renovate\.json)$
   - repo: https://github.com/astral-sh/uv-pre-commit
-    rev: 0.10.10
+    rev: 0.10.11
     hooks:
       - id: uv-lock
       - id: uv-sync
