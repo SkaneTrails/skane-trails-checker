@@ -75,8 +75,13 @@ app/tracks_gpx/other_trails/*
 !app/tracks_gpx/other_trails/README.md
 app/tracks_gpx/world_wide_hikes/*
 !app/tracks_gpx/world_wide_hikes/README.md
+app/tracks_gpx/sentiero_italia/*
 app/tracks_status/*
 !app/tracks_status/README.md
+
+# Downloaded trail GPX caches (large, re-downloadable)
+dev-tools/sentiero_italia_gpx/
+dev-tools/skaneleden_gpx/
 
 # Debugging logs
 app_debug.log
