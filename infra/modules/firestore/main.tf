@@ -193,3 +193,46 @@ resource "google_firestore_index" "trails_is_public_modified_at" {
     order      = "ASCENDING"
   }
 }
+
+# Three-field indexes for combined source + since queries under group/public scope
+resource "google_firestore_index" "trails_group_source_modified_at" {
+  project    = var.project
+  database   = google_firestore_database.database.name
+  collection = "trails"
+
+  fields {
+    field_path = "group_id"
+    order      = "ASCENDING"
+  }
+
+  fields {
+    field_path = "source"
+    order      = "ASCENDING"
+  }
+
+  fields {
+    field_path = "modified_at"
+    order      = "ASCENDING"
+  }
+}
+
+resource "google_firestore_index" "trails_is_public_source_modified_at" {
+  project    = var.project
+  database   = google_firestore_database.database.name
+  collection = "trails"
+
+  fields {
+    field_path = "is_public"
+    order      = "ASCENDING"
+  }
+
+  fields {
+    field_path = "source"
+    order      = "ASCENDING"
+  }
+
+  fields {
+    field_path = "modified_at"
+    order      = "ASCENDING"
+  }
+}

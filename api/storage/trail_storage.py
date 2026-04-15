@@ -36,8 +36,8 @@ def _doc_to_trail(data: dict) -> TrailResponse:
         source=data.get("source", ""),
         last_updated=data.get("last_updated", ""),
         created_at=data.get("created_at"),
-        # Fallback chain for modified_at: existing trails may not have this field
-        modified_at=data.get("modified_at") or data.get("created_at") or data.get("last_updated"),
+        # Fallback chain for modified_at: prefer last_updated (better proxy for last modification)
+        modified_at=data.get("modified_at") or data.get("last_updated") or data.get("created_at"),
         activity_date=data.get("activity_date"),
         activity_type=data.get("activity_type"),
         elevation_gain=data.get("elevation_gain"),
