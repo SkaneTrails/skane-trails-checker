@@ -14,6 +14,14 @@ import { DEFAULT_COMPLETED_COLOR, DEFAULT_PLANNED_COLOR } from './trail-colors';
 
 export type { AppLanguage } from './i18n/language-state';
 
+/** GPS tracking mode — affects battery consumption and track precision. */
+export type GpsMode = 'balanced' | 'high_precision';
+
+export const GPS_MODES: { code: GpsMode; labelKey: string }[] = [
+  { code: 'balanced', labelKey: 'settings.gpsBalanced' },
+  { code: 'high_precision', labelKey: 'settings.gpsHighPrecision' },
+];
+
 const STORAGE_KEY = '@skane_trails_settings';
 
 export const LANGUAGES: { code: AppLanguage; label: string }[] = [
@@ -26,6 +34,9 @@ const SUPPORTED_LANGUAGES: AppLanguage[] = ['en', 'sv'];
 const isSupportedLanguage = (value: string): value is AppLanguage =>
   SUPPORTED_LANGUAGES.includes(value as AppLanguage);
 
+const isSupportedGpsMode = (value: string): value is GpsMode =>
+  value === 'balanced' || value === 'high_precision';
+
 /** Categories shown by default on map and places tab (hiking essentials). */
 export const DEFAULT_PLACE_CATEGORIES = ['parkering', 'vatten', 'toalett'];
 
@@ -35,6 +46,7 @@ interface Settings {
   enabledPlaceCategories: string[];
   defaultPlannedColor: string;
   defaultCompletedColor: string;
+  gpsMode: GpsMode;
 }
 
 interface SettingsContextType {
@@ -43,12 +55,14 @@ interface SettingsContextType {
   enabledPlaceCategories: string[];
   defaultPlannedColor: string;
   defaultCompletedColor: string;
+  gpsMode: GpsMode;
   isLoading: boolean;
   setLanguage: (language: AppLanguage) => void;
   setEnabledPlaceCategories: (categories: string[]) => void;
   togglePlaceCategory: (slug: string) => void;
   setDefaultPlannedColor: (color: string) => void;
   setDefaultCompletedColor: (color: string) => void;
+  setGpsMode: (mode: GpsMode) => void;
 }
 
 const defaultSettings: Settings = {
@@ -57,6 +71,7 @@ const defaultSettings: Settings = {
   enabledPlaceCategories: DEFAULT_PLACE_CATEGORIES,
   defaultPlannedColor: DEFAULT_PLANNED_COLOR,
   defaultCompletedColor: DEFAULT_COMPLETED_COLOR,
+  gpsMode: 'balanced',
 };
 
 const SettingsContext = createContext<SettingsContextType | null>(null);
@@ -88,6 +103,10 @@ export const SettingsProvider = ({ children }: { children: React.ReactNode }) =>
               typeof parsed.defaultCompletedColor === 'string'
                 ? parsed.defaultCompletedColor
                 : DEFAULT_COMPLETED_COLOR,
+            gpsMode:
+              typeof parsed.gpsMode === 'string' && isSupportedGpsMode(parsed.gpsMode)
+                ? parsed.gpsMode
+                : 'balanced',
           });
         }
       } catch {
@@ -147,6 +166,14 @@ export const SettingsProvider = ({ children }: { children: React.ReactNode }) =>
     });
   }, []);
 
+  const setGpsMode = useCallback((mode: GpsMode) => {
+    setSettings((prev) => {
+      const updated = { ...prev, gpsMode: mode };
+      AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+      return updated;
+    });
+  }, []);
+
   const value = useMemo<SettingsContextType>(
     () => ({
       language: settings.language,
@@ -154,14 +181,16 @@ export const SettingsProvider = ({ children }: { children: React.ReactNode }) =>
       enabledPlaceCategories: settings.enabledPlaceCategories,
       defaultPlannedColor: settings.defaultPlannedColor,
       defaultCompletedColor: settings.defaultCompletedColor,
+      gpsMode: settings.gpsMode,
       isLoading,
       setLanguage,
       setEnabledPlaceCategories,
       togglePlaceCategory,
       setDefaultPlannedColor,
       setDefaultCompletedColor,
+      setGpsMode,
     }),
-    [settings, isLoading, setLanguage, setEnabledPlaceCategories, togglePlaceCategory, setDefaultPlannedColor, setDefaultCompletedColor],
+    [settings, isLoading, setLanguage, setEnabledPlaceCategories, togglePlaceCategory, setDefaultPlannedColor, setDefaultCompletedColor, setGpsMode],
   );
 
   return <SettingsContext.Provider value={value}>{children}</SettingsContext.Provider>;

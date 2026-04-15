@@ -35,6 +35,11 @@ vi.mock('@/lib/tracking-context', () => ({
   useTracking: () => mockContext,
 }));
 
+// Mock settings context
+vi.mock('@/lib/settings-context', () => ({
+  useSettings: () => ({ gpsMode: 'balanced' }),
+}));
+
 // Mock theme
 vi.mock('@/lib/theme', () => ({
   useTheme: () => ({
@@ -77,7 +82,7 @@ describe('TrackingControls.native', () => {
     await waitFor(() => {
       expect(requestTrackingPermissions).toHaveBeenCalled();
       expect(mockContext.start).toHaveBeenCalled();
-      expect(TrackingService.startTracking).toHaveBeenCalledWith(mockContext.addPoint);
+      expect(TrackingService.startTracking).toHaveBeenCalledWith(mockContext.addPoint, 'balanced');
     });
   });
 
@@ -149,7 +154,7 @@ describe('TrackingControls.native', () => {
     fireEvent.click(screen.getByLabelText('tracking.resumeTracking'));
 
     await waitFor(() => {
-      expect(TrackingService.resumeTracking).toHaveBeenCalledWith(mockContext.addPoint);
+      expect(TrackingService.resumeTracking).toHaveBeenCalledWith(mockContext.addPoint, 'balanced');
       expect(mockContext.resume).toHaveBeenCalled();
     });
   });

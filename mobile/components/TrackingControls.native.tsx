@@ -13,6 +13,7 @@ import { useCallback } from 'react';
 import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { requestTrackingPermissions } from '@/lib/location-permissions';
 import { useTranslation } from '@/lib/i18n';
+import { useSettings } from '@/lib/settings-context';
 import { useTracking } from '@/lib/tracking-context';
 import * as TrackingService from '@/lib/tracking-service';
 import { borderRadius, fontSize, fontWeight, spacing, useTheme } from '@/lib/theme';
@@ -20,6 +21,7 @@ import { borderRadius, fontSize, fontWeight, spacing, useTheme } from '@/lib/the
 export function TrackingControls() {
   const { colors, shadows } = useTheme();
   const { t } = useTranslation();
+  const { gpsMode } = useSettings();
   const { status, start, pause, resume, stop, reset, addPoint } = useTracking();
 
   if (Platform.OS !== 'android') return null;
@@ -32,12 +34,12 @@ export function TrackingControls() {
     // by start()'s setPoints([]) clearing after addPoint has been called.
     start();
     try {
-      await TrackingService.startTracking(addPoint);
+      await TrackingService.startTracking(addPoint, gpsMode);
     } catch {
       // startLocationUpdatesAsync failed — roll back to idle
       reset();
     }
-  }, [t, start, reset, addPoint]);
+  }, [t, start, reset, addPoint, gpsMode]);
 
   const handlePause = useCallback(async () => {
     try {
@@ -50,12 +52,12 @@ export function TrackingControls() {
 
   const handleResume = useCallback(async () => {
     try {
-      await TrackingService.resumeTracking(addPoint);
+      await TrackingService.resumeTracking(addPoint, gpsMode);
       resume();
     } catch {
       // GPS resume failed — don't change UI state
     }
-  }, [resume, addPoint]);
+  }, [resume, addPoint, gpsMode]);
 
   const handleStop = useCallback(async () => {
     try {
