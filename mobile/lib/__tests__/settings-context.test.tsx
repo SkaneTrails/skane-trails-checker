@@ -129,6 +129,31 @@ describe('useSettings — place category filtering', () => {
   });
 });
 
+describe('useSettings — language settings', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('setLanguage updates and persists', async () => {
+    mockAsyncStorage.getItem.mockResolvedValue(null);
+    const wrapper = createWrapper();
+
+    const { result } = renderHook(() => useSettings(), { wrapper });
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+
+    expect(result.current.language).toBe('en');
+
+    await act(async () => {
+      await result.current.setLanguage('sv');
+    });
+
+    expect(result.current.language).toBe('sv');
+    const lastCall = mockAsyncStorage.setItem.mock.calls.at(-1);
+    const saved = JSON.parse(lastCall?.[1] as string);
+    expect(saved.language).toBe('sv');
+  });
+});
+
 describe('useSettings — default trail colors', () => {
   beforeEach(() => {
     vi.clearAllMocks();
