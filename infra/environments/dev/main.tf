@@ -36,6 +36,14 @@ locals {
     trimspace(line)
     if trimspace(line) != "" && !startswith(trimspace(line), "#")
   ])
+
+  # Common labels for billing and resource identification
+  # These appear in GCP billing reports for cost tracking
+  labels = {
+    app         = "skane-trails"
+    environment = "dev"
+    managed-by  = "terraform"
+  }
 }
 
 # Enable required APIs first
@@ -67,6 +75,7 @@ module "firestore" {
   project       = var.project
   database_name = var.firestore_database_name
   location_id   = var.firestore_location
+  labels        = local.labels
 
   # Implicit dependencies through API service references
   firestore_api_service     = module.apis.firestore_service
@@ -84,6 +93,7 @@ module "artifact_registry" {
   project         = var.project
   region          = var.region
   repository_name = "skane-trails"
+  labels          = local.labels
 
   artifactregistry_api_service = module.apis.artifactregistry_service
 }
@@ -97,6 +107,7 @@ module "cloud_run" {
   service_name       = "skane-trails-api"
   image_url          = "${module.artifact_registry.repository_url}/skane-trails-api:${var.image_tag}"
   firestore_database = var.firestore_database_name
+  labels             = local.labels
   allowed_origins = join(",", [
     module.firebase.hosting_url,
     "http://localhost:8501",
@@ -149,6 +160,7 @@ module "backup" {
   firestore_database_names = module.firestore.database_names
   function_region          = var.region
   scheduler_region         = var.region
+  labels                   = local.labels
 
   # API dependencies
   storage_api_service        = module.apis.storage_service

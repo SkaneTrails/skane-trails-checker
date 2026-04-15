@@ -9,6 +9,7 @@ resource "google_artifact_registry_repository" "api" {
   repository_id = var.repository_name
   description   = "Container images for Skåne Trails API"
   format        = "DOCKER"
+  labels        = var.labels
 
   # Clean up old images to stay within free tier
   cleanup_policies {
