@@ -169,7 +169,8 @@ export const SettingsProvider = ({ children }: { children: React.ReactNode }) =>
   const setGpsMode = useCallback((mode: GpsMode) => {
     setSettings((prev) => {
       const updated = { ...prev, gpsMode: mode };
-      AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+      // Best-effort persistence — UI state updates immediately regardless of storage success
+      void AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(updated)).catch(() => {});
       return updated;
     });
   }, []);

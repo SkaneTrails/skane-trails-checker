@@ -135,7 +135,8 @@ export async function startTracking(onPoint: PointListener, gpsMode: GpsMode = '
   // Clear persisted buffer so crash recovery doesn't return stale data
   await AsyncStorage.removeItem(STORAGE_KEY).catch(() => {});
 
-  const config = GPS_CONFIG[gpsMode];
+  // Defensive fallback if gpsMode is corrupted/invalid
+  const config = GPS_CONFIG[gpsMode] ?? GPS_CONFIG.balanced;
   await Location.startLocationUpdatesAsync(TRACKING_TASK, {
     accuracy: config.accuracy,
     timeInterval: config.timeInterval,
@@ -160,7 +161,8 @@ export async function resumeTracking(onPoint: PointListener, gpsMode: GpsMode = 
   const state = getState();
   state.pointListener = onPoint;
 
-  const config = GPS_CONFIG[gpsMode];
+  // Defensive fallback if gpsMode is corrupted/invalid
+  const config = GPS_CONFIG[gpsMode] ?? GPS_CONFIG.balanced;
   await Location.startLocationUpdatesAsync(TRACKING_TASK, {
     accuracy: config.accuracy,
     timeInterval: config.timeInterval,
