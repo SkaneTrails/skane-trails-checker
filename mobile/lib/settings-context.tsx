@@ -126,7 +126,7 @@ export const SettingsProvider = ({ children }: { children: React.ReactNode }) =>
   const setLanguage = useCallback((language: AppLanguage) => {
     setSettings((prev) => {
       const updated = { ...prev, language };
-      AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+      void AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(updated)).catch(() => {});
       return updated;
     });
   }, []);
@@ -134,7 +134,7 @@ export const SettingsProvider = ({ children }: { children: React.ReactNode }) =>
   const setEnabledPlaceCategories = useCallback((categories: string[]) => {
     setSettings((prev) => {
       const updated = { ...prev, enabledPlaceCategories: categories };
-      AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+      void AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(updated)).catch(() => {});
       return updated;
     });
   }, []);
@@ -145,7 +145,7 @@ export const SettingsProvider = ({ children }: { children: React.ReactNode }) =>
         ? prev.enabledPlaceCategories.filter((s) => s !== slug)
         : [...prev.enabledPlaceCategories, slug];
       const updated = { ...prev, enabledPlaceCategories: enabled };
-      AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+      void AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(updated)).catch(() => {});
       return updated;
     });
   }, []);
@@ -153,7 +153,7 @@ export const SettingsProvider = ({ children }: { children: React.ReactNode }) =>
   const setDefaultPlannedColor = useCallback((color: string) => {
     setSettings((prev) => {
       const updated = { ...prev, defaultPlannedColor: color };
-      AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+      void AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(updated)).catch(() => {});
       return updated;
     });
   }, []);
@@ -161,7 +161,7 @@ export const SettingsProvider = ({ children }: { children: React.ReactNode }) =>
   const setDefaultCompletedColor = useCallback((color: string) => {
     setSettings((prev) => {
       const updated = { ...prev, defaultCompletedColor: color };
-      AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+      void AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(updated)).catch(() => {});
       return updated;
     });
   }, []);

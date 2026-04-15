@@ -35,9 +35,9 @@ vi.mock('@/lib/tracking-context', () => ({
   useTracking: () => mockContext,
 }));
 
-// Mock settings context
+// Mock settings context — include language for useTranslation
 vi.mock('@/lib/settings-context', () => ({
-  useSettings: () => ({ gpsMode: 'balanced' }),
+  useSettings: () => ({ gpsMode: 'balanced', language: 'en', isLoading: false }),
 }));
 
 // Mock theme
