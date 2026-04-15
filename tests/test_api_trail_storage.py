@@ -140,6 +140,35 @@ class TestDocToTrail:
         assert trail.max_inclination_deg is None
         assert trail.created_by is None
 
+    def test_modified_at_fallback_to_created_at(self, mock_collection) -> None:
+        """Trail without modified_at should fall back to created_at for delta sync."""
+        doc = {
+            "trail_id": "t3",
+            "name": "Legacy Trail",
+            "created_at": "2026-01-15T10:00:00Z",
+            "last_updated": "2026-01-20T10:00:00Z",
+        }
+        mock_doc = MagicMock()
+        mock_doc.to_dict.return_value = doc
+        mock_collection.stream.return_value = [mock_doc]
+
+        trail = get_all_trails()[0]
+
+        # Should fall back to created_at when modified_at is missing
+        assert trail.modified_at == "2026-01-15T10:00:00Z"
+
+    def test_modified_at_fallback_to_last_updated(self, mock_collection) -> None:
+        """Trail without modified_at or created_at should fall back to last_updated."""
+        doc = {"trail_id": "t4", "name": "Very Old Trail", "last_updated": "2025-12-01T10:00:00Z"}
+        mock_doc = MagicMock()
+        mock_doc.to_dict.return_value = doc
+        mock_collection.stream.return_value = [mock_doc]
+
+        trail = get_all_trails()[0]
+
+        # Should fall back to last_updated when both modified_at and created_at are missing
+        assert trail.modified_at == "2025-12-01T10:00:00Z"
+
     def test_maps_created_by(self, mock_collection) -> None:
         doc_with_owner = {**SAMPLE_TRAIL, "created_by": "user-1"}
         mock_doc = MagicMock()

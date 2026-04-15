@@ -138,3 +138,52 @@ resource "google_firestore_index" "foraging_spots_index" {
     order      = "DESCENDING"
   }
 }
+
+# Trails collection indexes for delta sync (modified_at filtering)
+resource "google_firestore_index" "trails_source_modified_at" {
+  project    = var.project
+  database   = google_firestore_database.database.name
+  collection = "trails"
+
+  fields {
+    field_path = "source"
+    order      = "ASCENDING"
+  }
+
+  fields {
+    field_path = "modified_at"
+    order      = "ASCENDING"
+  }
+}
+
+resource "google_firestore_index" "trails_group_modified_at" {
+  project    = var.project
+  database   = google_firestore_database.database.name
+  collection = "trails"
+
+  fields {
+    field_path = "group_id"
+    order      = "ASCENDING"
+  }
+
+  fields {
+    field_path = "modified_at"
+    order      = "ASCENDING"
+  }
+}
+
+resource "google_firestore_index" "trails_is_public_modified_at" {
+  project    = var.project
+  database   = google_firestore_database.database.name
+  collection = "trails"
+
+  fields {
+    field_path = "is_public"
+    order      = "ASCENDING"
+  }
+
+  fields {
+    field_path = "modified_at"
+    order      = "ASCENDING"
+  }
+}

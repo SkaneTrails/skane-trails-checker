@@ -4,7 +4,7 @@
  * changing name and activity date only (GPX provides the rest).
  */
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Alert, Platform, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { Chip } from '@/components/Chip';
 import { useTranslation } from '@/lib/i18n';
@@ -41,6 +41,17 @@ export const TrailCard = ({ trail, onClose, onUpdate, isUpdating, onDelete, isDe
   const [editDate, setEditDate] = useState(trail.activity_date ?? '');
   const [editColor, setEditColor] = useState<string | null>(trail.line_color ?? null);
   const [editPublic, setEditPublic] = useState(trail.is_public ?? false);
+
+  // Reset form state when trail changes or initialEditing becomes true
+  useEffect(() => {
+    setEditName(trail.name);
+    setEditDate(trail.activity_date ?? '');
+    setEditColor(trail.line_color ?? null);
+    setEditPublic(trail.is_public ?? false);
+    if (initialEditing) {
+      setEditing(true);
+    }
+  }, [trail.trail_id, initialEditing]);
 
   const handleSave = () => {
     if (!onUpdate) return;
