@@ -36,7 +36,7 @@ export default function MapScreen() {
   const { colors } = useTheme();
   const { t } = useTranslation();
   const { enabledPlaceCategories } = useSettings();
-  const { trailId } = useLocalSearchParams<{ trailId?: string }>();
+  const { trailId, editTrail } = useLocalSearchParams<{ trailId?: string; editTrail?: string }>();
 
   const { data: trails, isFetching: trailsFetching } = useTrails();
   const { data: spots } = useForagingSpots();
@@ -184,6 +184,7 @@ export default function MapScreen() {
             isUpdating={updateTrail.isPending}
             onDelete={(id, onSuccess) => deleteTrail.mutate(id, { onSuccess })}
             isDeleting={deleteTrail.isPending}
+            initialEditing={editTrail === 'true' && selected.data.trail_id === trailId}
           />
         )}
 

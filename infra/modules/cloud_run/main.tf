@@ -56,7 +56,8 @@ resource "google_cloud_run_v2_service" "api" {
           cpu    = var.cpu
           memory = var.memory
         }
-        cpu_idle = true # Allow CPU to be throttled when idle
+        cpu_idle          = true # Allow CPU to be throttled when idle
+        startup_cpu_boost = true # Faster cold starts
       }
 
       # Environment variables

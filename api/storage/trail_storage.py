@@ -68,11 +68,11 @@ def _doc_to_trail_details(data: dict) -> TrailDetailsResponse:
 def get_all_trails(
     source: str | None = None, since: str | None = None, group_id: str | None = None
 ) -> list[TrailResponse]:
-    """Get all trails, filtered by group and optionally by source/created_at.
+    """Get all trails, filtered by group and optionally by source/modified_at.
 
     Args:
         source: Filter by trail source (planned_hikes, other_trails, world_wide_hikes).
-        since: ISO timestamp — return only trails with created_at >= this value.
+        since: ISO timestamp — return only trails with modified_at >= this value.
         group_id: If provided, return trails belonging to this group PLUS
             public trails (group_id is None). If not provided (superuser),
             return all trails.
@@ -93,7 +93,7 @@ def _fetch_all_trails(collection: Any, source: str | None, since: str | None) ->
     """Fetch all trails (superuser view)."""
     query = collection.where("source", "==", source) if source else collection
     if since:
-        query = query.where("created_at", ">=", since)
+        query = query.where("modified_at", ">=", since)
     return [_doc_to_trail(data) for doc in query.stream() if (data := doc.to_dict())]
 
 
@@ -114,7 +114,7 @@ def _fetch_group_and_public_trails(
         if source:
             query = query.where("source", "==", source)
         if since:
-            query = query.where("created_at", ">=", since)
+            query = query.where("modified_at", ">=", since)
         return query
 
     def _collect(query: Any) -> None:
@@ -151,6 +151,7 @@ def save_trail(trail: TrailResponse, *, update_sync: bool = True) -> None:
     logger.info("Saving trail: %s (ID: %s, Source: %s)", trail.name, trail.trail_id, trail.source)
     now = _utc_now_z()
     trail.last_updated = now
+    trail.modified_at = now
     if not trail.created_at:
         trail.created_at = now
     get_collection("trails").document(trail.trail_id).set(trail.to_dict())
@@ -189,21 +190,25 @@ def update_trail_status(trail_id: str, status: str) -> None:
     """Update the status of a trail."""
     validate_document_id(trail_id, field_name="trail_id")
     logger.info("Updating trail %s status to: %s", trail_id, status)
-    get_collection("trails").document(trail_id).update({"status": status, "last_updated": _utc_now_z()})
+    now = _utc_now_z()
+    get_collection("trails").document(trail_id).update({"status": status, "last_updated": now, "modified_at": now})
 
 
 def update_trail_name(trail_id: str, name: str) -> None:
     """Update the name of a trail."""
     validate_document_id(trail_id, field_name="trail_id")
     logger.info("Updating trail %s name to: %s", trail_id, name)
-    get_collection("trails").document(trail_id).update({"name": name, "last_updated": _utc_now_z()})
+    now = _utc_now_z()
+    get_collection("trails").document(trail_id).update({"name": name, "last_updated": now, "modified_at": now})
 
 
 def update_trail(trail_id: str, updates: dict) -> None:
     """Update multiple fields of a trail."""
     validate_document_id(trail_id, field_name="trail_id")
     logger.info("Updating trail %s with fields: %s", trail_id, list(updates.keys()))
-    updates["last_updated"] = _utc_now_z()
+    now = _utc_now_z()
+    updates["last_updated"] = now
+    updates["modified_at"] = now
     get_collection("trails").document(trail_id).update(updates)
     _update_sync_metadata()
 

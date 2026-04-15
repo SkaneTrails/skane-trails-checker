@@ -22,6 +22,7 @@ interface TrailCardProps {
   isUpdating?: boolean;
   onDelete?: (trailId: string, onSuccess: () => void) => void;
   isDeleting?: boolean;
+  initialEditing?: boolean;
 }
 
 function formatDuration(minutes: number): string {
@@ -32,10 +33,10 @@ function formatDuration(minutes: number): string {
   return `${h}h ${m}m`;
 }
 
-export const TrailCard = ({ trail, onClose, onUpdate, isUpdating, onDelete, isDeleting }: TrailCardProps) => {
+export const TrailCard = ({ trail, onClose, onUpdate, isUpdating, onDelete, isDeleting, initialEditing }: TrailCardProps) => {
   const { colors } = useTheme();
   const { t } = useTranslation();
-  const [editing, setEditing] = useState(false);
+  const [editing, setEditing] = useState(initialEditing ?? false);
   const [editName, setEditName] = useState(trail.name);
   const [editDate, setEditDate] = useState(trail.activity_date ?? '');
   const [editColor, setEditColor] = useState<string | null>(trail.line_color ?? null);
