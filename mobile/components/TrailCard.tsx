@@ -4,7 +4,7 @@
  * changing name and activity date only (GPX provides the rest).
  */
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Alert, Platform, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { Chip } from '@/components/Chip';
 import { useTranslation } from '@/lib/i18n';
@@ -22,6 +22,7 @@ interface TrailCardProps {
   isUpdating?: boolean;
   onDelete?: (trailId: string, onSuccess: () => void) => void;
   isDeleting?: boolean;
+  initialEditing?: boolean;
 }
 
 function formatDuration(minutes: number): string {
@@ -32,14 +33,25 @@ function formatDuration(minutes: number): string {
   return `${h}h ${m}m`;
 }
 
-export const TrailCard = ({ trail, onClose, onUpdate, isUpdating, onDelete, isDeleting }: TrailCardProps) => {
+export const TrailCard = ({ trail, onClose, onUpdate, isUpdating, onDelete, isDeleting, initialEditing }: TrailCardProps) => {
   const { colors } = useTheme();
   const { t } = useTranslation();
-  const [editing, setEditing] = useState(false);
+  const [editing, setEditing] = useState(initialEditing ?? false);
   const [editName, setEditName] = useState(trail.name);
   const [editDate, setEditDate] = useState(trail.activity_date ?? '');
   const [editColor, setEditColor] = useState<string | null>(trail.line_color ?? null);
   const [editPublic, setEditPublic] = useState(trail.is_public ?? false);
+
+  // Reset form state when trail changes or initialEditing becomes true
+  useEffect(() => {
+    setEditName(trail.name);
+    setEditDate(trail.activity_date ?? '');
+    setEditColor(trail.line_color ?? null);
+    setEditPublic(trail.is_public ?? false);
+    if (initialEditing) {
+      setEditing(true);
+    }
+  }, [trail.trail_id, initialEditing]);
 
   const handleSave = () => {
     if (!onUpdate) return;

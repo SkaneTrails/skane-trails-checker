@@ -140,6 +140,35 @@ class TestDocToTrail:
         assert trail.max_inclination_deg is None
         assert trail.created_by is None
 
+    def test_modified_at_fallback_prefers_last_updated(self, mock_collection) -> None:
+        """Trail without modified_at should prefer last_updated over created_at."""
+        doc = {
+            "trail_id": "t3",
+            "name": "Legacy Trail",
+            "created_at": "2026-01-15T10:00:00Z",
+            "last_updated": "2026-01-20T10:00:00Z",
+        }
+        mock_doc = MagicMock()
+        mock_doc.to_dict.return_value = doc
+        mock_collection.stream.return_value = [mock_doc]
+
+        trail = get_all_trails()[0]
+
+        # Should prefer last_updated (better proxy for last modification time)
+        assert trail.modified_at == "2026-01-20T10:00:00Z"
+
+    def test_modified_at_fallback_to_created_at(self, mock_collection) -> None:
+        """Trail without modified_at or last_updated should fall back to created_at."""
+        doc = {"trail_id": "t4", "name": "Old Trail", "created_at": "2025-12-01T10:00:00Z"}
+        mock_doc = MagicMock()
+        mock_doc.to_dict.return_value = doc
+        mock_collection.stream.return_value = [mock_doc]
+
+        trail = get_all_trails()[0]
+
+        # Should fall back to created_at when both modified_at and last_updated are missing
+        assert trail.modified_at == "2025-12-01T10:00:00Z"
+
     def test_maps_created_by(self, mock_collection) -> None:
         doc_with_owner = {**SAMPLE_TRAIL, "created_by": "user-1"}
         mock_doc = MagicMock()
@@ -244,13 +273,13 @@ class TestGetAllTrails:
 
     def test_filters_by_since(self, mock_collection) -> None:
         mock_collection.where.return_value.stream.return_value = [
-            _make_doc({"trail_id": "t1", "name": "New Trail", "created_at": "2026-03-01T12:00:00Z"})
+            _make_doc({"trail_id": "t1", "name": "New Trail", "modified_at": "2026-03-01T12:00:00Z"})
         ]
 
         result = get_all_trails(since="2026-03-01T00:00:00Z")
 
         assert len(result) == 1
-        mock_collection.where.assert_called_once_with("created_at", ">=", "2026-03-01T00:00:00Z")
+        mock_collection.where.assert_called_once_with("modified_at", ">=", "2026-03-01T00:00:00Z")
 
     def test_filters_by_source_and_since(self, mock_collection) -> None:
         where_source = MagicMock()
@@ -263,7 +292,7 @@ class TestGetAllTrails:
 
         assert len(result) == 1
         mock_collection.where.assert_called_once_with("source", "==", "planned_hikes")
-        where_source.where.assert_called_once_with("created_at", ">=", "2026-03-01T00:00:00Z")
+        where_source.where.assert_called_once_with("modified_at", ">=", "2026-03-01T00:00:00Z")
 
     def test_filters_by_group_id(self, mock_collection) -> None:
         """When group_id is provided, fetches group trails + public trails + is_public trails."""
@@ -387,11 +416,11 @@ class TestGetAllTrails:
 
         assert len(result) == 3
         group_query.where.assert_called_once_with("source", "==", "planned_hikes")
-        group_source.where.assert_called_once_with("created_at", ">=", "2026-01-01T00:00:00Z")
+        group_source.where.assert_called_once_with("modified_at", ">=", "2026-01-01T00:00:00Z")
         public_query.where.assert_called_once_with("source", "==", "planned_hikes")
-        public_source.where.assert_called_once_with("created_at", ">=", "2026-01-01T00:00:00Z")
+        public_source.where.assert_called_once_with("modified_at", ">=", "2026-01-01T00:00:00Z")
         is_public_query.where.assert_called_once_with("source", "==", "planned_hikes")
-        is_public_source.where.assert_called_once_with("created_at", ">=", "2026-01-01T00:00:00Z")
+        is_public_source.where.assert_called_once_with("modified_at", ">=", "2026-01-01T00:00:00Z")
 
     def test_group_filter_includes_is_public_trails(self, mock_collection) -> None:
         """Trails with is_public=True from other groups are included."""
@@ -524,6 +553,7 @@ class TestUpdateTrailStatus:
         updated = mock_collection.document.return_value.update.call_args[0][0]
         assert updated["status"] == "Explored!"
         assert updated["last_updated"] == "2026-03-01T12:00:00Z"
+        assert updated["modified_at"] == "2026-03-01T12:00:00Z"
 
 
 class TestUpdateTrailName:
@@ -536,6 +566,7 @@ class TestUpdateTrailName:
         updated = mock_collection.document.return_value.update.call_args[0][0]
         assert updated["name"] == "New Name"
         assert updated["last_updated"] == "2026-03-01T12:00:00Z"
+        assert updated["modified_at"] == "2026-03-01T12:00:00Z"
 
 
 class TestUpdateTrail:
@@ -550,6 +581,7 @@ class TestUpdateTrail:
         assert updated["difficulty"] == "hard"
         assert updated["length_km"] == 10.0
         assert updated["last_updated"] == "2026-03-01T13:00:00Z"
+        assert updated["modified_at"] == "2026-03-01T13:00:00Z"
         mock_sync.assert_called_once()
 
     @patch("api.storage.trail_storage._update_sync_metadata")
@@ -613,6 +645,7 @@ class TestSaveTrail:
         assert saved_data["trail_id"] == "t1"
         assert saved_data["name"] == "Test Trail"
         assert saved_data["last_updated"] == "2026-06-15T10:00:00Z"
+        assert saved_data["modified_at"] == "2026-06-15T10:00:00Z"
         assert saved_data["created_at"] == "2026-06-15T10:00:00Z"
         assert saved_data["coordinates_map"] == [{"lat": 56.0, "lng": 13.0}]
         assert "duration_minutes" not in saved_data
@@ -640,6 +673,7 @@ class TestSaveTrail:
         saved_data = mock_collection.document.return_value.set.call_args[0][0]
         assert saved_data["created_at"] == "2026-01-01T00:00:00Z"
         assert saved_data["last_updated"] == "2026-06-15T10:00:00Z"
+        assert saved_data["modified_at"] == "2026-06-15T10:00:00Z"
 
     @patch("api.storage.trail_storage._update_sync_metadata")
     def test_skips_sync_when_update_sync_false(self, mock_sync, mock_collection) -> None:

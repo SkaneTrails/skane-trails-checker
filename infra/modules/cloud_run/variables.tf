@@ -79,3 +79,9 @@ variable "allow_public_access" {
   type        = bool
   default     = false
 }
+
+variable "labels" {
+  description = "Labels to apply to resources for billing and organization"
+  type        = map(string)
+  default     = {}
+}

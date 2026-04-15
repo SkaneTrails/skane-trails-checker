@@ -160,6 +160,7 @@ const en = {
     uploadFailed: 'Upload failed',
     uploadSuccess: '{{count}} trail(s) uploaded successfully!',
     viewTrails: 'View Trails',
+    editUploaded: 'Trail uploaded — edit the name if needed',
     webOnly: 'GPX upload is currently available on web only',
     hikeType: 'Hike Type',
     completedHike: 'Completed Hike',

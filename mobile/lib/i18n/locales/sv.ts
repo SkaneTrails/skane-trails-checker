@@ -160,6 +160,7 @@ const sv: Translations = {
     uploadFailed: 'Uppladdning misslyckades',
     uploadSuccess: '{{count}} led(er) uppladdade!',
     viewTrails: 'Visa leder',
+    editUploaded: 'Led uppladdad — redigera namnet om det behövs',
     webOnly: 'GPX-uppladdning är tillgänglig på webben',
     hikeType: 'Vandringstyp',
     completedHike: 'Genomförd vandring',

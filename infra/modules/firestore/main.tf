@@ -8,6 +8,9 @@ resource "google_firestore_database" "database" {
   location_id = var.location_id
   type        = "FIRESTORE_NATIVE"
 
+  # Note: Firestore databases don't support labels in the GCP provider yet.
+  # Labels are applied to related Secret Manager secrets instead.
+
   # Free tier compatible settings
   concurrency_mode            = "OPTIMISTIC"
   app_engine_integration_mode = "DISABLED"
@@ -23,6 +26,7 @@ resource "google_firestore_database" "database" {
 resource "google_secret_manager_secret" "database_name" {
   project   = var.project
   secret_id = "firestore-database-name"
+  labels    = var.labels
 
   replication {
     auto {}
@@ -34,6 +38,7 @@ resource "google_secret_manager_secret" "database_name" {
 resource "google_secret_manager_secret" "project_id" {
   project   = var.project
   secret_id = "firestore-project-id"
+  labels    = var.labels
 
   replication {
     auto {}
@@ -45,6 +50,7 @@ resource "google_secret_manager_secret" "project_id" {
 resource "google_secret_manager_secret" "location_id" {
   project   = var.project
   secret_id = "firestore-location-id"
+  labels    = var.labels
 
   replication {
     auto {}
@@ -136,5 +142,97 @@ resource "google_firestore_index" "foraging_spots_index" {
   fields {
     field_path = "date"
     order      = "DESCENDING"
+  }
+}
+
+# Trails collection indexes for delta sync (modified_at filtering)
+resource "google_firestore_index" "trails_source_modified_at" {
+  project    = var.project
+  database   = google_firestore_database.database.name
+  collection = "trails"
+
+  fields {
+    field_path = "source"
+    order      = "ASCENDING"
+  }
+
+  fields {
+    field_path = "modified_at"
+    order      = "ASCENDING"
+  }
+}
+
+resource "google_firestore_index" "trails_group_modified_at" {
+  project    = var.project
+  database   = google_firestore_database.database.name
+  collection = "trails"
+
+  fields {
+    field_path = "group_id"
+    order      = "ASCENDING"
+  }
+
+  fields {
+    field_path = "modified_at"
+    order      = "ASCENDING"
+  }
+}
+
+resource "google_firestore_index" "trails_is_public_modified_at" {
+  project    = var.project
+  database   = google_firestore_database.database.name
+  collection = "trails"
+
+  fields {
+    field_path = "is_public"
+    order      = "ASCENDING"
+  }
+
+  fields {
+    field_path = "modified_at"
+    order      = "ASCENDING"
+  }
+}
+
+# Three-field indexes for combined source + since queries under group/public scope
+resource "google_firestore_index" "trails_group_source_modified_at" {
+  project    = var.project
+  database   = google_firestore_database.database.name
+  collection = "trails"
+
+  fields {
+    field_path = "group_id"
+    order      = "ASCENDING"
+  }
+
+  fields {
+    field_path = "source"
+    order      = "ASCENDING"
+  }
+
+  fields {
+    field_path = "modified_at"
+    order      = "ASCENDING"
+  }
+}
+
+resource "google_firestore_index" "trails_is_public_source_modified_at" {
+  project    = var.project
+  database   = google_firestore_database.database.name
+  collection = "trails"
+
+  fields {
+    field_path = "is_public"
+    order      = "ASCENDING"
+  }
+
+  fields {
+    field_path = "source"
+    order      = "ASCENDING"
+  }
+
+  fields {
+    field_path = "modified_at"
+    order      = "ASCENDING"
   }
 }

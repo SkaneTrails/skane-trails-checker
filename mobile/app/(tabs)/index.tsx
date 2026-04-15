@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Alert, Platform, StyleSheet, View } from 'react-native';
-import { useLocalSearchParams } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { FloatingButton } from '@/components/FloatingButton';
 import { FloatingCardOverlay } from '@/components/FloatingCardOverlay';
 import { ForagingSpotCard } from '@/components/ForagingSpotCard';
@@ -36,7 +36,8 @@ export default function MapScreen() {
   const { colors } = useTheme();
   const { t } = useTranslation();
   const { enabledPlaceCategories } = useSettings();
-  const { trailId } = useLocalSearchParams<{ trailId?: string }>();
+  const router = useRouter();
+  const { trailId, editTrail } = useLocalSearchParams<{ trailId?: string; editTrail?: string }>();
 
   const { data: trails, isFetching: trailsFetching } = useTrails();
   const { data: spots } = useForagingSpots();
@@ -74,7 +75,11 @@ export default function MapScreen() {
     if (!trail) return;
     setSelected({ type: 'trail', data: trail });
     setFocusBounds({ ...trail.bounds });
-  }, [trailId, trails]);
+    // Clear editTrail param after first use to prevent re-triggering edit mode on remount
+    if (editTrail === 'true') {
+      router.setParams({ editTrail: undefined });
+    }
+  }, [trailId, trails, editTrail, router]);
 
   const layerList: MapLayer[] = [
     { id: 'trails', label: t('tabs.trails'), icon: '', color: colors.layer.trails, enabled: mapLayers.trails },
@@ -184,6 +189,7 @@ export default function MapScreen() {
             isUpdating={updateTrail.isPending}
             onDelete={(id, onSuccess) => deleteTrail.mutate(id, { onSuccess })}
             isDeleting={deleteTrail.isPending}
+            initialEditing={editTrail === 'true' && selected.data.trail_id === trailId}
           />
         )}
 

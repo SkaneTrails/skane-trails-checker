@@ -68,3 +68,9 @@ variable "run_api_service" {
   description = "Cloud Run API service resource for depends_on (from apis module)"
   type        = any
 }
+
+variable "labels" {
+  description = "Labels to apply to resources for billing and organization"
+  type        = map(string)
+  default     = {}
+}
