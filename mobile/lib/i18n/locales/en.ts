@@ -241,6 +241,10 @@ const en = {
     trailColors: 'Trail Colors',
     defaultPlannedColor: 'Default planned color',
     defaultCompletedColor: 'Default completed color',
+    gpsTracking: 'GPS Tracking',
+    gpsBalanced: 'Balanced',
+    gpsHighPrecision: 'High Precision',
+    gpsHint: 'Balanced saves battery. High Precision for detailed tracks.',
   },
 
   noAccess: {

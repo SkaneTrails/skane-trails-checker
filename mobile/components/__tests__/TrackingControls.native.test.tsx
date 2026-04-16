@@ -35,10 +35,16 @@ vi.mock('@/lib/tracking-context', () => ({
   useTracking: () => mockContext,
 }));
 
+// Mock settings context — include language for useTranslation
+const mockSettings = { gpsMode: 'balanced' as const, language: 'en' as const, isLoading: false };
+vi.mock('@/lib/settings-context', () => ({
+  useSettings: () => mockSettings,
+}));
+
 // Mock theme
 vi.mock('@/lib/theme', () => ({
   useTheme: () => ({
-    colors: { primary: '#1a5e2a', text: { primary: '#000' } },
+    colors: { primary: '#1a5e2a', text: { primary: '#000', muted: '#999' } },
     shadows: { elevated: {} },
   }),
   borderRadius: { full: 999 },
@@ -55,6 +61,7 @@ describe('TrackingControls.native', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockContext.status = 'idle';
+    mockSettings.isLoading = false;
     // Ensure Platform is android for tests
     Object.defineProperty(Platform, 'OS', { value: 'android', writable: true });
   });
@@ -70,6 +77,20 @@ describe('TrackingControls.native', () => {
     expect(screen.getByLabelText('tracking.startTracking')).toBeDefined();
   });
 
+  it('disables start button while settings are loading', async () => {
+    mockSettings.isLoading = true;
+    render(<TrackingControls />);
+    const button = screen.getByLabelText('tracking.startTracking');
+
+    // Button should be visible but disabled — pressing should not trigger tracking
+    fireEvent.click(button);
+
+    // Wait a moment, then verify nothing happened
+    await new Promise(resolve => setTimeout(resolve, 50));
+    expect(requestTrackingPermissions).not.toHaveBeenCalled();
+    expect(mockContext.start).not.toHaveBeenCalled();
+  });
+
   it('handleStart requests permissions and starts tracking', async () => {
     render(<TrackingControls />);
     fireEvent.click(screen.getByLabelText('tracking.startTracking'));
@@ -77,7 +98,7 @@ describe('TrackingControls.native', () => {
     await waitFor(() => {
       expect(requestTrackingPermissions).toHaveBeenCalled();
       expect(mockContext.start).toHaveBeenCalled();
-      expect(TrackingService.startTracking).toHaveBeenCalledWith(mockContext.addPoint);
+      expect(TrackingService.startTracking).toHaveBeenCalledWith(mockContext.addPoint, 'balanced');
     });
   });
 
@@ -149,7 +170,7 @@ describe('TrackingControls.native', () => {
     fireEvent.click(screen.getByLabelText('tracking.resumeTracking'));
 
     await waitFor(() => {
-      expect(TrackingService.resumeTracking).toHaveBeenCalledWith(mockContext.addPoint);
+      expect(TrackingService.resumeTracking).toHaveBeenCalledWith(mockContext.addPoint, 'balanced');
       expect(mockContext.resume).toHaveBeenCalled();
     });
   });

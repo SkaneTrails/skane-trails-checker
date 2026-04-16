@@ -241,6 +241,10 @@ const sv: Translations = {
     trailColors: 'Ledfärger',
     defaultPlannedColor: 'Standardfärg planerad',
     defaultCompletedColor: 'Standardfärg genomförd',
+    gpsTracking: 'GPS-spårning',
+    gpsBalanced: 'Balanserad',
+    gpsHighPrecision: 'Hög precision',
+    gpsHint: 'Balanserad sparar batteri. Hög precision för detaljerade spår.',
   },
 
   noAccess: {

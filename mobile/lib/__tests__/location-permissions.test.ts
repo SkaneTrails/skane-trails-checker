@@ -206,5 +206,30 @@ describe('location-permissions', () => {
 
       expect(Linking.openSettings).toHaveBeenCalled();
     });
+
+    it('opens settings when user taps settings button on blocked background', async () => {
+      vi.mocked(Location.requestForegroundPermissionsAsync).mockResolvedValue({
+        status: 'granted' as Location.PermissionStatus,
+        canAskAgain: true,
+        granted: true,
+        expires: 'never',
+      });
+      vi.mocked(Location.requestBackgroundPermissionsAsync).mockResolvedValue({
+        status: 'denied' as Location.PermissionStatus,
+        canAskAgain: false,
+        granted: false,
+        expires: 'never',
+      });
+
+      await requestTrackingPermissions(t);
+
+      // Find the settings button handler in the Alert.alert call
+      const alertCall = vi.mocked(Alert.alert).mock.calls[0];
+      const buttons = alertCall[2] as Array<{ text: string; onPress?: () => void }>;
+      const settingsButton = buttons.find((b) => b.text === 'permissions.settings');
+      settingsButton?.onPress?.();
+
+      expect(Linking.openSettings).toHaveBeenCalled();
+    });
   });
 });

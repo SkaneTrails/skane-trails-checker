@@ -129,6 +129,31 @@ describe('useSettings — place category filtering', () => {
   });
 });
 
+describe('useSettings — language settings', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('setLanguage updates and persists', async () => {
+    mockAsyncStorage.getItem.mockResolvedValue(null);
+    const wrapper = createWrapper();
+
+    const { result } = renderHook(() => useSettings(), { wrapper });
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+
+    expect(result.current.language).toBe('en');
+
+    await act(async () => {
+      await result.current.setLanguage('sv');
+    });
+
+    expect(result.current.language).toBe('sv');
+    const lastCall = mockAsyncStorage.setItem.mock.calls.at(-1);
+    const saved = JSON.parse(lastCall?.[1] as string);
+    expect(saved.language).toBe('sv');
+  });
+});
+
 describe('useSettings — default trail colors', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -189,5 +214,60 @@ describe('useSettings — default trail colors', () => {
     const lastCall = mockAsyncStorage.setItem.mock.calls.at(-1);
     const saved = JSON.parse(lastCall?.[1] as string);
     expect(saved.defaultCompletedColor).toBe('#ED64A6');
+  });
+});
+
+describe('useSettings — GPS tracking mode', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('defaults to balanced mode', async () => {
+    mockAsyncStorage.getItem.mockResolvedValue(null);
+    const wrapper = createWrapper();
+
+    const { result } = renderHook(() => useSettings(), { wrapper });
+
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+    expect(result.current.gpsMode).toBe('balanced');
+  });
+
+  it('loads persisted gpsMode from AsyncStorage', async () => {
+    const stored = { language: 'en', themeId: 'outdoor', gpsMode: 'high_precision' };
+    mockAsyncStorage.getItem.mockResolvedValue(JSON.stringify(stored));
+    const wrapper = createWrapper();
+
+    const { result } = renderHook(() => useSettings(), { wrapper });
+
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+    expect(result.current.gpsMode).toBe('high_precision');
+  });
+
+  it('falls back to balanced when stored gpsMode is invalid', async () => {
+    const stored = { language: 'en', themeId: 'outdoor', gpsMode: 'invalid_mode' };
+    mockAsyncStorage.getItem.mockResolvedValue(JSON.stringify(stored));
+    const wrapper = createWrapper();
+
+    const { result } = renderHook(() => useSettings(), { wrapper });
+
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+    expect(result.current.gpsMode).toBe('balanced');
+  });
+
+  it('setGpsMode updates and persists', async () => {
+    mockAsyncStorage.getItem.mockResolvedValue(null);
+    const wrapper = createWrapper();
+
+    const { result } = renderHook(() => useSettings(), { wrapper });
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+
+    await act(async () => {
+      await result.current.setGpsMode('high_precision');
+    });
+
+    expect(result.current.gpsMode).toBe('high_precision');
+    const lastCall = mockAsyncStorage.setItem.mock.calls.at(-1);
+    const saved = JSON.parse(lastCall?.[1] as string);
+    expect(saved.gpsMode).toBe('high_precision');
   });
 });
