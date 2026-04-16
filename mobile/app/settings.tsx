@@ -28,7 +28,7 @@ import { themes } from '@/lib/theme/themes';
 export default function SettingsScreen() {
   const { colors, shadows } = useTheme();
   const { t } = useTranslation();
-  const { language, setLanguage, themeId, defaultPlannedColor, defaultCompletedColor, setDefaultPlannedColor, setDefaultCompletedColor, gpsMode, setGpsMode } = useSettings();
+  const { language, setLanguage, themeId, defaultPlannedColor, defaultCompletedColor, setDefaultPlannedColor, setDefaultCompletedColor, gpsMode, setGpsMode, isLoading } = useSettings();
   const { signOut } = useAuth();
   const router = useRouter();
 
@@ -223,6 +223,7 @@ export default function SettingsScreen() {
                     label={t(mode.labelKey)}
                     selected={gpsMode === mode.code}
                     onPress={() => setGpsMode(mode.code)}
+                    disabled={isLoading}
                   />
                 ))}
               </View>

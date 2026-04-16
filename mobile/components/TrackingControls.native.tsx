@@ -21,7 +21,7 @@ import { borderRadius, fontSize, fontWeight, spacing, useTheme } from '@/lib/the
 export function TrackingControls() {
   const { colors, shadows } = useTheme();
   const { t } = useTranslation();
-  const { gpsMode } = useSettings();
+  const { gpsMode, isLoading } = useSettings();
   const { status, start, pause, resume, stop, reset, addPoint } = useTracking();
 
   if (Platform.OS !== 'android') return null;
@@ -73,9 +73,15 @@ export function TrackingControls() {
       <View style={styles.fabContainer}>
         <Pressable
           onPress={handleStart}
-          style={[styles.fab, { backgroundColor: colors.primary }, shadows.elevated]}
+          disabled={isLoading}
+          style={[
+            styles.fab,
+            { backgroundColor: isLoading ? colors.text.muted : colors.primary },
+            shadows.elevated,
+          ]}
           accessibilityRole="button"
           accessibilityLabel={t('tracking.startTracking')}
+          accessibilityState={{ disabled: isLoading }}
         >
           <Text style={styles.fabText}>{t('tracking.startRecording')}</Text>
         </Pressable>
