@@ -52,7 +52,7 @@
     "@vitest/coverage-v8": "^4.0.18",
     "fake-indexeddb": "^6.2.5",
     "jsdom": "^28.1.0",
-    "typescript": "~5.9.2",
+    "typescript": "~6.0.0",
     "vitest": "^4.0.18"
   },
   "private": true
