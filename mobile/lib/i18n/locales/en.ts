@@ -247,6 +247,26 @@ const en = {
     gpsHint: 'Balanced saves battery. High Precision for detailed tracks.',
   },
 
+  overlays: {
+    title: 'Image Overlays',
+    addOverlay: 'Add Image Overlay',
+    noOverlays: 'No overlays yet',
+    pickFromGallery: 'Pick from Gallery',
+    takePhoto: 'Take Photo',
+    cancel: 'Cancel',
+    overlayName: 'Overlay Name',
+    namePlaceholder: 'e.g., Trail Map',
+    save: 'Save',
+    delete: 'Delete',
+    deleteConfirm: 'Delete this overlay?',
+    edit: 'Edit',
+    toggleVisibility: 'Toggle Visibility',
+    opacity: 'Opacity',
+    dragCorners: 'Drag corners to align',
+    done: 'Done',
+    reset: 'Reset',
+  },
+
   noAccess: {
     title: 'No Access',
     signedInAs: 'Signed in as',

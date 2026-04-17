@@ -6,6 +6,8 @@ import { FloatingCardOverlay } from '@/components/FloatingCardOverlay';
 import { ForagingSpotCard } from '@/components/ForagingSpotCard';
 import { HamburgerMenu } from '@/components/HamburgerMenu';
 import { LayerToggle, type MapLayer } from '@/components/LayerToggle';
+import { OverlayAlignmentMode } from '@/components/OverlayAlignmentMode';
+import { OverlayManager } from '@/components/OverlayManager';
 import { PlaceCard } from '@/components/PlaceCard';
 import { TrackingControls } from '@/components/TrackingControls';
 import { TrackingOverlay } from '@/components/TrackingOverlay';
@@ -21,6 +23,7 @@ import {
   useUpdateTrail,
 } from '@/lib/hooks';
 import { useTranslation } from '@/lib/i18n';
+import { calculateInitialCorners, useMapOverlays, type MapOverlay } from '@/lib/map-overlays';
 import { useSettings } from '@/lib/settings-context';
 import { spacing, useTheme } from '@/lib/theme';
 import { glassPill } from '@/lib/theme/styles';
@@ -65,6 +68,24 @@ export default function MapScreen() {
   const [showLayers, setShowLayers] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
   const [selected, setSelected] = useState<SelectedItem | null>(null);
+
+  // Overlay management state
+  const { overlays, addOverlay, updateOverlay, deleteOverlay, isLoading: overlaysLoading } = useMapOverlays();
+  const [showOverlayManager, setShowOverlayManager] = useState(false);
+  const [editingOverlayId, setEditingOverlayId] = useState<string | null>(null);
+  const [alignmentSelectedCorner, setAlignmentSelectedCorner] = useState<0 | 1 | 2 | 3 | null>(null);
+
+  // Get the overlay being edited
+  const editingOverlay = editingOverlayId ? overlays.find((o) => o.id === editingOverlayId) : null;
+
+  // Visible overlays (only show visible ones, or all if in alignment mode)
+  const visibleOverlays = useMemo(() => {
+    if (editingOverlayId) {
+      // During alignment, show only the overlay being edited
+      return overlays.filter((o) => o.id === editingOverlayId);
+    }
+    return overlays.filter((o) => o.visible);
+  }, [overlays, editingOverlayId]);
 
   // When navigating from trail list with trailId param, select and focus that trail
   const [focusBounds, setFocusBounds] = useState<{ north: number; south: number; east: number; west: number } | null>(null);
@@ -117,6 +138,83 @@ export default function MapScreen() {
     [updateSpot],
   );
 
+  // Overlay handlers
+  const handleAddOverlay = useCallback(
+    async (imageUri: string, name: string) => {
+      // Default center: Skåne, Sweden
+      const corners = calculateInitialCorners(55.95, 13.4, 0.01, 0.008);
+      await addOverlay({
+        name,
+        imageUri,
+        corners,
+      });
+      setShowOverlayManager(false);
+    },
+    [addOverlay],
+  );
+
+  const handleToggleOverlayVisibility = useCallback(
+    (id: string) => {
+      const overlay = overlays.find((o) => o.id === id);
+      if (overlay) {
+        void updateOverlay(id, { visible: !overlay.visible });
+      }
+    },
+    [overlays, updateOverlay],
+  );
+
+  const handleEditOverlay = useCallback((id: string) => {
+    setEditingOverlayId(id);
+    setShowOverlayManager(false);
+  }, []);
+
+  const handleUpdateOverlayCorners = useCallback(
+    (corners: MapOverlay['corners']) => {
+      if (editingOverlayId) {
+        void updateOverlay(editingOverlayId, { corners });
+      }
+    },
+    [editingOverlayId, updateOverlay],
+  );
+
+  const handleUpdateOverlayOpacity = useCallback(
+    (opacity: number) => {
+      if (editingOverlayId) {
+        void updateOverlay(editingOverlayId, { opacity });
+      }
+    },
+    [editingOverlayId, updateOverlay],
+  );
+
+  const handleResetOverlay = useCallback(() => {
+    if (editingOverlay) {
+      // Reset to default corners (Skåne, Sweden)
+      const corners = calculateInitialCorners(55.95, 13.4, 0.01, 0.008);
+      void updateOverlay(editingOverlayId!, { corners, opacity: 0.7 });
+    }
+  }, [editingOverlay, editingOverlayId, updateOverlay]);
+
+  const handleDoneAlignment = useCallback(() => {
+    setEditingOverlayId(null);
+    setAlignmentSelectedCorner(null);
+  }, []);
+
+  // Handle map click during alignment mode
+  const handleMapClick = useCallback(
+    (lat: number, lng: number) => {
+      // If in alignment mode and a corner is selected, update that corner
+      if (editingOverlayId && alignmentSelectedCorner !== null && editingOverlay) {
+        const newCorners = [...editingOverlay.corners] as MapOverlay['corners'];
+        newCorners[alignmentSelectedCorner] = [lat, lng];
+        void updateOverlay(editingOverlayId, { corners: newCorners });
+        setAlignmentSelectedCorner(null);
+        return;
+      }
+      // Otherwise, normal map click behavior (could be used for other features)
+    },
+    [editingOverlayId, alignmentSelectedCorner, editingOverlay, updateOverlay],
+  );
+
   const selectedTrailId = selected?.type === 'trail' ? selected.data.trail_id : null;
   const isWeb = Platform.OS === 'web';
 
@@ -131,9 +229,11 @@ export default function MapScreen() {
         selectedTrailId={selectedTrailId}
         focusBounds={focusBounds}
         recordingPoints={recordingPoints}
+        imageOverlays={visibleOverlays}
         onTrailSelect={handleTrailSelect}
         onSpotSelect={handleSpotSelect}
         onPlaceSelect={handlePlaceSelect}
+        onMapClick={handleMapClick}
       />
 
       {/* Layer toggle button (top-left) */}
@@ -209,6 +309,41 @@ export default function MapScreen() {
           />
         )}
       </FloatingCardOverlay>
+
+      {/* Overlay manager button (bottom-left, above tab bar) */}
+      {!editingOverlayId && (
+        <View style={styles.overlayButton}>
+          <FloatingButton
+            label={t('overlays.title')}
+            onPress={() => setShowOverlayManager(true)}
+          />
+        </View>
+      )}
+
+      {/* Overlay manager panel */}
+      {showOverlayManager && (
+        <FloatingCardOverlay isOpen onClose={() => setShowOverlayManager(false)}>
+          <OverlayManager
+            overlays={overlays}
+            onAddOverlay={handleAddOverlay}
+            onToggleVisibility={handleToggleOverlayVisibility}
+            onDeleteOverlay={deleteOverlay}
+            onEditOverlay={handleEditOverlay}
+            onClose={() => setShowOverlayManager(false)}
+          />
+        </FloatingCardOverlay>
+      )}
+
+      {/* Alignment mode UI */}
+      {editingOverlay && (
+        <OverlayAlignmentMode
+          overlay={editingOverlay}
+          onUpdateCorners={handleUpdateOverlayCorners}
+          onUpdateOpacity={handleUpdateOverlayOpacity}
+          onDone={handleDoneAlignment}
+          onReset={handleResetOverlay}
+        />
+      )}
     </View>
   );
 }
@@ -241,5 +376,11 @@ const styles = StyleSheet.create({
     right: spacing.lg + 44,
     padding: spacing.sm,
     zIndex: 800,
+  },
+  overlayButton: {
+    position: 'absolute',
+    bottom: spacing.lg + 80, // Above tab bar
+    left: spacing.lg,
+    zIndex: 900,
   },
 });

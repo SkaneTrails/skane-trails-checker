@@ -247,6 +247,26 @@ const sv: Translations = {
     gpsHint: 'Balanserad sparar batteri. Hög precision för detaljerade spår.',
   },
 
+  overlays: {
+    title: 'Bildöverlägg',
+    addOverlay: 'Lägg till bildöverlägg',
+    noOverlays: 'Inga överlägg ännu',
+    pickFromGallery: 'Välj från galleri',
+    takePhoto: 'Ta foto',
+    cancel: 'Avbryt',
+    overlayName: 'Överläggsnamn',
+    namePlaceholder: 't.ex. Ledkarta',
+    save: 'Spara',
+    delete: 'Radera',
+    deleteConfirm: 'Radera detta överlägg?',
+    edit: 'Redigera',
+    toggleVisibility: 'Växla synlighet',
+    opacity: 'Genomskinlighet',
+    dragCorners: 'Dra hörn för att justera',
+    done: 'Klar',
+    reset: 'Återställ',
+  },
+
   noAccess: {
     title: 'Ingen åtkomst',
     signedInAs: 'Inloggad som',
