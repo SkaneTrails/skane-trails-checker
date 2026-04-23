@@ -90,8 +90,17 @@ export function OverlayManager({
     >
       <View style={styles.header}>
         <Text style={[styles.title, { color: colors.text.primary }]}>{t('overlays.title')}</Text>
-        <Pressable onPress={onClose} hitSlop={8}>
-          <TabIcon name="close" color={colors.text.muted} size={24} />
+        <Pressable
+          onPress={onClose}
+          hitSlop={8}
+          accessibilityRole="button"
+          accessibilityLabel={t('overlays.cancel')}
+        >
+          {Platform.OS === 'web' ? (
+            <TabIcon name="close" color={colors.text.muted} size={24} />
+          ) : (
+            <Text style={[styles.overlayMeta, { color: colors.text.muted }]}>✕</Text>
+          )}
         </Pressable>
       </View>
 
@@ -119,26 +128,46 @@ export function OverlayManager({
                   onPress={() => onToggleVisibility(overlay.id)}
                   hitSlop={8}
                   style={styles.actionButton}
+                  accessibilityRole="button"
+                  accessibilityLabel={overlay.visible ? t('overlays.toggleVisibility') : t('overlays.toggleVisibility')}
                 >
-                  <TabIcon
-                    name={overlay.visible ? 'eye' : 'eye-off'}
-                    color={overlay.visible ? colors.primary : colors.text.muted}
-                    size={20}
-                  />
+                  {Platform.OS === 'web' ? (
+                    <TabIcon
+                      name={overlay.visible ? 'eye' : 'eye-off'}
+                      color={overlay.visible ? colors.primary : colors.text.muted}
+                      size={20}
+                    />
+                  ) : (
+                    <Text style={[styles.overlayMeta, { color: overlay.visible ? colors.primary : colors.text.muted }]}>
+                      {overlay.visible ? '👁' : '🙈'}
+                    </Text>
+                  )}
                 </Pressable>
                 <Pressable
                   onPress={() => onEditOverlay(overlay.id)}
                   hitSlop={8}
                   style={styles.actionButton}
+                  accessibilityRole="button"
+                  accessibilityLabel={t('overlays.edit')}
                 >
-                  <TabIcon name="edit" color={colors.text.muted} size={20} />
+                  {Platform.OS === 'web' ? (
+                    <TabIcon name="edit" color={colors.text.muted} size={20} />
+                  ) : (
+                    <Text style={[styles.overlayMeta, { color: colors.text.muted }]}>✏️</Text>
+                  )}
                 </Pressable>
                 <Pressable
                   onPress={() => handleDelete(overlay)}
                   hitSlop={8}
                   style={styles.actionButton}
+                  accessibilityRole="button"
+                  accessibilityLabel={t('overlays.delete')}
                 >
-                  <TabIcon name="trash" color={colors.error} size={20} />
+                  {Platform.OS === 'web' ? (
+                    <TabIcon name="trash" color={colors.error} size={20} />
+                  ) : (
+                    <Text style={[styles.overlayMeta, { color: colors.error }]}>🗑️</Text>
+                  )}
                 </Pressable>
               </View>
             </View>

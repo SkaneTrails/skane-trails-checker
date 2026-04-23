@@ -6,7 +6,7 @@
  * tap a corner to select, tap map to place.
  */
 
-import { useCallback, useState } from 'react';
+import { useCallback } from 'react';
 import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import type { MapOverlay } from '@/lib/map-overlays';
 import { rotateCorners } from '@/lib/map-overlays';
@@ -14,7 +14,6 @@ import { useTranslation } from '@/lib/i18n';
 import { borderRadius, fontSize, fontWeight, spacing, useTheme } from '@/lib/theme';
 import { glassSheet } from '@/lib/theme/styles';
 import { Button } from './Button';
-import { TabIcon } from './TabIcon';
 
 /**
  * Corners are indexed as:
@@ -23,10 +22,12 @@ import { TabIcon } from './TabIcon';
  * 2: bottom-right
  * 3: bottom-left
  */
-type CornerIndex = 0 | 1 | 2 | 3;
+export type CornerIndex = 0 | 1 | 2 | 3;
 
 interface OverlayAlignmentModeProps {
   overlay: MapOverlay;
+  selectedCorner: CornerIndex | null;
+  onSelectCorner: (corner: CornerIndex | null) => void;
   onUpdateCorners: (corners: MapOverlay['corners']) => void;
   onUpdateOpacity: (opacity: number) => void;
   onDone: () => void;
@@ -34,10 +35,11 @@ interface OverlayAlignmentModeProps {
 }
 
 const CORNER_LABELS = ['↖', '↗', '↘', '↙'] as const;
-const CORNER_NAMES = ['Top-left', 'Top-right', 'Bottom-right', 'Bottom-left'] as const;
 
 export function OverlayAlignmentMode({
   overlay,
+  selectedCorner,
+  onSelectCorner,
   onUpdateCorners,
   onUpdateOpacity,
   onDone,
@@ -45,23 +47,6 @@ export function OverlayAlignmentMode({
 }: OverlayAlignmentModeProps) {
   const { colors } = useTheme();
   const { t } = useTranslation();
-  const [selectedCorner, setSelectedCorner] = useState<CornerIndex | null>(null);
-
-  /**
-   * Called when user taps on the map while a corner is selected.
-   * Updates the corner's geo coordinates.
-   */
-  const handleMapTap = useCallback(
-    (lat: number, lng: number) => {
-      if (selectedCorner === null) return;
-
-      const newCorners = [...overlay.corners] as MapOverlay['corners'];
-      newCorners[selectedCorner] = [lat, lng];
-      onUpdateCorners(newCorners);
-      setSelectedCorner(null);
-    },
-    [selectedCorner, overlay.corners, onUpdateCorners]
-  );
 
   const handleRotate = useCallback(
     (angleDegrees: number) => {
@@ -76,33 +61,6 @@ export function OverlayAlignmentMode({
 
   return (
     <>
-      {/* Corner markers - absolute positioned at corners */}
-      {overlay.corners.map((corner, index) => (
-        <View
-          key={index}
-          style={[
-            styles.cornerMarkerContainer,
-            // Note: actual positioning is done by the parent map component
-            // This component just renders the markers and UI
-          ]}
-        >
-          <Pressable
-            onPress={() => setSelectedCorner(index as CornerIndex)}
-            style={[
-              styles.cornerMarker,
-              {
-                backgroundColor: selectedCorner === index ? colors.primary : colors.surface,
-                borderColor: selectedCorner === index ? colors.primary : colors.border,
-              },
-            ]}
-          >
-            <Text style={[styles.cornerLabel, { color: colors.text.primary }]}>
-              {CORNER_LABELS[index]}
-            </Text>
-          </Pressable>
-        </View>
-      ))}
-
       {/* Bottom control panel */}
       <View
         style={[
@@ -114,11 +72,11 @@ export function OverlayAlignmentMode({
         <View style={styles.instructions}>
           {selectedCorner !== null ? (
             <Text style={[styles.instructionText, { color: colors.primary }]}>
-              Tap map to place {CORNER_NAMES[selectedCorner]}
+              {t('overlays.tapToPlace', { corner: t(`overlays.corners.${selectedCorner}`) })}
             </Text>
           ) : (
             <Text style={[styles.instructionText, { color: colors.text.muted }]}>
-              {t('overlays.dragCorners')}
+              {t('overlays.selectCorner')}
             </Text>
           )}
         </View>
@@ -129,7 +87,7 @@ export function OverlayAlignmentMode({
             <Pressable
               key={index}
               onPress={() =>
-                setSelectedCorner(selectedCorner === index ? null : (index as CornerIndex))
+                onSelectCorner(selectedCorner === index ? null : (index as CornerIndex))
               }
               style={[
                 styles.cornerButton,
@@ -153,7 +111,7 @@ export function OverlayAlignmentMode({
 
         {/* Rotation controls */}
         <View style={styles.rotationControls}>
-          <Text style={[styles.label, { color: colors.text.muted }]}>Rotate:</Text>
+          <Text style={[styles.label, { color: colors.text.muted }]}>{t('overlays.rotate')}:</Text>
           <Pressable
             onPress={() => handleRotate(-15)}
             style={[styles.rotateButton, { backgroundColor: colors.surface, borderColor: colors.border }]}
@@ -223,43 +181,9 @@ export function OverlayAlignmentMode({
   );
 }
 
-// Export the map tap handler type for parent components
 export type { OverlayAlignmentModeProps };
 
-// Export a helper to check if alignment mode should handle a tap
-export function useAlignmentModeTapHandler(
-  selectedCorner: CornerIndex | null,
-  onUpdateCorners: (lat: number, lng: number) => void
-) {
-  return useCallback(
-    (lat: number, lng: number): boolean => {
-      if (selectedCorner !== null) {
-        onUpdateCorners(lat, lng);
-        return true; // consumed the tap
-      }
-      return false; // let other handlers process
-    },
-    [selectedCorner, onUpdateCorners]
-  );
-}
-
 const styles = StyleSheet.create({
-  cornerMarkerContainer: {
-    position: 'absolute',
-    zIndex: 1001,
-  },
-  cornerMarker: {
-    width: 36,
-    height: 36,
-    borderRadius: borderRadius.full,
-    borderWidth: 2,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  cornerLabel: {
-    fontSize: fontSize.lg,
-    fontWeight: fontWeight.bold,
-  },
   controlPanel: {
     position: 'absolute',
     bottom: 0,

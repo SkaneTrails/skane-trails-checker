@@ -24,12 +24,24 @@ function getOverlaysDir(): Directory {
 }
 
 /**
+ * Extract extension from a URI, defaulting to .jpg if unknown.
+ */
+function getExtension(uri: string): string {
+  const match = uri.match(/\.(\w+)(?:\?.*)?$/);
+  const ext = match?.[1]?.toLowerCase();
+  const allowed = ['jpg', 'jpeg', 'png', 'heic', 'webp'];
+  return ext && allowed.includes(ext) ? ext : 'jpg';
+}
+
+/**
  * Copy an image to the app's local storage and return the new URI.
  */
 async function copyImageToStorage(sourceUri: string): Promise<string> {
   const overlaysDir = getOverlaysDir();
 
-  const filename = `overlay_${Date.now()}.jpg`;
+  const ext = getExtension(sourceUri);
+  const uuid = Math.random().toString(36).slice(2, 9);
+  const filename = `overlay_${Date.now()}_${uuid}.${ext}`;
   const sourceFile = new File(sourceUri);
   const destFile = new File(overlaysDir, filename);
 

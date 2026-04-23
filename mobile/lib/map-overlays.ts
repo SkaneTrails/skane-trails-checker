@@ -54,6 +54,21 @@ function generateId(): string {
   return `overlay_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
 }
 
+/** Validate that a parsed value has the shape of a MapOverlay */
+function isValidOverlay(value: unknown): value is MapOverlay {
+  if (typeof value !== 'object' || value === null) return false;
+  const o = value as Record<string, unknown>;
+  return (
+    typeof o.id === 'string' &&
+    typeof o.name === 'string' &&
+    typeof o.imageUri === 'string' &&
+    Array.isArray(o.corners) &&
+    o.corners.length === 4 &&
+    typeof o.opacity === 'number' &&
+    typeof o.visible === 'boolean'
+  );
+}
+
 /**
  * Hook for managing map overlays stored in AsyncStorage.
  */
@@ -69,7 +84,7 @@ export function useMapOverlays() {
         if (stored) {
           const parsed = JSON.parse(stored);
           if (Array.isArray(parsed)) {
-            setOverlays(parsed);
+            setOverlays(parsed.filter(isValidOverlay));
           }
         }
       } catch {
@@ -83,7 +98,6 @@ export function useMapOverlays() {
 
   // Persist overlays to storage
   const persist = useCallback(async (updated: MapOverlay[]) => {
-    setOverlays(updated);
     void AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(updated)).catch(() => {});
   }, []);
 
@@ -99,41 +113,54 @@ export function useMapOverlays() {
         visible: true,
         createdAt: new Date().toISOString(),
       };
-      await persist([...overlays, newOverlay]);
+      setOverlays((prev) => {
+        const next = [...prev, newOverlay];
+        void persist(next);
+        return next;
+      });
       return newOverlay;
     },
-    [overlays, persist],
+    [persist],
   );
 
   /** Update an existing overlay */
   const updateOverlay = useCallback(
     async (id: string, update: MapOverlayUpdate): Promise<void> => {
-      const updated = overlays.map((o) =>
-        o.id === id ? { ...o, ...update } : o,
-      );
-      await persist(updated);
+      setOverlays((prev) => {
+        const next = prev.map((o) =>
+          o.id === id ? { ...o, ...update } : o,
+        );
+        void persist(next);
+        return next;
+      });
     },
-    [overlays, persist],
+    [persist],
   );
 
   /** Delete an overlay by ID */
   const deleteOverlay = useCallback(
     async (id: string): Promise<void> => {
-      const updated = overlays.filter((o) => o.id !== id);
-      await persist(updated);
+      setOverlays((prev) => {
+        const next = prev.filter((o) => o.id !== id);
+        void persist(next);
+        return next;
+      });
     },
-    [overlays, persist],
+    [persist],
   );
 
   /** Toggle visibility of an overlay */
   const toggleVisibility = useCallback(
     async (id: string): Promise<void> => {
-      const updated = overlays.map((o) =>
-        o.id === id ? { ...o, visible: !o.visible } : o,
-      );
-      await persist(updated);
+      setOverlays((prev) => {
+        const next = prev.map((o) =>
+          o.id === id ? { ...o, visible: !o.visible } : o,
+        );
+        void persist(next);
+        return next;
+      });
     },
-    [overlays, persist],
+    [persist],
   );
 
   /** Get visible overlays only */

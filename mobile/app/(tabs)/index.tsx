@@ -70,7 +70,7 @@ export default function MapScreen() {
   const [selected, setSelected] = useState<SelectedItem | null>(null);
 
   // Overlay management state
-  const { overlays, addOverlay, updateOverlay, deleteOverlay, isLoading: overlaysLoading } = useMapOverlays();
+  const { overlays, addOverlay, updateOverlay, deleteOverlay } = useMapOverlays();
   const [showOverlayManager, setShowOverlayManager] = useState(false);
   const [editingOverlayId, setEditingOverlayId] = useState<string | null>(null);
   const [alignmentSelectedCorner, setAlignmentSelectedCorner] = useState<0 | 1 | 2 | 3 | null>(null);
@@ -208,9 +208,7 @@ export default function MapScreen() {
         newCorners[alignmentSelectedCorner] = [lat, lng];
         void updateOverlay(editingOverlayId, { corners: newCorners });
         setAlignmentSelectedCorner(null);
-        return;
       }
-      // Otherwise, normal map click behavior (could be used for other features)
     },
     [editingOverlayId, alignmentSelectedCorner, editingOverlay, updateOverlay],
   );
@@ -310,8 +308,8 @@ export default function MapScreen() {
         )}
       </FloatingCardOverlay>
 
-      {/* Overlay manager button (bottom-left, above tab bar) */}
-      {!editingOverlayId && (
+      {/* Overlay manager button (bottom-left, above tab bar) — native only */}
+      {!isWeb && !editingOverlayId && (
         <View style={styles.overlayButton}>
           <FloatingButton
             label={t('overlays.title')}
@@ -320,8 +318,8 @@ export default function MapScreen() {
         </View>
       )}
 
-      {/* Overlay manager panel */}
-      {showOverlayManager && (
+      {/* Overlay manager panel — native only */}
+      {!isWeb && showOverlayManager && (
         <FloatingCardOverlay isOpen onClose={() => setShowOverlayManager(false)}>
           <OverlayManager
             overlays={overlays}
@@ -338,6 +336,8 @@ export default function MapScreen() {
       {editingOverlay && (
         <OverlayAlignmentMode
           overlay={editingOverlay}
+          selectedCorner={alignmentSelectedCorner}
+          onSelectCorner={setAlignmentSelectedCorner}
           onUpdateCorners={handleUpdateOverlayCorners}
           onUpdateOpacity={handleUpdateOverlayOpacity}
           onDone={handleDoneAlignment}
