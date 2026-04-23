@@ -11,12 +11,14 @@ import {
   Map,
   Camera,
   GeoJSONSource,
+  ImageSource,
   Layer,
   UserLocation,
   type CameraRef,
 } from '@maplibre/maplibre-react-native';
 import { StyleSheet, View } from 'react-native';
 import { foragingColorMap } from '@/lib/foraging-colors';
+import type { MapOverlay } from '@/lib/map-overlays';
 import { useTheme } from '@/lib/theme';
 import type { ForagingSpot, ForagingType, Place, Trail } from '@/lib/types';
 import type { TrackingPoint } from '@/lib/track-to-trail';
@@ -36,6 +38,8 @@ interface UnifiedMapProps {
   selectedTrailId?: string | null;
   focusBounds?: { north: number; south: number; east: number; west: number } | null;
   recordingPoints?: TrackingPoint[];
+  /** Georeferenced image overlays to render on the map */
+  imageOverlays?: MapOverlay[];
   onTrailSelect?: (trail: Trail) => void;
   onSpotSelect?: (spot: ForagingSpot) => void;
   onPlaceSelect?: (place: Place) => void;
@@ -95,6 +99,7 @@ export function UnifiedMap({
   selectedTrailId,
   focusBounds,
   recordingPoints,
+  imageOverlays = [],
   onTrailSelect,
   onSpotSelect,
   onPlaceSelect,
@@ -192,6 +197,29 @@ export function UnifiedMap({
         />
 
         <UserLocation visible />
+
+        {/* Image overlays — rendered below trails so trails are visible on top */}
+        {imageOverlays.map((overlay) => (
+          <ImageSource
+            key={overlay.id}
+            id={`overlay-${overlay.id}`}
+            url={overlay.imageUri}
+            coordinates={[
+              [overlay.corners[0][1], overlay.corners[0][0]], // Top-left: [lng, lat]
+              [overlay.corners[1][1], overlay.corners[1][0]], // Top-right
+              [overlay.corners[2][1], overlay.corners[2][0]], // Bottom-right
+              [overlay.corners[3][1], overlay.corners[3][0]], // Bottom-left
+            ]}
+          >
+            <Layer
+              id={`overlay-layer-${overlay.id}`}
+              type="raster"
+              paint={{
+                'raster-opacity': overlay.opacity,
+              }}
+            />
+          </ImageSource>
+        ))}
 
         {/* Explored trails */}
         <GeoJSONSource
