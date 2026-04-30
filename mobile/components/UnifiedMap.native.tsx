@@ -110,6 +110,7 @@ export function UnifiedMap({
   const { colors } = useTheme();
   const cameraRef = useRef<CameraRef>(null);
   const mapRef = useRef<InstanceType<typeof Map>>(null);
+  const boundsRequestRef = useRef(0);
   const [currentZoom, setCurrentZoom] = useState(DEFAULT_ZOOM);
 
   const colorMap = foragingColorMap(foragingTypes);
@@ -191,9 +192,10 @@ export function UnifiedMap({
           const zoom = e.nativeEvent?.zoom;
           if (zoom != null) setCurrentZoom(zoom);
           if (onBoundsChange && mapRef.current) {
+            const requestId = ++boundsRequestRef.current;
             try {
               const bounds = await mapRef.current.getBounds();
-              if (bounds) {
+              if (bounds && requestId === boundsRequestRef.current) {
                 onBoundsChange({
                   west: bounds[0],
                   south: bounds[1],

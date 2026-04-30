@@ -196,10 +196,15 @@ export default function MapScreen() {
   const handleEditOverlay = useCallback((id: string) => {
     setEditingOverlayId(id);
     setShowOverlayManager(false);
+    setOverlayImageSize(null);
     // Get image natural dimensions for aspect-ratio-correct geo-mapping
     const overlay = overlays.find((o) => o.id === id);
     if (overlay) {
-      Image.getSize(overlay.imageUri, (w, h) => setOverlayImageSize({ width: w, height: h }));
+      Image.getSize(
+        overlay.imageUri,
+        (w, h) => setOverlayImageSize({ width: w, height: h }),
+        () => setOverlayImageSize(null),
+      );
     }
   }, [overlays]);
 
