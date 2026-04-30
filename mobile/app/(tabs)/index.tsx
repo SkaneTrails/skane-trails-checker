@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, Alert, Platform, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, Alert, Image, Platform, StyleSheet, View } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { FloatingButton } from '@/components/FloatingButton';
 import { FloatingCardOverlay } from '@/components/FloatingCardOverlay';
@@ -74,17 +74,16 @@ export default function MapScreen() {
   const [showOverlayManager, setShowOverlayManager] = useState(false);
   const [editingOverlayId, setEditingOverlayId] = useState<string | null>(null);
   const [alignmentSelectedCorner, setAlignmentSelectedCorner] = useState<0 | 1 | 2 | 3 | null>(null);
+  const [mapBounds, setMapBounds] = useState<{ north: number; south: number; east: number; west: number } | null>(null);
+  const [containerSize, setContainerSize] = useState<{ width: number; height: number } | null>(null);
+  const [overlayImageSize, setOverlayImageSize] = useState<{ width: number; height: number } | null>(null);
 
   // Get the overlay being edited
   const editingOverlay = editingOverlayId ? overlays.find((o) => o.id === editingOverlayId) : null;
 
-  // Visible overlays (only show visible ones, or all if in alignment mode)
+  // Visible overlays — exclude the editing overlay (it's rendered as screen-fixed during alignment)
   const visibleOverlays = useMemo(() => {
-    if (editingOverlayId) {
-      // During alignment, show only the overlay being edited
-      return overlays.filter((o) => o.id === editingOverlayId);
-    }
-    return overlays.filter((o) => o.visible);
+    return overlays.filter((o) => o.visible && o.id !== editingOverlayId);
   }, [overlays, editingOverlayId]);
 
   // When navigating from trail list with trailId param, select and focus that trail
@@ -141,16 +140,47 @@ export default function MapScreen() {
   // Overlay handlers
   const handleAddOverlay = useCallback(
     async (imageUri: string, name: string) => {
-      // Default center: Skåne, Sweden
-      const corners = calculateInitialCorners(55.95, 13.4, 0.01, 0.008);
-      await addOverlay({
-        name,
-        imageUri,
-        corners,
+      // Get image dimensions to preserve aspect ratio
+      const imgSize = await new Promise<{ width: number; height: number }>((resolve) => {
+        Image.getSize(imageUri, (w, h) => resolve({ width: w, height: h }), () => resolve({ width: 4, height: 3 }));
       });
+
+      let corners: [import('@/lib/map-overlays').GeoCoord, import('@/lib/map-overlays').GeoCoord, import('@/lib/map-overlays').GeoCoord, import('@/lib/map-overlays').GeoCoord];
+      if (mapBounds && containerSize) {
+        const { north, south, east, west } = mapBounds;
+        const viewW = east - west;
+        const viewH = north - south;
+        const { width: cw, height: ch } = containerSize;
+
+        // Fit image aspect ratio within 80% of viewport (in pixel space)
+        const maxW = cw * 0.8;
+        const maxH = ch * 0.8;
+        const scale = Math.min(maxW / imgSize.width, maxH / imgSize.height);
+        const renderedW = imgSize.width * scale;
+        const renderedH = imgSize.height * scale;
+
+        // Convert pixel dimensions to geo dimensions
+        const geoW = (renderedW / cw) * viewW;
+        const geoH = (renderedH / ch) * viewH;
+        const centerLat = (north + south) / 2;
+        const centerLng = (east + west) / 2;
+
+        corners = [
+          [centerLat + geoH / 2, centerLng - geoW / 2],  // Top-left
+          [centerLat + geoH / 2, centerLng + geoW / 2],  // Top-right
+          [centerLat - geoH / 2, centerLng + geoW / 2],  // Bottom-right
+          [centerLat - geoH / 2, centerLng - geoW / 2],  // Bottom-left
+        ];
+      } else {
+        corners = calculateInitialCorners(55.95, 13.4, 0.05, 0.04);
+      }
+      const overlay = await addOverlay({ name, imageUri, corners });
       setShowOverlayManager(false);
+      // Automatically enter alignment mode for the new overlay
+      setEditingOverlayId(overlay.id);
+      setOverlayImageSize(imgSize);
     },
-    [addOverlay],
+    [addOverlay, mapBounds, containerSize],
   );
 
   const handleToggleOverlayVisibility = useCallback(
@@ -166,7 +196,12 @@ export default function MapScreen() {
   const handleEditOverlay = useCallback((id: string) => {
     setEditingOverlayId(id);
     setShowOverlayManager(false);
-  }, []);
+    // Get image natural dimensions for aspect-ratio-correct geo-mapping
+    const overlay = overlays.find((o) => o.id === id);
+    if (overlay) {
+      Image.getSize(overlay.imageUri, (w, h) => setOverlayImageSize({ width: w, height: h }));
+    }
+  }, [overlays]);
 
   const handleUpdateOverlayCorners = useCallback(
     (corners: MapOverlay['corners']) => {
@@ -188,16 +223,68 @@ export default function MapScreen() {
 
   const handleResetOverlay = useCallback(() => {
     if (editingOverlay) {
-      // Reset to default corners (Skåne, Sweden)
-      const corners = calculateInitialCorners(55.95, 13.4, 0.01, 0.008);
+      let corners: [import('@/lib/map-overlays').GeoCoord, import('@/lib/map-overlays').GeoCoord, import('@/lib/map-overlays').GeoCoord, import('@/lib/map-overlays').GeoCoord];
+      if (mapBounds) {
+        const { north, south, east, west } = mapBounds;
+        const latPad = (north - south) * 0.1;
+        const lngPad = (east - west) * 0.1;
+        corners = [
+          [north - latPad, west + lngPad],
+          [north - latPad, east - lngPad],
+          [south + latPad, east - lngPad],
+          [south + latPad, west + lngPad],
+        ];
+      } else {
+        corners = calculateInitialCorners(55.95, 13.4, 0.05, 0.04);
+      }
       void updateOverlay(editingOverlayId!, { corners, opacity: 0.7 });
     }
-  }, [editingOverlay, editingOverlayId, updateOverlay]);
+  }, [editingOverlay, editingOverlayId, updateOverlay, mapBounds]);
 
   const handleDoneAlignment = useCallback(() => {
+    // Lock overlay to geo-coordinates matching the visible image rect on screen
+    if (editingOverlayId && mapBounds && containerSize && overlayImageSize) {
+      const { north, south, east, west } = mapBounds;
+      const { width: cw, height: ch } = containerSize;
+      const { width: iw, height: ih } = overlayImageSize;
+
+      // Compute the "contain" rect (where the image actually renders)
+      const scale = Math.min(cw / iw, ch / ih);
+      const renderedW = iw * scale;
+      const renderedH = ih * scale;
+      const xOffset = (cw - renderedW) / 2;
+      const yOffset = (ch - renderedH) / 2;
+
+      // Convert pixel fractions to geo-coordinates
+      const leftFrac = xOffset / cw;
+      const rightFrac = (xOffset + renderedW) / cw;
+      const topFrac = yOffset / ch;
+      const bottomFrac = (yOffset + renderedH) / ch;
+
+      const geoWest = west + leftFrac * (east - west);
+      const geoEast = west + rightFrac * (east - west);
+      const geoNorth = north - topFrac * (north - south);
+      const geoSouth = north - bottomFrac * (north - south);
+
+      const corners: [import('@/lib/map-overlays').GeoCoord, import('@/lib/map-overlays').GeoCoord, import('@/lib/map-overlays').GeoCoord, import('@/lib/map-overlays').GeoCoord] = [
+        [geoNorth, geoWest],  // Top-left
+        [geoNorth, geoEast],  // Top-right
+        [geoSouth, geoEast],  // Bottom-right
+        [geoSouth, geoWest],  // Bottom-left
+      ];
+      void updateOverlay(editingOverlayId, { corners });
+    } else if (editingOverlayId && mapBounds) {
+      // Fallback: use full bounds if image size unknown
+      const { north, south, east, west } = mapBounds;
+      const corners: [import('@/lib/map-overlays').GeoCoord, import('@/lib/map-overlays').GeoCoord, import('@/lib/map-overlays').GeoCoord, import('@/lib/map-overlays').GeoCoord] = [
+        [north, west], [north, east], [south, east], [south, west],
+      ];
+      void updateOverlay(editingOverlayId, { corners });
+    }
     setEditingOverlayId(null);
     setAlignmentSelectedCorner(null);
-  }, []);
+    setOverlayImageSize(null);
+  }, [editingOverlayId, mapBounds, containerSize, overlayImageSize, updateOverlay]);
 
   // Handle map click during alignment mode
   const handleMapClick = useCallback(
@@ -217,7 +304,7 @@ export default function MapScreen() {
   const isWeb = Platform.OS === 'web';
 
   return (
-    <View style={styles.container}>
+    <View style={styles.container} onLayout={(e) => setContainerSize({ width: e.nativeEvent.layout.width, height: e.nativeEvent.layout.height })}>
       <UnifiedMap
         trails={trails ?? []}
         foragingSpots={spots ?? []}
@@ -232,6 +319,7 @@ export default function MapScreen() {
         onSpotSelect={handleSpotSelect}
         onPlaceSelect={handlePlaceSelect}
         onMapClick={handleMapClick}
+        onBoundsChange={setMapBounds}
       />
 
       {/* Layer toggle button (top-left) */}
@@ -332,6 +420,20 @@ export default function MapScreen() {
         </FloatingCardOverlay>
       )}
 
+      {/* Screen-fixed overlay image during alignment */}
+      {editingOverlay && (
+        <View
+          style={styles.screenOverlay}
+          pointerEvents="none"
+        >
+          <Image
+            source={{ uri: editingOverlay.imageUri }}
+            style={[styles.screenOverlayImage, { opacity: editingOverlay.opacity }]}
+            resizeMode="contain"
+          />
+        </View>
+      )}
+
       {/* Alignment mode UI */}
       {editingOverlay && (
         <OverlayAlignmentMode
@@ -382,5 +484,15 @@ const styles = StyleSheet.create({
     bottom: spacing.lg + 80, // Above tab bar
     left: spacing.lg,
     zIndex: 900,
+  },
+  screenOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 500,
+  },
+  screenOverlayImage: {
+    width: '100%',
+    height: '100%',
   },
 });

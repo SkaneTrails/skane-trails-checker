@@ -104,7 +104,7 @@ export function OverlayManager({
         </Pressable>
       </View>
 
-      <ScrollView style={styles.scroll} showsVerticalScrollIndicator={false}>
+      <ScrollView style={styles.scroll} showsVerticalScrollIndicator>
         {overlays.length === 0 ? (
           <Text style={[styles.emptyText, { color: colors.text.muted }]}>
             {t('overlays.noOverlays')}
@@ -113,7 +113,7 @@ export function OverlayManager({
           overlays.map((overlay) => (
             <View
               key={overlay.id}
-              style={[styles.overlayRow, { borderBottomColor: colors.border }]}
+              style={[styles.overlayRow, { borderColor: colors.border, backgroundColor: colors.surface }]}
             >
               <View style={styles.overlayInfo}>
                 <Text style={[styles.overlayName, { color: colors.text.primary }]}>
@@ -225,7 +225,9 @@ const styles = StyleSheet.create({
     fontWeight: fontWeight.bold,
   },
   scroll: {
-    flex: 1,
+    flexGrow: 0,
+    flexShrink: 1,
+    maxHeight: 300,
     marginBottom: spacing.lg,
   },
   emptyText: {
@@ -237,8 +239,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingVertical: spacing.md,
-    borderBottomWidth: 1,
+    padding: spacing.md,
+    borderWidth: 1,
+    borderRadius: borderRadius.md,
+    marginBottom: spacing.sm,
   },
   overlayInfo: {
     flex: 1,

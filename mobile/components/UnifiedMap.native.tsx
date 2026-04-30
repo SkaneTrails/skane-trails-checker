@@ -44,6 +44,7 @@ interface UnifiedMapProps {
   onSpotSelect?: (spot: ForagingSpot) => void;
   onPlaceSelect?: (place: Place) => void;
   onMapClick?: (lat: number, lng: number) => void;
+  onBoundsChange?: (bounds: { north: number; south: number; east: number; west: number }) => void;
 }
 
 const DEFAULT_CENTER: [number, number] = [13.4, 55.95];
@@ -104,9 +105,11 @@ export function UnifiedMap({
   onSpotSelect,
   onPlaceSelect,
   onMapClick,
+  onBoundsChange,
 }: UnifiedMapProps) {
   const { colors } = useTheme();
   const cameraRef = useRef<CameraRef>(null);
+  const mapRef = useRef<InstanceType<typeof Map>>(null);
   const [currentZoom, setCurrentZoom] = useState(DEFAULT_ZOOM);
 
   const colorMap = foragingColorMap(foragingTypes);
@@ -174,6 +177,7 @@ export function UnifiedMap({
   return (
     <View style={styles.container}>
       <Map
+        ref={mapRef}
         style={styles.map}
         mapStyle={MAP_STYLE}
         logoEnabled={false}
@@ -183,9 +187,22 @@ export function UnifiedMap({
           const { lngLat } = e.nativeEvent;
           onMapClick?.(lngLat[1], lngLat[0]);
         }}
-        onRegionDidChange={(e) => {
+        onRegionDidChange={async (e) => {
           const zoom = e.nativeEvent?.zoom;
           if (zoom != null) setCurrentZoom(zoom);
+          if (onBoundsChange && mapRef.current) {
+            try {
+              const bounds = await mapRef.current.getBounds();
+              if (bounds) {
+                onBoundsChange({
+                  west: bounds[0],
+                  south: bounds[1],
+                  east: bounds[2],
+                  north: bounds[3],
+                });
+              }
+            } catch { /* ignore */ }
+          }
         }}
       >
         <Camera
