@@ -65,7 +65,7 @@ export async function pickImageFromGallery(): Promise<string | null> {
 
   const result = await ImagePicker.launchImageLibraryAsync({
     mediaTypes: 'images',
-    quality: 0.8,
+    quality: 0.5,
     allowsEditing: false,
   });
 
@@ -94,7 +94,7 @@ export async function captureImageFromCamera(): Promise<string | null> {
 
   const result = await ImagePicker.launchCameraAsync({
     mediaTypes: 'images',
-    quality: 0.8,
+    quality: 0.5,
     allowsEditing: false,
   });
 
