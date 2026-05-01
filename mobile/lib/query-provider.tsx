@@ -7,7 +7,7 @@ import { createIdbPersister } from '@/lib/storage/query-persister';
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      staleTime: 5 * 60 * 1000, // 5 minutes
+      staleTime: 10 * 60 * 1000, // 10 minutes
       gcTime: 1000 * 60 * 60 * 24, // 24 hours — keep cached data for persistence
       retry: 2,
       refetchOnWindowFocus: false,

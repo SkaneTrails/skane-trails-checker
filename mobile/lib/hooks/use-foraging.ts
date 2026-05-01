@@ -20,6 +20,7 @@ export function useForagingTypes(options?: { enabled?: boolean }) {
   return useQuery({
     queryKey: foragingKeys.types,
     queryFn: () => foragingApi.getTypes(),
+    staleTime: 30 * 60 * 1000, // 30 min — types rarely change
     enabled: options?.enabled,
   });
 }

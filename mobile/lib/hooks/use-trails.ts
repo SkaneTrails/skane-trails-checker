@@ -5,7 +5,7 @@ import { trailCache } from '@/lib/storage/trail-cache';
 import type { TrackingPoint } from '@/lib/track-to-trail';
 import type { Trail, TrailUpdate } from '@/lib/types';
 
-export const SYNC_POLL_INTERVAL = 5 * 60 * 1000; // 5 minutes
+export const SYNC_POLL_INTERVAL = 10 * 60 * 1000; // 10 minutes
 
 export interface ClientTrailFilters {
   search?: string;
@@ -263,9 +263,12 @@ export function useUpdateTrail() {
     mutationFn: ({ id, data }: { id: string; data: TrailUpdate }) =>
       trailsApi.updateTrail(id, data),
     onSuccess: (updatedTrail, { id }) => {
-      queryClient.invalidateQueries({ queryKey: trailKeys.all });
-      // Update persistent cache with the full server response so
-      // server-computed fields (last_updated, modified_at) stay current.
+      // Update React Query cache directly — no refetch needed since we
+      // have the full server response with computed fields.
+      queryClient.setQueryData<Trail[]>(trailKeys.list(), (old) =>
+        old?.map((t) => (t.trail_id === id ? (updatedTrail as Trail) : t)),
+      );
+      queryClient.setQueryData(trailKeys.detail(id), updatedTrail);
       trailCache.get().then(({ trails, lastSyncTime }) => {
         const updated = trails.map((t) => (t.trail_id === id ? (updatedTrail as Trail) : t));
         trailCache.set(updated, lastSyncTime ?? new Date().toISOString());
@@ -280,8 +283,12 @@ export function useDeleteTrail() {
   return useMutation({
     mutationFn: (id: string) => trailsApi.deleteTrail(id),
     onSuccess: (_data, deletedId) => {
-      queryClient.invalidateQueries({ queryKey: trailKeys.all });
-      // Remove from local cache immediately
+      // Update React Query cache directly — no refetch needed.
+      queryClient.setQueryData<Trail[]>(trailKeys.list(), (old) =>
+        old?.filter((t) => t.trail_id !== deletedId),
+      );
+      queryClient.removeQueries({ queryKey: trailKeys.detail(deletedId) });
+      queryClient.removeQueries({ queryKey: trailKeys.details(deletedId) });
       trailCache.get().then(({ trails, lastSyncTime }) => {
         const filtered = trails.filter((t) => t.trail_id !== deletedId);
         trailCache.set(filtered, lastSyncTime ?? new Date().toISOString());
@@ -297,12 +304,15 @@ export function useUploadGpx() {
     mutationFn: ({ file, ...options }: { file: File } & Parameters<typeof trailsApi.uploadGpx>[1]) =>
       trailsApi.uploadGpx(file, options),
     onSuccess: (newTrails) => {
-      queryClient.invalidateQueries({ queryKey: trailKeys.all });
-      // Merge new trails into cache in a single read-then-write to avoid
-      // the double-read that trailCache.merge() would introduce. Preserves
-      // the server-issued lastSyncTime so the next delta sync uses the
-      // correct baseline (client Date() would mismatch last_modified).
+      // Merge new trails into React Query cache directly — no refetch.
       if (newTrails.length > 0) {
+        queryClient.setQueryData<Trail[]>(trailKeys.list(), (old) => {
+          const merged = new Map((old ?? []).map((t) => [t.trail_id, t]));
+          for (const trail of newTrails) {
+            merged.set(trail.trail_id, trail);
+          }
+          return Array.from(merged.values());
+        });
         trailCache.get().then(({ trails, lastSyncTime }) => {
           const merged = new Map(trails.map((t) => [t.trail_id, t]));
           for (const trail of newTrails) {
@@ -322,7 +332,12 @@ export function useSaveRecording() {
     mutationFn: ({ name, points }: { name: string; points: TrackingPoint[] }) =>
       trailsApi.saveRecording(name, points),
     onSuccess: (savedTrail) => {
-      queryClient.invalidateQueries({ queryKey: trailKeys.all });
+      // Add saved trail to React Query cache directly — no refetch.
+      queryClient.setQueryData<Trail[]>(trailKeys.list(), (old) => {
+        const merged = new Map((old ?? []).map((t) => [t.trail_id, t]));
+        merged.set(savedTrail.trail_id, savedTrail);
+        return Array.from(merged.values());
+      });
       trailCache.get().then(({ trails, lastSyncTime }) => {
         const merged = new Map(trails.map((t) => [t.trail_id, t]));
         merged.set(savedTrail.trail_id, savedTrail);
