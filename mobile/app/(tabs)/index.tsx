@@ -17,8 +17,8 @@ import {
   useDeleteTrail,
   useForagingSpots,
   useForagingTypes,
+  useMapTrails,
   usePlaces,
-  useTrails,
   useUpdateForagingSpot,
   useUpdateTrail,
 } from '@/lib/hooks';
@@ -42,7 +42,7 @@ export default function MapScreen() {
   const router = useRouter();
   const { trailId, editTrail } = useLocalSearchParams<{ trailId?: string; editTrail?: string }>();
 
-  const { data: trails, isFetching: trailsFetching } = useTrails();
+  const { data: trails, isFetching: trailsFetching } = useMapTrails();
   const { data: spots } = useForagingSpots();
   const { data: types } = useForagingTypes();
   const { data: places } = usePlaces();

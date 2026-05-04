@@ -198,6 +198,30 @@ class TestListTrails:
         response = authenticated_client.get("/api/v1/trails?since=2026-03-01")
         assert response.status_code == 422
 
+    @patch("api.routers.trails.trail_storage.get_all_trails")
+    def test_list_trails_fields_summary_excludes_coordinates(self, mock_get_all, authenticated_client):
+        """fields=summary returns trails with empty coordinates_map (smaller payload)."""
+        mock_get_all.return_value = [SAMPLE_TRAIL, SAMPLE_TRAIL_2]
+        response = authenticated_client.get("/api/v1/trails?fields=summary")
+        assert response.status_code == 200
+        data = response.json()
+        assert len(data) == 2
+        for trail in data:
+            assert trail["coordinates_map"] == []
+
+    @patch("api.routers.trails.trail_storage.get_all_trails")
+    def test_list_trails_without_fields_includes_coordinates(self, mock_get_all, authenticated_client):
+        """Default (no fields param) returns full coordinates_map."""
+        mock_get_all.return_value = [SAMPLE_TRAIL]
+        response = authenticated_client.get("/api/v1/trails")
+        assert response.status_code == 200
+        data = response.json()
+        assert len(data[0]["coordinates_map"]) == 2
+
+    def test_list_trails_rejects_invalid_fields_value(self, authenticated_client):
+        response = authenticated_client.get("/api/v1/trails?fields=invalid")
+        assert response.status_code == 422
+
 
 class TestGetSyncMetadata:
     @patch("api.routers.trails.trail_storage.get_sync_metadata")

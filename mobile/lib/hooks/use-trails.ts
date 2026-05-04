@@ -32,6 +32,7 @@ export function sortTrails(trails: Trail[]): Trail[] {
 export const trailKeys = {
   all: ['trails'] as const,
   list: () => ['trails', 'list'] as const,
+  map: () => ['trails', 'map'] as const,
   detail: (id: string) => ['trails', 'detail', id] as const,
   details: (id: string) => ['trails', 'details', id] as const,
   sync: ['trails', 'sync'] as const,
@@ -51,7 +52,7 @@ export function useTrails() {
 
   const query = useQuery({
     queryKey,
-    queryFn: () => trailsApi.getTrails({}),
+    queryFn: () => trailsApi.getTrailSummaries({}),
     select: sortTrails,
     enabled: syncDone,
   });
@@ -142,13 +143,13 @@ async function syncTrails(
       return;
     }
 
-    // Delta fetch: get only new trails since last sync.
+    // Delta fetch: get only new trails since last sync (summary = no coords).
     // Wrapped in its own try/catch so that validation errors (e.g.
     // millisecond timestamps rejected by the API) fall back to a
     // full refetch instead of aborting the entire sync.
     if (cached.lastSyncTime && cached.trails.length > 0) {
       try {
-        const newTrails = await trailsApi.getTrails({ since: cached.lastSyncTime });
+        const newTrails = await trailsApi.getTrailSummaries({ since: cached.lastSyncTime });
         if (newTrails.length > 0) {
           const merged = await trailCache.merge(
             newTrails,
@@ -169,8 +170,11 @@ async function syncTrails(
       return;
     }
 
-    // First load — no cache: let useQuery do the full fetch
-    // (enabled becomes true when syncDone is set)
+    // First load — no cache: fetch summaries (no coords) for fast initial load.
+    const allTrails = await trailsApi.getTrailSummaries({});
+    const syncTime = syncMeta.last_modified ?? new Date().toISOString();
+    await trailCache.set(allTrails, syncTime);
+    queryClient.setQueryData(queryKey, allTrails);
   } catch (error) {
     console.warn('Trail sync failed:', error);
     // Sync failure is non-fatal — useQuery still fetches from API
@@ -182,7 +186,7 @@ async function fullRefetch(
   queryKey: readonly unknown[],
   lastModified: string | null | undefined,
 ): Promise<void> {
-  const allTrails = await trailsApi.getTrails({});
+  const allTrails = await trailsApi.getTrailSummaries({});
   const syncTime = lastModified ?? new Date().toISOString();
   await trailCache.set(allTrails, syncTime);
   queryClient.setQueryData(queryKey, allTrails);
@@ -217,7 +221,7 @@ export async function pollForChanges(
     // Delta fetch
     if (cached.lastSyncTime && cached.trails.length > 0) {
       try {
-        const newTrails = await trailsApi.getTrails({ since: cached.lastSyncTime });
+        const newTrails = await trailsApi.getTrailSummaries({ since: cached.lastSyncTime });
         if (newTrails.length > 0) {
           const merged = await trailCache.merge(
             newTrails,
@@ -245,6 +249,20 @@ export function useTrail(id: string) {
     queryKey: trailKeys.detail(id),
     queryFn: () => trailsApi.getTrail(id),
     enabled: !!id,
+  });
+}
+
+/**
+ * Fetch full trail data (including coordinates_map) for map rendering.
+ *
+ * Uses long stale time since trail routes rarely change.
+ * Falls back to summary data from cache while loading.
+ */
+export function useMapTrails() {
+  return useQuery({
+    queryKey: trailKeys.map(),
+    queryFn: () => trailsApi.getTrails({}),
+    staleTime: 30 * 60 * 1000, // 30 min — trail routes rarely change
   });
 }
 

@@ -18,6 +18,7 @@ import {
 vi.mock('@/lib/api', () => ({
   trailsApi: {
     getTrails: vi.fn(),
+    getTrailSummaries: vi.fn(),
     getTrail: vi.fn(),
     getTrailDetails: vi.fn(),
     updateTrail: vi.fn(),
@@ -62,7 +63,7 @@ describe('useTrails', () => {
   });
 
   it('fetches trails on mount', async () => {
-    mockTrailsApi.getTrails.mockResolvedValue([sampleTrail]);
+    mockTrailsApi.getTrailSummaries.mockResolvedValue([sampleTrail]);
     mockTrailsApi.getSyncMetadata.mockResolvedValue({ count: 0, last_modified: null });
     const wrapper = createQueryWrapper();
 
@@ -70,7 +71,7 @@ describe('useTrails', () => {
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
     expect(result.current.data).toEqual([sampleTrail]);
-    expect(mockTrailsApi.getTrails).toHaveBeenCalledWith({});
+    expect(mockTrailsApi.getTrailSummaries).toHaveBeenCalledWith({});
   });
 
   it('seeds React Query from IndexedDB cache on mount', async () => {
@@ -82,7 +83,7 @@ describe('useTrails', () => {
       count: 1,
       last_modified: '2025-06-01T00:00:00Z',
     });
-    mockTrailsApi.getTrails.mockResolvedValue([sampleTrail]);
+    mockTrailsApi.getTrailSummaries.mockResolvedValue([sampleTrail]);
     const wrapper = createQueryWrapper();
 
     const { result } = renderHook(() => useTrails(), { wrapper });
@@ -102,7 +103,7 @@ describe('useTrails', () => {
       count: 2,
       last_modified: '2025-07-01T00:00:00Z',
     });
-    mockTrailsApi.getTrails.mockImplementation((filters) => {
+    mockTrailsApi.getTrailSummaries.mockImplementation((filters) => {
       if (filters.since) return Promise.resolve([newTrail]);
       return Promise.resolve([sampleTrail, newTrail]);
     });
@@ -112,7 +113,7 @@ describe('useTrails', () => {
     renderHook(() => useTrails(), { wrapper });
 
     await waitFor(() => {
-      expect(mockTrailsApi.getTrails).toHaveBeenCalledWith(
+      expect(mockTrailsApi.getTrailSummaries).toHaveBeenCalledWith(
         expect.objectContaining({ since: '2025-06-01T00:00:00Z' }),
       );
     });
@@ -129,7 +130,7 @@ describe('useTrails', () => {
       count: 1,
       last_modified: '2025-07-01T00:00:00Z',
     });
-    mockTrailsApi.getTrails.mockImplementation((filters) => {
+    mockTrailsApi.getTrailSummaries.mockImplementation((filters) => {
       if (filters.since) return Promise.resolve([]);
       return Promise.resolve([editedTrail]);
     });
@@ -138,7 +139,7 @@ describe('useTrails', () => {
     renderHook(() => useTrails(), { wrapper });
 
     await waitFor(() => {
-      expect(mockTrailsApi.getTrails).toHaveBeenCalledWith({});
+      expect(mockTrailsApi.getTrailSummaries).toHaveBeenCalledWith({});
     });
     expect(mockTrailCache.set).toHaveBeenCalledWith([editedTrail], '2025-07-01T00:00:00Z');
   });
@@ -152,7 +153,7 @@ describe('useTrails', () => {
       count: 1,
       last_modified: '2025-07-01T00:00:00Z',
     });
-    mockTrailsApi.getTrails.mockResolvedValue([sampleTrail]);
+    mockTrailsApi.getTrailSummaries.mockResolvedValue([sampleTrail]);
     const wrapper = createQueryWrapper();
 
     renderHook(() => useTrails(), { wrapper });
@@ -172,7 +173,7 @@ describe('useTrails', () => {
       count: 2,
       last_modified: '2025-07-01T00:00:00Z',
     });
-    mockTrailsApi.getTrails.mockImplementation((filters) => {
+    mockTrailsApi.getTrailSummaries.mockImplementation((filters) => {
       if (filters.since) return Promise.reject(new Error('API 422: invalid since format'));
       return Promise.resolve(allTrails);
     });
@@ -183,7 +184,7 @@ describe('useTrails', () => {
 
     // Should fall back to full refetch after delta fails
     await waitFor(() => {
-      expect(mockTrailsApi.getTrails).toHaveBeenCalledWith({});
+      expect(mockTrailsApi.getTrailSummaries).toHaveBeenCalledWith({});
     });
     expect(mockTrailCache.set).toHaveBeenCalledWith(allTrails, '2025-07-01T00:00:00Z');
     expect(warnSpy).toHaveBeenCalledWith(
@@ -195,7 +196,7 @@ describe('useTrails', () => {
 
   it('handles sync failure gracefully when cache throws', async () => {
     mockTrailCache.get.mockRejectedValueOnce(new Error('IndexedDB error'));
-    mockTrailsApi.getTrails.mockResolvedValue([sampleTrail]);
+    mockTrailsApi.getTrailSummaries.mockResolvedValue([sampleTrail]);
     const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
     const wrapper = createQueryWrapper();
 
@@ -219,7 +220,7 @@ describe('useTrails', () => {
       count: 1,
       last_modified: '2025-06-01T00:00:00Z',
     });
-    mockTrailsApi.getTrails.mockResolvedValue([sampleTrail]);
+    mockTrailsApi.getTrailSummaries.mockResolvedValue([sampleTrail]);
     const wrapper = createQueryWrapper();
 
     renderHook(() => useTrails(), { wrapper });
@@ -257,7 +258,7 @@ describe('pollForChanges', () => {
     await pollForChanges(qc as any, ['trails', 'list']);
 
     // No trail fetch or cache write should occur
-    expect(mockTrailsApi.getTrails).not.toHaveBeenCalled();
+    expect(mockTrailsApi.getTrailSummaries).not.toHaveBeenCalled();
     expect(mockTrailCache.set).not.toHaveBeenCalled();
   });
 
@@ -276,7 +277,7 @@ describe('pollForChanges', () => {
 
     // Delta yields nothing → triggers full refetch
     const renamedTrail = { ...sampleTrail, name: 'Renamed' };
-    mockTrailsApi.getTrails.mockImplementation((filters) => {
+    mockTrailsApi.getTrailSummaries.mockImplementation((filters) => {
       if (filters.since) return Promise.resolve([]);
       return Promise.resolve([renamedTrail]);
     });
@@ -304,7 +305,7 @@ describe('pollForChanges', () => {
       count: 2,
       last_modified: '2025-07-01T00:00:00Z',
     });
-    mockTrailsApi.getTrails.mockImplementation((filters) => {
+    mockTrailsApi.getTrailSummaries.mockImplementation((filters) => {
       if (filters.since) return Promise.resolve([newTrail]);
       return Promise.resolve([sampleTrail, newTrail]);
     });
@@ -328,7 +329,7 @@ describe('pollForChanges', () => {
       count: 1,
       last_modified: '2025-07-01T00:00:00Z',
     });
-    mockTrailsApi.getTrails.mockResolvedValue([sampleTrail]);
+    mockTrailsApi.getTrailSummaries.mockResolvedValue([sampleTrail]);
 
     const queryKey = ['trails', 'list'] as const;
     const { QueryClient } = await import('@tanstack/react-query');
