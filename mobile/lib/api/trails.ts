@@ -10,6 +10,7 @@ export interface TrailFilters {
   max_distance_km?: number;
   status?: string;
   since?: string;
+  fields?: string;
 }
 
 export interface UploadGpxOptions {
@@ -32,6 +33,11 @@ function buildQuery(filters: TrailFilters): string {
 export const trailsApi = {
   getTrails(filters: TrailFilters = {}): Promise<Trail[]> {
     return apiRequest<Trail[]>(`/api/v1/trails${buildQuery(filters)}`);
+  },
+
+  /** Fetch trail summaries (no coordinates_map) — much smaller payload for list/sync. */
+  getTrailSummaries(filters: TrailFilters = {}): Promise<Trail[]> {
+    return apiRequest<Trail[]>(`/api/v1/trails${buildQuery({ ...filters, fields: 'summary' })}`);
   },
 
   getTrail(id: string): Promise<Trail> {

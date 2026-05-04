@@ -29,7 +29,7 @@ export function useCurrentUser(options?: { enabled?: boolean }) {
   return useQuery({
     queryKey: currentUserKeys.all,
     queryFn: () => hikeGroupsApi.getCurrentUser(),
-    staleTime: 5 * 60 * 1000,
+    staleTime: 30 * 60 * 1000, // 30 min — user info rarely changes
     retry: false,
     enabled: options?.enabled,
   });
