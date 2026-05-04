@@ -256,13 +256,16 @@ export function useTrail(id: string) {
  * Fetch full trail data (including coordinates_map) for map rendering.
  *
  * Uses long stale time since trail routes rarely change.
- * Falls back to summary data from cache while loading.
+ * Shows summary data from the list cache as placeholder while loading.
  */
-export function useMapTrails() {
+export function useMapTrails(options?: { enabled?: boolean }) {
+  const queryClient = useQueryClient();
   return useQuery({
     queryKey: trailKeys.map(),
     queryFn: () => trailsApi.getTrails({}),
     staleTime: 30 * 60 * 1000, // 30 min — trail routes rarely change
+    placeholderData: () => queryClient.getQueryData<Trail[]>(trailKeys.list()),
+    enabled: options?.enabled,
   });
 }
 
@@ -287,6 +290,9 @@ export function useUpdateTrail() {
         old?.map((t) => (t.trail_id === id ? (updatedTrail as Trail) : t)),
       );
       queryClient.setQueryData(trailKeys.detail(id), updatedTrail);
+      queryClient.setQueryData<Trail[]>(trailKeys.map(), (old) =>
+        old?.map((t) => (t.trail_id === id ? (updatedTrail as Trail) : t)),
+      );
       trailCache.get().then(({ trails, lastSyncTime }) => {
         const updated = trails.map((t) => (t.trail_id === id ? (updatedTrail as Trail) : t));
         trailCache.set(updated, lastSyncTime ?? new Date().toISOString());
@@ -307,6 +313,9 @@ export function useDeleteTrail() {
       );
       queryClient.removeQueries({ queryKey: trailKeys.detail(deletedId) });
       queryClient.removeQueries({ queryKey: trailKeys.details(deletedId) });
+      queryClient.setQueryData<Trail[]>(trailKeys.map(), (old) =>
+        old?.filter((t) => t.trail_id !== deletedId),
+      );
       trailCache.get().then(({ trails, lastSyncTime }) => {
         const filtered = trails.filter((t) => t.trail_id !== deletedId);
         trailCache.set(filtered, lastSyncTime ?? new Date().toISOString());
@@ -325,6 +334,13 @@ export function useUploadGpx() {
       // Merge new trails into React Query cache directly — no refetch.
       if (newTrails.length > 0) {
         queryClient.setQueryData<Trail[]>(trailKeys.list(), (old) => {
+          const merged = new Map((old ?? []).map((t) => [t.trail_id, t]));
+          for (const trail of newTrails) {
+            merged.set(trail.trail_id, trail);
+          }
+          return Array.from(merged.values());
+        });
+        queryClient.setQueryData<Trail[]>(trailKeys.map(), (old) => {
           const merged = new Map((old ?? []).map((t) => [t.trail_id, t]));
           for (const trail of newTrails) {
             merged.set(trail.trail_id, trail);
@@ -352,6 +368,11 @@ export function useSaveRecording() {
     onSuccess: (savedTrail) => {
       // Add saved trail to React Query cache directly — no refetch.
       queryClient.setQueryData<Trail[]>(trailKeys.list(), (old) => {
+        const merged = new Map((old ?? []).map((t) => [t.trail_id, t]));
+        merged.set(savedTrail.trail_id, savedTrail);
+        return Array.from(merged.values());
+      });
+      queryClient.setQueryData<Trail[]>(trailKeys.map(), (old) => {
         const merged = new Map((old ?? []).map((t) => [t.trail_id, t]));
         merged.set(savedTrail.trail_id, savedTrail);
         return Array.from(merged.values());

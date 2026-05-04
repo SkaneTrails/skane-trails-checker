@@ -60,32 +60,36 @@ export interface CachedTrailData {
 
 export const trailCache = {
   async get(): Promise<CachedTrailData> {
+    let db: IDBDatabase | undefined;
     try {
-      const db = await openDb();
+      db = await openDb();
       const [trails, lastSyncTime] = await Promise.all([
         getFromStore<Trail[]>(db, 'trails'),
         getFromStore<string>(db, 'lastSyncTime'),
       ]);
-      db.close();
       return {
         trails: trails ?? [],
         lastSyncTime: lastSyncTime ?? null,
       };
     } catch {
       return { trails: [], lastSyncTime: null };
+    } finally {
+      db?.close();
     }
   },
 
   async set(trails: Trail[], lastSyncTime: string): Promise<void> {
+    let db: IDBDatabase | undefined;
     try {
-      const db = await openDb();
+      db = await openDb();
       await Promise.all([
         putInStore(db, 'trails', trails),
         putInStore(db, 'lastSyncTime', lastSyncTime),
       ]);
-      db.close();
     } catch {
       // Cache write failure is non-fatal — next open will do a full fetch
+    } finally {
+      db?.close();
     }
   },
 
@@ -101,12 +105,14 @@ export const trailCache = {
   },
 
   async clear(): Promise<void> {
+    let db: IDBDatabase | undefined;
     try {
-      const db = await openDb();
+      db = await openDb();
       await clearStore(db);
-      db.close();
     } catch {
       // Clear failure is non-fatal
+    } finally {
+      db?.close();
     }
   },
 };

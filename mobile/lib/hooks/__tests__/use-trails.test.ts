@@ -487,6 +487,7 @@ describe('useUpdateTrail', () => {
       defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
     });
     queryClient.setQueryData(['trails', 'list'], [sampleTrail]);
+    queryClient.setQueryData(['trails', 'map'], [sampleTrail]);
     const wrapper = ({ children }: { children: ReactNode }) =>
       createElement(QueryClientProvider, { client: queryClient }, children);
 
@@ -502,8 +503,9 @@ describe('useUpdateTrail', () => {
         '2025-06-01T00:00:00Z',
       );
     });
-    // Verify the setQueryData callback updated the list
+    // Verify the setQueryData callbacks updated both caches
     expect(queryClient.getQueryData(['trails', 'list'])).toEqual([updatedTrail]);
+    expect(queryClient.getQueryData(['trails', 'map'])).toEqual([updatedTrail]);
   });
 });
 
@@ -524,6 +526,7 @@ describe('useDeleteTrail', () => {
       defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
     });
     queryClient.setQueryData(['trails', 'list'], [sampleTrail]);
+    queryClient.setQueryData(['trails', 'map'], [sampleTrail]);
     const wrapper = ({ children }: { children: ReactNode }) =>
       createElement(QueryClientProvider, { client: queryClient }, children);
 
@@ -536,8 +539,9 @@ describe('useDeleteTrail', () => {
     await waitFor(() => {
       expect(mockTrailCache.set).toHaveBeenCalledWith([], '2025-06-01T00:00:00Z');
     });
-    // Verify the setQueryData callback removed the trail from list
+    // Verify the setQueryData callbacks removed the trail from both caches
     expect(queryClient.getQueryData(['trails', 'list'])).toEqual([]);
+    expect(queryClient.getQueryData(['trails', 'map'])).toEqual([]);
   });
 });
 
@@ -571,7 +575,15 @@ describe('useUploadGpx', () => {
 
     const uploadedTrail = { ...sampleTrail, trail_id: 'new1', name: 'Uploaded Trail' };
     mockTrailsApi.uploadGpx.mockResolvedValue([uploadedTrail]);
-    const wrapper = createQueryWrapper();
+
+    // Pre-seed both caches so setQueryData callbacks execute
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+    });
+    queryClient.setQueryData(['trails', 'list'], existingTrails);
+    queryClient.setQueryData(['trails', 'map'], existingTrails);
+    const wrapper = ({ children }: { children: ReactNode }) =>
+      createElement(QueryClientProvider, { client: queryClient }, children);
 
     const { result } = renderHook(() => useUploadGpx(), { wrapper });
 
@@ -716,7 +728,15 @@ describe('useSaveRecording', () => {
     const savedTrail = { ...sampleTrail, trail_id: 'rec1', name: 'Morning Walk', source: 'other_trails' };
     mockTrailsApi.saveRecording.mockResolvedValue(savedTrail);
     mockTrailCache.get.mockResolvedValue({ trails: [sampleTrail], lastSyncTime: '2025-06-01T00:00:00Z' });
-    const wrapper = createQueryWrapper();
+
+    // Pre-seed both caches so setQueryData callbacks execute
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+    });
+    queryClient.setQueryData(['trails', 'list'], [sampleTrail]);
+    queryClient.setQueryData(['trails', 'map'], [sampleTrail]);
+    const wrapper = ({ children }: { children: ReactNode }) =>
+      createElement(QueryClientProvider, { client: queryClient }, children);
 
     const { result } = renderHook(() => useSaveRecording(), { wrapper });
 
