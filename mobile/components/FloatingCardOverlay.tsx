@@ -12,7 +12,6 @@ import { spacing } from '@/lib/theme';
 
 interface FloatingCardOverlayProps {
   isOpen: boolean;
-  onClose: () => void;
   children: ReactNode;
 }
 

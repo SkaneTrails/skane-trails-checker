@@ -300,11 +300,10 @@ export default function MapScreen() {
         newCorners[alignmentSelectedCorner] = [lat, lng];
         void updateOverlay(editingOverlayId, { corners: newCorners });
         setAlignmentSelectedCorner(null);
-      } else if (selected) {
-        // Clicking the map dismisses the floating card
-        setSelected(null);
-      } else if (showOverlayManager) {
-        setShowOverlayManager(false);
+      } else {
+        // Clicking empty map space dismisses any open card/panel
+        if (selected) setSelected(null);
+        if (showOverlayManager) setShowOverlayManager(false);
       }
     },
     [editingOverlayId, alignmentSelectedCorner, editingOverlay, updateOverlay, selected, showOverlayManager],
@@ -376,7 +375,7 @@ export default function MapScreen() {
       )}
 
       {/* Floating card for selected item */}
-      <FloatingCardOverlay isOpen={!!selected} onClose={() => setSelected(null)}>
+      <FloatingCardOverlay isOpen={!!selected}>
         {selected?.type === 'trail' && (
           <TrailCard
             trail={selected.data}
@@ -418,7 +417,7 @@ export default function MapScreen() {
 
       {/* Overlay manager panel — native only */}
       {!isWeb && showOverlayManager && (
-        <FloatingCardOverlay isOpen onClose={() => setShowOverlayManager(false)}>
+        <FloatingCardOverlay isOpen>
           <OverlayManager
             overlays={overlays}
             onAddOverlay={handleAddOverlay}
