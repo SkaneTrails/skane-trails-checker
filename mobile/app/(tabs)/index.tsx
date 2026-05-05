@@ -300,9 +300,14 @@ export default function MapScreen() {
         newCorners[alignmentSelectedCorner] = [lat, lng];
         void updateOverlay(editingOverlayId, { corners: newCorners });
         setAlignmentSelectedCorner(null);
+      } else if (selected) {
+        // Clicking the map dismisses the floating card
+        setSelected(null);
+      } else if (showOverlayManager) {
+        setShowOverlayManager(false);
       }
     },
-    [editingOverlayId, alignmentSelectedCorner, editingOverlay, updateOverlay],
+    [editingOverlayId, alignmentSelectedCorner, editingOverlay, updateOverlay, selected, showOverlayManager],
   );
 
   const selectedTrailId = selected?.type === 'trail' ? selected.data.trail_id : null;
