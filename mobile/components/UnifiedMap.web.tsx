@@ -207,7 +207,8 @@ export function UnifiedMap({
           lineJoin: 'round',
         }).addTo(group);
 
-        polyline.on('click', () => {
+        polyline.on('click', (e) => {
+          L.DomEvent.stopPropagation(e);
           callbackRefs.current.onTrailSelect?.(trail);
         });
       }
@@ -236,7 +237,8 @@ export function UnifiedMap({
         });
 
         const marker = L.marker([spot.lat, spot.lng], { icon }).addTo(group);
-        marker.on('click', () => {
+        marker.on('click', (e) => {
+          L.DomEvent.stopPropagation(e);
           callbackRefs.current.onSpotSelect?.(spot);
         });
       }
@@ -266,7 +268,8 @@ export function UnifiedMap({
       });
 
       const marker = L.marker([place.lat, place.lng], { icon }).addTo(group);
-      marker.on('click', () => {
+      marker.on('click', (e) => {
+        L.DomEvent.stopPropagation(e);
         callbackRefs.current.onPlaceSelect?.(place);
       });
     }
