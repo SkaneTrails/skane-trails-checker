@@ -1,7 +1,6 @@
 import { useCallback, useState } from 'react';
 import {
   ActivityIndicator,
-  Alert,
   FlatList,
   Platform,
   Pressable,
@@ -14,6 +13,7 @@ import { AddSpotForm } from '@/components/AddSpotForm';
 import { foragingColorMap } from '@/lib/foraging-colors';
 import { useCreateForagingSpot, useForagingSpots, useForagingTypes } from '@/lib/hooks';
 import { useTranslation } from '@/lib/i18n';
+import { getCurrentPosition } from '@/lib/location';
 import { borderRadius, blur, fontSize, fontWeight, spacing, useTheme } from '@/lib/theme';
 import type { ForagingSpot, ForagingSpotCreate } from '@/lib/types';
 
@@ -73,33 +73,12 @@ export default function ForagingScreen() {
   const handleUseCurrentLocation = useCallback(async () => {
     setLocationError(false);
 
-    if (Platform.OS === 'web') {
-      if (!navigator.geolocation) {
-        setLocationError(true);
-        return;
-      }
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          setCurrentLat(position.coords.latitude);
-          setCurrentLng(position.coords.longitude);
-        },
-        () => setLocationError(true),
-        { enableHighAccuracy: true },
-      );
-    } else {
-      try {
-        const Location = await import('expo-location');
-        const { status } = await Location.requestForegroundPermissionsAsync();
-        if (status !== 'granted') {
-          setLocationError(true);
-          return;
-        }
-        const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High });
-        setCurrentLat(loc.coords.latitude);
-        setCurrentLng(loc.coords.longitude);
-      } catch {
-        setLocationError(true);
-      }
+    try {
+      const coords = await getCurrentPosition();
+      setCurrentLat(coords.lat);
+      setCurrentLng(coords.lng);
+    } catch (e) {
+      setLocationError(true);
     }
   }, []);
 
