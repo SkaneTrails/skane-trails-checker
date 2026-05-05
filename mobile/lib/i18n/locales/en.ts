@@ -179,6 +179,7 @@ const en = {
     month: 'Month',
     location: 'Location',
     useCurrentLocation: 'Use Current Location',
+    locationFailed: 'Could not get location. Check permissions and try again.',
     orTapMap: 'or tap on the map, or enter manually:',
     latitude: 'Latitude',
     longitude: 'Longitude',

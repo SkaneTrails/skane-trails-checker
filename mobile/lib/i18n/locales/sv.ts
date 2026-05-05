@@ -179,6 +179,7 @@ const sv: Translations = {
     month: 'Månad',
     location: 'Plats',
     useCurrentLocation: 'Använd nuvarande plats',
+    locationFailed: 'Kunde inte hämta plats. Kontrollera behörigheter och försök igen.',
     orTapMap: 'eller tryck på kartan, eller ange manuellt:',
     latitude: 'Latitud',
     longitude: 'Longitud',
