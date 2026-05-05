@@ -3,11 +3,11 @@ import { LocationError } from '../types';
 import type { Coords } from '../types';
 
 /**
- * Contract tests for the location service types.
- * Verifies the shared interface contracts that both platform
- * adapters must fulfil.
+ * Unit tests for the location service types (Coords, LocationError).
+ * These verify the shared data structures — adapter parity is covered
+ * by the web/native test files and the barrel entrypoint test (index.test.ts).
  */
-describe('Location service contract', () => {
+describe('Location types', () => {
   describe('Coords type', () => {
     it('represents a coordinate pair with lat and lng', () => {
       const coords: Coords = { lat: 55.6, lng: 13.0 };

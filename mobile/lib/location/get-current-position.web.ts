@@ -7,7 +7,7 @@ import { LocationError } from './types';
  */
 export function getCurrentPosition(): Promise<Coords> {
   return new Promise((resolve, reject) => {
-    if (!navigator.geolocation) {
+    if (typeof navigator === 'undefined' || !navigator.geolocation) {
       reject(new LocationError('unavailable', 'Geolocation API not available'));
       return;
     }
