@@ -59,11 +59,16 @@ export default function ForagingScreen() {
   const colorMap = foragingColorMap(types ?? []);
 
   const [showAddForm, setShowAddForm] = useState(false);
+  const [currentLat, setCurrentLat] = useState<number | undefined>();
+  const [currentLng, setCurrentLng] = useState<number | undefined>();
 
   const handleUseCurrentLocation = useCallback(() => {
     if (!navigator.geolocation) return;
     navigator.geolocation.getCurrentPosition(
-      () => {},
+      (position) => {
+        setCurrentLat(position.coords.latitude);
+        setCurrentLng(position.coords.longitude);
+      },
       () => {},
       { enableHighAccuracy: true },
     );
@@ -150,6 +155,8 @@ export default function ForagingScreen() {
           <Pressable style={styles.modalBackdropTouchable} onPress={() => setShowAddForm(false)} />
           <AddSpotForm
             types={types ?? []}
+            initialLat={currentLat}
+            initialLng={currentLng}
             onSubmit={handleAddSpot}
             onCancel={() => setShowAddForm(false)}
             onUseCurrentLocation={handleUseCurrentLocation}

@@ -32,3 +32,16 @@ for month, spots in sorted(spots_by_month.items()):
     print(f"  {month}: {len(spots)} spots")
     for spot in spots[:3]:  # Show first 3
         print(f"    - {spot.type} at ({spot.lat:.4f}, {spot.lng:.4f})")
+
+# Detailed view of all spots
+print("\n--- Detailed spot listing ---")
+for spot in sorted(all_spots, key=lambda s: s.created_at, reverse=True):
+    print(f"\n  ID: {spot.id}")
+    print(f"  Type: {spot.type}")
+    print(f"  Lat: {spot.lat}, Lng: {spot.lng}")
+    print(f"  Notes: {spot.notes!r}")
+    print(f"  Month: {spot.month} | Date: {spot.date}")
+    print(f"  Created: {spot.created_at}")
+    print(f"  Updated: {spot.last_updated}")
+    print(f"  Group: {spot.group_id}")
+    print(f"  Created by: {spot.created_by}")

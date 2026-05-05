@@ -81,7 +81,9 @@ export function AddSpotForm({
 
   const handleSubmit = () => {
     if (!coordinatesAreValid) return;
-    onSubmit({ type: selectedType, lat: parsedLat, lng: parsedLng, notes, month: selectedMonth });
+    // API expects capitalized month (Jan, Feb, ...) — keys are lowercase
+    const apiMonth = selectedMonth.charAt(0).toUpperCase() + selectedMonth.slice(1);
+    onSubmit({ type: selectedType, lat: parsedLat, lng: parsedLng, notes, month: apiMonth });
   };
 
   return (
