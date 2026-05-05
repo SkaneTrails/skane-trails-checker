@@ -39,6 +39,7 @@ interface AddSpotFormProps {
   onCancel: () => void;
   onUseCurrentLocation: () => void;
   isSubmitting?: boolean;
+  locationError?: boolean;
 }
 
 export function AddSpotForm({
@@ -49,6 +50,7 @@ export function AddSpotForm({
   onCancel,
   onUseCurrentLocation,
   isSubmitting = false,
+  locationError = false,
 }: AddSpotFormProps) {
   const { colors, shadows } = useTheme();
   const { t } = useTranslation();
@@ -81,7 +83,9 @@ export function AddSpotForm({
 
   const handleSubmit = () => {
     if (!coordinatesAreValid) return;
-    onSubmit({ type: selectedType, lat: parsedLat, lng: parsedLng, notes, month: selectedMonth });
+    // API expects capitalized month (Jan, Feb, ...) — keys are lowercase
+    const apiMonth = selectedMonth.charAt(0).toUpperCase() + selectedMonth.slice(1);
+    onSubmit({ type: selectedType, lat: parsedLat, lng: parsedLng, notes, month: apiMonth });
   };
 
   return (
@@ -168,6 +172,11 @@ export function AddSpotForm({
           onPress={onUseCurrentLocation}
           variant="secondary"
         />
+        {locationError && (
+          <Text style={[styles.errorText, { color: colors.error }]}>
+            {t('addSpot.locationFailed')}
+          </Text>
+        )}
         <Text style={[styles.orText, { color: colors.text.muted }]}>{t('addSpot.orTapMap')}</Text>
         <View style={styles.coordRow}>
           <View style={styles.coordField}>
@@ -280,6 +289,10 @@ const styles = StyleSheet.create({
     fontSize: fontSize.xs,
     textAlign: 'center',
     marginVertical: spacing.sm,
+  },
+  errorText: {
+    fontSize: fontSize.xs,
+    marginTop: spacing.xs,
   },
   coordRow: {
     flexDirection: 'row',

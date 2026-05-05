@@ -1,6 +1,7 @@
 import { useCallback, useState } from 'react';
 import {
   ActivityIndicator,
+  Alert,
   FlatList,
   Platform,
   Pressable,
@@ -59,25 +60,64 @@ export default function ForagingScreen() {
   const colorMap = foragingColorMap(types ?? []);
 
   const [showAddForm, setShowAddForm] = useState(false);
+  const [currentLat, setCurrentLat] = useState<number | undefined>();
+  const [currentLng, setCurrentLng] = useState<number | undefined>();
+  const [locationError, setLocationError] = useState(false);
 
-  const handleUseCurrentLocation = useCallback(() => {
-    if (!navigator.geolocation) return;
-    navigator.geolocation.getCurrentPosition(
-      () => {},
-      () => {},
-      { enableHighAccuracy: true },
-    );
+  const clearLocationState = useCallback(() => {
+    setCurrentLat(undefined);
+    setCurrentLng(undefined);
+    setLocationError(false);
   }, []);
+
+  const handleUseCurrentLocation = useCallback(async () => {
+    setLocationError(false);
+
+    if (Platform.OS === 'web') {
+      if (!navigator.geolocation) {
+        setLocationError(true);
+        return;
+      }
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          setCurrentLat(position.coords.latitude);
+          setCurrentLng(position.coords.longitude);
+        },
+        () => setLocationError(true),
+        { enableHighAccuracy: true },
+      );
+    } else {
+      try {
+        const Location = await import('expo-location');
+        const { status } = await Location.requestForegroundPermissionsAsync();
+        if (status !== 'granted') {
+          setLocationError(true);
+          return;
+        }
+        const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High });
+        setCurrentLat(loc.coords.latitude);
+        setCurrentLng(loc.coords.longitude);
+      } catch {
+        setLocationError(true);
+      }
+    }
+  }, []);
+
+  const handleCloseForm = useCallback(() => {
+    setShowAddForm(false);
+    clearLocationState();
+  }, [clearLocationState]);
 
   const handleAddSpot = useCallback(
     (data: ForagingSpotCreate) => {
       createSpot.mutate(data, {
         onSuccess: () => {
           setShowAddForm(false);
+          clearLocationState();
         },
       });
     },
-    [createSpot],
+    [createSpot, clearLocationState],
   );
 
   if (error && !spots?.length) {
@@ -147,13 +187,16 @@ export default function ForagingScreen() {
             Platform.OS === 'web' && ({ position: 'fixed', zIndex: 100 } as any),
           ]}
         >
-          <Pressable style={styles.modalBackdropTouchable} onPress={() => setShowAddForm(false)} />
+          <Pressable style={styles.modalBackdropTouchable} onPress={handleCloseForm} />
           <AddSpotForm
             types={types ?? []}
+            initialLat={currentLat}
+            initialLng={currentLng}
             onSubmit={handleAddSpot}
-            onCancel={() => setShowAddForm(false)}
+            onCancel={handleCloseForm}
             onUseCurrentLocation={handleUseCurrentLocation}
             isSubmitting={createSpot.isPending}
+            locationError={locationError}
           />
         </View>
       )}
