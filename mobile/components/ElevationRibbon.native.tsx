@@ -2,18 +2,19 @@ import { Canvas, useThree } from '@react-three/fiber/native';
 import React, { useMemo } from 'react';
 import { StyleSheet, View } from 'react-native';
 import type { Coordinate } from '@/lib/types';
-import type { ElevationGradient } from '@/lib/settings-context';
 import { useSettings } from '@/lib/settings-context';
 import { buildRibbonGeometry } from './elevation-ribbon-geometry';
 import type { RibbonGeometryData } from './elevation-ribbon-geometry';
 import * as THREE from 'three';
 
 // Suppress THREE.Clock deprecation warning until @react-three/fiber migrates to THREE.Timer
-const _origWarn = console.warn;
-console.warn = (...args: unknown[]) => {
-  if (typeof args[0] === 'string' && args[0].includes('THREE.Clock')) return;
-  _origWarn(...args);
-};
+if (typeof __DEV__ !== 'undefined' && __DEV__) {
+  const _origWarn = console.warn;
+  console.warn = (...args: unknown[]) => {
+    if (typeof args[0] === 'string' && args[0].includes('THREE.Clock')) return;
+    _origWarn(...args);
+  };
+}
 
 interface ElevationRibbonProps {
   coordinates: Coordinate[];

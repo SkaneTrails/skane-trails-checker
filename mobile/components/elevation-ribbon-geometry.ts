@@ -2,7 +2,7 @@ import type { Coordinate } from '@/lib/types';
 
 export interface RibbonGeometryData {
   positions: Float32Array;
-  indices: Uint32Array;
+  indices: Uint16Array;
   /** Normalized elevation per vertex (0 = min, 1 = max) for gradient coloring */
   elevationFactors: Float32Array;
   center: [number, number, number];
@@ -122,7 +122,7 @@ export function buildRibbonGeometry(coordinates: Coordinate[]): RibbonGeometryDa
   }
 
   // Build indices: 2 triangles per quad, (n-1) quads
-  const indices = new Uint32Array((n - 1) * 6);
+  const indices = new Uint16Array((n - 1) * 6);
   for (let i = 0; i < n - 1; i++) {
     const bl = i * 2; // bottom-left
     const tl = i * 2 + 1; // top-left
