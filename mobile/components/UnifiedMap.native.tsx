@@ -44,6 +44,7 @@ interface UnifiedMapProps {
   onSpotSelect?: (spot: ForagingSpot) => void;
   onPlaceSelect?: (place: Place) => void;
   onMapClick?: (lat: number, lng: number) => void;
+  onLongPress?: (lat: number, lng: number) => void;
   onBoundsChange?: (bounds: { north: number; south: number; east: number; west: number }) => void;
 }
 
@@ -105,6 +106,7 @@ export function UnifiedMap({
   onSpotSelect,
   onPlaceSelect,
   onMapClick,
+  onLongPress,
   onBoundsChange,
 }: UnifiedMapProps) {
   const { colors } = useTheme();
@@ -187,6 +189,10 @@ export function UnifiedMap({
         onPress={(e) => {
           const { lngLat } = e.nativeEvent;
           onMapClick?.(lngLat[1], lngLat[0]);
+        }}
+        onLongPress={(e) => {
+          const { lngLat } = e.nativeEvent;
+          onLongPress?.(lngLat[1], lngLat[0]);
         }}
         onRegionDidChange={async (e) => {
           const zoom = e.nativeEvent?.zoom;
