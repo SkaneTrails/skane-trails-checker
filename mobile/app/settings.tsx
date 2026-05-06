@@ -20,7 +20,7 @@ import { TabIcon } from '@/components/TabIcon';
 import { useAuth } from '@/lib/hooks/use-auth';
 import { useCreateHikeGroup, useDeleteHikeGroup, useHikeGroups } from '@/lib/hooks/use-hike-groups';
 import { useTranslation } from '@/lib/i18n';
-import { GPS_MODES, LANGUAGES, useSettings } from '@/lib/settings-context';
+import { GPS_MODES, ELEVATION_GRADIENTS, LANGUAGES, useSettings } from '@/lib/settings-context';
 import { borderRadius, fontSize, fontWeight, spacing, useTheme } from '@/lib/theme';
 import { cssShadow, glassSheet } from '@/lib/theme/styles';
 import { themes } from '@/lib/theme/themes';
@@ -28,7 +28,7 @@ import { themes } from '@/lib/theme/themes';
 export default function SettingsScreen() {
   const { colors, shadows } = useTheme();
   const { t } = useTranslation();
-  const { language, setLanguage, themeId, defaultPlannedColor, defaultCompletedColor, setDefaultPlannedColor, setDefaultCompletedColor, gpsMode, setGpsMode, isLoading } = useSettings();
+  const { language, setLanguage, themeId, defaultPlannedColor, defaultCompletedColor, setDefaultPlannedColor, setDefaultCompletedColor, gpsMode, setGpsMode, elevationGradient, setElevationGradient, isLoading } = useSettings();
   const { signOut } = useAuth();
   const router = useRouter();
 
@@ -233,6 +233,24 @@ export default function SettingsScreen() {
             </ContentCard>
           </>
         )}
+
+        {/* Elevation Gradient Section */}
+        <Text style={[styles.sectionTitle, { color: colors.text.primary }]}>
+          {t('settings.elevationGradient')}
+        </Text>
+        <ContentCard>
+          <View style={styles.chipRow}>
+            {ELEVATION_GRADIENTS.map((grad) => (
+              <Chip
+                key={grad.code}
+                label={t(grad.labelKey)}
+                selected={elevationGradient === grad.code}
+                onPress={() => setElevationGradient(grad.code)}
+                disabled={isLoading}
+              />
+            ))}
+          </View>
+        </ContentCard>
 
         {/* Account Section */}
         <Text style={[styles.sectionTitle, { color: colors.text.primary }]}>

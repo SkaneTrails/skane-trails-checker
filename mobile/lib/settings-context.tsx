@@ -37,6 +37,18 @@ const isSupportedLanguage = (value: string): value is AppLanguage =>
 const isSupportedGpsMode = (value: string): value is GpsMode =>
   value === 'balanced' || value === 'high_precision';
 
+export type ElevationGradient = 'light-to-dark' | 'dark-to-light';
+
+const SUPPORTED_ELEVATION_GRADIENTS: ElevationGradient[] = ['light-to-dark', 'dark-to-light'];
+
+const isSupportedElevationGradient = (value: string): value is ElevationGradient =>
+  SUPPORTED_ELEVATION_GRADIENTS.includes(value as ElevationGradient);
+
+export const ELEVATION_GRADIENTS: { code: ElevationGradient; labelKey: string }[] = [
+  { code: 'light-to-dark', labelKey: 'settings.gradientLightToDark' },
+  { code: 'dark-to-light', labelKey: 'settings.gradientDarkToLight' },
+];
+
 /** Categories shown by default on map and places tab (hiking essentials). */
 export const DEFAULT_PLACE_CATEGORIES = ['parkering', 'vatten', 'toalett'];
 
@@ -47,6 +59,7 @@ interface Settings {
   defaultPlannedColor: string;
   defaultCompletedColor: string;
   gpsMode: GpsMode;
+  elevationGradient: ElevationGradient;
 }
 
 interface SettingsContextType {
@@ -56,6 +69,7 @@ interface SettingsContextType {
   defaultPlannedColor: string;
   defaultCompletedColor: string;
   gpsMode: GpsMode;
+  elevationGradient: ElevationGradient;
   isLoading: boolean;
   setLanguage: (language: AppLanguage) => void;
   setEnabledPlaceCategories: (categories: string[]) => void;
@@ -63,6 +77,7 @@ interface SettingsContextType {
   setDefaultPlannedColor: (color: string) => void;
   setDefaultCompletedColor: (color: string) => void;
   setGpsMode: (mode: GpsMode) => void;
+  setElevationGradient: (gradient: ElevationGradient) => void;
 }
 
 const defaultSettings: Settings = {
@@ -72,6 +87,7 @@ const defaultSettings: Settings = {
   defaultPlannedColor: DEFAULT_PLANNED_COLOR,
   defaultCompletedColor: DEFAULT_COMPLETED_COLOR,
   gpsMode: 'balanced',
+  elevationGradient: 'dark-to-light',
 };
 
 const SettingsContext = createContext<SettingsContextType | null>(null);
@@ -107,6 +123,10 @@ export const SettingsProvider = ({ children }: { children: React.ReactNode }) =>
               typeof parsed.gpsMode === 'string' && isSupportedGpsMode(parsed.gpsMode)
                 ? parsed.gpsMode
                 : 'balanced',
+            elevationGradient:
+              typeof parsed.elevationGradient === 'string' && isSupportedElevationGradient(parsed.elevationGradient)
+                ? parsed.elevationGradient
+                : 'dark-to-light',
           });
         }
       } catch {
@@ -175,6 +195,14 @@ export const SettingsProvider = ({ children }: { children: React.ReactNode }) =>
     });
   }, []);
 
+  const setElevationGradient = useCallback((gradient: ElevationGradient) => {
+    setSettings((prev) => {
+      const updated = { ...prev, elevationGradient: gradient };
+      void AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(updated)).catch(() => {});
+      return updated;
+    });
+  }, []);
+
   const value = useMemo<SettingsContextType>(
     () => ({
       language: settings.language,
@@ -183,6 +211,7 @@ export const SettingsProvider = ({ children }: { children: React.ReactNode }) =>
       defaultPlannedColor: settings.defaultPlannedColor,
       defaultCompletedColor: settings.defaultCompletedColor,
       gpsMode: settings.gpsMode,
+      elevationGradient: settings.elevationGradient,
       isLoading,
       setLanguage,
       setEnabledPlaceCategories,
@@ -190,8 +219,9 @@ export const SettingsProvider = ({ children }: { children: React.ReactNode }) =>
       setDefaultPlannedColor,
       setDefaultCompletedColor,
       setGpsMode,
+      setElevationGradient,
     }),
-    [settings, isLoading, setLanguage, setEnabledPlaceCategories, togglePlaceCategory, setDefaultPlannedColor, setDefaultCompletedColor, setGpsMode],
+    [settings, isLoading, setLanguage, setEnabledPlaceCategories, togglePlaceCategory, setDefaultPlannedColor, setDefaultCompletedColor, setGpsMode, setElevationGradient],
   );
 
   return <SettingsContext.Provider value={value}>{children}</SettingsContext.Provider>;

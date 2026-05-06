@@ -12,6 +12,7 @@ import { borderRadius, fontSize, fontWeight, spacing, useTheme } from '@/lib/the
 import type { Trail, TrailUpdate } from '@/lib/types';
 import { ColorPicker } from './ColorPicker';
 import { ElevationProfile } from './ElevationProfile';
+import { ElevationRibbon } from './ElevationRibbon';
 import { MapInfoCard } from './MapInfoCard';
 import { TabIcon } from './TabIcon';
 
@@ -217,6 +218,7 @@ export const TrailCard = ({ trail, onClose, onUpdate, isUpdating, onDelete, isDe
 
       {/* Elevation profile */}
       <View style={styles.profileContainer}>
+        <ElevationRibbon coordinates={trail.coordinates_map} height={180} />
         <ElevationProfile coordinates={trail.coordinates_map} />
       </View>
 

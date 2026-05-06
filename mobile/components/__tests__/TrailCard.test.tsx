@@ -13,6 +13,13 @@ vi.mock('react-native-svg', () => {
   };
 });
 
+vi.mock('@/lib/settings-context', () => ({
+  useSettings: () => ({
+    elevationGradient: 'dark-to-light',
+    setElevationGradient: vi.fn(),
+  }),
+}));
+
 vi.mock('@/lib/theme', () => ({
   useTheme: () => ({
     colors: {

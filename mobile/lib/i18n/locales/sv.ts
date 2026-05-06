@@ -246,6 +246,9 @@ const sv: Translations = {
     gpsBalanced: 'Balanserad',
     gpsHighPrecision: 'Hög precision',
     gpsHint: 'Balanserad sparar batteri. Hög precision för detaljerade spår.',
+    elevationGradient: 'Höjdgradient',
+    gradientLightToDark: 'Ljus → Mörk',
+    gradientDarkToLight: 'Mörk → Ljus',
   },
 
   overlays: {
