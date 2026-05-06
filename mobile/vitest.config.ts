@@ -79,6 +79,18 @@ export default defineConfig({
         'components/TabIcon.tsx',
         // Tracking overlay — presentation HUD, callbacks delegate to tested tracking-service/context
         'components/TrackingOverlay.tsx',
+        // Overlay components — depend on expo-file-system, expo-image-picker, MapLibre
+        'components/OverlayAlignmentMode.tsx',
+        'components/OverlayManager.tsx',
+        // Overlay image picker — depends on expo-file-system, expo-image-picker (native APIs)
+        'lib/overlay-image-picker.ts',
+        // Trail cache: native variant requires AsyncStorage (native runtime)
+        'lib/storage/trail-cache.native.ts',
+        // Trail cache: barrel re-export resolved by bundler (same as **/index.ts)
+        'lib/storage/trail-cache.ts',
+        // 3D renderers — require WebGL/Canvas context, cannot test in jsdom
+        'components/ElevationRibbon.web.tsx',
+        'components/ElevationRibbon.native.tsx',
       ],
       thresholds: {
         statements: 95,

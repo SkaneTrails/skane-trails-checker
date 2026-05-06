@@ -34,6 +34,7 @@ interface UnifiedMapProps {
   onSpotSelect?: (spot: ForagingSpot) => void;
   onPlaceSelect?: (place: Place) => void;
   onMapClick?: (lat: number, lng: number) => void;
+  onBoundsChange?: (bounds: { north: number; south: number; east: number; west: number }) => void;
 }
 
 const DEFAULT_CENTER: [number, number] = [55.95, 13.4];
@@ -206,7 +207,8 @@ export function UnifiedMap({
           lineJoin: 'round',
         }).addTo(group);
 
-        polyline.on('click', () => {
+        polyline.on('click', (e) => {
+          L.DomEvent.stopPropagation(e);
           callbackRefs.current.onTrailSelect?.(trail);
         });
       }
@@ -235,7 +237,8 @@ export function UnifiedMap({
         });
 
         const marker = L.marker([spot.lat, spot.lng], { icon }).addTo(group);
-        marker.on('click', () => {
+        marker.on('click', (e) => {
+          L.DomEvent.stopPropagation(e);
           callbackRefs.current.onSpotSelect?.(spot);
         });
       }
@@ -265,7 +268,8 @@ export function UnifiedMap({
       });
 
       const marker = L.marker([place.lat, place.lng], { icon }).addTo(group);
-      marker.on('click', () => {
+      marker.on('click', (e) => {
+        L.DomEvent.stopPropagation(e);
         callbackRefs.current.onPlaceSelect?.(place);
       });
     }

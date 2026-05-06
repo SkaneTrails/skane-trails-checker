@@ -7,11 +7,12 @@
  */
 
 import type { TrackingPoint } from '@/lib/track-to-trail';
+import type { GpsMode } from '@/lib/settings-context';
 
 type PointListener = (point: TrackingPoint) => void;
 
-export async function startTracking(_onPoint: PointListener): Promise<void> { /* no-op on web */ }
-export async function resumeTracking(_onPoint: PointListener): Promise<void> { /* no-op on web */ }
+export async function startTracking(_onPoint: PointListener, _gpsMode?: GpsMode): Promise<void> { /* no-op on web */ }
+export async function resumeTracking(_onPoint: PointListener, _gpsMode?: GpsMode): Promise<void> { /* no-op on web */ }
 export async function pauseTracking(): Promise<void> { /* no-op on web */ }
 export async function stopTracking(): Promise<TrackingPoint[]> { return []; }
 export async function clearBuffer(): Promise<void> { /* no-op on web */ }

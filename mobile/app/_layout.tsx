@@ -9,6 +9,10 @@ import { SettingsProvider } from '@/lib/settings-context';
 import { TrackingProvider } from '@/lib/tracking-context';
 import { defaultThemeId, getTheme, ThemeProvider, useTheme } from '@/lib/theme';
 
+export const unstable_settings = {
+  initialRouteName: '(tabs)',
+};
+
 function useProtectedRoute() {
   const { user, loading } = useAuth();
   const segments = useSegments();

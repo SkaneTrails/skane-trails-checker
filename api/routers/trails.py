@@ -67,6 +67,8 @@ def list_trails(
 
     Group members see their group's trails + public (bootstrapped) trails.
     Superusers see all trails.
+
+    Use ?fields=summary to exclude coordinates_map (much smaller payload for list views).
     """
     group_id = None if user.role == "superuser" else require_group(user)
     trails = trail_storage.get_all_trails(source=filters.source, since=filters.since, group_id=group_id)
@@ -87,6 +89,9 @@ def list_trails(
     # Sort: uploaded trails first (non-planned), planned hikes last.
     # Within each group, sort alphabetically by name.
     trails.sort(key=lambda t: (t.source == "planned_hikes", t.name.lower()))
+
+    if filters.fields == "summary":
+        return [trail.model_copy(update={"coordinates_map": []}) for trail in trails]
 
     return trails
 

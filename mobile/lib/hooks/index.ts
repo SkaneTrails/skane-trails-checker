@@ -23,6 +23,7 @@ export { placeKeys, usePlaceCategories, usePlaces } from './use-places';
 export {
   trailKeys,
   useDeleteTrail,
+  useMapTrails,
   useSaveRecording,
   useTrail,
   useTrailDetails,

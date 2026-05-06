@@ -71,10 +71,17 @@ export default function UploadScreen() {
       },
       {
         onSuccess: (trails) => {
-          setUploadedTrails(trails);
           setSelectedFile(null);
           if (fileInputRef.current) {
             fileInputRef.current.value = '';
+          }
+          if (trails.length > 0) {
+            router.replace({
+              pathname: '/(tabs)',
+              params: { trailId: trails[0].trail_id, editTrail: 'true' },
+            });
+          } else {
+            setUploadedTrails(trails);
           }
         },
       },

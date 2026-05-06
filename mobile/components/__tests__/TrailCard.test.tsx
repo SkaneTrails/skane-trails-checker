@@ -13,6 +13,13 @@ vi.mock('react-native-svg', () => {
   };
 });
 
+vi.mock('@/lib/settings-context', () => ({
+  useSettings: () => ({
+    elevationGradient: 'dark-to-light',
+    setElevationGradient: vi.fn(),
+  }),
+}));
+
 vi.mock('@/lib/theme', () => ({
   useTheme: () => ({
     colors: {
@@ -367,5 +374,21 @@ describe('TrailCard', () => {
 
     alertSpy.mockRestore();
     Platform.OS = originalOS;
+  });
+
+  it('starts in edit mode when initialEditing is true', () => {
+    render(<TrailCard trail={baseTrail} onClose={vi.fn()} onUpdate={vi.fn()} initialEditing />);
+
+    // Should already be in edit mode — edit title shown, name input visible
+    expect(screen.getByText('trailCard.edit')).toBeDefined();
+    expect(screen.getByDisplayValue('Söderåsen Loop')).toBeDefined();
+  });
+
+  it('starts in view mode when initialEditing is false', () => {
+    render(<TrailCard trail={baseTrail} onClose={vi.fn()} onUpdate={vi.fn()} initialEditing={false} />);
+
+    // Should be in view mode — trail name shown as title, no input
+    expect(screen.getByText('Söderåsen Loop')).toBeDefined();
+    expect(screen.queryByDisplayValue('Söderåsen Loop')).toBeNull();
   });
 });

@@ -13,6 +13,7 @@ import { AddSpotForm } from '@/components/AddSpotForm';
 import { foragingColorMap } from '@/lib/foraging-colors';
 import { useCreateForagingSpot, useForagingSpots, useForagingTypes } from '@/lib/hooks';
 import { useTranslation } from '@/lib/i18n';
+import { getCurrentPosition } from '@/lib/location';
 import { borderRadius, blur, fontSize, fontWeight, spacing, useTheme } from '@/lib/theme';
 import type { ForagingSpot, ForagingSpotCreate } from '@/lib/types';
 
@@ -59,25 +60,43 @@ export default function ForagingScreen() {
   const colorMap = foragingColorMap(types ?? []);
 
   const [showAddForm, setShowAddForm] = useState(false);
+  const [currentLat, setCurrentLat] = useState<number | undefined>();
+  const [currentLng, setCurrentLng] = useState<number | undefined>();
+  const [locationError, setLocationError] = useState(false);
 
-  const handleUseCurrentLocation = useCallback(() => {
-    if (!navigator.geolocation) return;
-    navigator.geolocation.getCurrentPosition(
-      () => {},
-      () => {},
-      { enableHighAccuracy: true },
-    );
+  const clearLocationState = useCallback(() => {
+    setCurrentLat(undefined);
+    setCurrentLng(undefined);
+    setLocationError(false);
   }, []);
+
+  const handleUseCurrentLocation = useCallback(async () => {
+    setLocationError(false);
+
+    try {
+      const coords = await getCurrentPosition();
+      setCurrentLat(coords.lat);
+      setCurrentLng(coords.lng);
+    } catch (e) {
+      setLocationError(true);
+    }
+  }, []);
+
+  const handleCloseForm = useCallback(() => {
+    setShowAddForm(false);
+    clearLocationState();
+  }, [clearLocationState]);
 
   const handleAddSpot = useCallback(
     (data: ForagingSpotCreate) => {
       createSpot.mutate(data, {
         onSuccess: () => {
           setShowAddForm(false);
+          clearLocationState();
         },
       });
     },
-    [createSpot],
+    [createSpot, clearLocationState],
   );
 
   if (error && !spots?.length) {
@@ -147,13 +166,16 @@ export default function ForagingScreen() {
             Platform.OS === 'web' && ({ position: 'fixed', zIndex: 100 } as any),
           ]}
         >
-          <Pressable style={styles.modalBackdropTouchable} onPress={() => setShowAddForm(false)} />
+          <Pressable style={styles.modalBackdropTouchable} onPress={handleCloseForm} />
           <AddSpotForm
             types={types ?? []}
+            initialLat={currentLat}
+            initialLng={currentLng}
             onSubmit={handleAddSpot}
-            onCancel={() => setShowAddForm(false)}
+            onCancel={handleCloseForm}
             onUseCurrentLocation={handleUseCurrentLocation}
             isSubmitting={createSpot.isPending}
+            locationError={locationError}
           />
         </View>
       )}

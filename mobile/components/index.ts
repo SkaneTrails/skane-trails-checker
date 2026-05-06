@@ -11,6 +11,8 @@ export { GoogleLogo } from './GoogleLogo';
 export type { MapLayer } from './LayerToggle';
 export { LayerToggle } from './LayerToggle';
 export { MapInfoCard } from './MapInfoCard';
+export { OverlayAlignmentMode } from './OverlayAlignmentMode';
+export { OverlayManager } from './OverlayManager';
 export { ScreenLayout } from './ScreenLayout';
 export { StatCard } from './StatCard';
 export { StatusBadge } from './StatusBadge';

@@ -18,12 +18,38 @@ import * as Location from 'expo-location';
 import * as TaskManager from 'expo-task-manager';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { TrackingPoint } from '@/lib/track-to-trail';
+import type { GpsMode } from '@/lib/settings-context';
 
 const TRACKING_TASK = 'background-location-tracking';
 const STORAGE_KEY = '@skane_trails_tracking_buffer';
 const FLUSH_INTERVAL_MS = 30_000;
-export const GPS_TIME_INTERVAL = 3_000;
-export const GPS_DISTANCE_INTERVAL = 5;
+
+/**
+ * GPS configuration per mode.
+ * - balanced: 10s/10m intervals, Balanced accuracy, pauses when stationary
+ *   Good for hiking (walking ~4-5 km/h = ~12m per 10s), saves 50-70% battery
+ * - high_precision: 3s/5m intervals, High accuracy, always on
+ *   For detailed tracks where battery is not a concern
+ */
+const GPS_CONFIG: Record<GpsMode, {
+  accuracy: Location.Accuracy;
+  timeInterval: number;
+  distanceInterval: number;
+  pausesUpdatesAutomatically: boolean;
+}> = {
+  balanced: {
+    accuracy: Location.Accuracy.Balanced,
+    timeInterval: 10_000,
+    distanceInterval: 10,
+    pausesUpdatesAutomatically: true,
+  },
+  high_precision: {
+    accuracy: Location.Accuracy.High,
+    timeInterval: 3_000,
+    distanceInterval: 5,
+    pausesUpdatesAutomatically: false,
+  },
+};
 
 type PointListener = (point: TrackingPoint) => void;
 
@@ -101,7 +127,7 @@ function stopFlushTimer() {
  * Start background location tracking.
  * Requires foreground + background permissions to be granted first.
  */
-export async function startTracking(onPoint: PointListener): Promise<void> {
+export async function startTracking(onPoint: PointListener, gpsMode: GpsMode = 'balanced'): Promise<void> {
   const state = getState();
   state.memoryBuffer = [];
   state.pointListener = onPoint;
@@ -109,16 +135,18 @@ export async function startTracking(onPoint: PointListener): Promise<void> {
   // Clear persisted buffer so crash recovery doesn't return stale data
   await AsyncStorage.removeItem(STORAGE_KEY).catch(() => {});
 
+  // Defensive fallback if gpsMode is corrupted/invalid
+  const config = GPS_CONFIG[gpsMode] ?? GPS_CONFIG.balanced;
   await Location.startLocationUpdatesAsync(TRACKING_TASK, {
-    accuracy: Location.Accuracy.High,
-    timeInterval: GPS_TIME_INTERVAL,
-    distanceInterval: GPS_DISTANCE_INTERVAL,
+    accuracy: config.accuracy,
+    timeInterval: config.timeInterval,
+    distanceInterval: config.distanceInterval,
     foregroundService: {
       notificationTitle: 'Recording hike',
       notificationBody: 'GPS tracking active',
       notificationColor: '#1a5e2a',
     },
-    pausesUpdatesAutomatically: false,
+    pausesUpdatesAutomatically: config.pausesUpdatesAutomatically,
     activityType: Location.ActivityType.Fitness,
   });
 
@@ -129,20 +157,22 @@ export async function startTracking(onPoint: PointListener): Promise<void> {
  * Resume tracking after a pause — restarts GPS without clearing the buffer.
  * Preserves crash-recovery data accumulated before the pause.
  */
-export async function resumeTracking(onPoint: PointListener): Promise<void> {
+export async function resumeTracking(onPoint: PointListener, gpsMode: GpsMode = 'balanced'): Promise<void> {
   const state = getState();
   state.pointListener = onPoint;
 
+  // Defensive fallback if gpsMode is corrupted/invalid
+  const config = GPS_CONFIG[gpsMode] ?? GPS_CONFIG.balanced;
   await Location.startLocationUpdatesAsync(TRACKING_TASK, {
-    accuracy: Location.Accuracy.High,
-    timeInterval: GPS_TIME_INTERVAL,
-    distanceInterval: GPS_DISTANCE_INTERVAL,
+    accuracy: config.accuracy,
+    timeInterval: config.timeInterval,
+    distanceInterval: config.distanceInterval,
     foregroundService: {
       notificationTitle: 'Recording hike',
       notificationBody: 'GPS tracking active',
       notificationColor: '#1a5e2a',
     },
-    pausesUpdatesAutomatically: false,
+    pausesUpdatesAutomatically: config.pausesUpdatesAutomatically,
     activityType: Location.ActivityType.Fitness,
   });
 

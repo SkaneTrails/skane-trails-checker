@@ -14,6 +14,14 @@ import { DEFAULT_COMPLETED_COLOR, DEFAULT_PLANNED_COLOR } from './trail-colors';
 
 export type { AppLanguage } from './i18n/language-state';
 
+/** GPS tracking mode — affects battery consumption and track precision. */
+export type GpsMode = 'balanced' | 'high_precision';
+
+export const GPS_MODES: { code: GpsMode; labelKey: string }[] = [
+  { code: 'balanced', labelKey: 'settings.gpsBalanced' },
+  { code: 'high_precision', labelKey: 'settings.gpsHighPrecision' },
+];
+
 const STORAGE_KEY = '@skane_trails_settings';
 
 export const LANGUAGES: { code: AppLanguage; label: string }[] = [
@@ -26,6 +34,21 @@ const SUPPORTED_LANGUAGES: AppLanguage[] = ['en', 'sv'];
 const isSupportedLanguage = (value: string): value is AppLanguage =>
   SUPPORTED_LANGUAGES.includes(value as AppLanguage);
 
+const isSupportedGpsMode = (value: string): value is GpsMode =>
+  value === 'balanced' || value === 'high_precision';
+
+export type ElevationGradient = 'light-to-dark' | 'dark-to-light';
+
+const SUPPORTED_ELEVATION_GRADIENTS: ElevationGradient[] = ['light-to-dark', 'dark-to-light'];
+
+const isSupportedElevationGradient = (value: string): value is ElevationGradient =>
+  SUPPORTED_ELEVATION_GRADIENTS.includes(value as ElevationGradient);
+
+export const ELEVATION_GRADIENTS: { code: ElevationGradient; labelKey: string }[] = [
+  { code: 'light-to-dark', labelKey: 'settings.gradientLightToDark' },
+  { code: 'dark-to-light', labelKey: 'settings.gradientDarkToLight' },
+];
+
 /** Categories shown by default on map and places tab (hiking essentials). */
 export const DEFAULT_PLACE_CATEGORIES = ['parkering', 'vatten', 'toalett'];
 
@@ -35,6 +58,8 @@ interface Settings {
   enabledPlaceCategories: string[];
   defaultPlannedColor: string;
   defaultCompletedColor: string;
+  gpsMode: GpsMode;
+  elevationGradient: ElevationGradient;
 }
 
 interface SettingsContextType {
@@ -43,12 +68,16 @@ interface SettingsContextType {
   enabledPlaceCategories: string[];
   defaultPlannedColor: string;
   defaultCompletedColor: string;
+  gpsMode: GpsMode;
+  elevationGradient: ElevationGradient;
   isLoading: boolean;
   setLanguage: (language: AppLanguage) => void;
   setEnabledPlaceCategories: (categories: string[]) => void;
   togglePlaceCategory: (slug: string) => void;
   setDefaultPlannedColor: (color: string) => void;
   setDefaultCompletedColor: (color: string) => void;
+  setGpsMode: (mode: GpsMode) => void;
+  setElevationGradient: (gradient: ElevationGradient) => void;
 }
 
 const defaultSettings: Settings = {
@@ -57,6 +86,8 @@ const defaultSettings: Settings = {
   enabledPlaceCategories: DEFAULT_PLACE_CATEGORIES,
   defaultPlannedColor: DEFAULT_PLANNED_COLOR,
   defaultCompletedColor: DEFAULT_COMPLETED_COLOR,
+  gpsMode: 'balanced',
+  elevationGradient: 'dark-to-light',
 };
 
 const SettingsContext = createContext<SettingsContextType | null>(null);
@@ -88,6 +119,14 @@ export const SettingsProvider = ({ children }: { children: React.ReactNode }) =>
               typeof parsed.defaultCompletedColor === 'string'
                 ? parsed.defaultCompletedColor
                 : DEFAULT_COMPLETED_COLOR,
+            gpsMode:
+              typeof parsed.gpsMode === 'string' && isSupportedGpsMode(parsed.gpsMode)
+                ? parsed.gpsMode
+                : 'balanced',
+            elevationGradient:
+              typeof parsed.elevationGradient === 'string' && isSupportedElevationGradient(parsed.elevationGradient)
+                ? parsed.elevationGradient
+                : 'dark-to-light',
           });
         }
       } catch {
@@ -107,7 +146,7 @@ export const SettingsProvider = ({ children }: { children: React.ReactNode }) =>
   const setLanguage = useCallback((language: AppLanguage) => {
     setSettings((prev) => {
       const updated = { ...prev, language };
-      AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+      void AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(updated)).catch(() => {});
       return updated;
     });
   }, []);
@@ -115,7 +154,7 @@ export const SettingsProvider = ({ children }: { children: React.ReactNode }) =>
   const setEnabledPlaceCategories = useCallback((categories: string[]) => {
     setSettings((prev) => {
       const updated = { ...prev, enabledPlaceCategories: categories };
-      AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+      void AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(updated)).catch(() => {});
       return updated;
     });
   }, []);
@@ -126,7 +165,7 @@ export const SettingsProvider = ({ children }: { children: React.ReactNode }) =>
         ? prev.enabledPlaceCategories.filter((s) => s !== slug)
         : [...prev.enabledPlaceCategories, slug];
       const updated = { ...prev, enabledPlaceCategories: enabled };
-      AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+      void AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(updated)).catch(() => {});
       return updated;
     });
   }, []);
@@ -134,7 +173,7 @@ export const SettingsProvider = ({ children }: { children: React.ReactNode }) =>
   const setDefaultPlannedColor = useCallback((color: string) => {
     setSettings((prev) => {
       const updated = { ...prev, defaultPlannedColor: color };
-      AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+      void AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(updated)).catch(() => {});
       return updated;
     });
   }, []);
@@ -142,7 +181,24 @@ export const SettingsProvider = ({ children }: { children: React.ReactNode }) =>
   const setDefaultCompletedColor = useCallback((color: string) => {
     setSettings((prev) => {
       const updated = { ...prev, defaultCompletedColor: color };
-      AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+      void AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(updated)).catch(() => {});
+      return updated;
+    });
+  }, []);
+
+  const setGpsMode = useCallback((mode: GpsMode) => {
+    setSettings((prev) => {
+      const updated = { ...prev, gpsMode: mode };
+      // Best-effort persistence — UI state updates immediately regardless of storage success
+      void AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(updated)).catch(() => {});
+      return updated;
+    });
+  }, []);
+
+  const setElevationGradient = useCallback((gradient: ElevationGradient) => {
+    setSettings((prev) => {
+      const updated = { ...prev, elevationGradient: gradient };
+      void AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(updated)).catch(() => {});
       return updated;
     });
   }, []);
@@ -154,14 +210,18 @@ export const SettingsProvider = ({ children }: { children: React.ReactNode }) =>
       enabledPlaceCategories: settings.enabledPlaceCategories,
       defaultPlannedColor: settings.defaultPlannedColor,
       defaultCompletedColor: settings.defaultCompletedColor,
+      gpsMode: settings.gpsMode,
+      elevationGradient: settings.elevationGradient,
       isLoading,
       setLanguage,
       setEnabledPlaceCategories,
       togglePlaceCategory,
       setDefaultPlannedColor,
       setDefaultCompletedColor,
+      setGpsMode,
+      setElevationGradient,
     }),
-    [settings, isLoading, setLanguage, setEnabledPlaceCategories, togglePlaceCategory, setDefaultPlannedColor, setDefaultCompletedColor],
+    [settings, isLoading, setLanguage, setEnabledPlaceCategories, togglePlaceCategory, setDefaultPlannedColor, setDefaultCompletedColor, setGpsMode, setElevationGradient],
   );
 
   return <SettingsContext.Provider value={value}>{children}</SettingsContext.Provider>;

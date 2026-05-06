@@ -4,7 +4,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 vi.mock('expo-location', () => ({
   startLocationUpdatesAsync: vi.fn(() => Promise.resolve()),
   stopLocationUpdatesAsync: vi.fn(() => Promise.resolve()),
-  Accuracy: { High: 5 },
+  Accuracy: { High: 5, Balanced: 3 },
   ActivityType: { Fitness: 3 },
 }));
 
@@ -23,8 +23,6 @@ import * as TaskManager from 'expo-task-manager';
 
 // Must import AFTER mocks are set up
 let TrackingService: typeof import('@/lib/tracking-service');
-let GPS_TIME_INTERVAL: number;
-let GPS_DISTANCE_INTERVAL: number;
 
 describe('tracking-service', () => {
   beforeEach(async () => {
@@ -38,8 +36,6 @@ describe('tracking-service', () => {
     // Re-import to reset module-level state
     vi.resetModules();
     TrackingService = await import('@/lib/tracking-service');
-    GPS_TIME_INTERVAL = TrackingService.GPS_TIME_INTERVAL;
-    GPS_DISTANCE_INTERVAL = TrackingService.GPS_DISTANCE_INTERVAL;
   });
 
   afterEach(() => {
@@ -58,16 +54,32 @@ describe('tracking-service', () => {
     expect(TaskManager.defineTask).not.toHaveBeenCalled();
   });
 
-  it('startTracking starts location updates', async () => {
+  it('startTracking starts location updates with balanced mode by default', async () => {
     const onPoint = vi.fn();
     await TrackingService.startTracking(onPoint);
 
     expect(Location.startLocationUpdatesAsync).toHaveBeenCalledWith(
       'background-location-tracking',
       expect.objectContaining({
+        accuracy: Location.Accuracy.Balanced,
+        timeInterval: 10_000,
+        distanceInterval: 10,
+        pausesUpdatesAutomatically: true,
+      })
+    );
+  });
+
+  it('startTracking uses high precision mode when specified', async () => {
+    const onPoint = vi.fn();
+    await TrackingService.startTracking(onPoint, 'high_precision');
+
+    expect(Location.startLocationUpdatesAsync).toHaveBeenCalledWith(
+      'background-location-tracking',
+      expect.objectContaining({
         accuracy: Location.Accuracy.High,
-        timeInterval: GPS_TIME_INTERVAL,
-        distanceInterval: GPS_DISTANCE_INTERVAL,
+        timeInterval: 3_000,
+        distanceInterval: 5,
+        pausesUpdatesAutomatically: false,
       })
     );
   });
@@ -290,7 +302,7 @@ describe('tracking-service', () => {
 
     expect(Location.startLocationUpdatesAsync).toHaveBeenCalledWith(
       'background-location-tracking',
-      expect.objectContaining({ accuracy: Location.Accuracy.High }),
+      expect.objectContaining({ accuracy: Location.Accuracy.Balanced }),
     );
 
     // Simulate another point after resume

@@ -1,4 +1,1 @@
 nodeLinker: hoisted
-
-patchedDependencies:
-  expo-modules-core@55.0.15: patches/expo-modules-core@55.0.15.patch

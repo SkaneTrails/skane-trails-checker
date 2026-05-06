@@ -168,3 +168,11 @@ Violations are a **blocking review issue**, same as hardcoded colors.
 1. Component function >40 lines → extract sub-components or hooks
 1. Reused logic → custom hook in `lib/hooks/`
 1. Complex state → separate hook or reducer
+
+## Web/Native Parity
+
+- **All features must work on both web and native** unless a technical limitation prevents it
+- If parity is impossible, document the limitation explicitly and get developer confirmation before proceeding
+- Platform-specific files (`.web.tsx` / `.native.tsx`) share the same props interface — behavior differences must be intentional and documented
+- When implementing a feature on one platform, always verify the other platform has equivalent functionality
+- Never silently skip native or web implementation — asymmetry is a blocking review issue
