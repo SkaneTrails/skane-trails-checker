@@ -246,6 +246,9 @@ const en = {
     gpsBalanced: 'Balanced',
     gpsHighPrecision: 'High Precision',
     gpsHint: 'Balanced saves battery. High Precision for detailed tracks.',
+    elevationGradient: 'Elevation Gradient',
+    gradientLightToDark: 'Light → Dark',
+    gradientDarkToLight: 'Dark → Light',
   },
 
   overlays: {

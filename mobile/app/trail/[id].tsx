@@ -2,6 +2,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useState } from 'react';
 import { Alert, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Button, EmptyState, FormField, StatCard, StatusBadge } from '@/components';
+import { ElevationRibbon } from '@/components/ElevationRibbon';
 import { TabIcon } from '@/components/TabIcon';
 import { useDeleteTrail, useTrail, useTrailDetails, useUpdateTrail } from '@/lib/hooks';
 import { useTranslation } from '@/lib/i18n';
@@ -170,6 +171,12 @@ export default function TrailDetailScreen() {
           )}
         </View>
 
+        {details?.coordinates_full && details.coordinates_full.length > 1 && (
+          <View style={styles.ribbonSection}>
+            <ElevationRibbon coordinates={details.coordinates_full} height={180} />
+          </View>
+        )}
+
         <View style={styles.statusSection}>
           <Pressable
             style={[
@@ -319,6 +326,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: spacing.md,
+    marginBottom: spacing.xl,
+  },
+  ribbonSection: {
     marginBottom: spacing.xl,
   },
   statusSection: {

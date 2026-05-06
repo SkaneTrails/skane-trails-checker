@@ -271,3 +271,58 @@ describe('useSettings — GPS tracking mode', () => {
     expect(saved.gpsMode).toBe('high_precision');
   });
 });
+
+describe('useSettings — elevation gradient', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('defaults to dark-to-light', async () => {
+    mockAsyncStorage.getItem.mockResolvedValue(null);
+    const wrapper = createWrapper();
+
+    const { result } = renderHook(() => useSettings(), { wrapper });
+
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+    expect(result.current.elevationGradient).toBe('dark-to-light');
+  });
+
+  it('loads persisted elevationGradient from AsyncStorage', async () => {
+    const stored = { language: 'en', themeId: 'outdoor', elevationGradient: 'light-to-dark' };
+    mockAsyncStorage.getItem.mockResolvedValue(JSON.stringify(stored));
+    const wrapper = createWrapper();
+
+    const { result } = renderHook(() => useSettings(), { wrapper });
+
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+    expect(result.current.elevationGradient).toBe('light-to-dark');
+  });
+
+  it('falls back to dark-to-light when stored value is invalid', async () => {
+    const stored = { language: 'en', themeId: 'outdoor', elevationGradient: 'rainbow' };
+    mockAsyncStorage.getItem.mockResolvedValue(JSON.stringify(stored));
+    const wrapper = createWrapper();
+
+    const { result } = renderHook(() => useSettings(), { wrapper });
+
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+    expect(result.current.elevationGradient).toBe('dark-to-light');
+  });
+
+  it('setElevationGradient updates and persists', async () => {
+    mockAsyncStorage.getItem.mockResolvedValue(null);
+    const wrapper = createWrapper();
+
+    const { result } = renderHook(() => useSettings(), { wrapper });
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+
+    await act(async () => {
+      await result.current.setElevationGradient('light-to-dark');
+    });
+
+    expect(result.current.elevationGradient).toBe('light-to-dark');
+    const lastCall = mockAsyncStorage.setItem.mock.calls.at(-1);
+    const saved = JSON.parse(lastCall?.[1] as string);
+    expect(saved.elevationGradient).toBe('light-to-dark');
+  });
+});
