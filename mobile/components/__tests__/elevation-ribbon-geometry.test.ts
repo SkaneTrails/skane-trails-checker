@@ -139,4 +139,16 @@ describe('buildRibbonGeometry', () => {
     // Should only use 3 points (those with elevation)
     expect(result.positions.length).toBe(3 * 2 * 3);
   });
+
+  it('handles zero horizontal span (vertical-only trail)', () => {
+    // All points at same lat/lng but different elevations → horizontalSpan falls back to totalDist
+    const vertical: Coordinate[] = [
+      { lat: 55.7, lng: 13.2, elevation: 0 },
+      { lat: 55.7, lng: 13.2, elevation: 50 },
+      { lat: 55.7, lng: 13.2, elevation: 100 },
+    ];
+    const result = buildRibbonGeometry(vertical)!;
+    expect(result).not.toBeNull();
+    expect(result.positions.length).toBe(3 * 2 * 3);
+  });
 });
