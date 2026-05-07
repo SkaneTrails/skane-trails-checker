@@ -31,7 +31,7 @@ import { useSettings } from '@/lib/settings-context';
 import { spacing, useTheme } from '@/lib/theme';
 import { glassPill } from '@/lib/theme/styles';
 import { useTracking } from '@/lib/tracking-context';
-import type { ForagingSpot, Place, Trail } from '@/lib/types';
+import type { ForagingSpot, ForagingSpotCreate, Place, Trail } from '@/lib/types';
 
 type SelectedItem =
   | { type: 'trail'; data: Trail }
@@ -75,6 +75,7 @@ export default function MapScreen() {
   // Long-press add foraging spot state
   const [showAddSpot, setShowAddSpot] = useState(false);
   const [longPressCoords, setLongPressCoords] = useState<{ lat: number; lng: number } | null>(null);
+  const [spotLocationError, setSpotLocationError] = useState(false);
   const createSpot = useCreateForagingSpot();
 
   // Overlay management state
@@ -320,18 +321,23 @@ export default function MapScreen() {
   // Long-press on map → open add foraging spot form with pre-filled coordinates
   const handleLongPress = useCallback(
     (lat: number, lng: number) => {
+      if (editingOverlayId) return; // Ignore during overlay alignment
+      setSelected(null);
+      setShowOverlayManager(false);
       setLongPressCoords({ lat, lng });
+      setSpotLocationError(false);
       setShowAddSpot(true);
     },
-    [],
+    [editingOverlayId],
   );
 
   const handleAddSpot = useCallback(
-    (data: { type: string; lat: number; lng: number; notes: string; month: string }) => {
+    (data: ForagingSpotCreate) => {
       createSpot.mutate(data, {
         onSuccess: () => {
           setShowAddSpot(false);
           setLongPressCoords(null);
+          setSpotLocationError(false);
         },
       });
     },
@@ -341,14 +347,16 @@ export default function MapScreen() {
   const handleCancelAddSpot = useCallback(() => {
     setShowAddSpot(false);
     setLongPressCoords(null);
+    setSpotLocationError(false);
   }, []);
 
   const handleUseCurrentLocationForSpot = useCallback(async () => {
+    setSpotLocationError(false);
     try {
       const coords = await getCurrentPosition();
       setLongPressCoords({ lat: coords.lat, lng: coords.lng });
     } catch {
-      // Location error — coordinates remain from long-press
+      setSpotLocationError(true);
     }
   }, []);
 
@@ -460,6 +468,7 @@ export default function MapScreen() {
             onCancel={handleCancelAddSpot}
             onUseCurrentLocation={handleUseCurrentLocationForSpot}
             isSubmitting={createSpot.isPending}
+            locationError={spotLocationError}
           />
         )}
       </FloatingCardOverlay>
