@@ -79,6 +79,11 @@ export default defineConfig({
         'components/TabIcon.tsx',
         // Tracking overlay — presentation HUD, callbacks delegate to tested tracking-service/context
         'components/TrackingOverlay.tsx',
+        // Drawer/overlay components — presentation wrappers, extracted from route screens
+        'components/DrawerOverlay.tsx',
+        'components/TrailListDrawer.tsx',
+        'components/ForagingDrawer.tsx',
+        'components/PlacesDrawer.tsx',
         // Overlay components — depend on expo-file-system, expo-image-picker, MapLibre
         'components/OverlayAlignmentMode.tsx',
         'components/OverlayManager.tsx',
