@@ -30,7 +30,7 @@ function getDb() {
   });
 }
 
-export function createIdbPersister(): Persister {
+export function createPersister(): Persister {
   return {
     async persistClient(client: PersistedClient) {
       try {

@@ -1,7 +1,7 @@
-import 'fake-indexeddb/auto';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { PersistedClient } from '@tanstack/react-query-persist-client';
-import { createPersister } from '../../storage/query-persister';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { createPersister } from '../../storage/query-persister.native';
 
 function makePersistedClient(overrides?: Partial<PersistedClient>): PersistedClient {
   return {
@@ -34,12 +34,18 @@ function makePersistedClient(overrides?: Partial<PersistedClient>): PersistedCli
   };
 }
 
-describe('createPersister (web/IndexedDB)', () => {
+describe('createPersister (native/AsyncStorage)', () => {
   let persister: ReturnType<typeof createPersister>;
+  const mockStorage = vi.mocked(AsyncStorage);
 
-  beforeEach(async () => {
+  beforeEach(() => {
     persister = createPersister();
-    await persister.removeClient();
+    mockStorage.getItem.mockReset();
+    mockStorage.setItem.mockReset();
+    mockStorage.removeItem.mockReset();
+    mockStorage.getItem.mockResolvedValue(null);
+    mockStorage.setItem.mockResolvedValue(undefined);
+    mockStorage.removeItem.mockResolvedValue(undefined);
   });
 
   afterEach(() => {
@@ -53,8 +59,14 @@ describe('createPersister (web/IndexedDB)', () => {
 
   it('persists and restores a client', async () => {
     const client = makePersistedClient();
-    await persister.persistClient(client);
 
+    await persister.persistClient(client);
+    expect(mockStorage.setItem).toHaveBeenCalledWith(
+      '@tanstack-query-cache',
+      JSON.stringify(client),
+    );
+
+    mockStorage.getItem.mockResolvedValue(JSON.stringify(client));
     const restored = await persister.restoreClient();
     expect(restored).toBeDefined();
     expect(restored?.clientState.queries).toHaveLength(1);
@@ -63,78 +75,43 @@ describe('createPersister (web/IndexedDB)', () => {
 
   it('discards stale cache older than 24 hours', async () => {
     const staleClient = makePersistedClient({
-      timestamp: Date.now() - 1000 * 60 * 60 * 25, // 25 hours ago
+      timestamp: Date.now() - 1000 * 60 * 60 * 25,
     });
-    await persister.persistClient(staleClient);
+    mockStorage.getItem.mockResolvedValue(JSON.stringify(staleClient));
 
     const restored = await persister.restoreClient();
     expect(restored).toBeUndefined();
+    expect(mockStorage.removeItem).toHaveBeenCalledWith('@tanstack-query-cache');
   });
 
   it('keeps cache within 24 hours', async () => {
     const freshClient = makePersistedClient({
-      timestamp: Date.now() - 1000 * 60 * 60 * 23, // 23 hours ago
+      timestamp: Date.now() - 1000 * 60 * 60 * 23,
     });
-    await persister.persistClient(freshClient);
+    mockStorage.getItem.mockResolvedValue(JSON.stringify(freshClient));
 
     const restored = await persister.restoreClient();
     expect(restored).toBeDefined();
   });
 
   it('removes client data', async () => {
-    const client = makePersistedClient();
-    await persister.persistClient(client);
     await persister.removeClient();
-
-    const restored = await persister.restoreClient();
-    expect(restored).toBeUndefined();
+    expect(mockStorage.removeItem).toHaveBeenCalledWith('@tanstack-query-cache');
   });
 
-  it('returns undefined when restoreClient encounters indexedDB error', async () => {
-    if (globalThis.indexedDB) {
-      vi.spyOn(globalThis.indexedDB, 'open').mockImplementation(() => {
-        throw new Error('DB error');
-      });
-    }
-
+  it('returns undefined on restore error', async () => {
+    mockStorage.getItem.mockRejectedValue(new Error('storage error'));
     const result = await persister.restoreClient();
     expect(result).toBeUndefined();
-
-    vi.restoreAllMocks();
   });
 
-  it('overwrites previous persisted data', async () => {
-    const client1 = makePersistedClient();
-    await persister.persistClient(client1);
+  it('swallows persist error', async () => {
+    mockStorage.setItem.mockRejectedValue(new Error('disk full'));
+    await expect(persister.persistClient(makePersistedClient())).resolves.toBeUndefined();
+  });
 
-    const client2 = makePersistedClient({
-      clientState: {
-        mutations: [],
-        queries: [
-          {
-            queryKey: ['updated'],
-            queryHash: '["updated"]',
-            state: {
-              data: { updated: true },
-              dataUpdateCount: 1,
-              dataUpdatedAt: Date.now(),
-              error: null,
-              errorUpdateCount: 0,
-              errorUpdatedAt: 0,
-              fetchFailureCount: 0,
-              fetchFailureReason: null,
-              fetchMeta: null,
-              fetchStatus: 'idle',
-              isInvalidated: false,
-              status: 'success',
-            },
-          },
-        ],
-      },
-    });
-    await persister.persistClient(client2);
-
-    const restored = await persister.restoreClient();
-    expect(restored?.clientState.queries[0].queryKey).toEqual(['updated']);
+  it('swallows remove error', async () => {
+    mockStorage.removeItem.mockRejectedValue(new Error('storage error'));
+    await expect(persister.removeClient()).resolves.toBeUndefined();
   });
 });
