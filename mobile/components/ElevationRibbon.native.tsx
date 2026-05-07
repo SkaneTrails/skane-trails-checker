@@ -86,6 +86,7 @@ function TrailLine({ data, atRidge }: { data: RibbonGeometryData; atRidge: boole
   }, [data, atRidge]);
 
   return (
+    // @ts-expect-error — R3F extends JSX with <line> element type not in standard React typings
     <line geometry={geometry}>
       <lineBasicMaterial color="#1B4332" linewidth={2} />
     </line>

@@ -1,12 +1,31 @@
+/**
+ * Places list drawer — category filter + place list.
+ *
+ * Accessible from the hamburger menu. Shows places with
+ * category filtering, same data as the old places tab.
+ */
+
 import { useMemo } from 'react';
-import { FlatList, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
-import { Chip, ContentCard, EmptyState, ScreenLayout } from '@/components';
+import {
+  FlatList,
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
+import { Chip, ContentCard, EmptyState } from '@/components';
+import { DrawerOverlay } from '@/components/DrawerOverlay';
 import { PlaceCategoryIcon } from '@/components/PlaceCategoryIcon';
 import { usePlaceCategories, usePlaces } from '@/lib/hooks';
 import { useTranslation } from '@/lib/i18n';
 import { useSettings } from '@/lib/settings-context';
-import { borderRadius, blur, fontSize, fontWeight, letterSpacing, spacing, useTheme } from '@/lib/theme';
+import { borderRadius, fontSize, fontWeight, spacing, useTheme } from '@/lib/theme';
 import type { Place } from '@/lib/types';
+
+interface PlacesDrawerProps {
+  isOpen: boolean;
+  onClose: () => void;
+}
 
 function PlaceItem({ place }: { place: Place }) {
   const { colors } = useTheme();
@@ -44,16 +63,11 @@ function PlaceItem({ place }: { place: Place }) {
           {place.lat.toFixed(4)}, {place.lng.toFixed(4)}
         </Text>
       </View>
-      {place.weburl ? (
-        <Text style={[styles.website, { color: colors.primary }]} numberOfLines={1}>
-          {place.weburl}
-        </Text>
-      ) : null}
     </ContentCard>
   );
 }
 
-export default function PlacesScreen() {
+export const PlacesDrawer = ({ isOpen, onClose }: PlacesDrawerProps) => {
   const { colors, shadows } = useTheme();
   const { t } = useTranslation();
   const { enabledPlaceCategories, togglePlaceCategory, setEnabledPlaceCategories } = useSettings();
@@ -80,25 +94,13 @@ export default function PlacesScreen() {
   };
 
   return (
-    <ScreenLayout title={t('tabs.places')}>
-      {/* Summary bar */}
-      <View
-        style={[
-          styles.summaryBar,
-          { borderColor: colors.glass.border },
-          Platform.OS === 'web' &&
-            ({
-              backgroundColor: colors.glass.background,
-              backdropFilter: `blur(${blur.md}px)`,
-              WebkitBackdropFilter: `blur(${blur.md}px)`,
-            } as any),
-        ]}
-      >
-        <Text style={[styles.summaryText, { color: colors.text.primary }]}>
-          {filteredPlaces.length} {t('places.places')}
-        </Text>
-      </View>
+    <DrawerOverlay isOpen={isOpen} title={t('tabs.places')} onClose={onClose}>
+      {/* Summary */}
+      <Text style={[styles.summaryText, { color: colors.text.primary }]}>
+        {filteredPlaces.length} {t('places.places')}
+      </Text>
 
+      {/* Category filter */}
       {categoryEntries.length > 0 && (
         <View style={styles.filterBar}>
           <Chip
@@ -144,6 +146,7 @@ export default function PlacesScreen() {
         </View>
       )}
 
+      {/* List */}
       {isLoading ? (
         <EmptyState title={t('places.loadingPlaces')} />
       ) : error ? (
@@ -157,36 +160,37 @@ export default function PlacesScreen() {
           ListEmptyComponent={<EmptyState title={t('places.noPlacesFound')} />}
         />
       )}
-    </ScreenLayout>
+    </DrawerOverlay>
   );
-}
+};
 
 const styles = StyleSheet.create({
-  summaryBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.md,
-    marginHorizontal: spacing.lg,
-    marginTop: spacing.lg,
-    borderRadius: borderRadius.full,
-    borderWidth: 1,
-  },
   summaryText: {
-    fontSize: fontSize.lg,
+    fontSize: fontSize.md,
     fontWeight: fontWeight.semibold,
-    letterSpacing: letterSpacing.tight,
+    marginBottom: spacing.md,
   },
   filterBar: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    padding: spacing.lg,
     gap: spacing.sm,
+    marginBottom: spacing.md,
+  },
+  filterChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    borderRadius: borderRadius.full,
+    borderWidth: 1,
+  },
+  filterChipText: {
+    fontSize: fontSize.xs,
   },
   list: {
-    padding: spacing.lg,
     gap: spacing.md,
-    paddingBottom: 100,
+    paddingBottom: spacing.xl,
   },
   placeHeader: {
     flexDirection: 'row',
@@ -198,61 +202,40 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.sm,
-    flex: 1,
-    marginRight: spacing.sm,
   },
   placeIndicator: {
     width: 8,
     height: 8,
-    borderRadius: 4,
+    borderRadius: borderRadius.full,
   },
   placeName: {
-    fontSize: fontSize.lg,
-    fontWeight: fontWeight.semibold,
-    flex: 1,
-  },
-  placeDetails: {
-    marginLeft: spacing.lg + spacing.sm,
-    gap: spacing.xs,
-  },
-  cityText: {
     fontSize: fontSize.md,
-  },
-  coords: {
-    fontSize: fontSize.xs,
+    fontWeight: fontWeight.semibold,
   },
   categoriesRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: spacing.sm,
+    gap: spacing.xs,
   },
   categoryTag: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.xs + 2,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.xs,
-    borderRadius: borderRadius.full,
-    overflow: 'hidden',
+    gap: 3,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 2,
+    borderRadius: borderRadius.sm,
   },
   categoryTagText: {
     fontSize: fontSize.xs,
+    fontWeight: fontWeight.medium,
   },
-  filterChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.sm,
-    borderRadius: borderRadius.full,
-    borderWidth: 1,
-    gap: spacing.xs + 2,
+  placeDetails: {
+    gap: spacing.xs,
   },
-  filterChipText: {
+  cityText: {
     fontSize: fontSize.sm,
   },
-  website: {
-    fontSize: fontSize.sm,
-    marginTop: spacing.sm,
-    marginLeft: spacing.lg + spacing.sm,
+  coords: {
+    fontSize: fontSize.xs,
   },
 });

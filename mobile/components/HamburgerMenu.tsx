@@ -1,7 +1,8 @@
 /**
  * Hamburger menu overlay for map screen actions.
  *
- * Provides quick access to settings and GPS tracking (Android only).
+ * Primary navigation replacing the old tab bar. Provides access to
+ * all app sections: trails, foraging, places, upload, settings, admin.
  * Renders as a glass-styled dropdown anchored to the top-right.
  */
 
@@ -11,10 +12,12 @@ import { borderRadius, fontSize, fontWeight, spacing, useTheme } from '@/lib/the
 import { glassCard } from '@/lib/theme/styles';
 import { TabIcon } from './TabIcon';
 
+type IconName = 'compass' | 'leaf' | 'pin' | 'play' | 'upload' | 'settings' | 'shield' | 'image';
+
 interface MenuItem {
   key: string;
   label: string;
-  icon: 'play' | 'settings';
+  icon: IconName;
   onPress: () => void;
   disabled?: boolean;
   subtitle?: string;
@@ -23,36 +26,92 @@ interface MenuItem {
 interface HamburgerMenuProps {
   isOpen: boolean;
   onToggle: () => void;
+  onTrails: () => void;
+  onForaging: () => void;
+  onPlaces: () => void;
+  onUpload: () => void;
+  onOverlays: () => void;
   onSettings: () => void;
+  onAdmin: () => void;
   onStartTracking: () => void;
-  showTrackingItem?: boolean;
+  showAdmin?: boolean;
 }
 
-export function HamburgerMenu({ isOpen, onToggle, onSettings, onStartTracking, showTrackingItem = true }: HamburgerMenuProps) {
+export function HamburgerMenu({
+  isOpen,
+  onToggle,
+  onTrails,
+  onForaging,
+  onPlaces,
+  onUpload,
+  onOverlays,
+  onSettings,
+  onAdmin,
+  onStartTracking,
+  showAdmin = false,
+}: HamburgerMenuProps) {
   const { colors, shadows } = useTheme();
   const { t } = useTranslation();
 
   const isWeb = Platform.OS === 'web';
 
   const items: MenuItem[] = [
-    ...(showTrackingItem
+    {
+      key: 'trails',
+      label: t('tabs.trails'),
+      icon: 'compass',
+      onPress: onTrails,
+    },
+    {
+      key: 'foraging',
+      label: t('tabs.foraging'),
+      icon: 'leaf',
+      onPress: onForaging,
+    },
+    {
+      key: 'places',
+      label: t('tabs.places'),
+      icon: 'pin',
+      onPress: onPlaces,
+    },
+    {
+      key: 'upload',
+      label: t('trails.uploadGpx'),
+      icon: 'upload',
+      onPress: onUpload,
+    },
+    {
+      key: 'overlays',
+      label: t('overlays.title'),
+      icon: 'image',
+      onPress: onOverlays,
+    },
+    ...(!isWeb
       ? [
           {
             key: 'tracking',
-            label: t('tracking.startTracking'),
-            icon: 'play' as const,
+            label: t('tracking.startRecording'),
+            icon: 'play' as IconName,
             onPress: onStartTracking,
-            disabled: isWeb,
-            subtitle: isWeb ? t('tracking.webNotSupported') : undefined,
           },
         ]
       : []),
     {
       key: 'settings',
       label: t('settings.title'),
-      icon: 'settings' as const,
+      icon: 'settings',
       onPress: onSettings,
     },
+    ...(showAdmin
+      ? [
+          {
+            key: 'admin',
+            label: t('tabs.admin'),
+            icon: 'shield' as IconName,
+            onPress: onAdmin,
+          },
+        ]
+      : []),
   ];
 
   return (

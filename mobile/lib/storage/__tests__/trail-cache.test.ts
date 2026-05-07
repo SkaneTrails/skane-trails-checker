@@ -92,9 +92,7 @@ describe('trailCache', () => {
       expect(result.trails).toEqual([]);
       expect(result.lastSyncTime).toBeNull();
 
-      if (originalOpen) {
-        vi.restoreAllMocks();
-      }
+      vi.restoreAllMocks();
     });
 
     it('handles set failure gracefully', async () => {
@@ -108,9 +106,7 @@ describe('trailCache', () => {
       // Should not throw
       await expect(trailCache.set([sampleTrail], '2025-06-01T00:00:00Z')).resolves.toBeUndefined();
 
-      if (originalOpen) {
-        vi.restoreAllMocks();
-      }
+      vi.restoreAllMocks();
     });
 
     it('handles clear failure gracefully', async () => {
@@ -124,9 +120,7 @@ describe('trailCache', () => {
       // Should not throw
       await expect(trailCache.clear()).resolves.toBeUndefined();
 
-      if (originalOpen) {
-        vi.restoreAllMocks();
-      }
+      vi.restoreAllMocks();
     });
   });
 });

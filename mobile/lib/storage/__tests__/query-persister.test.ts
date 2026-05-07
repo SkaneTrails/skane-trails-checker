@@ -101,9 +101,7 @@ describe('createIdbPersister', () => {
     const result = await persister.restoreClient();
     expect(result).toBeUndefined();
 
-    if (originalOpen) {
-      vi.restoreAllMocks();
-    }
+    vi.restoreAllMocks();
   });
 
   it('overwrites previous persisted data', async () => {

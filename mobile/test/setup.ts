@@ -26,7 +26,7 @@ document.createElement = ((tagName: string, options?: ElementCreationOptions) =>
               return true; // silently accept numeric-indexed writes
             }
             try {
-              (sTarget as Record<string | symbol, unknown>)[sProp] = sValue;
+              (sTarget as unknown as Record<string | symbol, unknown>)[sProp] = sValue;
             } catch {
               return true; // swallow proxy rejections for unknown CSS props
             }

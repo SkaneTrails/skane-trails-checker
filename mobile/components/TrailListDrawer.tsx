@@ -1,4 +1,10 @@
-import { useRouter } from 'expo-router';
+/**
+ * Trail list drawer — searchable, filterable list of trails.
+ *
+ * Accessible from the hamburger menu. Tapping a trail navigates
+ * back to the map with that trail selected.
+ */
+
 import { useMemo, useState } from 'react';
 import {
   ActivityIndicator,
@@ -10,20 +16,27 @@ import {
   TextInput,
   View,
 } from 'react-native';
-import { Chip, ContentCard, EmptyState, ScreenLayout, StatusBadge } from '@/components';
+import { Chip, ContentCard, EmptyState, StatusBadge } from '@/components';
+import { DrawerOverlay } from '@/components/DrawerOverlay';
 import { filterTrails, useTrails } from '@/lib/hooks';
 import { useTranslation } from '@/lib/i18n';
 import { borderRadius, fontSize, fontWeight, letterSpacing, spacing, useTheme } from '@/lib/theme';
 import { glassPill } from '@/lib/theme/styles';
 import type { Trail } from '@/lib/types';
 
-function TrailItem({ trail }: { trail: Trail }) {
-  const router = useRouter();
+interface TrailListDrawerProps {
+  isOpen: boolean;
+  onClose: () => void;
+  onTrailSelect: (trail: Trail) => void;
+  onUpload: () => void;
+}
+
+function TrailItem({ trail, onPress }: { trail: Trail; onPress: (trail: Trail) => void }) {
   const { colors } = useTheme();
   const { t } = useTranslation();
 
   return (
-    <Pressable onPress={() => router.navigate({ pathname: '/(tabs)', params: { trailId: trail.trail_id } })}>
+    <Pressable onPress={() => onPress(trail)}>
       <ContentCard>
         <View style={styles.cardHeader}>
           <Text style={[styles.trailName, { color: colors.text.primary }]} numberOfLines={1}>
@@ -53,10 +66,9 @@ function TrailItem({ trail }: { trail: Trail }) {
   );
 }
 
-export default function TrailsScreen() {
+export const TrailListDrawer = ({ isOpen, onClose, onTrailSelect, onUpload }: TrailListDrawerProps) => {
   const { colors } = useTheme();
   const { t } = useTranslation();
-  const router = useRouter();
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<string | undefined>();
 
@@ -66,30 +78,23 @@ export default function TrailsScreen() {
     { label: t('trails.toExplore'), value: 'To Explore' },
   ] as const;
 
-  const { data: allTrails, isLoading, isFetching, error, refetch } = useTrails();
+  const { data: allTrails, isLoading, isFetching, refetch } = useTrails();
 
   const trails = useMemo(
-    () => filterTrails(allTrails ?? [], { search: search.trim() || undefined, status: statusFilter }),
+    () => filterTrails(allTrails ?? [], { search: search.trim() || undefined, status: statusFilter as Trail['status'] | undefined }),
     [allTrails, search, statusFilter],
   );
 
   const trailCount = trails.length;
   const explored = trails.filter((tr) => tr.status === 'Explored!').length;
 
-  if (error && trailCount === 0) {
-    return (
-      <ScreenLayout title={t('tabs.trails')}>
-        <EmptyState
-          title={t('trails.failedToLoad')}
-          actionLabel={t('common.retry')}
-          onAction={() => refetch()}
-        />
-      </ScreenLayout>
-    );
-  }
+  const handleTrailPress = (trail: Trail) => {
+    onClose();
+    onTrailSelect(trail);
+  };
 
   return (
-    <ScreenLayout title={t('tabs.trails')}>
+    <DrawerOverlay isOpen={isOpen} title={t('tabs.trails')} onClose={onClose}>
       <View style={[styles.summary, glassPill(colors.glass)]}>
         <View style={styles.summaryLeft}>
           <Text style={[styles.summaryText, { color: colors.text.primary }]}>
@@ -99,7 +104,7 @@ export default function TrailsScreen() {
         </View>
         <Pressable
           style={[styles.uploadButton, { backgroundColor: colors.primary }]}
-          onPress={() => router.push('/upload')}
+          onPress={onUpload}
         >
           <Text style={[styles.uploadButtonText, { color: colors.text.inverse }]}>
             {t('trails.uploadGpx')}
@@ -116,11 +121,6 @@ export default function TrailsScreen() {
               borderColor: colors.glass.borderSubtle,
               color: colors.text.primary,
             },
-            Platform.OS === 'web' &&
-              ({
-                backdropFilter: 'blur(8px)',
-                WebkitBackdropFilter: 'blur(8px)',
-              } as any),
           ]}
           placeholder={t('trails.searchPlaceholder')}
           placeholderTextColor={colors.text.muted}
@@ -145,14 +145,14 @@ export default function TrailsScreen() {
         <FlatList
           data={trails}
           keyExtractor={(item) => item.trail_id}
-          renderItem={({ item }) => <TrailItem trail={item} />}
+          renderItem={({ item }) => <TrailItem trail={item} onPress={handleTrailPress} />}
           contentContainerStyle={styles.list}
           ListEmptyComponent={<EmptyState title={t('trails.noTrailsFound')} />}
         />
       )}
-    </ScreenLayout>
+    </DrawerOverlay>
   );
-}
+};
 
 const styles = StyleSheet.create({
   summary: {
@@ -160,8 +160,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     padding: spacing.lg,
-    margin: spacing.lg,
-    marginBottom: 0,
+    marginBottom: spacing.md,
   },
   summaryLeft: {
     flexDirection: 'row',
@@ -169,7 +168,7 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
   },
   summaryText: {
-    fontSize: fontSize.lg,
+    fontSize: fontSize.md,
     fontWeight: fontWeight.semibold,
     letterSpacing: letterSpacing.tight,
   },
@@ -183,8 +182,8 @@ const styles = StyleSheet.create({
     fontWeight: fontWeight.semibold,
   },
   filterBar: {
-    padding: spacing.lg,
     gap: spacing.md,
+    marginBottom: spacing.md,
   },
   searchInput: {
     borderWidth: 1,
@@ -199,9 +198,8 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
   },
   list: {
-    padding: spacing.lg,
     gap: spacing.md,
-    paddingBottom: 100,
+    paddingBottom: spacing.xl,
   },
   cardHeader: {
     flexDirection: 'row',
@@ -210,25 +208,25 @@ const styles = StyleSheet.create({
     marginBottom: spacing.sm,
   },
   trailName: {
-    fontSize: fontSize.lg,
+    fontSize: fontSize.md,
     fontWeight: fontWeight.semibold,
-    letterSpacing: letterSpacing.tight,
     flex: 1,
     marginRight: spacing.sm,
   },
   cardMeta: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.sm,
     flexWrap: 'wrap',
+    gap: spacing.sm,
   },
   metaChip: {
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.xs,
-    borderRadius: borderRadius.full,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 2,
+    borderRadius: borderRadius.sm,
   },
   metaChipText: {
     fontSize: fontSize.xs,
+    fontWeight: fontWeight.medium,
   },
   sourceText: {
     fontSize: fontSize.xs,

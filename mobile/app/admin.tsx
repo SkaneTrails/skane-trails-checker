@@ -1,6 +1,6 @@
 /**
  * Admin screen — group and superuser management for superusers.
- * Only visible to users with 'superuser' role.
+ * Now a modal route accessible from the hamburger menu.
  */
 
 import { useRouter } from 'expo-router';
@@ -45,7 +45,7 @@ export default function AdminScreen() {
 
   if (userLoading) {
     return (
-      <ScreenLayout title={t('admin.title')}>
+      <ScreenLayout title={t('admin.title')} tabGap={false}>
         <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
           <ActivityIndicator size="large" color={colors.primary} />
         </View>
@@ -55,7 +55,7 @@ export default function AdminScreen() {
 
   if (!currentUser || currentUser.role !== 'superuser') {
     return (
-      <ScreenLayout title={t('admin.title')}>
+      <ScreenLayout title={t('admin.title')} tabGap={false}>
         <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: spacing.xl }}>
           <TabIcon name="shield" color={colors.text.muted} size={48} />
           <Text style={{ color: colors.text.primary, fontSize: fontSize.lg, fontWeight: fontWeight.semibold, marginTop: spacing.md }}>
@@ -115,7 +115,7 @@ export default function AdminScreen() {
   };
 
   return (
-    <ScreenLayout title={t('admin.title')}>
+    <ScreenLayout title={t('admin.title')} tabGap={false}>
       <ScrollView
         contentContainerStyle={{ padding: spacing.lg, paddingBottom: 100 }}
         showsVerticalScrollIndicator={false}

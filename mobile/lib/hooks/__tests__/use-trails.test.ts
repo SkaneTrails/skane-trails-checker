@@ -107,8 +107,8 @@ describe('useTrails', () => {
       count: 2,
       last_modified: '2025-07-01T00:00:00Z',
     });
-    mockTrailsApi.getTrailSummaries.mockImplementation((filters) => {
-      if (filters.since) return Promise.resolve([newTrail]);
+    mockTrailsApi.getTrailSummaries.mockImplementation((filters?: { since?: string }) => {
+      if (filters?.since) return Promise.resolve([newTrail]);
       return Promise.resolve([sampleTrail, newTrail]);
     });
     mockTrailCache.merge.mockResolvedValue([sampleTrail, newTrail]);
@@ -134,8 +134,8 @@ describe('useTrails', () => {
       count: 1,
       last_modified: '2025-07-01T00:00:00Z',
     });
-    mockTrailsApi.getTrailSummaries.mockImplementation((filters) => {
-      if (filters.since) return Promise.resolve([]);
+    mockTrailsApi.getTrailSummaries.mockImplementation((filters?: { since?: string }) => {
+      if (filters?.since) return Promise.resolve([]);
       return Promise.resolve([editedTrail]);
     });
     const wrapper = createQueryWrapper();
@@ -177,8 +177,8 @@ describe('useTrails', () => {
       count: 2,
       last_modified: '2025-07-01T00:00:00Z',
     });
-    mockTrailsApi.getTrailSummaries.mockImplementation((filters) => {
-      if (filters.since) return Promise.reject(new Error('API 422: invalid since format'));
+    mockTrailsApi.getTrailSummaries.mockImplementation((filters?: { since?: string }) => {
+      if (filters?.since) return Promise.reject(new Error('API 422: invalid since format'));
       return Promise.resolve(allTrails);
     });
     const wrapper = createQueryWrapper();
@@ -299,8 +299,8 @@ describe('pollForChanges', () => {
 
     // Delta yields nothing → triggers full refetch
     const renamedTrail = { ...sampleTrail, name: 'Renamed' };
-    mockTrailsApi.getTrailSummaries.mockImplementation((filters) => {
-      if (filters.since) return Promise.resolve([]);
+    mockTrailsApi.getTrailSummaries.mockImplementation((filters?: { since?: string }) => {
+      if (filters?.since) return Promise.resolve([]);
       return Promise.resolve([renamedTrail]);
     });
 
@@ -327,8 +327,8 @@ describe('pollForChanges', () => {
       count: 2,
       last_modified: '2025-07-01T00:00:00Z',
     });
-    mockTrailsApi.getTrailSummaries.mockImplementation((filters) => {
-      if (filters.since) return Promise.resolve([newTrail]);
+    mockTrailsApi.getTrailSummaries.mockImplementation((filters?: { since?: string }) => {
+      if (filters?.since) return Promise.resolve([newTrail]);
       return Promise.resolve([sampleTrail, newTrail]);
     });
     mockTrailCache.merge.mockResolvedValue([sampleTrail, newTrail]);
@@ -406,8 +406,8 @@ describe('pollForChanges', () => {
       count: 2,
       last_modified: '2025-07-01T00:00:00Z',
     });
-    mockTrailsApi.getTrailSummaries.mockImplementation((filters) => {
-      if (filters.since) return Promise.reject(new Error('Server error'));
+    mockTrailsApi.getTrailSummaries.mockImplementation((filters?: { since?: string }) => {
+      if (filters?.since) return Promise.reject(new Error('Server error'));
       return Promise.resolve([sampleTrail]);
     });
 
@@ -650,10 +650,10 @@ describe('sortTrails', () => {
 });
 
 describe('filterTrails', () => {
-  const makeTrail = (overrides: Partial<typeof sampleTrail>) => ({
+  const makeTrail = (overrides: Record<string, unknown>) => ({
     ...sampleTrail,
     ...overrides,
-  });
+  }) as typeof sampleTrail;
 
   const trails = [
     makeTrail({ trail_id: '1', name: 'Hovdala Castle Loop', status: 'Explored!', length_km: 8.2 }),

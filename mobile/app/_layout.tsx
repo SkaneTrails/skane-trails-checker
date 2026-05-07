@@ -103,6 +103,15 @@ function AppStack() {
           contentStyle: Platform.OS === 'web' ? { backgroundColor: 'transparent' } : undefined,
         }}
       />
+      <Stack.Screen
+        name="admin"
+        options={{
+          headerShown: false,
+          presentation: 'transparentModal',
+          animation: 'fade',
+          contentStyle: Platform.OS === 'web' ? { backgroundColor: 'transparent' } : undefined,
+        }}
+      />
     </Stack>
   );
 }
