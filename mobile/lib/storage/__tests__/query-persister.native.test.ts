@@ -62,7 +62,7 @@ describe('createPersister (native/AsyncStorage)', () => {
 
     await persister.persistClient(client);
     expect(mockStorage.setItem).toHaveBeenCalledWith(
-      '@tanstack-query-cache',
+      '@skane_trails_query_cache',
       JSON.stringify(client),
     );
 
@@ -81,7 +81,7 @@ describe('createPersister (native/AsyncStorage)', () => {
 
     const restored = await persister.restoreClient();
     expect(restored).toBeUndefined();
-    expect(mockStorage.removeItem).toHaveBeenCalledWith('@tanstack-query-cache');
+    expect(mockStorage.removeItem).toHaveBeenCalledWith('@skane_trails_query_cache');
   });
 
   it('keeps cache within 24 hours', async () => {
@@ -96,13 +96,35 @@ describe('createPersister (native/AsyncStorage)', () => {
 
   it('removes client data', async () => {
     await persister.removeClient();
-    expect(mockStorage.removeItem).toHaveBeenCalledWith('@tanstack-query-cache');
+    expect(mockStorage.removeItem).toHaveBeenCalledWith('@skane_trails_query_cache');
   });
 
   it('returns undefined on restore error', async () => {
     mockStorage.getItem.mockRejectedValue(new Error('storage error'));
     const result = await persister.restoreClient();
     expect(result).toBeUndefined();
+    expect(mockStorage.removeItem).toHaveBeenCalled();
+  });
+
+  it('discards data with missing timestamp', async () => {
+    mockStorage.getItem.mockResolvedValue(JSON.stringify({ clientState: { queries: [], mutations: [] } }));
+    const result = await persister.restoreClient();
+    expect(result).toBeUndefined();
+    expect(mockStorage.removeItem).toHaveBeenCalled();
+  });
+
+  it('discards data with non-finite timestamp', async () => {
+    mockStorage.getItem.mockResolvedValue(JSON.stringify({ timestamp: NaN, clientState: { queries: [], mutations: [] } }));
+    const result = await persister.restoreClient();
+    expect(result).toBeUndefined();
+    expect(mockStorage.removeItem).toHaveBeenCalled();
+  });
+
+  it('discards corrupted JSON and removes key', async () => {
+    mockStorage.getItem.mockResolvedValue('not valid json{{{');
+    const result = await persister.restoreClient();
+    expect(result).toBeUndefined();
+    expect(mockStorage.removeItem).toHaveBeenCalled();
   });
 
   it('swallows persist error', async () => {

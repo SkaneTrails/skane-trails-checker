@@ -97,6 +97,8 @@ export default defineConfig({
         'lib/storage/trail-cache.native.ts',
         // Trail cache: barrel re-export resolved by bundler (same as **/index.ts)
         'lib/storage/trail-cache.ts',
+        // Persist constants — static value only
+        'lib/storage/persist-constants.ts',
         // 3D renderers — require WebGL/Canvas context, cannot test in jsdom
         'components/ElevationRibbon.web.tsx',
         'components/ElevationRibbon.native.tsx',

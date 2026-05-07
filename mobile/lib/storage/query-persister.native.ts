@@ -7,11 +7,9 @@
  */
 import type { PersistedClient, Persister } from '@tanstack/react-query-persist-client';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { PERSIST_MAX_AGE } from './persist-constants';
 
-const CACHE_KEY = '@tanstack-query-cache';
-
-/** Maximum age of persisted cache before it's discarded (24 hours). */
-const MAX_AGE = 1000 * 60 * 60 * 24;
+const CACHE_KEY = '@skane_trails_query_cache';
 
 export function createPersister(): Persister {
   return {
@@ -30,13 +28,19 @@ export function createPersister(): Persister {
 
         const client: PersistedClient = JSON.parse(raw);
 
-        if (Date.now() - client.timestamp > MAX_AGE) {
+        if (typeof client.timestamp !== 'number' || !Number.isFinite(client.timestamp)) {
+          await AsyncStorage.removeItem(CACHE_KEY);
+          return undefined;
+        }
+
+        if (Date.now() - client.timestamp > PERSIST_MAX_AGE) {
           await AsyncStorage.removeItem(CACHE_KEY);
           return undefined;
         }
 
         return client;
       } catch {
+        await AsyncStorage.removeItem(CACHE_KEY).catch(() => {});
         return undefined;
       }
     },
