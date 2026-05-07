@@ -9,14 +9,12 @@
  */
 import type { PersistedClient, Persister } from '@tanstack/react-query-persist-client';
 import { openDB } from 'idb';
+import { PERSIST_MAX_AGE } from './persist-constants';
 
 const DB_NAME = 'skane-trails-query';
 const DB_VERSION = 1;
 const STORE_NAME = 'query-cache';
 const CACHE_KEY = 'tanstack-query';
-
-/** Maximum age of persisted cache before it's discarded (24 hours). */
-const MAX_AGE = 1000 * 60 * 60 * 24;
 
 function getDb() {
   return openDB(DB_NAME, DB_VERSION, {
@@ -30,7 +28,7 @@ function getDb() {
   });
 }
 
-export function createIdbPersister(): Persister {
+export function createPersister(): Persister {
   return {
     async persistClient(client: PersistedClient) {
       try {
@@ -48,7 +46,7 @@ export function createIdbPersister(): Persister {
         if (!client) return undefined;
 
         // Discard stale cache
-        if (Date.now() - client.timestamp > MAX_AGE) {
+        if (Date.now() - client.timestamp > PERSIST_MAX_AGE) {
           await db.delete(STORE_NAME, CACHE_KEY);
           return undefined;
         }

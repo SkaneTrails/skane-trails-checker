@@ -1,7 +1,7 @@
 import 'fake-indexeddb/auto';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { PersistedClient } from '@tanstack/react-query-persist-client';
-import { createIdbPersister } from '../../storage/query-persister';
+import { createPersister } from '../../storage/query-persister';
 
 function makePersistedClient(overrides?: Partial<PersistedClient>): PersistedClient {
   return {
@@ -34,11 +34,11 @@ function makePersistedClient(overrides?: Partial<PersistedClient>): PersistedCli
   };
 }
 
-describe('createIdbPersister', () => {
-  let persister: ReturnType<typeof createIdbPersister>;
+describe('createPersister (web/IndexedDB)', () => {
+  let persister: ReturnType<typeof createPersister>;
 
   beforeEach(async () => {
-    persister = createIdbPersister();
+    persister = createPersister();
     await persister.removeClient();
   });
 
