@@ -1,18 +1,21 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, Alert, Image, Platform, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, Image, StyleSheet, View } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { AddSpotForm } from '@/components/AddSpotForm';
 import { FloatingButton } from '@/components/FloatingButton';
 import { FloatingCardOverlay } from '@/components/FloatingCardOverlay';
+import { ForagingDrawer } from '@/components/ForagingDrawer';
 import { ForagingSpotCard } from '@/components/ForagingSpotCard';
 import { HamburgerMenu } from '@/components/HamburgerMenu';
 import { LayerToggle, type MapLayer } from '@/components/LayerToggle';
 import { OverlayAlignmentMode } from '@/components/OverlayAlignmentMode';
 import { OverlayManager } from '@/components/OverlayManager';
 import { PlaceCard } from '@/components/PlaceCard';
+import { PlacesDrawer } from '@/components/PlacesDrawer';
 import { TrackingControls } from '@/components/TrackingControls';
 import { TrackingOverlay } from '@/components/TrackingOverlay';
 import { TrailCard } from '@/components/TrailCard';
+import { TrailListDrawer } from '@/components/TrailListDrawer';
 import { type MapLayers, UnifiedMap } from '@/components/UnifiedMap';
 import {
   useCreateForagingSpot,
@@ -24,6 +27,7 @@ import {
   useUpdateForagingSpot,
   useUpdateTrail,
 } from '@/lib/hooks';
+import { useCurrentUser } from '@/lib/hooks/use-hike-groups';
 import { useTranslation } from '@/lib/i18n';
 import { getCurrentPosition } from '@/lib/location';
 import { calculateInitialCorners, useMapOverlays, type MapOverlay } from '@/lib/map-overlays';
@@ -44,6 +48,8 @@ export default function MapScreen() {
   const { enabledPlaceCategories } = useSettings();
   const router = useRouter();
   const { trailId, editTrail } = useLocalSearchParams<{ trailId?: string; editTrail?: string }>();
+  const { data: currentUser } = useCurrentUser();
+  const isSuperuser = currentUser?.role === 'superuser';
 
   const { data: trails, isFetching: trailsFetching } = useMapTrails();
   const { data: spots } = useForagingSpots();
@@ -71,6 +77,11 @@ export default function MapScreen() {
   const [showLayers, setShowLayers] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
   const [selected, setSelected] = useState<SelectedItem | null>(null);
+
+  // Drawer states (from hamburger menu)
+  const [showTrailDrawer, setShowTrailDrawer] = useState(false);
+  const [showForagingDrawer, setShowForagingDrawer] = useState(false);
+  const [showPlacesDrawer, setShowPlacesDrawer] = useState(false);
 
   // Long-press add foraging spot state
   const [showAddSpot, setShowAddSpot] = useState(false);
@@ -117,7 +128,7 @@ export default function MapScreen() {
   ];
 
   const handleToggleLayer = useCallback((layerId: string) => {
-    setMapLayers((prev) => ({ ...prev, [layerId]: !prev[layerId as keyof MapLayers] }));
+    setMapLayers((prev: MapLayers) => ({ ...prev, [layerId]: !prev[layerId as keyof MapLayers] }));
   }, []);
 
   const handleTrailSelect = useCallback((trail: Trail) => {
@@ -361,7 +372,6 @@ export default function MapScreen() {
   }, []);
 
   const selectedTrailId = selected?.type === 'trail' ? selected.data.trail_id : null;
-  const isWeb = Platform.OS === 'web';
 
   return (
     <View style={styles.container} onLayout={(e) => setContainerSize({ width: e.nativeEvent.layout.width, height: e.nativeEvent.layout.height })}>
@@ -393,16 +403,35 @@ export default function MapScreen() {
         <HamburgerMenu
           isOpen={showMenu}
           onToggle={() => setShowMenu((v) => !v)}
+          onTrails={() => {
+            setShowMenu(false);
+            setShowTrailDrawer(true);
+          }}
+          onForaging={() => {
+            setShowMenu(false);
+            setShowForagingDrawer(true);
+          }}
+          onPlaces={() => {
+            setShowMenu(false);
+            setShowPlacesDrawer(true);
+          }}
+          onUpload={() => {
+            setShowMenu(false);
+            router.push('/upload');
+          }}
+          onOverlays={() => {
+            setShowMenu(false);
+            setShowOverlayManager(true);
+          }}
           onSettings={() => {
-            const { router } = require('expo-router');
+            setShowMenu(false);
             router.push('/settings');
           }}
-          onStartTracking={() => {
-            if (isWeb) {
-              Alert.alert(t('tracking.startTracking'), t('tracking.webNotSupported'));
-            }
+          onAdmin={() => {
+            setShowMenu(false);
+            router.push('/admin');
           }}
-          showTrackingItem={isWeb}
+          showAdmin={isSuperuser}
         />
       </View>
 
@@ -473,18 +502,8 @@ export default function MapScreen() {
         )}
       </FloatingCardOverlay>
 
-      {/* Overlay manager button (bottom-left, above tab bar) — native only */}
-      {!isWeb && !editingOverlayId && (
-        <View style={styles.overlayButton}>
-          <FloatingButton
-            label={t('overlays.title')}
-            onPress={() => setShowOverlayManager(true)}
-          />
-        </View>
-      )}
-
-      {/* Overlay manager panel — native only */}
-      {!isWeb && showOverlayManager && (
+      {/* Overlay manager panel */}
+      {showOverlayManager && (
         <FloatingCardOverlay isOpen>
           <OverlayManager
             overlays={overlays}
@@ -523,6 +542,33 @@ export default function MapScreen() {
           onReset={handleResetOverlay}
         />
       )}
+
+      {/* Navigation drawers (from hamburger menu) */}
+      <TrailListDrawer
+        isOpen={showTrailDrawer}
+        onClose={() => setShowTrailDrawer(false)}
+        onTrailSelect={(trail) => {
+          setSelected({ type: 'trail', data: trail });
+          setFocusBounds({ ...trail.bounds });
+        }}
+        onUpload={() => {
+          setShowTrailDrawer(false);
+          router.push('/upload');
+        }}
+      />
+
+      <ForagingDrawer
+        isOpen={showForagingDrawer}
+        onClose={() => setShowForagingDrawer(false)}
+        onAddSpot={() => {
+          setShowAddSpot(true);
+        }}
+      />
+
+      <PlacesDrawer
+        isOpen={showPlacesDrawer}
+        onClose={() => setShowPlacesDrawer(false)}
+      />
     </View>
   );
 }
@@ -556,14 +602,12 @@ const styles = StyleSheet.create({
     padding: spacing.sm,
     zIndex: 800,
   },
-  overlayButton: {
-    position: 'absolute',
-    bottom: spacing.lg + 80, // Above tab bar
-    left: spacing.lg,
-    zIndex: 900,
-  },
   screenOverlay: {
-    ...StyleSheet.absoluteFillObject,
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
     justifyContent: 'center',
     alignItems: 'center',
     zIndex: 500,

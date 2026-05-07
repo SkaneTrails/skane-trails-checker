@@ -18,8 +18,12 @@ export default defineConfig({
         '**/__tests__/**',
         '**/*.test.*',
         '**/test/**',
+        // Type declarations — no runtime code
+        '**/*.d.ts',
         // Barrel re-exports
         '**/index.ts',
+        // Platform barrel — resolved by bundler to .web/.native variant
+        'lib/location/get-current-position.ts',
         // Pure types — no runtime code
         'lib/types.ts',
         // Firebase config — environment-dependent initialization
@@ -79,6 +83,11 @@ export default defineConfig({
         'components/TabIcon.tsx',
         // Tracking overlay — presentation HUD, callbacks delegate to tested tracking-service/context
         'components/TrackingOverlay.tsx',
+        // Drawer/overlay components — presentation wrappers, extracted from route screens
+        'components/DrawerOverlay.tsx',
+        'components/TrailListDrawer.tsx',
+        'components/ForagingDrawer.tsx',
+        'components/PlacesDrawer.tsx',
         // Overlay components — depend on expo-file-system, expo-image-picker, MapLibre
         'components/OverlayAlignmentMode.tsx',
         'components/OverlayManager.tsx',

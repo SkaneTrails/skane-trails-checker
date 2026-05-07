@@ -91,7 +91,6 @@ describe('createIdbPersister', () => {
   });
 
   it('returns undefined when restoreClient encounters indexedDB error', async () => {
-    const originalOpen = globalThis.indexedDB?.open;
     if (globalThis.indexedDB) {
       vi.spyOn(globalThis.indexedDB, 'open').mockImplementation(() => {
         throw new Error('DB error');
@@ -101,9 +100,7 @@ describe('createIdbPersister', () => {
     const result = await persister.restoreClient();
     expect(result).toBeUndefined();
 
-    if (originalOpen) {
-      vi.restoreAllMocks();
-    }
+    vi.restoreAllMocks();
   });
 
   it('overwrites previous persisted data', async () => {

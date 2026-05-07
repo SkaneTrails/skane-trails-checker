@@ -26,8 +26,13 @@ describe('HamburgerMenu', () => {
   const defaultProps = {
     isOpen: false,
     onToggle: vi.fn(),
+    onTrails: vi.fn(),
+    onForaging: vi.fn(),
+    onPlaces: vi.fn(),
+    onUpload: vi.fn(),
+    onOverlays: vi.fn(),
     onSettings: vi.fn(),
-    onStartTracking: vi.fn(),
+    onAdmin: vi.fn(),
   };
 
   beforeEach(() => {
@@ -45,14 +50,18 @@ describe('HamburgerMenu', () => {
     render(<HamburgerMenu {...defaultProps} />);
 
     expect(screen.queryByText('settings.title')).toBeNull();
-    expect(screen.queryByText('tracking.startTracking')).toBeNull();
+    expect(screen.queryByText('tabs.trails')).toBeNull();
   });
 
   it('shows menu items when open', () => {
     render(<HamburgerMenu {...defaultProps} isOpen={true} />);
 
     expect(screen.getByText('settings.title')).toBeDefined();
-    expect(screen.getByText('tracking.startTracking')).toBeDefined();
+    expect(screen.getByText('tabs.trails')).toBeDefined();
+    expect(screen.getByText('tabs.foraging')).toBeDefined();
+    expect(screen.getByText('tabs.places')).toBeDefined();
+    expect(screen.getByText('trails.uploadGpx')).toBeDefined();
+    expect(screen.getByText('overlays.title')).toBeDefined();
   });
 
   it('calls onToggle when menu button is pressed', () => {
@@ -64,38 +73,45 @@ describe('HamburgerMenu', () => {
   });
 
   it('calls onSettings and closes menu when settings pressed', () => {
-    const onToggle = vi.fn();
     const onSettings = vi.fn();
     render(
-      <HamburgerMenu {...defaultProps} isOpen={true} onToggle={onToggle} onSettings={onSettings} />,
+      <HamburgerMenu {...defaultProps} isOpen={true} onSettings={onSettings} />,
     );
 
     fireEvent.click(screen.getByLabelText('settings.title'));
-    expect(onToggle).toHaveBeenCalledOnce();
     expect(onSettings).toHaveBeenCalledOnce();
   });
 
-  it('shows web-not-supported subtitle for tracking on web', () => {
-    render(<HamburgerMenu {...defaultProps} isOpen={true} />);
-
-    expect(screen.getByText('tracking.webNotSupported')).toBeDefined();
-  });
-
-  it('does not call onStartTracking when disabled on web', () => {
-    const onStartTracking = vi.fn();
-    const onToggle = vi.fn();
+  it('calls onTrails when trails pressed', () => {
+    const onTrails = vi.fn();
     render(
-      <HamburgerMenu
-        {...defaultProps}
-        isOpen={true}
-        onToggle={onToggle}
-        onStartTracking={onStartTracking}
-      />,
+      <HamburgerMenu {...defaultProps} isOpen={true} onTrails={onTrails} />,
     );
 
-    fireEvent.click(screen.getByLabelText('tracking.startTracking'));
-    expect(onStartTracking).not.toHaveBeenCalled();
-    expect(onToggle).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByLabelText('tabs.trails'));
+    expect(onTrails).toHaveBeenCalledOnce();
+  });
+
+  it('calls onUpload when upload pressed', () => {
+    const onUpload = vi.fn();
+    render(
+      <HamburgerMenu {...defaultProps} isOpen={true} onUpload={onUpload} />,
+    );
+
+    fireEvent.click(screen.getByLabelText('trails.uploadGpx'));
+    expect(onUpload).toHaveBeenCalledOnce();
+  });
+
+  it('does not show admin when showAdmin is false', () => {
+    render(<HamburgerMenu {...defaultProps} isOpen={true} showAdmin={false} />);
+
+    expect(screen.queryByText('tabs.admin')).toBeNull();
+  });
+
+  it('shows admin when showAdmin is true', () => {
+    render(<HamburgerMenu {...defaultProps} isOpen={true} showAdmin={true} />);
+
+    expect(screen.getByText('tabs.admin')).toBeDefined();
   });
 
   it('closes menu when backdrop is pressed', () => {
@@ -117,10 +133,16 @@ describe('HamburgerMenu', () => {
     expect(screen.getByText('settings.title')).toBeDefined();
   });
 
-  it('hides tracking item when showTrackingItem is false', () => {
-    render(<HamburgerMenu {...defaultProps} isOpen={true} showTrackingItem={false} />);
+  it('does not show tracking item (handled by FAB)', () => {
+    render(<HamburgerMenu {...defaultProps} isOpen={true} />);
 
-    expect(screen.queryByText('tracking.startTracking')).toBeNull();
-    expect(screen.getByText('settings.title')).toBeDefined();
+    expect(screen.queryByText('tracking.startRecording')).toBeNull();
+  });
+
+  it('calls onAdmin when admin pressed', () => {
+    render(<HamburgerMenu {...defaultProps} isOpen={true} showAdmin={true} />);
+
+    fireEvent.click(screen.getByLabelText('tabs.admin'));
+    expect(defaultProps.onAdmin).toHaveBeenCalledOnce();
   });
 });

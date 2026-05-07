@@ -164,7 +164,7 @@ describe('trailsApi', () => {
         body: expect.any(String),
       });
 
-      const body = JSON.parse(mockApiRequest.mock.calls[0][1].body as string);
+      const body = JSON.parse(mockApiRequest.mock.calls[0]![1]!.body as string);
       expect(body.name).toBe('Morning Hike');
     });
 
@@ -176,7 +176,7 @@ describe('trailsApi', () => {
       ];
       await trailsApi.saveRecording('Walk', points);
 
-      const body = JSON.parse(mockApiRequest.mock.calls[0][1].body as string);
+      const body = JSON.parse(mockApiRequest.mock.calls[0]![1]!.body as string);
       expect(body.name).toBe('Walk');
     });
   });
