@@ -19,8 +19,6 @@ interface MenuItem {
   label: string;
   icon: IconName;
   onPress: () => void;
-  disabled?: boolean;
-  subtitle?: string;
 }
 
 interface HamburgerMenuProps {
@@ -156,26 +154,22 @@ export function HamburgerMenu({
               <Pressable
                 key={item.key}
                 onPress={() => {
-                  if (!item.disabled) {
-                    onToggle();
-                    item.onPress();
-                  }
+                  onToggle();
+                  item.onPress();
                 }}
                 accessibilityRole="menuitem"
                 accessibilityLabel={item.label}
-                accessibilityState={{ disabled: item.disabled }}
                 style={[
                   styles.menuItem,
                   index < items.length - 1 && {
                     borderBottomWidth: 1,
                     borderBottomColor: colors.glass.border,
                   },
-                  item.disabled && styles.menuItemDisabled,
                 ]}
               >
                 <TabIcon
                   name={item.icon}
-                  color={item.disabled ? colors.text.muted : colors.text.secondary}
+                  color={colors.text.secondary}
                   size={18}
                   strokeWidth={1.5}
                 />
@@ -184,17 +178,12 @@ export function HamburgerMenu({
                     style={[
                       styles.menuLabel,
                       {
-                        color: item.disabled ? colors.text.muted : colors.text.primary,
+                        color: colors.text.primary,
                       },
                     ]}
                   >
                     {item.label}
                   </Text>
-                  {item.subtitle && (
-                    <Text style={[styles.menuSubtitle, { color: colors.text.muted }]}>
-                      {item.subtitle}
-                    </Text>
-                  )}
                 </View>
               </Pressable>
             ))}
@@ -224,18 +213,11 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.md,
     paddingHorizontal: spacing.lg,
   },
-  menuItemDisabled: {
-    opacity: 0.6,
-  },
   menuItemText: {
     flex: 1,
   },
   menuLabel: {
     fontSize: fontSize.md,
     fontWeight: fontWeight.semibold,
-  },
-  menuSubtitle: {
-    fontSize: fontSize.xs,
-    marginTop: 2,
   },
 });

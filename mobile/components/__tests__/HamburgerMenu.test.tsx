@@ -1,4 +1,5 @@
 import { fireEvent, render, screen } from '@testing-library/react';
+import { Platform } from 'react-native';
 import { HamburgerMenu } from '../HamburgerMenu';
 
 vi.mock('@/lib/theme', () => ({
@@ -139,5 +140,23 @@ describe('HamburgerMenu', () => {
 
     // On web, tracking item is hidden (Platform.OS === 'web' in tests)
     expect(screen.queryByText('tracking.startRecording')).toBeNull();
+  });
+
+  it('shows tracking item on native', () => {
+    const originalOS = Platform.OS;
+    (Platform as any).OS = 'ios';
+
+    render(<HamburgerMenu {...defaultProps} isOpen={true} />);
+
+    expect(screen.getByText('tracking.startRecording')).toBeDefined();
+
+    (Platform as any).OS = originalOS;
+  });
+
+  it('calls onAdmin when admin pressed', () => {
+    render(<HamburgerMenu {...defaultProps} isOpen={true} showAdmin={true} />);
+
+    fireEvent.click(screen.getByLabelText('tabs.admin'));
+    expect(defaultProps.onAdmin).toHaveBeenCalledOnce();
   });
 });
