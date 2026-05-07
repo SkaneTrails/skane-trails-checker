@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Alert, Image, Platform, StyleSheet, View } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
+import { AddSpotForm } from '@/components/AddSpotForm';
 import { FloatingButton } from '@/components/FloatingButton';
 import { FloatingCardOverlay } from '@/components/FloatingCardOverlay';
 import { ForagingSpotCard } from '@/components/ForagingSpotCard';
@@ -14,6 +15,7 @@ import { TrackingOverlay } from '@/components/TrackingOverlay';
 import { TrailCard } from '@/components/TrailCard';
 import { type MapLayers, UnifiedMap } from '@/components/UnifiedMap';
 import {
+  useCreateForagingSpot,
   useDeleteTrail,
   useForagingSpots,
   useForagingTypes,
@@ -23,12 +25,13 @@ import {
   useUpdateTrail,
 } from '@/lib/hooks';
 import { useTranslation } from '@/lib/i18n';
+import { getCurrentPosition } from '@/lib/location';
 import { calculateInitialCorners, useMapOverlays, type MapOverlay } from '@/lib/map-overlays';
 import { useSettings } from '@/lib/settings-context';
 import { spacing, useTheme } from '@/lib/theme';
 import { glassPill } from '@/lib/theme/styles';
 import { useTracking } from '@/lib/tracking-context';
-import type { ForagingSpot, Place, Trail } from '@/lib/types';
+import type { ForagingSpot, ForagingSpotCreate, Place, Trail } from '@/lib/types';
 
 type SelectedItem =
   | { type: 'trail'; data: Trail }
@@ -68,6 +71,12 @@ export default function MapScreen() {
   const [showLayers, setShowLayers] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
   const [selected, setSelected] = useState<SelectedItem | null>(null);
+
+  // Long-press add foraging spot state
+  const [showAddSpot, setShowAddSpot] = useState(false);
+  const [longPressCoords, setLongPressCoords] = useState<{ lat: number; lng: number } | null>(null);
+  const [spotLocationError, setSpotLocationError] = useState(false);
+  const createSpot = useCreateForagingSpot();
 
   // Overlay management state
   const { overlays, addOverlay, updateOverlay, deleteOverlay } = useMapOverlays();
@@ -309,6 +318,48 @@ export default function MapScreen() {
     [editingOverlayId, alignmentSelectedCorner, editingOverlay, updateOverlay, selected, showOverlayManager],
   );
 
+  // Long-press on map → open add foraging spot form with pre-filled coordinates
+  const handleLongPress = useCallback(
+    (lat: number, lng: number) => {
+      if (editingOverlayId) return; // Ignore during overlay alignment
+      setSelected(null);
+      setShowOverlayManager(false);
+      setLongPressCoords({ lat, lng });
+      setSpotLocationError(false);
+      setShowAddSpot(true);
+    },
+    [editingOverlayId],
+  );
+
+  const handleAddSpot = useCallback(
+    (data: ForagingSpotCreate) => {
+      createSpot.mutate(data, {
+        onSuccess: () => {
+          setShowAddSpot(false);
+          setLongPressCoords(null);
+          setSpotLocationError(false);
+        },
+      });
+    },
+    [createSpot],
+  );
+
+  const handleCancelAddSpot = useCallback(() => {
+    setShowAddSpot(false);
+    setLongPressCoords(null);
+    setSpotLocationError(false);
+  }, []);
+
+  const handleUseCurrentLocationForSpot = useCallback(async () => {
+    setSpotLocationError(false);
+    try {
+      const coords = await getCurrentPosition();
+      setLongPressCoords({ lat: coords.lat, lng: coords.lng });
+    } catch {
+      setSpotLocationError(true);
+    }
+  }, []);
+
   const selectedTrailId = selected?.type === 'trail' ? selected.data.trail_id : null;
   const isWeb = Platform.OS === 'web';
 
@@ -328,6 +379,7 @@ export default function MapScreen() {
         onSpotSelect={handleSpotSelect}
         onPlaceSelect={handlePlaceSelect}
         onMapClick={handleMapClick}
+        onLongPress={handleLongPress}
         onBoundsChange={setMapBounds}
       />
 
@@ -401,6 +453,22 @@ export default function MapScreen() {
           <PlaceCard
             place={selected.data}
             onClose={() => setSelected(null)}
+          />
+        )}
+      </FloatingCardOverlay>
+
+      {/* Add foraging spot form (triggered by long-press on map) */}
+      <FloatingCardOverlay isOpen={showAddSpot}>
+        {showAddSpot && (
+          <AddSpotForm
+            types={types ?? []}
+            initialLat={longPressCoords?.lat}
+            initialLng={longPressCoords?.lng}
+            onSubmit={handleAddSpot}
+            onCancel={handleCancelAddSpot}
+            onUseCurrentLocation={handleUseCurrentLocationForSpot}
+            isSubmitting={createSpot.isPending}
+            locationError={spotLocationError}
           />
         )}
       </FloatingCardOverlay>

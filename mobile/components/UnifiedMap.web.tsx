@@ -34,6 +34,7 @@ interface UnifiedMapProps {
   onSpotSelect?: (spot: ForagingSpot) => void;
   onPlaceSelect?: (place: Place) => void;
   onMapClick?: (lat: number, lng: number) => void;
+  onLongPress?: (lat: number, lng: number) => void;
   onBoundsChange?: (bounds: { north: number; south: number; east: number; west: number }) => void;
 }
 
@@ -70,6 +71,7 @@ export function UnifiedMap({
   onSpotSelect,
   onPlaceSelect,
   onMapClick,
+  onLongPress,
 }: UnifiedMapProps) {
   const { colors } = useTheme();
   const mapRef = useRef<HTMLDivElement>(null);
@@ -84,8 +86,8 @@ export function UnifiedMap({
   const placesDataRef = useRef({ places, layers, colors });
   placesDataRef.current = { places, layers, colors };
 
-  const callbackRefs = useRef({ onTrailSelect, onSpotSelect, onPlaceSelect, onMapClick });
-  callbackRefs.current = { onTrailSelect, onSpotSelect, onPlaceSelect, onMapClick };
+  const callbackRefs = useRef({ onTrailSelect, onSpotSelect, onPlaceSelect, onMapClick, onLongPress });
+  callbackRefs.current = { onTrailSelect, onSpotSelect, onPlaceSelect, onMapClick, onLongPress };
 
   const selectedTrailIdRef = useRef(selectedTrailId);
   selectedTrailIdRef.current = selectedTrailId;
@@ -146,6 +148,10 @@ export function UnifiedMap({
 
       map.on('click', (e: L.LeafletMouseEvent) => {
         callbackRefs.current.onMapClick?.(e.latlng.lat, e.latlng.lng);
+      });
+
+      map.on('contextmenu', (e: L.LeafletMouseEvent) => {
+        callbackRefs.current.onLongPress?.(e.latlng.lat, e.latlng.lng);
       });
 
       map.on('zoomend', () => {
