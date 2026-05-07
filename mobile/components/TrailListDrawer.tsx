@@ -9,7 +9,6 @@ import { useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
-  Platform,
   Pressable,
   StyleSheet,
   Text,
@@ -78,7 +77,7 @@ export const TrailListDrawer = ({ isOpen, onClose, onTrailSelect, onUpload }: Tr
     { label: t('trails.toExplore'), value: 'To Explore' },
   ] as const;
 
-  const { data: allTrails, isLoading, isFetching, refetch } = useTrails();
+  const { data: allTrails, isLoading, isFetching, isError, refetch } = useTrails();
 
   const trails = useMemo(
     () => filterTrails(allTrails ?? [], { search: search.trim() || undefined, status: statusFilter as Trail['status'] | undefined }),
@@ -139,7 +138,14 @@ export const TrailListDrawer = ({ isOpen, onClose, onTrailSelect, onUpload }: Tr
         </View>
       </View>
 
-      {isLoading && trailCount === 0 ? (
+      {isError && trailCount === 0 ? (
+        <EmptyState
+          emoji="⚠️"
+          title={t('common.error')}
+          actionLabel={t('common.retry')}
+          onAction={() => refetch()}
+        />
+      ) : isLoading && trailCount === 0 ? (
         <EmptyState title={t('trails.loadingTrails')} />
       ) : (
         <FlatList

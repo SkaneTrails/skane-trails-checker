@@ -431,9 +431,6 @@ export default function MapScreen() {
             setShowMenu(false);
             router.push('/admin');
           }}
-          onStartTracking={() => {
-            setShowMenu(false);
-          }}
           showAdmin={isSuperuser}
         />
       </View>

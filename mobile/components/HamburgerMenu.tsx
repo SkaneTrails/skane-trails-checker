@@ -6,13 +6,13 @@
  * Renders as a glass-styled dropdown anchored to the top-right.
  */
 
-import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useTranslation } from '@/lib/i18n';
 import { borderRadius, fontSize, fontWeight, spacing, useTheme } from '@/lib/theme';
 import { glassCard } from '@/lib/theme/styles';
 import { TabIcon } from './TabIcon';
 
-type IconName = 'compass' | 'leaf' | 'pin' | 'play' | 'upload' | 'settings' | 'shield' | 'image';
+type IconName = 'compass' | 'leaf' | 'pin' | 'upload' | 'settings' | 'shield' | 'image';
 
 interface MenuItem {
   key: string;
@@ -31,7 +31,6 @@ interface HamburgerMenuProps {
   onOverlays: () => void;
   onSettings: () => void;
   onAdmin: () => void;
-  onStartTracking: () => void;
   showAdmin?: boolean;
 }
 
@@ -45,13 +44,10 @@ export function HamburgerMenu({
   onOverlays,
   onSettings,
   onAdmin,
-  onStartTracking,
   showAdmin = false,
 }: HamburgerMenuProps) {
   const { colors, shadows } = useTheme();
   const { t } = useTranslation();
-
-  const isWeb = Platform.OS === 'web';
 
   const items: MenuItem[] = [
     {
@@ -84,16 +80,6 @@ export function HamburgerMenu({
       icon: 'image',
       onPress: onOverlays,
     },
-    ...(!isWeb
-      ? [
-          {
-            key: 'tracking',
-            label: t('tracking.startRecording'),
-            icon: 'play' as IconName,
-            onPress: onStartTracking,
-          },
-        ]
-      : []),
     {
       key: 'settings',
       label: t('settings.title'),

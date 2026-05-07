@@ -81,7 +81,6 @@ describe('trailCache', () => {
 
   describe('error handling', () => {
     it('returns empty data when indexedDB throws on get', async () => {
-      const originalOpen = globalThis.indexedDB?.open;
       if (globalThis.indexedDB) {
         vi.spyOn(globalThis.indexedDB, 'open').mockImplementation(() => {
           throw new Error('DB error');
@@ -96,7 +95,6 @@ describe('trailCache', () => {
     });
 
     it('handles set failure gracefully', async () => {
-      const originalOpen = globalThis.indexedDB?.open;
       if (globalThis.indexedDB) {
         vi.spyOn(globalThis.indexedDB, 'open').mockImplementation(() => {
           throw new Error('DB error');
@@ -110,7 +108,6 @@ describe('trailCache', () => {
     });
 
     it('handles clear failure gracefully', async () => {
-      const originalOpen = globalThis.indexedDB?.open;
       if (globalThis.indexedDB) {
         vi.spyOn(globalThis.indexedDB, 'open').mockImplementation(() => {
           throw new Error('DB error');

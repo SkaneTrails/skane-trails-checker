@@ -5,7 +5,7 @@
  * with month filtering, similar to the old foraging tab.
  */
 
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
@@ -65,7 +65,7 @@ export const ForagingDrawer = ({ isOpen, onClose, onAddSpot }: ForagingDrawerPro
   const { colors } = useTheme();
   const { t } = useTranslation();
   const [selectedMonth, setSelectedMonth] = useState<string | undefined>();
-  const { data: spots, isLoading, isFetching } = useForagingSpots(selectedMonth);
+  const { data: spots, isLoading, isFetching, isError, refetch } = useForagingSpots(selectedMonth);
   const { data: types } = useForagingTypes();
   const colorMap = foragingColorMap(types ?? []);
 
@@ -106,7 +106,14 @@ export const ForagingDrawer = ({ isOpen, onClose, onAddSpot }: ForagingDrawerPro
         ))}
       </View>
 
-      {isLoading ? (
+      {isError && !spots?.length ? (
+        <EmptyState
+          emoji="⚠️"
+          title={t('common.error')}
+          actionLabel={t('common.retry')}
+          onAction={() => refetch()}
+        />
+      ) : isLoading ? (
         <EmptyState title={t('foraging.loadingSpots')} />
       ) : (
         <FlatList

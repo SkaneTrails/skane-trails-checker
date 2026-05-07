@@ -1,5 +1,4 @@
 import { fireEvent, render, screen } from '@testing-library/react';
-import { Platform } from 'react-native';
 import { HamburgerMenu } from '../HamburgerMenu';
 
 vi.mock('@/lib/theme', () => ({
@@ -34,7 +33,6 @@ describe('HamburgerMenu', () => {
     onOverlays: vi.fn(),
     onSettings: vi.fn(),
     onAdmin: vi.fn(),
-    onStartTracking: vi.fn(),
   };
 
   beforeEach(() => {
@@ -135,22 +133,10 @@ describe('HamburgerMenu', () => {
     expect(screen.getByText('settings.title')).toBeDefined();
   });
 
-  it('does not show tracking on web (Platform.OS = web)', () => {
+  it('does not show tracking item (handled by FAB)', () => {
     render(<HamburgerMenu {...defaultProps} isOpen={true} />);
 
-    // On web, tracking item is hidden (Platform.OS === 'web' in tests)
     expect(screen.queryByText('tracking.startRecording')).toBeNull();
-  });
-
-  it('shows tracking item on native', () => {
-    const originalOS = Platform.OS;
-    (Platform as any).OS = 'ios';
-
-    render(<HamburgerMenu {...defaultProps} isOpen={true} />);
-
-    expect(screen.getByText('tracking.startRecording')).toBeDefined();
-
-    (Platform as any).OS = originalOS;
   });
 
   it('calls onAdmin when admin pressed', () => {
