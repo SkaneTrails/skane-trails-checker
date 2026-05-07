@@ -18,8 +18,12 @@ export default defineConfig({
         '**/__tests__/**',
         '**/*.test.*',
         '**/test/**',
+        // Type declarations — no runtime code
+        '**/*.d.ts',
         // Barrel re-exports
         '**/index.ts',
+        // Platform barrel — resolved by bundler to .web/.native variant
+        'lib/location/get-current-position.ts',
         // Pure types — no runtime code
         'lib/types.ts',
         // Firebase config — environment-dependent initialization
