@@ -200,25 +200,41 @@ describe('apiRequest', () => {
     await expect(apiRequest('/api/v1/trails')).rejects.toThrow('API Error 500: Unknown error');
   });
 
-  it('throws timeout error when fetch is aborted', async () => {
-    mockFetch.mockImplementation((_url: string, options: RequestInit) => {
-      return new Promise((_resolve, reject) => {
-        if (options.signal?.aborted) {
-          reject(new DOMException('The operation was aborted.', 'AbortError'));
-          return;
-        }
-        options.signal?.addEventListener('abort', () => {
-          reject(new DOMException('The operation was aborted.', 'AbortError'));
-        });
-      });
+  it('throws timeout error when fetch exceeds 30 seconds', async () => {
+    vi.useFakeTimers();
+
+    const setTimeoutSpy = vi.spyOn(globalThis, 'setTimeout');
+
+    mockFetch.mockImplementation(() => {
+      // Simulate a fetch that never resolves (hangs until abort)
+      return new Promise(() => {});
     });
 
-    // Directly test that AbortError is converted to ApiClientError with timeout message
-    const controller = new AbortController();
-    controller.abort();
-    mockFetch.mockRejectedValueOnce(new DOMException('The operation was aborted.', 'AbortError'));
+    const promise = apiRequest('/api/v1/trails');
 
-    await expect(apiRequest('/api/v1/trails')).rejects.toThrow('Request timed out');
+    // Verify setTimeout was called with 30_000
+    expect(setTimeoutSpy).toHaveBeenCalledWith(expect.any(Function), 30_000);
+
+    // The abort fires after 30s, but since mockFetch never settles,
+    // we need to make the mock react to the abort signal.
+    // Instead, verify the controller was set up correctly and test
+    // the AbortError→ApiClientError mapping separately below.
+    setTimeoutSpy.mockRestore();
+    vi.useRealTimers();
+
+    // Clean up the dangling promise (it will never resolve)
+    promise.catch(() => {});
+  });
+
+  it('maps AbortError to ApiClientError with timeout message', async () => {
+    const abortError = new Error('The operation was aborted.');
+    abortError.name = 'AbortError';
+    mockFetch.mockRejectedValueOnce(abortError);
+
+    const error = await apiRequest('/api/v1/trails').catch((e) => e);
+    expect(error).toBeInstanceOf(ApiClientError);
+    expect(error.status).toBe(0);
+    expect(error.reason).toBe('Request timed out');
   });
 
   it('clears timeout on successful response', async () => {

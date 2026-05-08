@@ -1,6 +1,6 @@
 import { act, renderHook } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { useNetworkStatus } from '../use-network-status.web';
+import { useNetworkStatus } from '../use-network-status';
 
 describe('useNetworkStatus (web)', () => {
   let listeners: Record<string, Set<() => void>>;

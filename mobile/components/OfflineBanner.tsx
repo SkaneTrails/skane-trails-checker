@@ -1,9 +1,10 @@
+import type { ReactNode } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { useNetworkStatus } from '@/lib/hooks';
 import { useTranslation } from '@/lib/i18n';
 import { borderRadius, fontSize, spacing } from '@/lib/theme';
 
-export function OfflineBanner(): React.ReactNode {
+export function OfflineBanner(): ReactNode {
   const { isOnline } = useNetworkStatus();
   const { t } = useTranslation();
 

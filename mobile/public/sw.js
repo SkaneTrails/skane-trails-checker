@@ -2,6 +2,7 @@
  * Service worker for offline PWA support.
  *
  * Strategy:
+ * - Map tiles (OSM): cache-first (checked before static assets to avoid .png collision)
  * - Static assets (JS, CSS, images, fonts): cache-first
  * - Unauthenticated API calls: network-first with cache fallback
  * - Navigation: network-first, falls back to cached app shell
@@ -67,12 +68,14 @@ self.addEventListener('fetch', (event) => {
   // Skip non-http(s) requests
   if (!url.startsWith('http')) return;
 
-  if (isStaticAsset(url)) {
-    // Static assets: cache-first
+  if (isMapTile(url)) {
+    // Map tiles: cache-first (must precede isStaticAsset — tiles end in .png)
+    // Tile requests are cross-origin and may produce opaque responses (type === 'opaque'),
+    // which have ok === false. We cache them anyway since the browser can still render them.
     event.respondWith(
       caches.match(request).then(
         (cached) => cached || fetch(request).then((response) => {
-          if (response.ok) {
+          if (response.ok || response.type === 'opaque') {
             const clone = response.clone();
             event.waitUntil(
               caches.open(CACHE_NAME).then((cache) => cache.put(request, clone)),
@@ -82,8 +85,8 @@ self.addEventListener('fetch', (event) => {
         }),
       ),
     );
-  } else if (isMapTile(url)) {
-    // Map tiles: cache-first (tiles are immutable for a given URL)
+  } else if (isStaticAsset(url)) {
+    // Static assets: cache-first
     event.respondWith(
       caches.match(request).then(
         (cached) => cached || fetch(request).then((response) => {

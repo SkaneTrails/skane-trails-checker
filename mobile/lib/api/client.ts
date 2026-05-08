@@ -48,6 +48,11 @@ export async function apiRequest<T>(path: string, options: RequestInit = {}): Pr
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), 30_000);
 
+  // If the caller provided a signal, abort our controller when theirs fires
+  if (options.signal) {
+    options.signal.addEventListener('abort', () => controller.abort(), { once: true });
+  }
+
   let response: Response;
   try {
     response = await fetch(url, {
@@ -56,7 +61,7 @@ export async function apiRequest<T>(path: string, options: RequestInit = {}): Pr
       signal: controller.signal,
     });
   } catch (error) {
-    if (error instanceof DOMException && error.name === 'AbortError') {
+    if (error instanceof Error && error.name === 'AbortError') {
       throw new ApiClientError(0, 'Request timed out');
     }
     throw error;
