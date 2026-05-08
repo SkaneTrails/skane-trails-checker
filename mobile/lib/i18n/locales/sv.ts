@@ -18,6 +18,7 @@ const sv: Translations = {
     goBack: 'Tillbaka',
     all: 'Alla',
     close: 'Stäng',
+    offline: 'Du är offline — visar cachad data',
   },
 
   tabs: {

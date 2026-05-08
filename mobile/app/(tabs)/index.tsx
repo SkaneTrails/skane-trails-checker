@@ -8,6 +8,7 @@ import { ForagingDrawer } from '@/components/ForagingDrawer';
 import { ForagingSpotCard } from '@/components/ForagingSpotCard';
 import { HamburgerMenu } from '@/components/HamburgerMenu';
 import { LayerToggle, type MapLayer } from '@/components/LayerToggle';
+import { OfflineBanner } from '@/components/OfflineBanner';
 import { OverlayAlignmentMode } from '@/components/OverlayAlignmentMode';
 import { OverlayManager } from '@/components/OverlayManager';
 import { PlaceCard } from '@/components/PlaceCard';
@@ -392,6 +393,8 @@ export default function MapScreen() {
         onLongPress={handleLongPress}
         onBoundsChange={setMapBounds}
       />
+
+      <OfflineBanner />
 
       {/* Layer toggle button (top-left) */}
       <View style={styles.layerButton}>
