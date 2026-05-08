@@ -18,6 +18,7 @@ const en = {
     goBack: 'Go Back',
     all: 'All',
     close: 'Close',
+    offline: 'You are offline — showing cached data',
   },
 
   tabs: {

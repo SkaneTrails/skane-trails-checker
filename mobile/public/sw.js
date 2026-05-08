@@ -29,6 +29,14 @@ function isApiCall(url) {
   return url.includes('/api/');
 }
 
+/** Map tile URL patterns (OpenStreetMap and common tile CDNs). */
+const TILE_PATTERNS = [/tile\.openstreetmap\.org/, /[abc]\.tile\.openstreetmap\.org/];
+
+/** @param {string} url */
+function isMapTile(url) {
+  return TILE_PATTERNS.some((p) => p.test(url));
+}
+
 self.addEventListener('install', (event) => {
   // Pre-cache the app shell for offline navigation fallback
   event.waitUntil(
@@ -61,6 +69,21 @@ self.addEventListener('fetch', (event) => {
 
   if (isStaticAsset(url)) {
     // Static assets: cache-first
+    event.respondWith(
+      caches.match(request).then(
+        (cached) => cached || fetch(request).then((response) => {
+          if (response.ok) {
+            const clone = response.clone();
+            event.waitUntil(
+              caches.open(CACHE_NAME).then((cache) => cache.put(request, clone)),
+            );
+          }
+          return response;
+        }),
+      ),
+    );
+  } else if (isMapTile(url)) {
+    // Map tiles: cache-first (tiles are immutable for a given URL)
     event.respondWith(
       caches.match(request).then(
         (cached) => cached || fetch(request).then((response) => {

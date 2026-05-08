@@ -199,4 +199,53 @@ describe('apiRequest', () => {
 
     await expect(apiRequest('/api/v1/trails')).rejects.toThrow('API Error 500: Unknown error');
   });
+
+  it('throws timeout error when fetch is aborted', async () => {
+    mockFetch.mockImplementation((_url: string, options: RequestInit) => {
+      return new Promise((_resolve, reject) => {
+        if (options.signal?.aborted) {
+          reject(new DOMException('The operation was aborted.', 'AbortError'));
+          return;
+        }
+        options.signal?.addEventListener('abort', () => {
+          reject(new DOMException('The operation was aborted.', 'AbortError'));
+        });
+      });
+    });
+
+    // Directly test that AbortError is converted to ApiClientError with timeout message
+    const controller = new AbortController();
+    controller.abort();
+    mockFetch.mockRejectedValueOnce(new DOMException('The operation was aborted.', 'AbortError'));
+
+    await expect(apiRequest('/api/v1/trails')).rejects.toThrow('Request timed out');
+  });
+
+  it('clears timeout on successful response', async () => {
+    const clearTimeoutSpy = vi.spyOn(globalThis, 'clearTimeout');
+
+    mockFetch.mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: () => Promise.resolve([]),
+    });
+
+    await apiRequest('/api/v1/trails');
+    expect(clearTimeoutSpy).toHaveBeenCalled();
+
+    clearTimeoutSpy.mockRestore();
+  });
+
+  it('passes abort signal to fetch', async () => {
+    mockFetch.mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: () => Promise.resolve([]),
+    });
+
+    await apiRequest('/api/v1/trails');
+
+    const callOptions = mockFetch.mock.calls[0][1];
+    expect(callOptions.signal).toBeInstanceOf(AbortSignal);
+  });
 });
