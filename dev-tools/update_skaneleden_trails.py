@@ -6,6 +6,8 @@ This script performs three steps:
 2. Merges them into a single all-skane-trails.gpx file with proper names
 3. Simplifies the coordinates using RDP algorithm to reduce file size
 
+Uses the shared gpx_pipeline module for merge and simplify steps.
+
 Usage:
     python update_skaneleden_trails.py
 """
@@ -17,21 +19,7 @@ import urllib.error
 import urllib.request
 from pathlib import Path
 
-import gpxpy
-import gpxpy.gpx
-from rdp import rdp
-
-
-def download_file(url: str, filepath: str | Path) -> bytes:
-    """Download a file from URL to filepath."""
-    if not url.startswith(("http://", "https://")):
-        raise ValueError("URL must start with 'http://' or 'https://'")  # noqa: TRY003, EM101
-    req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})  # noqa: S310
-    with urllib.request.urlopen(req, timeout=15) as response:  # noqa: S310
-        content = response.read()
-    with Path(filepath).open("wb") as f:
-        f.write(content)
-    return content
+from gpx_pipeline import download_file, merge_gpx_files, simplify_gpx
 
 
 def fetch_page(url: str) -> str:
@@ -292,162 +280,19 @@ def download_trails() -> tuple[Path, Path, int]:
     return output_dir, csv_path, len(results)
 
 
-def merge_trails(gpx_dir: Path, csv_path: Path) -> tuple[Path, int]:  # noqa: PLR0915
-    """Merge individual GPX files into a single combined file."""
-    print(f"\n{'=' * 60}")
-    print("STEP 2: Merging GPX files")
-    print("=" * 60)
-
-    # Load CSV mapping
+def _csv_to_trail_files(gpx_dir: Path, csv_path: Path) -> list[dict]:
+    """Convert the download mapping CSV to TrailFile entries for the pipeline."""
     mapping = []
-    with Path(csv_path).open(encoding="utf-8") as f:
-        reader = csv.DictReader(f)
-        mapping = list(reader)
+    with csv_path.open(encoding="utf-8") as f:
+        mapping = list(csv.DictReader(f))
 
-    print(f"Found {len(mapping)} GPX files in mapping\n")
-
-    # Create combined GPX
-    combined_gpx = gpxpy.gpx.GPX()
-
-    success_count = 0
-    fail_count = 0
-
-    for row in mapping:
-        trail_code = row["trail"]
-        trail_name = row["trail_name"]
-        etapp_name = row["etapp_name"]
-        filename = row["filename"]
-
-        gpx_file = gpx_dir / filename
-
-        if not gpx_file.exists():
-            print(f"✗ {trail_code}: {etapp_name} - File not found")
-            fail_count += 1
-            continue
-
-        try:
-            with gpx_file.open(encoding="utf-8") as f:
-                gpx_obj = gpxpy.parse(f)
-
-            # Process tracks
-            for track in gpx_obj.tracks:
-                new_track = gpxpy.gpx.GPXTrack()
-                new_track.name = f"{trail_code} {trail_name}, Etapp: {etapp_name}"
-
-                for segment in track.segments:
-                    new_track.segments.append(segment)
-
-                combined_gpx.tracks.append(new_track)
-
-            # Process routes (convert to tracks)
-            for route in gpx_obj.routes:
-                new_track = gpxpy.gpx.GPXTrack()
-                new_track.name = f"{trail_code} {trail_name}, Etapp: {etapp_name}"
-
-                segment = gpxpy.gpx.GPXTrackSegment()
-                for point in route.points:
-                    track_point = gpxpy.gpx.GPXTrackPoint(
-                        latitude=point.latitude, longitude=point.longitude, elevation=point.elevation, time=point.time
-                    )
-                    segment.points.append(track_point)
-
-                new_track.segments.append(segment)
-                combined_gpx.tracks.append(new_track)
-
-            if not gpx_obj.tracks and not gpx_obj.routes:
-                print(f"⚠ {trail_code}: {etapp_name} - No tracks or routes found")
-            else:
-                print(f"✓ {trail_code}: {etapp_name}")
-                success_count += 1
-
-        except Exception as e:
-            print(f"✗ {trail_code}: {etapp_name} - Error: {e}")
-            fail_count += 1
-
-    # Write combined file
-    output_file = Path(__file__).parent.parent / "app" / "tracks_gpx" / "planned_hikes" / "all-skane-trails.gpx"
-    output_file.parent.mkdir(parents=True, exist_ok=True)
-
-    with output_file.open("w", encoding="utf-8") as f:
-        f.write(combined_gpx.to_xml())
-
-    print(f"\n{'=' * 60}")
-    print(f"✓ Generated: {output_file}")
-    print(f"  Processed: {success_count} files")
-    print(f"  Failed: {fail_count} files")
-    print(f"  Total tracks: {len(combined_gpx.tracks)}")
-
-    return output_file, len(combined_gpx.tracks)
-
-
-def simplify_trails(gpx_file: Path, tolerance: float = 0.00005) -> tuple[int, float]:
-    """Simplify GPX coordinates using RDP algorithm."""
-    print(f"\n{'=' * 60}")
-    print("STEP 3: Simplifying coordinates")
-    print("=" * 60)
-
-    print(f"Reading {gpx_file}...")
-    with gpx_file.open(encoding="utf-8") as f:
-        gpx = gpxpy.parse(f)
-
-    # Count original points
-    original_tracks = len(gpx.tracks)
-    original_points = sum(len(segment.points) for track in gpx.tracks for segment in track.segments)
-
-    print(f"Original: {original_tracks} tracks, {original_points:,} points")
-
-    # Simplify each segment
-    segments_simplified = 0
-    for track in gpx.tracks:
-        for segment in track.segments:
-            if len(segment.points) < 3:  # noqa: PLR2004
-                continue
-
-            # Extract coordinates
-            coords = [(p.latitude, p.longitude) for p in segment.points]
-
-            # Apply RDP simplification
-            simplified = rdp(coords, epsilon=tolerance)
-
-            # Update segment with simplified points
-            new_points = []
-            for lat, lon in simplified:
-                # Find closest original point to preserve elevation/time
-                original_point = min(segment.points, key=lambda p: (p.latitude - lat) ** 2 + (p.longitude - lon) ** 2)
-                new_point = gpxpy.gpx.GPXTrackPoint(
-                    latitude=lat, longitude=lon, elevation=original_point.elevation, time=original_point.time
-                )
-                new_points.append(new_point)
-
-            segment.points = new_points
-            segments_simplified += 1
-
-    # Count simplified points
-    simplified_points = sum(len(segment.points) for track in gpx.tracks for segment in track.segments)
-
-    reduction_pct = ((original_points - simplified_points) / original_points) * 100
-    print(f"Simplified: {original_tracks} tracks, {simplified_points:,} points ({reduction_pct:.1f}% reduction)")
-    print(f"Simplified {segments_simplified} segments")
-
-    # Write simplified file
-    simplified_file = gpx_file.parent / "all-skane-trails-simplified.gpx"
-    with simplified_file.open("w", encoding="utf-8") as f:
-        f.write(gpx.to_xml())
-
-    # Calculate file sizes
-    original_size = gpx_file.stat().st_size / (1024 * 1024)
-    simplified_size = simplified_file.stat().st_size / (1024 * 1024)
-    size_reduction_pct = ((original_size - simplified_size) / original_size) * 100
-
-    print("\nFile sizes:")
-    print(f"  Original: {original_size:.2f} MB")
-    print(f"  Simplified: {simplified_size:.2f} MB ({size_reduction_pct:.1f}% reduction)")
-
-    # Replace original with simplified
-    simplified_file.replace(gpx_file)
-    print(f"\n✓ Replaced {gpx_file.name} with simplified version")
-
-    return simplified_points, simplified_size
+    return [
+        {
+            "gpx_path": gpx_dir / row["filename"],
+            "name": f"{row['trail']} {row['trail_name']}, Etapp: {row['etapp_name']}",
+        }
+        for row in mapping
+    ]
 
 
 def main() -> None:
@@ -461,17 +306,24 @@ def main() -> None:
     gpx_dir, csv_path, download_count = download_trails()
 
     # Step 2: Merge
-    output_file, track_count = merge_trails(gpx_dir, csv_path)
+    print(f"\n{'=' * 60}")
+    print("STEP 2: Merging GPX files")
+    print("=" * 60)
+    output_file = Path(__file__).parent.parent / "app" / "tracks_gpx" / "planned_hikes" / "all-skane-trails.gpx"
+    trail_files = _csv_to_trail_files(gpx_dir, csv_path)
+    merge_gpx_files(trail_files, output_file)
 
     # Step 3: Simplify
-    final_points, final_size = simplify_trails(output_file)
+    print(f"\n{'=' * 60}")
+    print("STEP 3: Simplifying coordinates")
+    print("=" * 60)
+    final_points, final_size = simplify_gpx(output_file)
 
     print("\n" + "=" * 60)
     print("COMPLETE")
     print("=" * 60)
-    print(f"✓ Downloaded {download_count} GPX files")
-    print(f"✓ Merged into {track_count} tracks")
-    print(f"✓ Simplified to {final_points:,} points ({final_size:.2f} MB)")
+    print(f"Downloaded {download_count} GPX files")
+    print(f"Simplified to {final_points:,} points ({final_size:.2f} MB)")
     print(f"\nOutput: {output_file}")
     print("\nNext: Run bootstrap to load trails into Firestore:")
     print(
