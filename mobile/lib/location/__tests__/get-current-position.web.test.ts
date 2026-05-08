@@ -94,6 +94,54 @@ describe('getCurrentPosition (web adapter)', () => {
     await expect(getCurrentPosition()).rejects.toMatchObject({ reason: 'timeout' });
   });
 
+  it('throws LocationError with reason "unavailable" on POSITION_UNAVAILABLE', async () => {
+    const getCurrentPositionMock = vi.fn(
+      (_success: PositionCallback, error: PositionErrorCallback) => {
+        error({
+          code: 2, // POSITION_UNAVAILABLE
+          message: 'Position unavailable',
+          PERMISSION_DENIED: 1,
+          POSITION_UNAVAILABLE: 2,
+          TIMEOUT: 3,
+        } as GeolocationPositionError);
+      },
+    );
+    Object.defineProperty(global.navigator, 'geolocation', {
+      value: { getCurrentPosition: getCurrentPositionMock },
+      writable: true,
+      configurable: true,
+    });
+
+    const { getCurrentPosition } = await import('../get-current-position.web');
+
+    await expect(getCurrentPosition()).rejects.toThrow(LocationError);
+    await expect(getCurrentPosition()).rejects.toMatchObject({ reason: 'unavailable' });
+  });
+
+  it('throws LocationError with reason "unknown" on unrecognized error code', async () => {
+    const getCurrentPositionMock = vi.fn(
+      (_success: PositionCallback, error: PositionErrorCallback) => {
+        error({
+          code: 99,
+          message: 'Unknown error',
+          PERMISSION_DENIED: 1,
+          POSITION_UNAVAILABLE: 2,
+          TIMEOUT: 3,
+        } as GeolocationPositionError);
+      },
+    );
+    Object.defineProperty(global.navigator, 'geolocation', {
+      value: { getCurrentPosition: getCurrentPositionMock },
+      writable: true,
+      configurable: true,
+    });
+
+    const { getCurrentPosition } = await import('../get-current-position.web');
+
+    await expect(getCurrentPosition()).rejects.toThrow(LocationError);
+    await expect(getCurrentPosition()).rejects.toMatchObject({ reason: 'unknown' });
+  });
+
   it('passes enableHighAccuracy option to the browser API', async () => {
     const getCurrentPositionMock = vi.fn((success: PositionCallback) => {
       success({

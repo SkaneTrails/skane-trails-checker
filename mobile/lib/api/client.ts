@@ -45,10 +45,33 @@ export async function apiRequest<T>(path: string, options: RequestInit = {}): Pr
     }
   }
 
-  const response = await fetch(url, {
-    ...options,
-    headers,
-  });
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 30_000);
+
+  // If the caller provided a signal, compose it with our timeout controller
+  if (options.signal) {
+    if (options.signal.aborted) {
+      controller.abort();
+    } else {
+      options.signal.addEventListener('abort', () => controller.abort(), { once: true });
+    }
+  }
+
+  let response: Response;
+  try {
+    response = await fetch(url, {
+      ...options,
+      headers,
+      signal: controller.signal,
+    });
+  } catch (error) {
+    if (error instanceof Error && error.name === 'AbortError') {
+      throw new ApiClientError(0, 'Request timed out');
+    }
+    throw error;
+  } finally {
+    clearTimeout(timeoutId);
+  }
 
   if (response.status === 401) {
     onUnauthorized?.(hadToken);

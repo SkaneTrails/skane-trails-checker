@@ -20,11 +20,14 @@ const SYNC_TIME_KEY = '@lastSyncTime';
 export const trailCache = {
   async get(): Promise<CachedTrailData> {
     try {
-      const [trailsJson, lastSyncTime] = await AsyncStorage.multiGet([TRAILS_KEY, SYNC_TIME_KEY]);
-      const trails: Trail[] = trailsJson[1] ? JSON.parse(trailsJson[1]) : [];
+      const [trailsJson, lastSyncTime] = await Promise.all([
+        AsyncStorage.getItem(TRAILS_KEY),
+        AsyncStorage.getItem(SYNC_TIME_KEY),
+      ]);
+      const trails: Trail[] = trailsJson ? JSON.parse(trailsJson) : [];
       return {
         trails,
-        lastSyncTime: lastSyncTime[1] ?? null,
+        lastSyncTime: lastSyncTime ?? null,
       };
     } catch {
       return { trails: [], lastSyncTime: null };
@@ -33,9 +36,9 @@ export const trailCache = {
 
   async set(trails: Trail[], lastSyncTime: string): Promise<void> {
     try {
-      await AsyncStorage.multiSet([
-        [TRAILS_KEY, JSON.stringify(trails)],
-        [SYNC_TIME_KEY, lastSyncTime],
+      await Promise.all([
+        AsyncStorage.setItem(TRAILS_KEY, JSON.stringify(trails)),
+        AsyncStorage.setItem(SYNC_TIME_KEY, lastSyncTime),
       ]);
     } catch {
       // Cache write failure is non-fatal — next open will do a full fetch
@@ -55,7 +58,10 @@ export const trailCache = {
 
   async clear(): Promise<void> {
     try {
-      await AsyncStorage.multiRemove([TRAILS_KEY, SYNC_TIME_KEY]);
+      await Promise.all([
+        AsyncStorage.removeItem(TRAILS_KEY),
+        AsyncStorage.removeItem(SYNC_TIME_KEY),
+      ]);
     } catch {
       // Clear failure is non-fatal
     }

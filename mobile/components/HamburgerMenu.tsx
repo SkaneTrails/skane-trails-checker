@@ -1,58 +1,101 @@
 /**
  * Hamburger menu overlay for map screen actions.
  *
- * Provides quick access to settings and GPS tracking (Android only).
+ * Primary navigation replacing the old tab bar. Provides access to
+ * all app sections: trails, foraging, places, upload, settings, admin.
  * Renders as a glass-styled dropdown anchored to the top-right.
  */
 
-import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useTranslation } from '@/lib/i18n';
 import { borderRadius, fontSize, fontWeight, spacing, useTheme } from '@/lib/theme';
 import { glassCard } from '@/lib/theme/styles';
 import { TabIcon } from './TabIcon';
 
+type IconName = 'compass' | 'leaf' | 'pin' | 'upload' | 'settings' | 'shield' | 'image';
+
 interface MenuItem {
   key: string;
   label: string;
-  icon: 'play' | 'settings';
+  icon: IconName;
   onPress: () => void;
-  disabled?: boolean;
-  subtitle?: string;
 }
 
 interface HamburgerMenuProps {
   isOpen: boolean;
   onToggle: () => void;
+  onTrails: () => void;
+  onForaging: () => void;
+  onPlaces: () => void;
+  onUpload: () => void;
+  onOverlays: () => void;
   onSettings: () => void;
-  onStartTracking: () => void;
-  showTrackingItem?: boolean;
+  onAdmin: () => void;
+  showAdmin?: boolean;
 }
 
-export function HamburgerMenu({ isOpen, onToggle, onSettings, onStartTracking, showTrackingItem = true }: HamburgerMenuProps) {
+export function HamburgerMenu({
+  isOpen,
+  onToggle,
+  onTrails,
+  onForaging,
+  onPlaces,
+  onUpload,
+  onOverlays,
+  onSettings,
+  onAdmin,
+  showAdmin = false,
+}: HamburgerMenuProps) {
   const { colors, shadows } = useTheme();
   const { t } = useTranslation();
 
-  const isWeb = Platform.OS === 'web';
-
   const items: MenuItem[] = [
-    ...(showTrackingItem
-      ? [
-          {
-            key: 'tracking',
-            label: t('tracking.startTracking'),
-            icon: 'play' as const,
-            onPress: onStartTracking,
-            disabled: isWeb,
-            subtitle: isWeb ? t('tracking.webNotSupported') : undefined,
-          },
-        ]
-      : []),
+    {
+      key: 'trails',
+      label: t('tabs.trails'),
+      icon: 'compass',
+      onPress: onTrails,
+    },
+    {
+      key: 'foraging',
+      label: t('tabs.foraging'),
+      icon: 'leaf',
+      onPress: onForaging,
+    },
+    {
+      key: 'places',
+      label: t('tabs.places'),
+      icon: 'pin',
+      onPress: onPlaces,
+    },
+    {
+      key: 'upload',
+      label: t('trails.uploadGpx'),
+      icon: 'upload',
+      onPress: onUpload,
+    },
+    {
+      key: 'overlays',
+      label: t('overlays.title'),
+      icon: 'image',
+      onPress: onOverlays,
+    },
     {
       key: 'settings',
       label: t('settings.title'),
-      icon: 'settings' as const,
+      icon: 'settings',
       onPress: onSettings,
     },
+    ...(showAdmin
+      ? [
+          {
+            key: 'admin',
+            label: t('tabs.admin'),
+            icon: 'shield' as IconName,
+            onPress: onAdmin,
+          },
+        ]
+      : []),
   ];
 
   return (
@@ -97,26 +140,22 @@ export function HamburgerMenu({ isOpen, onToggle, onSettings, onStartTracking, s
               <Pressable
                 key={item.key}
                 onPress={() => {
-                  if (!item.disabled) {
-                    onToggle();
-                    item.onPress();
-                  }
+                  onToggle();
+                  item.onPress();
                 }}
                 accessibilityRole="menuitem"
                 accessibilityLabel={item.label}
-                accessibilityState={{ disabled: item.disabled }}
                 style={[
                   styles.menuItem,
                   index < items.length - 1 && {
                     borderBottomWidth: 1,
                     borderBottomColor: colors.glass.border,
                   },
-                  item.disabled && styles.menuItemDisabled,
                 ]}
               >
                 <TabIcon
                   name={item.icon}
-                  color={item.disabled ? colors.text.muted : colors.text.secondary}
+                  color={colors.text.secondary}
                   size={18}
                   strokeWidth={1.5}
                 />
@@ -125,17 +164,12 @@ export function HamburgerMenu({ isOpen, onToggle, onSettings, onStartTracking, s
                     style={[
                       styles.menuLabel,
                       {
-                        color: item.disabled ? colors.text.muted : colors.text.primary,
+                        color: colors.text.primary,
                       },
                     ]}
                   >
                     {item.label}
                   </Text>
-                  {item.subtitle && (
-                    <Text style={[styles.menuSubtitle, { color: colors.text.muted }]}>
-                      {item.subtitle}
-                    </Text>
-                  )}
                 </View>
               </Pressable>
             ))}
@@ -165,18 +199,11 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.md,
     paddingHorizontal: spacing.lg,
   },
-  menuItemDisabled: {
-    opacity: 0.6,
-  },
   menuItemText: {
     flex: 1,
   },
   menuLabel: {
     fontSize: fontSize.md,
     fontWeight: fontWeight.semibold,
-  },
-  menuSubtitle: {
-    fontSize: fontSize.xs,
-    marginTop: 2,
   },
 });

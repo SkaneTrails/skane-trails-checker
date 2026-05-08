@@ -11,9 +11,10 @@ import {
   type Auth,
   getAuth,
   GoogleAuthProvider,
-  getReactNativePersistence,
   initializeAuth,
 } from 'firebase/auth';
+// @ts-expect-error — getReactNativePersistence exists at runtime but not in all type definitions
+import { getReactNativePersistence } from 'firebase/auth';
 import ReactNativeAsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
 

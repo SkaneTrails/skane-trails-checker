@@ -19,6 +19,7 @@ export {
   useRemoveMember,
   useUpdateHikeGroup,
 } from './use-hike-groups';
+export { useNetworkStatus } from './use-network-status';
 export { placeKeys, usePlaceCategories, usePlaces } from './use-places';
 export {
   trailKeys,

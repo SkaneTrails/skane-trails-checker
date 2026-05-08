@@ -44,6 +44,7 @@ interface UnifiedMapProps {
   onSpotSelect?: (spot: ForagingSpot) => void;
   onPlaceSelect?: (place: Place) => void;
   onMapClick?: (lat: number, lng: number) => void;
+  onLongPress?: (lat: number, lng: number) => void;
   onBoundsChange?: (bounds: { north: number; south: number; east: number; west: number }) => void;
 }
 
@@ -105,10 +106,12 @@ export function UnifiedMap({
   onSpotSelect,
   onPlaceSelect,
   onMapClick,
+  onLongPress,
   onBoundsChange,
 }: UnifiedMapProps) {
   const { colors } = useTheme();
   const cameraRef = useRef<CameraRef>(null);
+  // @ts-expect-error — MapLibre RN type definition doesn't match runtime component shape
   const mapRef = useRef<InstanceType<typeof Map>>(null);
   const boundsRequestRef = useRef(0);
   const [currentZoom, setCurrentZoom] = useState(DEFAULT_ZOOM);
@@ -181,12 +184,17 @@ export function UnifiedMap({
         ref={mapRef}
         style={styles.map}
         mapStyle={MAP_STYLE}
+        // @ts-expect-error — logoEnabled exists at runtime but not in MapLibre RN type defs
         logoEnabled={false}
         attributionPosition={{ bottom: 8, right: 8 }}
 
         onPress={(e) => {
           const { lngLat } = e.nativeEvent;
           onMapClick?.(lngLat[1], lngLat[0]);
+        }}
+        onLongPress={(e) => {
+          const { lngLat } = e.nativeEvent;
+          onLongPress?.(lngLat[1], lngLat[0]);
         }}
         onRegionDidChange={async (e) => {
           const zoom = e.nativeEvent?.zoom;
@@ -215,6 +223,7 @@ export function UnifiedMap({
           }}
         />
 
+        {/* @ts-expect-error — MapLibre UserLocation prop types incomplete */}
         <UserLocation visible />
 
         {/* Image overlays — rendered below trails so trails are visible on top */}
