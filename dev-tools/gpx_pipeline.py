@@ -11,7 +11,7 @@ Usage:
     files = [{"gpx_path": Path("a.gpx"), "name": "Trail A"}, ...]
     merged = merge_gpx_files(files, output_path)
     simplify_gpx(merged)
-    import_gpx_to_firestore(merged, source="world_wide_hikes", project="my-proj")
+    import_gpx_to_firestore(merged, source="world_wide_hikes")
 """
 
 from __future__ import annotations
@@ -146,11 +146,21 @@ def simplify_gpx(gpx_file: Path, *, tolerance: float = RDP_TOLERANCE) -> tuple[i
             coords = [(p.latitude, p.longitude) for p in segment.points]
             simplified = rdp(coords, epsilon=tolerance)
 
+            # Build lookup from (lat,lon) -> original point for O(1) elevation/time retrieval
+            point_lookup: dict[tuple[float, float], gpxpy.gpx.GPXTrackPoint] = {
+                (p.latitude, p.longitude): p for p in segment.points
+            }
+
             new_points = []
             for lat, lon in simplified:
-                closest = min(segment.points, key=lambda p: (p.latitude - lat) ** 2 + (p.longitude - lon) ** 2)
+                original = point_lookup.get((lat, lon))
                 new_points.append(
-                    gpxpy.gpx.GPXTrackPoint(latitude=lat, longitude=lon, elevation=closest.elevation, time=closest.time)
+                    gpxpy.gpx.GPXTrackPoint(
+                        latitude=lat,
+                        longitude=lon,
+                        elevation=original.elevation if original else None,
+                        time=original.time if original else None,
+                    )
                 )
             segment.points = new_points
 
@@ -273,9 +283,9 @@ def import_gpx_to_firestore(  # noqa: C901, PLR0912, PLR0915
             errors += 1
 
     if loaded > 0:
-        from api.storage.trail_storage import _update_sync_metadata
+        from api.storage.trail_storage import update_sync_metadata
 
-        _update_sync_metadata()
+        update_sync_metadata()
 
     print(f"\nImported: {loaded}, Skipped: {skipped}, Errors: {errors}")
     return loaded, skipped, errors
@@ -306,11 +316,11 @@ def _split_multi_segment(track: gpxpy.gpx.GPXTrack) -> list[tuple[gpxpy.gpx.GPXT
 
 
 def download_file(url: str, filepath: Path, *, timeout: int = 30) -> None:
-    """Download a file from a URL. Validates scheme before opening."""
+    """Download a file from a URL. Only HTTPS URLs are allowed."""
     import urllib.request
 
-    if not url.startswith(("http://", "https://")):
-        raise ValueError("URL must start with http:// or https://")  # noqa: TRY003, EM101
+    if not url.startswith("https://"):
+        raise ValueError("URL must use HTTPS")  # noqa: TRY003, EM101
     encoded_url = url.replace(" ", "%20")
     req = urllib.request.Request(encoded_url, headers={"User-Agent": "Mozilla/5.0"})  # noqa: S310
     with urllib.request.urlopen(req, timeout=timeout) as response:  # noqa: S310

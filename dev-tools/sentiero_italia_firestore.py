@@ -53,7 +53,7 @@ def apply_cai_metadata(trail, cai_meta: dict) -> None:  # noqa: ANN001
             trail.elevation_loss = float(cai_loss)
 
     cai_km = cai_meta.get("km")
-    if cai_km:
+    if cai_km and not trail.length_km:
         with contextlib.suppress(ValueError, TypeError):
             trail.length_km = round(float(cai_km), 2)
 
@@ -66,9 +66,19 @@ def import_trails(  # noqa: C901, PLR0912, PLR0915
     Enriches each trail with CAI metadata: difficulty, elevation, length.
     """
     import os
+    import sys
 
     import gpxpy
     import gpxpy.gpx
+
+    # Ensure project root is on sys.path so api/app packages are importable
+    project_root = str(Path(__file__).resolve().parent.parent)
+    if project_root not in sys.path:
+        sys.path.insert(0, project_root)
+
+    from app.functions.env_loader import load_env_if_needed
+
+    load_env_if_needed()
 
     from api.storage.firestore_client import get_collection
     from api.storage.trail_storage import save_trail
@@ -87,7 +97,7 @@ def import_trails(  # noqa: C901, PLR0912, PLR0915
 
     os.environ["GOOGLE_CLOUD_PROJECT"] = project
     if database:
-        os.environ["FIRESTORE_DATABASE"] = database
+        os.environ["FIRESTORE_DATABASE_ID"] = database
 
     print(f"\n{'=' * 60}")
     print(f"Importing trails from {gpx_file.name}")
@@ -157,9 +167,9 @@ def import_trails(  # noqa: C901, PLR0912, PLR0915
             errors += 1
 
     if loaded > 0:
-        from api.storage.trail_storage import _update_sync_metadata
+        from api.storage.trail_storage import update_sync_metadata
 
-        _update_sync_metadata()
+        update_sync_metadata()
 
     print(f"\n{'=' * 60}")
     print(f"Imported: {loaded} trails")
@@ -200,7 +210,7 @@ def import_places(regions: list[str] | None = None, *, output_dir: Path) -> None
         print("Run: uv run python dev-tools/setup_env.py")
         sys.exit(1)
 
-    from api.storage.places_storage import save_place
+    from api.storage.places_storage import save_places_batch
 
     poi_path = output_dir / "sentiero_italia_pois.json"
     if not poi_path.exists():
@@ -213,6 +223,9 @@ def import_places(regions: list[str] | None = None, *, output_dir: Path) -> None
 
     all_pois: list[dict] = data.get("pois", [])
 
+    # Filter out trail nodes (Nodi) — they're not meaningful as Places
+    all_pois = [p for p in all_pois if p.get("layer") != "Nodi"]
+
     if regions:
         all_pois = _filter_pois_by_regions(data, output_dir, regions, all_pois)
 
@@ -221,21 +234,17 @@ def import_places(regions: list[str] | None = None, *, output_dir: Path) -> None
     print(f"Project: {project}, Database: {database or '(default)'}")
     print("=" * 60)
 
-    loaded = 0
+    places = []
     errors = 0
 
     for poi in all_pois:
         try:
-            place = _poi_to_place(poi)
-            save_place(place)
-            loaded += 1
-
-            if loaded % 100 == 0:
-                print(f"  Imported {loaded} places...")
-
+            places.append(_poi_to_place(poi))
         except Exception as e:
-            print(f"  ERROR importing POI '{poi.get('name', '?')}': {e}")
+            print(f"  ERROR converting POI '{poi.get('name', '?')}': {e}")
             errors += 1
+
+    loaded = save_places_batch(places) if places else 0
 
     print(f"\n{'=' * 60}")
     print(f"Imported: {loaded} places")

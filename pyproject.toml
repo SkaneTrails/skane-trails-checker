@@ -105,7 +105,7 @@ package_module_name_map.skane-trails-checker = "app"
 package_module_name_map.fastapi = "fastapi"
 # numpy is a transitive dependency used via rdp for coordinate simplification
 per_rule_ignores.DEP003 = [ "numpy" ]
-# These are local packages within the app/ directory
+# These are local packages within app/ and dev-tools/
 per_rule_ignores.DEP001 = [
   "api",
   "functions",

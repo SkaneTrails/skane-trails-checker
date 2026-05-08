@@ -278,6 +278,9 @@ def match_pois_to_tappe(
     print(f"\nMatching POIs to tappe (radius: {radius_km} km)...")
     matches: dict[str, list[dict]] = {}
 
+    # Precompute degree threshold for cheap bounding-box filter (~1° lat ≈ 111 km)
+    degree_threshold = radius_km / 111.0
+
     for tappa in tappe:
         tappa_name = tappa["tappa"]
         clat, clng = tappa.get("centroid_lat"), tappa.get("centroid_lng")
@@ -286,6 +289,9 @@ def match_pois_to_tappe(
 
         nearby = []
         for poi in pois:
+            # Cheap bounding-box prefilter before expensive Haversine
+            if abs(poi["lat"] - clat) > degree_threshold or abs(poi["lng"] - clng) > degree_threshold:
+                continue
             dist = haversine_km(clat, clng, poi["lat"], poi["lng"])
             if dist <= radius_km:
                 nearby.append({**poi, "distance_km": round(dist, 2)})
