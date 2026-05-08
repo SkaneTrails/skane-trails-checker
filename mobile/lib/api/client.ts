@@ -48,9 +48,13 @@ export async function apiRequest<T>(path: string, options: RequestInit = {}): Pr
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), 30_000);
 
-  // If the caller provided a signal, abort our controller when theirs fires
+  // If the caller provided a signal, compose it with our timeout controller
   if (options.signal) {
-    options.signal.addEventListener('abort', () => controller.abort(), { once: true });
+    if (options.signal.aborted) {
+      controller.abort();
+    } else {
+      options.signal.addEventListener('abort', () => controller.abort(), { once: true });
+    }
   }
 
   let response: Response;

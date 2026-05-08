@@ -205,25 +205,31 @@ describe('apiRequest', () => {
 
     const setTimeoutSpy = vi.spyOn(globalThis, 'setTimeout');
 
-    mockFetch.mockImplementation(() => {
-      // Simulate a fetch that never resolves (hangs until abort)
-      return new Promise(() => {});
+    mockFetch.mockImplementation((_url: string, options: RequestInit) => {
+      return new Promise((_resolve, reject) => {
+        options.signal?.addEventListener('abort', () => {
+          const err = new Error('The operation was aborted.');
+          err.name = 'AbortError';
+          reject(err);
+        });
+      });
     });
 
-    const promise = apiRequest('/api/v1/trails');
+    const promise = apiRequest('/api/v1/trails').catch((e) => e);
 
     // Verify setTimeout was called with 30_000
     expect(setTimeoutSpy).toHaveBeenCalledWith(expect.any(Function), 30_000);
 
-    // The abort fires after 30s, but since mockFetch never settles,
-    // we need to make the mock react to the abort signal.
-    // Instead, verify the controller was set up correctly and test
-    // the AbortError→ApiClientError mapping separately below.
+    // Advance past the timeout — triggers controller.abort() → fetch rejects
+    await vi.advanceTimersByTimeAsync(30_000);
+
+    const error = await promise;
+    expect(error).toBeInstanceOf(ApiClientError);
+    expect(error.status).toBe(0);
+    expect(error.reason).toBe('Request timed out');
+
     setTimeoutSpy.mockRestore();
     vi.useRealTimers();
-
-    // Clean up the dangling promise (it will never resolve)
-    promise.catch(() => {});
   });
 
   it('maps AbortError to ApiClientError with timeout message', async () => {

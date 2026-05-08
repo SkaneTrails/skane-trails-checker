@@ -1,5 +1,5 @@
 import { act, renderHook } from '@testing-library/react';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { useNetworkStatus } from '../use-network-status';
 
 describe('useNetworkStatus (web)', () => {
@@ -13,6 +13,10 @@ describe('useNetworkStatus (web)', () => {
     vi.spyOn(window, 'removeEventListener').mockImplementation((event, cb) => {
       listeners[event]?.delete(cb as () => void);
     });
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
   });
 
   it('returns true when navigator.onLine is true', () => {

@@ -10,6 +10,8 @@
  */
 
 const CACHE_NAME = 'skane-trails-v1';
+const TILE_CACHE_NAME = 'skane-trails-tiles-v1';
+const TILE_CACHE_MAX_ENTRIES = 500;
 const APP_SHELL = '/';
 
 /** Patterns for static assets to cache (matched against pathname). */
@@ -48,10 +50,11 @@ self.addEventListener('install', (event) => {
 
 self.addEventListener('activate', (event) => {
   // Clean up old caches and claim clients in one waitUntil
+  const keepCaches = new Set([CACHE_NAME, TILE_CACHE_NAME]);
   event.waitUntil(
     Promise.all([
       caches.keys().then((keys) =>
-        Promise.all(keys.filter((k) => k !== CACHE_NAME).map((k) => caches.delete(k))),
+        Promise.all(keys.filter((k) => !keepCaches.has(k)).map((k) => caches.delete(k))),
       ),
       self.clients.claim(),
     ]),
@@ -69,7 +72,7 @@ self.addEventListener('fetch', (event) => {
   if (!url.startsWith('http')) return;
 
   if (isMapTile(url)) {
-    // Map tiles: cache-first (must precede isStaticAsset — tiles end in .png)
+    // Map tiles: cache-first in dedicated tile cache (must precede isStaticAsset — tiles end in .png)
     // Tile requests are cross-origin and may produce opaque responses (type === 'opaque'),
     // which have ok === false. We cache them anyway since the browser can still render them.
     event.respondWith(
@@ -78,7 +81,17 @@ self.addEventListener('fetch', (event) => {
           if (response.ok || response.type === 'opaque') {
             const clone = response.clone();
             event.waitUntil(
-              caches.open(CACHE_NAME).then((cache) => cache.put(request, clone)),
+              caches.open(TILE_CACHE_NAME).then((cache) => {
+                cache.put(request, clone);
+                // Evict oldest entries when cache exceeds max size
+                return cache.keys().then((keys) => {
+                  if (keys.length > TILE_CACHE_MAX_ENTRIES) {
+                    return Promise.all(
+                      keys.slice(0, keys.length - TILE_CACHE_MAX_ENTRIES).map((k) => cache.delete(k)),
+                    );
+                  }
+                });
+              }),
             );
           }
           return response;
