@@ -156,7 +156,7 @@ class TestUploadTrailImage:
     @patch("api.routers.trails.trail_storage.get_trail")
     def test_upload_processed_image_too_large(self, mock_get_trail, mock_process, authenticated_client):
         mock_get_trail.return_value = SAMPLE_TRAIL
-        mock_process.return_value = ("x" * 800_000, None, None)  # over 700KB limit
+        mock_process.return_value = ("x" * 400_000, None, None)  # over 300KB limit
         jpeg_data = _make_jpeg()
         response = authenticated_client.post(
             "/api/v1/trails/abc123/images?role=primary", files={"file": ("photo.jpg", jpeg_data, "image/jpeg")}

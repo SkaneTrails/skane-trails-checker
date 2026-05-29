@@ -262,7 +262,7 @@ def save_recording(body: RecordingCreate, user: Annotated[AuthenticatedUser, Dep
 
 MAX_IMAGES_PER_TRAIL = 3
 MAX_IMAGE_UPLOAD_SIZE = 15 * 1024 * 1024  # 15 MB — phones take large photos; server scales down
-MAX_BASE64_SIZE = 700_000  # ~700 KB base64 — leaves room for metadata under Firestore 1 MiB doc limit
+MAX_BASE64_SIZE = 300_000  # ~300 KB base64 per image — 3 images + JSON overhead stays under Firestore 1 MiB doc limit
 
 
 @router.get("/{trail_id}/images")

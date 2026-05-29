@@ -91,7 +91,10 @@ def _dms_to_decimal(dms: tuple, ref: str | None) -> float:
 
 
 def _auto_orient(img: Image.Image) -> Image.Image:
-    """Apply EXIF orientation tag and strip all EXIF data."""
+    """Apply EXIF orientation rotation/flip based on EXIF tag.
+
+    Note: EXIF data is stripped later during JPEG re-encoding in _to_base64_jpeg.
+    """
     try:
         exif = img.getexif()
         orientation = exif.get(ExifTags.Base.Orientation)
