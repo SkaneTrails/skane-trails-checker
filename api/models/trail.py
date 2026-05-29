@@ -217,6 +217,23 @@ class SyncMetadata(BaseModel):
     )
 
 
+class TrailImage(BaseModel):
+    """An image attached to a trail."""
+
+    image_data: str = Field(description="Base64-encoded JPEG")
+    role: str = Field(description="'primary' or 'secondary'", pattern=r"^(primary|secondary)$")
+    lat: float | None = Field(default=None, ge=-90, le=90, description="EXIF GPS latitude")
+    lng: float | None = Field(default=None, ge=-180, le=180, description="EXIF GPS longitude")
+    caption: str | None = Field(default=None, max_length=200)
+
+
+class TrailImagesResponse(BaseModel):
+    """Response for trail images."""
+
+    trail_id: str
+    images: list[TrailImage] = Field(default_factory=list, max_length=3)
+
+
 class RecordingCoordinate(BaseModel):
     """A GPS coordinate from a device recording."""
 

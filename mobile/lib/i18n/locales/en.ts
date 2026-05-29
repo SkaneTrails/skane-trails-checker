@@ -200,6 +200,20 @@ const en = {
     privateTrail: 'Private',
   },
 
+  trailImages: {
+    noPhotos: 'No photos yet',
+    primaryPhoto: 'Primary Photo',
+    morePhotos: 'More Photos',
+    addPrimary: 'Add Primary',
+    addPhoto: 'Add Photo',
+    uploading: 'Uploading...',
+    uploadFailed: 'Upload failed',
+    deleteImage: 'Delete Image',
+    deleteConfirm: 'Delete this photo?',
+    photos: 'Photos',
+    info: 'Info',
+  },
+
   months: {
     jan: 'Jan',
     feb: 'Feb',

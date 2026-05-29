@@ -13,8 +13,10 @@ import {
   Text,
   View,
 } from 'react-native';
-import { Chip, ContentCard, EmptyState } from '@/components';
+import { Chip } from '@/components/Chip';
+import { ContentCard } from '@/components/ContentCard';
 import { DrawerOverlay } from '@/components/DrawerOverlay';
+import { EmptyState } from '@/components/EmptyState';
 import { PlaceCategoryIcon } from '@/components/PlaceCategoryIcon';
 import { usePlaceCategories, usePlaces } from '@/lib/hooks';
 import { useTranslation } from '@/lib/i18n';

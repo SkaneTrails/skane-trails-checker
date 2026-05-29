@@ -25,6 +25,7 @@ import {
   useForagingTypes,
   useMapTrails,
   usePlaces,
+  useTrailPrimaryPins,
   useUpdateForagingSpot,
   useUpdateTrail,
 } from '@/lib/hooks';
@@ -53,6 +54,7 @@ export default function MapScreen() {
   const isSuperuser = currentUser?.role === 'superuser';
 
   const { data: trails, isFetching: trailsFetching } = useMapTrails();
+  const imagePins = useTrailPrimaryPins(trails);
   const { data: spots } = useForagingSpots();
   const { data: types } = useForagingTypes();
   const { data: places } = usePlaces();
@@ -385,6 +387,7 @@ export default function MapScreen() {
         selectedTrailId={selectedTrailId}
         focusBounds={focusBounds}
         recordingPoints={recordingPoints}
+        imagePins={imagePins}
         imageOverlays={visibleOverlays}
         onTrailSelect={handleTrailSelect}
         onSpotSelect={handleSpotSelect}

@@ -1,4 +1,4 @@
-import type { SyncMetadata, Trail, TrailDetails, TrailUpdate } from '@/lib/types';
+import type { SyncMetadata, Trail, TrailDetails, TrailImagesResponse, TrailUpdate } from '@/lib/types';
 import type { TrackingPoint } from '@/lib/track-to-trail';
 import { toRecordingPayload } from '@/lib/track-to-trail';
 import { apiRequest } from './client';
@@ -85,6 +85,34 @@ export const trailsApi = {
     return apiRequest<Trail>('/api/v1/trails/record', {
       method: 'POST',
       body: JSON.stringify(toRecordingPayload(name, points)),
+    });
+  },
+
+  getTrailImages(id: string): Promise<TrailImagesResponse> {
+    return apiRequest<TrailImagesResponse>(`/api/v1/trails/${id}/images`);
+  },
+
+  uploadTrailImage(
+    id: string,
+    file: File,
+    role: 'primary' | 'secondary' = 'secondary',
+    caption?: string,
+  ): Promise<TrailImagesResponse> {
+    const formData = new FormData();
+    formData.append('file', file);
+
+    const params = new URLSearchParams({ role });
+    if (caption) params.set('caption', caption);
+
+    return apiRequest<TrailImagesResponse>(
+      `/api/v1/trails/${id}/images?${params.toString()}`,
+      { method: 'POST', body: formData },
+    );
+  },
+
+  deleteTrailImage(trailId: string, imageIndex: number): Promise<void> {
+    return apiRequest<void>(`/api/v1/trails/${trailId}/images/${imageIndex}`, {
+      method: 'DELETE',
     });
   },
 };

@@ -15,8 +15,11 @@ import {
   TextInput,
   View,
 } from 'react-native';
-import { Chip, ContentCard, EmptyState, StatusBadge } from '@/components';
+import { Chip } from '@/components/Chip';
+import { ContentCard } from '@/components/ContentCard';
 import { DrawerOverlay } from '@/components/DrawerOverlay';
+import { EmptyState } from '@/components/EmptyState';
+import { StatusBadge } from '@/components/StatusBadge';
 import { filterTrails, useTrails } from '@/lib/hooks';
 import { useTranslation } from '@/lib/i18n';
 import { borderRadius, fontSize, fontWeight, letterSpacing, spacing, useTheme } from '@/lib/theme';
