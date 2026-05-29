@@ -1,6 +1,7 @@
 import { useMutation, useQueries, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { trailsApi } from '@/lib/api';
+import type { ImageFile } from '@/lib/api/trails';
 import { trailCache } from '@/lib/storage/trail-cache';
 import type { TrackingPoint } from '@/lib/track-to-trail';
 import type { Trail, TrailImage, TrailImagesResponse, TrailUpdate } from '@/lib/types';
@@ -406,7 +407,7 @@ export function useUploadTrailImage() {
       caption,
     }: {
       trailId: string;
-      file: File;
+      file: ImageFile;
       role: 'primary' | 'secondary';
       caption?: string;
     }) => trailsApi.uploadTrailImage(trailId, file, role, caption),

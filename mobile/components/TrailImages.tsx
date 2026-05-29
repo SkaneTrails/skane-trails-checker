@@ -5,6 +5,7 @@
 
 import React, { useRef, useState } from 'react';
 import { Alert, Image, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import * as ImagePicker from 'expo-image-picker';
 import { useDeleteTrailImage, useTrailImages, useUploadTrailImage } from '@/lib/hooks';
 import { useTranslation } from '@/lib/i18n';
 import { borderRadius, fontSize, fontWeight, spacing, useTheme } from '@/lib/theme';
@@ -30,11 +31,35 @@ export function TrailImages({ trailId, canEdit }: TrailImagesProps) {
   const canUpload = canEdit && images.length < 3;
   const hasPrimary = !!primaryImage;
 
-  const handleFileSelect = (role: 'primary' | 'secondary') => {
-    setUploadRole(role);
-    if (Platform.OS === 'web' && fileInputRef.current) {
-      fileInputRef.current.click();
+  const handleFileSelect = async (role: 'primary' | 'secondary') => {
+    if (Platform.OS === 'web') {
+      setUploadRole(role);
+      if (fileInputRef.current) {
+        fileInputRef.current.click();
+      }
+      return;
     }
+
+    // Native: use expo-image-picker
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== 'granted') return;
+
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: 'images',
+      quality: 0.8,
+      allowsEditing: false,
+    });
+
+    if (result.canceled || !result.assets?.[0]?.uri) return;
+
+    const asset = result.assets[0];
+    const ext = asset.uri.split('.').pop()?.toLowerCase() ?? 'jpg';
+    const mimeType = ext === 'png' ? 'image/png' : 'image/jpeg';
+    uploadImage.mutate({
+      trailId,
+      file: { uri: asset.uri, type: mimeType, name: `photo.${ext}` },
+      role,
+    });
   };
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {

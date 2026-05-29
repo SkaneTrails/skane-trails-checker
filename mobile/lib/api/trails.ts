@@ -3,6 +3,9 @@ import type { TrackingPoint } from '@/lib/track-to-trail';
 import { toRecordingPayload } from '@/lib/track-to-trail';
 import { apiRequest } from './client';
 
+/** File descriptor compatible with both web (File) and native (uri object). */
+export type ImageFile = File | { uri: string; type: string; name: string };
+
 export interface TrailFilters {
   source?: string;
   search?: string;
@@ -94,12 +97,12 @@ export const trailsApi = {
 
   uploadTrailImage(
     id: string,
-    file: File,
+    file: ImageFile,
     role: 'primary' | 'secondary' = 'secondary',
     caption?: string,
   ): Promise<TrailImagesResponse> {
     const formData = new FormData();
-    formData.append('file', file);
+    formData.append('file', file as any);
 
     const params = new URLSearchParams({ role });
     if (caption) params.set('caption', caption);
