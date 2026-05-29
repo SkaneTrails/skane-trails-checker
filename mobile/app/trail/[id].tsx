@@ -155,9 +155,9 @@ export default function TrailDetailScreen() {
         )}
 
         {/* Tab bar */}
-        <View style={styles.tabBar}>
+        <View style={[styles.tabBar, { borderBottomColor: colors.border }]}>
           <Pressable
-            style={[styles.tab, activeTab === 'info' && styles.tabActive]}
+            style={[styles.tab, activeTab === 'info' && { borderBottomWidth: 2, borderBottomColor: colors.primary }]}
             onPress={() => setActiveTab('info')}
           >
             <Text style={[styles.tabLabel, { color: activeTab === 'info' ? colors.primary : colors.text.muted }]}>
@@ -165,7 +165,7 @@ export default function TrailDetailScreen() {
             </Text>
           </Pressable>
           <Pressable
-            style={[styles.tab, activeTab === 'photos' && styles.tabActive]}
+            style={[styles.tab, activeTab === 'photos' && { borderBottomWidth: 2, borderBottomColor: colors.primary }]}
             onPress={() => setActiveTab('photos')}
           >
             <Text style={[styles.tabLabel, { color: activeTab === 'photos' ? colors.primary : colors.text.muted }]}>
@@ -408,16 +408,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     marginBottom: spacing.lg,
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(0,0,0,0.1)',
   },
   tab: {
     flex: 1,
     alignItems: 'center',
     paddingVertical: spacing.sm,
-  },
-  tabActive: {
-    borderBottomWidth: 2,
-    borderBottomColor: '#4169E1',
   },
   tabLabel: {
     fontSize: fontSize.sm,

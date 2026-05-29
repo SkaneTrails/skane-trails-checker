@@ -3,7 +3,7 @@
  * Displayed as a tab in the trail card / detail view.
  */
 
-import { useRef, useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { Alert, Image, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useDeleteTrailImage, useTrailImages, useUploadTrailImage } from '@/lib/hooks';
 import { useTranslation } from '@/lib/i18n';
@@ -102,8 +102,10 @@ export function TrailImages({ trailId, canEdit }: TrailImagesProps) {
               <Pressable
                 style={[styles.deleteImageButton, { backgroundColor: colors.error }]}
                 onPress={() => handleDelete(images.indexOf(primaryImage))}
+                accessibilityLabel={t('trailImages.deleteImage')}
+                accessibilityRole="button"
               >
-                <TabIcon name="close" color="#fff" size={12} strokeWidth={3} />
+                <TabIcon name="close" color={colors.text.inverse} size={12} strokeWidth={3} />
               </Pressable>
             )}
           </View>
@@ -135,8 +137,10 @@ export function TrailImages({ trailId, canEdit }: TrailImagesProps) {
                     <Pressable
                       style={[styles.deleteImageButton, { backgroundColor: colors.error }]}
                       onPress={() => handleDelete(globalIndex)}
+                      accessibilityLabel={t('trailImages.deleteImage')}
+                      accessibilityRole="button"
                     >
-                      <TabIcon name="close" color="#fff" size={10} strokeWidth={3} />
+                      <TabIcon name="close" color={colors.text.inverse} size={10} strokeWidth={3} />
                     </Pressable>
                   )}
                 </View>

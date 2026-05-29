@@ -14,9 +14,13 @@ import {
   useSaveRecording,
   useTrail,
   useTrailDetails,
+  useTrailImages,
+  useTrailPrimaryPins,
   useTrails,
   useUpdateTrail,
   useUploadGpx,
+  useUploadTrailImage,
+  useDeleteTrailImage,
 } from '../use-trails';
 
 vi.mock('@/lib/api', () => ({
@@ -30,6 +34,9 @@ vi.mock('@/lib/api', () => ({
     uploadGpx: vi.fn(),
     getSyncMetadata: vi.fn(),
     saveRecording: vi.fn(),
+    getTrailImages: vi.fn(),
+    uploadTrailImage: vi.fn(),
+    deleteTrailImage: vi.fn(),
   },
 }));
 
@@ -752,5 +759,100 @@ describe('useSaveRecording', () => {
     await waitFor(() => {
       expect(mockTrailCache.set).toHaveBeenCalled();
     });
+  });
+});
+
+describe('useTrailImages', () => {
+  it('fetches images for a trail', async () => {
+    const images = { trail_id: 'abc', images: [{ image_data: 'b64', role: 'primary', lat: 55.0, lng: 13.0, caption: null }] };
+    mockTrailsApi.getTrailImages.mockResolvedValue(images);
+
+    const { result } = renderHook(() => useTrailImages('abc'), { wrapper: createQueryWrapper() });
+
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+    expect(result.current.data).toEqual(images);
+  });
+});
+
+describe('useUploadTrailImage', () => {
+  it('uploads an image and updates cache', async () => {
+    const response = { trail_id: 'abc', images: [{ image_data: 'b64', role: 'primary', lat: null, lng: null, caption: null }] };
+    mockTrailsApi.uploadTrailImage.mockResolvedValue(response);
+
+    const { result } = renderHook(() => useUploadTrailImage(), { wrapper: createQueryWrapper() });
+
+    const file = new File(['img'], 'photo.jpg');
+    await result.current.mutateAsync({ trailId: 'abc', file, role: 'primary' });
+
+    expect(mockTrailsApi.uploadTrailImage).toHaveBeenCalledWith('abc', file, 'primary', undefined);
+  });
+});
+
+describe('useDeleteTrailImage', () => {
+  it('deletes an image by index', async () => {
+    mockTrailsApi.deleteTrailImage.mockResolvedValue(undefined);
+
+    const { result } = renderHook(() => useDeleteTrailImage(), { wrapper: createQueryWrapper() });
+
+    await result.current.mutateAsync({ trailId: 'abc', imageIndex: 0 });
+
+    expect(mockTrailsApi.deleteTrailImage).toHaveBeenCalledWith('abc', 0);
+  });
+
+  it('optimistically removes image from cache on success', async () => {
+    mockTrailsApi.deleteTrailImage.mockResolvedValue(undefined);
+
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    // Seed cache with existing images
+    queryClient.setQueryData(['trails', 'images', 'abc'], {
+      trail_id: 'abc',
+      images: [
+        { image_data: 'img0', role: 'primary', lat: null, lng: null, caption: null },
+        { image_data: 'img1', role: 'secondary', lat: null, lng: null, caption: null },
+      ],
+    });
+
+    const wrapper = ({ children }: { children: ReactNode }) =>
+      createElement(QueryClientProvider, { client: queryClient }, children);
+
+    const { result } = renderHook(() => useDeleteTrailImage(), { wrapper });
+
+    await result.current.mutateAsync({ trailId: 'abc', imageIndex: 0 });
+
+    await waitFor(() => {
+      const cached = queryClient.getQueryData(['trails', 'images', 'abc']) as any;
+      expect(cached.images).toHaveLength(1);
+      expect(cached.images[0].image_data).toBe('img1');
+    });
+  });
+});
+
+describe('useTrailPrimaryPins', () => {
+  it('returns empty array when no trails', () => {
+    const { result } = renderHook(() => useTrailPrimaryPins(undefined), { wrapper: createQueryWrapper() });
+    expect(result.current).toEqual([]);
+  });
+
+  it('fetches images for explored trails and extracts primary pins', async () => {
+    const trails = [
+      { trail_id: 't1', name: 'Trail 1', status: 'Explored!' },
+      { trail_id: 't2', name: 'Trail 2', status: 'To Explore' },
+    ] as any[];
+
+    mockTrailsApi.getTrailImages.mockResolvedValue({
+      trail_id: 't1',
+      images: [{ image_data: 'b64', role: 'primary', lat: 55.5, lng: 13.2, caption: null }],
+    });
+
+    const { result } = renderHook(() => useTrailPrimaryPins(trails), { wrapper: createQueryWrapper() });
+
+    await waitFor(() => expect(result.current.length).toBe(1));
+    expect(result.current[0]).toEqual({
+      trailId: 't1',
+      image: { image_data: 'b64', role: 'primary', lat: 55.5, lng: 13.2, caption: null },
+    });
+    // Should only fetch for explored trails
+    expect(mockTrailsApi.getTrailImages).toHaveBeenCalledWith('t1');
+    expect(mockTrailsApi.getTrailImages).not.toHaveBeenCalledWith('t2');
   });
 });

@@ -307,7 +307,7 @@ def upload_trail_image(
         raise HTTPException(status_code=400, detail="Uploaded file is empty")
 
     if len(content) > MAX_IMAGE_UPLOAD_SIZE:
-        raise HTTPException(status_code=413, detail="Image too large. Maximum is 2 MB.")
+        raise HTTPException(status_code=413, detail="Image too large. Maximum upload size is 15 MB.")
 
     try:
         image_data, lat, lng = process_image(content)

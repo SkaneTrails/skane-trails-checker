@@ -178,7 +178,7 @@ export const TrailCard = ({ trail, onClose, onUpdate, isUpdating, onDelete, isDe
   return (
     <MapInfoCard title={trail.name} onClose={onClose}>
       {/* Tabs */}
-      <View style={styles.tabBar}>
+      <View style={[styles.tabBar, { borderBottomColor: colors.border }]}>
         <Pressable
           style={[styles.tab, activeTab === 'info' && { borderBottomColor: colors.primary, borderBottomWidth: 2 }]}
           onPress={() => setActiveTab('info')}
@@ -269,7 +269,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     marginBottom: spacing.md,
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(0,0,0,0.1)',
   },
   tab: {
     flex: 1,
