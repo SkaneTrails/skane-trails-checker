@@ -47,6 +47,25 @@ ______________________________________________________________________
 
 **Document ID**: Same as corresponding `trails` document.
 
+### `trail_images` — Trail photos (max 3 per trail)
+
+| Field      | Type                                             | Required | Description                    |
+| ---------- | ------------------------------------------------ | -------- | ------------------------------ |
+| `trail_id` | `str`                                            | ✅       | Reference to trails document   |
+| `images`   | `list[{image_data, role, lat?, lng?, caption?}]` | ✅       | Array of up to 3 image objects |
+
+**Image object fields:**
+
+| Field        | Type    | Required | Description                                   |
+| ------------ | ------- | -------- | --------------------------------------------- |
+| `image_data` | `str`   | ✅       | Base64-encoded JPEG (max ~800px, 60% quality) |
+| `role`       | `str`   | ✅       | `"primary"` or `"secondary"`                  |
+| `lat`        | `float` | ❌       | EXIF GPS latitude (auto-extracted)            |
+| `lng`        | `float` | ❌       | EXIF GPS longitude (auto-extracted)           |
+| `caption`    | `str`   | ❌       | User caption (max 200 chars)                  |
+
+**Document ID**: Same as corresponding `trails` document. Max 1 primary + 2 secondary = 3 images.
+
 ### `_meta` — Internal metadata (sync tracking)
 
 **Document: `trails_sync`**

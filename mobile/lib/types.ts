@@ -58,6 +58,21 @@ export interface TrailUpdate {
   is_public?: boolean;
 }
 
+// Trail image
+export interface TrailImage {
+  image_data: string;
+  role: 'primary' | 'secondary';
+  lat?: number | null;
+  lng?: number | null;
+  caption?: string | null;
+}
+
+// Trail images response
+export interface TrailImagesResponse {
+  trail_id: string;
+  images: TrailImage[];
+}
+
 // Sync metadata for delta trail fetching
 export interface SyncMetadata {
   count: number;

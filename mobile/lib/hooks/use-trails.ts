@@ -1,9 +1,10 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useMutation, useQueries, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { trailsApi } from '@/lib/api';
+import type { ImageFile } from '@/lib/api/trails';
 import { trailCache } from '@/lib/storage/trail-cache';
 import type { TrackingPoint } from '@/lib/track-to-trail';
-import type { Trail, TrailUpdate } from '@/lib/types';
+import type { Trail, TrailImage, TrailImagesResponse, TrailUpdate } from '@/lib/types';
 
 export const SYNC_POLL_INTERVAL = 10 * 60 * 1000; // 10 minutes
 
@@ -35,6 +36,7 @@ export const trailKeys = {
   map: () => ['trails', 'map'] as const,
   detail: (id: string) => ['trails', 'detail', id] as const,
   details: (id: string) => ['trails', 'details', id] as const,
+  images: (id: string) => ['trails', 'images', id] as const,
   sync: ['trails', 'sync'] as const,
 };
 
@@ -384,4 +386,95 @@ export function useSaveRecording() {
       });
     },
   });
+}
+
+export function useTrailImages(id: string) {
+  return useQuery({
+    queryKey: trailKeys.images(id),
+    queryFn: () => trailsApi.getTrailImages(id),
+    enabled: !!id,
+  });
+}
+
+export function useUploadTrailImage() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({
+      trailId,
+      file,
+      role,
+      caption,
+    }: {
+      trailId: string;
+      file: ImageFile;
+      role: 'primary' | 'secondary';
+      caption?: string;
+    }) => trailsApi.uploadTrailImage(trailId, file, role, caption),
+    onSuccess: (result) => {
+      queryClient.setQueryData<TrailImagesResponse>(
+        trailKeys.images(result.trail_id),
+        result,
+      );
+    },
+  });
+}
+
+export function useDeleteTrailImage() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ trailId, imageIndex }: { trailId: string; imageIndex: number }) =>
+      trailsApi.deleteTrailImage(trailId, imageIndex),
+    onSuccess: (_data, { trailId, imageIndex }) => {
+      queryClient.setQueryData<TrailImagesResponse>(
+        trailKeys.images(trailId),
+        (old) => {
+          if (!old) return old;
+          return {
+            ...old,
+            images: old.images.filter((_, i) => i !== imageIndex),
+          };
+        },
+      );
+    },
+  });
+}
+
+export interface TrailImagePin {
+  trailId: string;
+  image: TrailImage;
+}
+
+/**
+ * Fetch primary images for explored trails and return only those with GPS coords.
+ * Used to show image bubbles on the map.
+ */
+export function useTrailPrimaryPins(trails: Trail[] | undefined): TrailImagePin[] {
+  const exploredIds = useMemo(
+    () => (trails ?? []).filter((t) => t.status === 'Explored!').map((t) => t.trail_id),
+    [trails],
+  );
+
+  const results = useQueries({
+    queries: exploredIds.map((id) => ({
+      queryKey: trailKeys.images(id),
+      queryFn: () => trailsApi.getTrailImages(id),
+      staleTime: 5 * 60 * 1000,
+    })),
+  });
+
+  return useMemo(() => {
+    const pins: TrailImagePin[] = [];
+    for (const result of results) {
+      if (!result.data) continue;
+      const primary = result.data.images.find(
+        (img) => img.role === 'primary' && img.lat != null && img.lng != null,
+      );
+      if (primary) {
+        pins.push({ trailId: result.data.trail_id, image: primary });
+      }
+    }
+    return pins;
+  }, [results]);
 }

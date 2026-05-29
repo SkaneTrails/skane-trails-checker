@@ -86,6 +86,7 @@ export default defineConfig({
         // Drawer/overlay components — presentation wrappers, extracted from route screens
         'components/DrawerOverlay.tsx',
         'components/TrailListDrawer.tsx',
+        'components/TrailImages.tsx',
         'components/ForagingDrawer.tsx',
         'components/PlacesDrawer.tsx',
         // Overlay components — depend on expo-file-system, expo-image-picker, MapLibre

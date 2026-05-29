@@ -200,6 +200,20 @@ const sv: Translations = {
     privateTrail: 'Privat',
   },
 
+  trailImages: {
+    noPhotos: 'Inga foton ännu',
+    primaryPhoto: 'Huvudfoto',
+    morePhotos: 'Fler foton',
+    addPrimary: 'Lägg till huvud',
+    addPhoto: 'Lägg till foto',
+    uploading: 'Laddar upp...',
+    uploadFailed: 'Uppladdning misslyckades',
+    deleteImage: 'Radera bild',
+    deleteConfirm: 'Radera detta foto?',
+    photos: 'Foton',
+    info: 'Info',
+  },
+
   months: {
     jan: 'Jan',
     feb: 'Feb',

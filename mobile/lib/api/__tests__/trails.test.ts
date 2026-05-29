@@ -180,4 +180,54 @@ describe('trailsApi', () => {
       expect(body.name).toBe('Walk');
     });
   });
+
+  describe('getTrailImages', () => {
+    it('fetches images for a trail', async () => {
+      const response = { trail_id: 'abc', images: [] };
+      mockApiRequest.mockResolvedValue(response);
+
+      const result = await trailsApi.getTrailImages('abc');
+      expect(result).toEqual(response);
+      expect(mockApiRequest).toHaveBeenCalledWith('/api/v1/trails/abc/images');
+    });
+  });
+
+  describe('uploadTrailImage', () => {
+    it('uploads an image with role and caption', async () => {
+      const response = { trail_id: 'abc', images: [{ image_data: 'b64', role: 'primary' }] };
+      mockApiRequest.mockResolvedValue(response);
+
+      const file = new File(['img'], 'photo.jpg', { type: 'image/jpeg' });
+      const result = await trailsApi.uploadTrailImage('abc', file, 'primary', 'My hike');
+
+      expect(result).toEqual(response);
+      expect(mockApiRequest).toHaveBeenCalledWith(
+        '/api/v1/trails/abc/images?role=primary&caption=My+hike',
+        expect.objectContaining({ method: 'POST', body: expect.any(FormData) }),
+      );
+    });
+
+    it('uploads with default role and no caption', async () => {
+      mockApiRequest.mockResolvedValue({ trail_id: 'abc', images: [] });
+
+      const file = new File(['img'], 'photo.jpg');
+      await trailsApi.uploadTrailImage('abc', file, 'secondary');
+
+      expect(mockApiRequest).toHaveBeenCalledWith(
+        '/api/v1/trails/abc/images?role=secondary',
+        expect.objectContaining({ method: 'POST' }),
+      );
+    });
+  });
+
+  describe('deleteTrailImage', () => {
+    it('deletes an image by index', async () => {
+      mockApiRequest.mockResolvedValue(undefined);
+
+      await trailsApi.deleteTrailImage('abc', 1);
+      expect(mockApiRequest).toHaveBeenCalledWith('/api/v1/trails/abc/images/1', {
+        method: 'DELETE',
+      });
+    });
+  });
 });

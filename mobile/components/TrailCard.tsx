@@ -15,6 +15,7 @@ import { ElevationProfile } from './ElevationProfile';
 import { ElevationRibbon } from './ElevationRibbon';
 import { MapInfoCard } from './MapInfoCard';
 import { TabIcon } from './TabIcon';
+import { TrailImages } from './TrailImages';
 
 interface TrailCardProps {
   trail: Trail;
@@ -42,6 +43,7 @@ export const TrailCard = ({ trail, onClose, onUpdate, isUpdating, onDelete, isDe
   const [editDate, setEditDate] = useState(trail.activity_date ?? '');
   const [editColor, setEditColor] = useState<string | null>(trail.line_color ?? null);
   const [editPublic, setEditPublic] = useState(trail.is_public ?? false);
+  const [activeTab, setActiveTab] = useState<'info' | 'photos'>('info');
 
   // Reset form state when trail changes or initialEditing becomes true
   useEffect(() => {
@@ -175,52 +177,78 @@ export const TrailCard = ({ trail, onClose, onUpdate, isUpdating, onDelete, isDe
 
   return (
     <MapInfoCard title={trail.name} onClose={onClose}>
-      {/* Date */}
-      {trail.activity_date && (
-        <Text style={[styles.dateText, { color: colors.text.muted }]}>
-          {new Date(trail.activity_date).toLocaleString(undefined, { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })}
-        </Text>
-      )}
-
-      {/* Stats row: distance, duration */}
-      <View style={styles.statsRow}>
-        <Text style={[styles.statText, { color: colors.text.secondary }]}>
-          {trail.length_km.toFixed(1)} km
-        </Text>
-        {trail.duration_minutes != null && (
-          <>
-            <Text style={[styles.statDot, { color: colors.text.muted }]}>·</Text>
-            <Text style={[styles.statText, { color: colors.text.secondary }]}>
-              {formatDuration(trail.duration_minutes)}
-            </Text>
-          </>
-        )}
+      {/* Tabs */}
+      <View style={[styles.tabBar, { borderBottomColor: colors.border }]}>
+        <Pressable
+          style={[styles.tab, activeTab === 'info' && { borderBottomColor: colors.primary, borderBottomWidth: 2 }]}
+          onPress={() => setActiveTab('info')}
+        >
+          <Text style={[styles.tabText, { color: activeTab === 'info' ? colors.primary : colors.text.muted }]}>
+            {t('trailImages.info')}
+          </Text>
+        </Pressable>
+        <Pressable
+          style={[styles.tab, activeTab === 'photos' && { borderBottomColor: colors.primary, borderBottomWidth: 2 }]}
+          onPress={() => setActiveTab('photos')}
+        >
+          <Text style={[styles.tabText, { color: activeTab === 'photos' ? colors.primary : colors.text.muted }]}>
+            {t('trailImages.photos')}
+          </Text>
+        </Pressable>
       </View>
 
-      {/* Elevation gain / loss */}
-      {(trail.elevation_gain != null || trail.elevation_loss != null) && (
-        <View style={styles.statsRow}>
-          {trail.elevation_gain != null && (
-            <Text style={[styles.statText, { color: colors.text.secondary }]}>
-              ↑ {Math.round(trail.elevation_gain)} m
+      {activeTab === 'info' ? (
+        <>
+          {/* Date */}
+          {trail.activity_date && (
+            <Text style={[styles.dateText, { color: colors.text.muted }]}>
+              {new Date(trail.activity_date).toLocaleString(undefined, { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })}
             </Text>
           )}
-          {trail.elevation_loss != null && (
-            <>
-              <Text style={[styles.statDot, { color: colors.text.muted }]}>·</Text>
-              <Text style={[styles.statText, { color: colors.text.secondary }]}>
-                ↓ {Math.round(trail.elevation_loss)} m
-              </Text>
-            </>
-          )}
-        </View>
-      )}
 
-      {/* Elevation profile */}
-      <View style={styles.profileContainer}>
-        <ElevationRibbon coordinates={trail.coordinates_map} height={180} />
-        <ElevationProfile coordinates={trail.coordinates_map} />
-      </View>
+          {/* Stats row: distance, duration */}
+          <View style={styles.statsRow}>
+            <Text style={[styles.statText, { color: colors.text.secondary }]}>
+              {trail.length_km.toFixed(1)} km
+            </Text>
+            {trail.duration_minutes != null && (
+              <>
+                <Text style={[styles.statDot, { color: colors.text.muted }]}>·</Text>
+                <Text style={[styles.statText, { color: colors.text.secondary }]}>
+                  {formatDuration(trail.duration_minutes)}
+                </Text>
+              </>
+            )}
+          </View>
+
+          {/* Elevation gain / loss */}
+          {(trail.elevation_gain != null || trail.elevation_loss != null) && (
+            <View style={styles.statsRow}>
+              {trail.elevation_gain != null && (
+                <Text style={[styles.statText, { color: colors.text.secondary }]}>
+                  ↑ {Math.round(trail.elevation_gain)} m
+                </Text>
+              )}
+              {trail.elevation_loss != null && (
+                <>
+                  <Text style={[styles.statDot, { color: colors.text.muted }]}>·</Text>
+                  <Text style={[styles.statText, { color: colors.text.secondary }]}>
+                    ↓ {Math.round(trail.elevation_loss)} m
+                  </Text>
+                </>
+              )}
+            </View>
+          )}
+
+          {/* Elevation profile */}
+          <View style={styles.profileContainer}>
+            <ElevationRibbon coordinates={trail.coordinates_map} height={180} />
+            <ElevationProfile coordinates={trail.coordinates_map} />
+          </View>
+        </>
+      ) : (
+        <TrailImages trailId={trail.trail_id} canEdit={!!onUpdate} />
+      )}
 
       {/* Edit icon */}
       {onUpdate && (
@@ -237,6 +265,20 @@ export const TrailCard = ({ trail, onClose, onUpdate, isUpdating, onDelete, isDe
 };
 
 const styles = StyleSheet.create({
+  tabBar: {
+    flexDirection: 'row',
+    marginBottom: spacing.md,
+    borderBottomWidth: 1,
+  },
+  tab: {
+    flex: 1,
+    alignItems: 'center',
+    paddingVertical: spacing.sm,
+  },
+  tabText: {
+    fontSize: fontSize.sm,
+    fontWeight: fontWeight.semibold,
+  },
   dateText: {
     fontSize: fontSize.sm,
     marginBottom: spacing.sm,

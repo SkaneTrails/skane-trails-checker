@@ -442,13 +442,16 @@ class TestUpdateTrail:
 class TestDeleteTrail:
     @patch("api.routers.trails.trail_storage.get_trail")
     @patch("api.routers.trails.trail_storage.delete_trail")
-    def test_delete_trail(self, mock_delete, mock_get, authenticated_client):
+    @patch("api.routers.trails.trail_storage.delete_trail_images")
+    def test_delete_trail(self, mock_delete_images, mock_delete, mock_get, authenticated_client):
         mock_get.return_value = SAMPLE_TRAIL
         mock_delete.return_value = None
+        mock_delete_images.return_value = None
 
         response = authenticated_client.delete("/api/v1/trails/abc123")
         assert response.status_code == 204
         mock_delete.assert_called_once_with("abc123")
+        mock_delete_images.assert_called_once_with("abc123")
 
     @patch("api.routers.trails.trail_storage.get_trail")
     def test_delete_trail_not_found(self, mock_get, authenticated_client):

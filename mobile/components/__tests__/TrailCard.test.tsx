@@ -13,6 +13,10 @@ vi.mock('react-native-svg', () => {
   };
 });
 
+vi.mock('../TrailImages', () => ({
+  TrailImages: () => null,
+}));
+
 vi.mock('@/lib/settings-context', () => ({
   useSettings: () => ({
     elevationGradient: 'dark-to-light',
@@ -390,5 +394,13 @@ describe('TrailCard', () => {
     // Should be in view mode — trail name shown as title, no input
     expect(screen.getByText('Söderåsen Loop')).toBeDefined();
     expect(screen.queryByDisplayValue('Söderåsen Loop')).toBeNull();
+  });
+
+  it('switches to photos tab when clicked', () => {
+    render(<TrailCard trail={baseTrail} onClose={vi.fn()} />);
+
+    fireEvent.click(screen.getByText('trailImages.photos'));
+    // Info content (distance) should no longer show
+    expect(screen.queryByText('12.5 km')).toBeNull();
   });
 });

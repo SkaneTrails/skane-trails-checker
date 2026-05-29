@@ -4,6 +4,7 @@ import { Alert, Platform, Pressable, ScrollView, StyleSheet, Text, View } from '
 import { Button, EmptyState, FormField, StatCard, StatusBadge } from '@/components';
 import { ElevationRibbon } from '@/components/ElevationRibbon';
 import { TabIcon } from '@/components/TabIcon';
+import { TrailImages } from '@/components/TrailImages';
 import { useDeleteTrail, useTrail, useTrailDetails, useUpdateTrail } from '@/lib/hooks';
 import { useTranslation } from '@/lib/i18n';
 import {
@@ -30,6 +31,7 @@ export default function TrailDetailScreen() {
 
   const [isEditing, setIsEditing] = useState(false);
   const [editName, setEditName] = useState('');
+  const [activeTab, setActiveTab] = useState<'info' | 'photos'>('info');
 
   if (trailLoading || detailsLoading) {
     return (
@@ -152,6 +154,28 @@ export default function TrailDetailScreen() {
           </Pressable>
         )}
 
+        {/* Tab bar */}
+        <View style={[styles.tabBar, { borderBottomColor: colors.border }]}>
+          <Pressable
+            style={[styles.tab, activeTab === 'info' && { borderBottomWidth: 2, borderBottomColor: colors.primary }]}
+            onPress={() => setActiveTab('info')}
+          >
+            <Text style={[styles.tabLabel, { color: activeTab === 'info' ? colors.primary : colors.text.muted }]}>
+              {t('trailImages.info')}
+            </Text>
+          </Pressable>
+          <Pressable
+            style={[styles.tab, activeTab === 'photos' && { borderBottomWidth: 2, borderBottomColor: colors.primary }]}
+            onPress={() => setActiveTab('photos')}
+          >
+            <Text style={[styles.tabLabel, { color: activeTab === 'photos' ? colors.primary : colors.text.muted }]}>
+              {t('trailImages.photos')}
+            </Text>
+          </Pressable>
+        </View>
+
+        {activeTab === 'info' ? (
+        <>
         <View style={styles.statsRow}>
           <StatCard label={t('trail.distance')} value={`${trail.length_km.toFixed(1)} km`} />
           {trail.elevation_gain != null && (
@@ -270,6 +294,10 @@ export default function TrailDetailScreen() {
             disabled={deleteTrail.isPending}
           />
         </View>
+        </>
+        ) : (
+          <TrailImages trailId={id} canEdit />
+        )}
         </ScrollView>
       </View>
     </View>
@@ -375,5 +403,19 @@ const styles = StyleSheet.create({
   actions: {
     flexDirection: 'row',
     gap: spacing.sm,
+  },
+  tabBar: {
+    flexDirection: 'row',
+    marginBottom: spacing.lg,
+    borderBottomWidth: 1,
+  },
+  tab: {
+    flex: 1,
+    alignItems: 'center',
+    paddingVertical: spacing.sm,
+  },
+  tabLabel: {
+    fontSize: fontSize.sm,
+    fontWeight: fontWeight.semibold,
   },
 });
