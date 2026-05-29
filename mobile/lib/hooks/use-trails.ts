@@ -1,4 +1,10 @@
-import { useMutation, useQueries, useQuery, useQueryClient } from '@tanstack/react-query';
+import {
+  useMutation,
+  useQueries,
+  useQuery,
+  useQueryClient,
+  type UseQueryResult,
+} from '@tanstack/react-query';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { trailsApi } from '@/lib/api';
 import type { ImageFile } from '@/lib/api/trails';
@@ -446,6 +452,20 @@ export interface TrailImagePin {
   image: TrailImage;
 }
 
+function combinePrimaryPins(results: UseQueryResult<TrailImagesResponse>[]) {
+  const pins: TrailImagePin[] = [];
+  for (const result of results) {
+    if (!result.data) continue;
+    const primary = result.data.images.find(
+      (img) => img.role === 'primary' && img.lat != null && img.lng != null,
+    );
+    if (primary) {
+      pins.push({ trailId: result.data.trail_id, image: primary });
+    }
+  }
+  return pins;
+}
+
 /**
  * Fetch primary images for explored trails and return only those with GPS coords.
  * Used to show image bubbles on the map.
@@ -456,25 +476,12 @@ export function useTrailPrimaryPins(trails: Trail[] | undefined): TrailImagePin[
     [trails],
   );
 
-  const results = useQueries({
+  return useQueries({
     queries: exploredIds.map((id) => ({
       queryKey: trailKeys.images(id),
       queryFn: () => trailsApi.getTrailImages(id),
       staleTime: 5 * 60 * 1000,
     })),
+    combine: combinePrimaryPins,
   });
-
-  return useMemo(() => {
-    const pins: TrailImagePin[] = [];
-    for (const result of results) {
-      if (!result.data) continue;
-      const primary = result.data.images.find(
-        (img) => img.role === 'primary' && img.lat != null && img.lng != null,
-      );
-      if (primary) {
-        pins.push({ trailId: result.data.trail_id, image: primary });
-      }
-    }
-    return pins;
-  }, [results]);
 }

@@ -855,4 +855,23 @@ describe('useTrailPrimaryPins', () => {
     expect(mockTrailsApi.getTrailImages).toHaveBeenCalledWith('t1');
     expect(mockTrailsApi.getTrailImages).not.toHaveBeenCalledWith('t2');
   });
+
+  it('returns stable reference across re-renders when data is unchanged', async () => {
+    const trails = [{ trail_id: 't1', name: 'Trail 1', status: 'Explored!' }] as any[];
+
+    mockTrailsApi.getTrailImages.mockResolvedValue({
+      trail_id: 't1',
+      images: [{ image_data: 'b64', role: 'primary', lat: 55.5, lng: 13.2, caption: null }],
+    });
+
+    const { result, rerender } = renderHook(() => useTrailPrimaryPins(trails), {
+      wrapper: createQueryWrapper(),
+    });
+
+    await waitFor(() => expect(result.current.length).toBe(1));
+
+    const firstRef = result.current;
+    rerender();
+    expect(result.current).toBe(firstRef);
+  });
 });
