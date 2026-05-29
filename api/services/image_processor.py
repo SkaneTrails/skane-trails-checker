@@ -4,7 +4,7 @@ import base64
 import io
 import logging
 
-from PIL import ExifTags, Image
+from PIL import ExifTags, Image, ImageOps
 
 logger = logging.getLogger(__name__)
 
@@ -91,25 +91,13 @@ def _dms_to_decimal(dms: tuple, ref: str | None) -> float:
 
 
 def _auto_orient(img: Image.Image) -> Image.Image:
-    """Apply EXIF orientation rotation/flip based on EXIF tag.
+    """Apply EXIF orientation rotation/flip.
 
-    Note: EXIF data is stripped later during JPEG re-encoding in _to_base64_jpeg.
+    Uses Pillow's ImageOps.exif_transpose for correct handling of all 8
+    EXIF orientation variants. EXIF data is stripped later during re-encode.
     """
     try:
-        exif = img.getexif()
-        orientation = exif.get(ExifTags.Base.Orientation)
-        if orientation:
-            rotate_map = {3: 180, 6: 270, 8: 90}
-            if orientation in rotate_map:
-                img = img.rotate(rotate_map[orientation], expand=True)
-            elif orientation in (2, 4, 5, 7):  # pragma: no cover
-                # Mirrored orientations — transpose then rotate
-                img = img.transpose(Image.Transpose.FLIP_LEFT_RIGHT)
-                if orientation in (5, 7):
-                    angle = 270 if orientation == 5 else 90  # noqa: PLR2004
-                    img = img.rotate(angle, expand=True)
-                elif orientation == 4:  # noqa: PLR2004
-                    img = img.rotate(180, expand=True)
+        img = ImageOps.exif_transpose(img) or img
     except Exception:  # pragma: no cover
         logger.debug("Failed to auto-orient image", exc_info=True)
     return img

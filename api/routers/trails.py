@@ -261,6 +261,7 @@ def save_recording(body: RecordingCreate, user: Annotated[AuthenticatedUser, Dep
 
 
 MAX_IMAGES_PER_TRAIL = 3
+MAX_SECONDARY_IMAGES = 2
 MAX_IMAGE_UPLOAD_SIZE = 15 * 1024 * 1024  # 15 MB — phones take large photos; server scales down
 MAX_BASE64_SIZE = 300_000  # ~300 KB base64 per image — 3 images + JSON overhead stays under Firestore 1 MiB doc limit
 
@@ -321,9 +322,13 @@ def upload_trail_image(
     existing = trail_storage.get_trail_images(trail_id)
     images = existing.images
 
-    # Enforce limits: max 1 primary, max 3 total
+    # Enforce limits: max 1 primary + 2 secondary
     if role == "primary":
         images = [img for img in images if img.role != "primary"]
+    else:
+        secondary_count = sum(1 for img in images if img.role == "secondary")
+        if secondary_count >= MAX_SECONDARY_IMAGES:
+            raise HTTPException(status_code=400, detail=f"Maximum {MAX_SECONDARY_IMAGES} secondary images per trail")
     if len(images) >= MAX_IMAGES_PER_TRAIL:
         raise HTTPException(status_code=400, detail=f"Maximum {MAX_IMAGES_PER_TRAIL} images per trail")
 

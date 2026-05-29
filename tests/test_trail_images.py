@@ -132,7 +132,25 @@ class TestUploadTrailImage:
             "/api/v1/trails/abc123/images?role=secondary", files={"file": ("photo.jpg", jpeg_data, "image/jpeg")}
         )
         assert response.status_code == 400
-        assert "Maximum" in response.json()["detail"]
+        assert "secondary" in response.json()["detail"]
+
+    @patch("api.routers.trails.trail_storage.get_trail_images")
+    @patch("api.routers.trails.trail_storage.get_trail")
+    def test_upload_rejects_third_secondary_even_without_primary(
+        self, mock_get_trail, mock_get_images, authenticated_client
+    ):
+        mock_get_trail.return_value = SAMPLE_TRAIL
+        mock_get_images.return_value = TrailImagesResponse(
+            trail_id="abc123",
+            images=[TrailImage(image_data="b", role="secondary"), TrailImage(image_data="c", role="secondary")],
+        )
+
+        jpeg_data = _make_jpeg()
+        response = authenticated_client.post(
+            "/api/v1/trails/abc123/images?role=secondary", files={"file": ("photo.jpg", jpeg_data, "image/jpeg")}
+        )
+        assert response.status_code == 400
+        assert "secondary" in response.json()["detail"]
 
     @patch("api.routers.trails.trail_storage.get_trail")
     def test_upload_empty_file(self, mock_get_trail, authenticated_client):
