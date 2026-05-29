@@ -456,25 +456,24 @@ export function useTrailPrimaryPins(trails: Trail[] | undefined): TrailImagePin[
     [trails],
   );
 
-  const results = useQueries({
+  return useQueries({
     queries: exploredIds.map((id) => ({
       queryKey: trailKeys.images(id),
       queryFn: () => trailsApi.getTrailImages(id),
       staleTime: 5 * 60 * 1000,
     })),
-  });
-
-  return useMemo(() => {
-    const pins: TrailImagePin[] = [];
-    for (const result of results) {
-      if (!result.data) continue;
-      const primary = result.data.images.find(
-        (img) => img.role === 'primary' && img.lat != null && img.lng != null,
-      );
-      if (primary) {
-        pins.push({ trailId: result.data.trail_id, image: primary });
+    combine: (results) => {
+      const pins: TrailImagePin[] = [];
+      for (const result of results) {
+        if (!result.data) continue;
+        const primary = result.data.images.find(
+          (img) => img.role === 'primary' && img.lat != null && img.lng != null,
+        );
+        if (primary) {
+          pins.push({ trailId: result.data.trail_id, image: primary });
+        }
       }
-    }
-    return pins;
-  }, [results]);
+      return pins;
+    },
+  });
 }
