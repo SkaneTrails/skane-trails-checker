@@ -24,6 +24,8 @@ export function TrailMap({ trails, onTrailSelect, imagePins }: TrailMapProps) {
   const mapInstanceRef = useRef<L.Map | null>(null);
   const onTrailSelectRef = useRef(onTrailSelect);
   onTrailSelectRef.current = onTrailSelect;
+  const imagePinsRef = useRef(imagePins);
+  imagePinsRef.current = imagePins;
 
   useEffect(() => {
     // Dynamically import leaflet and its CSS (web only)
@@ -92,14 +94,14 @@ export function TrailMap({ trails, onTrailSelect, imagePins }: TrailMapProps) {
       }
 
       // Add image pin markers for trails with primary photos
-      if (imagePins) {
-        for (const pin of imagePins) {
+      if (imagePinsRef.current) {
+        for (const pin of imagePinsRef.current) {
           const { image } = pin;
           if (image.lat == null || image.lng == null) continue;
 
           const iconHtml = `<div style="
             width: 40px; height: 40px; border-radius: 50%;
-            border: 3px solid #4169E1; overflow: hidden;
+            border: 3px solid ${colors.status.exploredText}; overflow: hidden;
             box-shadow: 0 2px 6px rgba(0,0,0,0.3);
             background: #fff;
           "><img src="data:image/jpeg;base64,${image.image_data}"
@@ -132,7 +134,7 @@ export function TrailMap({ trails, onTrailSelect, imagePins }: TrailMapProps) {
         mapInstanceRef.current = null;
       }
     };
-  }, [trails, imagePins]);
+  }, [trails]);
 
   return <div ref={mapRef} style={{ width: '100%', height: '100%', minHeight: 400 }} />;
 }

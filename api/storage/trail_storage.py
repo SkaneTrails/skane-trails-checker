@@ -297,7 +297,11 @@ def get_trail_images(trail_id: str) -> TrailImagesResponse:
 
 
 def save_trail_images(trail_id: str, images: list[TrailImage]) -> None:
-    """Save trail images to Firestore."""
+    """Save trail images to Firestore.
+
+    Note: With 800px/60% JPEG compression, images are typically 50-100KB each.
+    Max 3 images stays well under Firestore's 1 MiB document limit.
+    """
     validate_document_id(trail_id, field_name="trail_id")
     logger.info("Saving %d image(s) for trail %s", len(images), trail_id)
     data = {

@@ -46,7 +46,7 @@ def process_image(raw_bytes: bytes) -> tuple[str, float | None, float | None]:
         img.width,
         img.height,
         len(b64),
-        f"({lat:.5f}, {lng:.5f})" if lat is not None else "none",
+        "found" if lat is not None else "none",
     )
     return b64, lat, lng
 
