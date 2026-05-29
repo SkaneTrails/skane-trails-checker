@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import type L from 'leaflet';
+import type * as L from 'leaflet';
 import { injectLeafletCSS } from '@/lib/inject-css';
 import { useTheme } from '@/lib/theme';
 import type { Trail, TrailImage } from '@/lib/types';
