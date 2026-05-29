@@ -9,15 +9,11 @@ from PIL import Image
 from api.services.image_processor import MAX_DIMENSION, process_image
 
 
-def _make_jpeg(width: int = 1600, height: int = 1200, with_exif: bool = False) -> bytes:
+def _make_jpeg(width: int = 1600, height: int = 1200) -> bytes:
     """Create a test JPEG image."""
     img = Image.new("RGB", (width, height), color=(100, 150, 200))
     buf = io.BytesIO()
-    if with_exif:
-        # Pillow can't easily write GPS EXIF, so just save without
-        img.save(buf, format="JPEG", quality=85)
-    else:
-        img.save(buf, format="JPEG", quality=85)
+    img.save(buf, format="JPEG", quality=85)
     return buf.getvalue()
 
 
