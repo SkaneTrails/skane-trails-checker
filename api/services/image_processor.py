@@ -12,6 +12,10 @@ logger = logging.getLogger(__name__)
 MAX_DIMENSION = 800  # px — longest side
 JPEG_QUALITY = 60
 
+# Thumbnail for map pins — small enough to batch all pins in one response
+THUMBNAIL_DIMENSION = 60  # px — longest side
+THUMBNAIL_QUALITY = 50
+
 
 def process_image(raw_bytes: bytes) -> tuple[str, float | None, float | None]:
     """Process an uploaded image: resize, compress, extract GPS.
@@ -117,4 +121,19 @@ def _to_base64_jpeg(img: Image.Image) -> str:
         img = img.convert("RGB")
     buf = io.BytesIO()
     img.save(buf, format="JPEG", quality=JPEG_QUALITY, optimize=True)
+    return base64.b64encode(buf.getvalue()).decode("ascii")
+
+
+def generate_thumbnail(base64_data: str) -> str:
+    """Generate a small thumbnail from an already-processed base64 JPEG.
+
+    Returns a base64-encoded JPEG suitable for map pin display (~2-3 KB).
+    """
+    raw = base64.b64decode(base64_data)
+    img = Image.open(io.BytesIO(raw))
+    if img.mode in ("RGBA", "P"):
+        img = img.convert("RGB")
+    img.thumbnail((THUMBNAIL_DIMENSION, THUMBNAIL_DIMENSION), Image.Resampling.LANCZOS)
+    buf = io.BytesIO()
+    img.save(buf, format="JPEG", quality=THUMBNAIL_QUALITY, optimize=True)
     return base64.b64encode(buf.getvalue()).decode("ascii")

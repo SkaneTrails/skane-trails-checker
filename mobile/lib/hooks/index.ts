@@ -25,16 +25,15 @@ export {
   trailKeys,
   useDeleteTrail,
   useDeleteTrailImage,
+  useImagePins,
   useMapTrails,
   useSaveRecording,
   useTrail,
   useTrailDetails,
   useTrailImages,
-  useTrailPrimaryPins,
   useTrails,
   useUpdateTrail,
   useUploadGpx,
   useUploadTrailImage,
   filterTrails,
 } from './use-trails';
-export type { TrailImagePin } from './use-trails';

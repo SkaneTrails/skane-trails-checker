@@ -83,6 +83,7 @@ const en = {
     useTrailsTab: 'Use the Trails tab to see your trails.',
     couldNotConnect: 'Could not connect to API',
     layers: 'Layers',
+    images: 'Images',
     menu: 'Menu',
     closeMenu: 'Close menu',
   },
