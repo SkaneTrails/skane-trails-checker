@@ -204,6 +204,34 @@ class TestUploadTrailImage:
             saved_images = mock_save.call_args[0][1]
             assert saved_images[0].thumbnail == "tiny_thumb"
 
+    @patch("api.routers.trails.trail_storage.save_trail_images")
+    @patch("api.routers.trails.trail_storage.get_trail_images")
+    @patch("api.routers.trails.trail_storage.get_trail")
+    def test_upload_falls_back_to_trail_midpoint_when_no_gps(
+        self, mock_get_trail, mock_get_images, mock_save, authenticated_client
+    ):
+        trail_with_coords = SAMPLE_TRAIL.model_copy(
+            update={"coordinates_map": [Coordinate(lat=55.0, lng=12.0), Coordinate(lat=56.0, lng=13.0)]}
+        )
+        mock_get_trail.return_value = trail_with_coords
+        mock_get_images.return_value = TrailImagesResponse(trail_id="abc123", images=[])
+
+        with (
+            patch("api.routers.trails.process_image", return_value=("b64img", None, None)),
+            patch("api.routers.trails.generate_thumbnail", return_value="thumb") as mock_thumb,
+        ):
+            jpeg_data = _make_jpeg()
+            response = authenticated_client.post(
+                "/api/v1/trails/abc123/images?role=primary", files={"file": ("photo.jpg", jpeg_data, "image/jpeg")}
+            )
+            assert response.status_code == 201
+            mock_thumb.assert_called_once_with("b64img")
+            saved_images = mock_save.call_args[0][1]
+            # Midpoint of 2 coords → index 1 → (56.0, 13.0)
+            assert saved_images[0].lat == 56.0
+            assert saved_images[0].lng == 13.0
+            assert saved_images[0].thumbnail == "thumb"
+
     @patch("api.routers.trails.trail_storage.get_trail")
     def test_upload_invalid_image(self, mock_get_trail, authenticated_client):
         mock_get_trail.return_value = SAMPLE_TRAIL

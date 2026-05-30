@@ -293,6 +293,22 @@ def get_trail_images(trail_id: str, user: Annotated[AuthenticatedUser, Depends(r
     return trail_storage.get_trail_images(trail_id)
 
 
+def _read_image_upload(file: UploadFile) -> bytes:
+    """Read and validate an uploaded image file."""
+    try:
+        content = file.file.read()
+    except Exception:  # pragma: no cover
+        raise HTTPException(status_code=400, detail="Failed to read uploaded file")  # noqa: B904
+
+    if not content:
+        raise HTTPException(status_code=400, detail="Uploaded file is empty")
+
+    if len(content) > MAX_IMAGE_UPLOAD_SIZE:
+        raise HTTPException(status_code=413, detail="Image too large. Maximum upload size is 15 MB.")
+
+    return content
+
+
 @router.post("/{trail_id}/images", status_code=201)
 def upload_trail_image(
     trail_id: str,
@@ -314,16 +330,7 @@ def upload_trail_image(
 
     _require_write_access(user, trail)
 
-    try:
-        content = file.file.read()
-    except Exception:  # pragma: no cover
-        raise HTTPException(status_code=400, detail="Failed to read uploaded file")  # noqa: B904
-
-    if not content:
-        raise HTTPException(status_code=400, detail="Uploaded file is empty")
-
-    if len(content) > MAX_IMAGE_UPLOAD_SIZE:
-        raise HTTPException(status_code=413, detail="Image too large. Maximum upload size is 15 MB.")
+    content = _read_image_upload(file)
 
     try:
         image_data, lat, lng = process_image(content)
@@ -332,6 +339,11 @@ def upload_trail_image(
 
     if len(image_data) > MAX_BASE64_SIZE:
         raise HTTPException(status_code=413, detail="Processed image too large. Try a simpler photo.")
+
+    # Fall back to trail midpoint when EXIF GPS is missing (e.g. Android photo picker strips it)
+    if lat is None and trail.coordinates_map:
+        mid = trail.coordinates_map[len(trail.coordinates_map) // 2]
+        lat, lng = mid.lat, mid.lng
 
     thumbnail = generate_thumbnail(image_data) if lat is not None else None
 
