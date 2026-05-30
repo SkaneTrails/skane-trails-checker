@@ -12,18 +12,14 @@ import { placeCategoryColor } from '@/lib/place-colors';
 import { FALLBACK_PATH, ICON_PATHS } from './PlaceCategoryIcon';
 import { animation, iconSize, useTheme } from '@/lib/theme';
 import type { ColorTokens } from '@/lib/theme/colors';
-import type { ForagingSpot, ForagingType, Place, Trail, TrailImage } from '@/lib/types';
+import type { ForagingSpot, ForagingType, ImagePin, Place, Trail } from '@/lib/types';
 import type { TrackingPoint } from '@/lib/track-to-trail';
 
 export interface MapLayers {
   trails: boolean;
   foraging: boolean;
   places: boolean;
-}
-
-interface TrailImagePin {
-  trailId: string;
-  image: TrailImage;
+  images: boolean;
 }
 
 interface UnifiedMapProps {
@@ -35,7 +31,7 @@ interface UnifiedMapProps {
   selectedTrailId?: string | null;
   focusBounds?: { north: number; south: number; east: number; west: number } | null;
   recordingPoints?: TrackingPoint[];
-  imagePins?: TrailImagePin[];
+  imagePins?: ImagePin[];
   onTrailSelect?: (trail: Trail) => void;
   onSpotSelect?: (spot: ForagingSpot) => void;
   onPlaceSelect?: (place: Place) => void;
@@ -47,6 +43,7 @@ interface UnifiedMapProps {
 const DEFAULT_CENTER: [number, number] = [55.95, 13.4];
 const DEFAULT_ZOOM = 9;
 const PLACES_MIN_ZOOM = 12;
+const IMAGE_PINS_MIN_ZOOM = 11;
 
 const MAP_DOT_BORDER = '2px solid rgba(255,255,255,0.9)';
 
@@ -93,6 +90,9 @@ export function UnifiedMap({
 
   const placesDataRef = useRef({ places, layers, colors });
   placesDataRef.current = { places, layers, colors };
+
+  const imagePinsDataRef = useRef({ imagePins, layers, trails, colors });
+  imagePinsDataRef.current = { imagePins, layers, trails, colors };
 
   const callbackRefs = useRef({ onTrailSelect, onSpotSelect, onPlaceSelect, onMapClick, onLongPress });
   callbackRefs.current = { onTrailSelect, onSpotSelect, onPlaceSelect, onMapClick, onLongPress };
@@ -165,6 +165,7 @@ export function UnifiedMap({
 
       map.on('zoomend', () => {
         renderPlaces(L, map.getZoom());
+        renderImagePins(L, map.getZoom());
       });
 
       setMapReady(true);
@@ -301,44 +302,50 @@ export function UnifiedMap({
   }, [places, layers.places, mapReady]);
 
   // Update image pin layer — circular photo bubbles for primary trail images
-  useEffect(() => {
+  function renderImagePins(L: typeof import('leaflet'), zoom: number) {
     const group = layerGroupsRef.current.imagePins;
     if (!group) return;
     group.clearLayers();
 
-    if (!imagePins || imagePins.length === 0 || !layers.trails) return;
+    const { imagePins: pins, layers: l, trails: t, colors: c } = imagePinsDataRef.current;
+    if (!l.images || zoom < IMAGE_PINS_MIN_ZOOM) return;
+    if (!pins || pins.length === 0) return;
+
+    for (const pin of pins) {
+      const iconHtml = `<div style="
+        width: 36px; height: 36px; border-radius: 50%;
+        border: 3px solid ${c.explored};
+        overflow: hidden;
+        box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+        background: #fff;
+      "><img src="data:image/jpeg;base64,${pin.thumbnail}"
+        style="width: 100%; height: 100%; object-fit: cover;"
+      /></div>`;
+
+      const icon = L.divIcon({
+        html: iconHtml,
+        className: '',
+        iconSize: [42, 42],
+        iconAnchor: [21, 21],
+      });
+
+      const marker = L.marker([pin.lat, pin.lng], { icon }).addTo(group);
+      marker.on('click', (e) => {
+        L.DomEvent.stopPropagation(e);
+        const trail = t.find((tr) => tr.trail_id === pin.trail_id);
+        if (trail) callbackRefs.current.onTrailSelect?.(trail);
+      });
+    }
+  }
+
+  useEffect(() => {
+    const map = mapInstanceRef.current;
+    if (!map) return;
 
     import('leaflet').then((L) => {
-      for (const pin of imagePins) {
-        const { image } = pin;
-        if (image.lat == null || image.lng == null) continue;
-
-        const iconHtml = `<div style="
-          width: 36px; height: 36px; border-radius: 50%;
-          border: 3px solid ${colorsRef.current.explored};
-          overflow: hidden;
-          box-shadow: 0 2px 6px rgba(0,0,0,0.3);
-          background: #fff;
-        "><img src="data:image/jpeg;base64,${image.image_data}"
-          style="width: 100%; height: 100%; object-fit: cover;"
-        /></div>`;
-
-        const icon = L.divIcon({
-          html: iconHtml,
-          className: '',
-          iconSize: [42, 42],
-          iconAnchor: [21, 21],
-        });
-
-        const marker = L.marker([image.lat, image.lng], { icon }).addTo(group);
-        marker.on('click', (e) => {
-          L.DomEvent.stopPropagation(e);
-          const trail = trails.find((t) => t.trail_id === pin.trailId);
-          if (trail) callbackRefs.current.onTrailSelect?.(trail);
-        });
-      }
+      renderImagePins(L, map.getZoom());
     });
-  }, [imagePins, layers.trails, mapReady, trails]);
+  }, [imagePins, layers.images, mapReady, trails]);
 
   return <div ref={mapRef} style={{ width: '100%', height: '100%' }} />;
 }

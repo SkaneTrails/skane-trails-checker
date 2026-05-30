@@ -16,6 +16,7 @@ from api.storage.trail_storage import (
     delete_trail,
     delete_trail_images,
     get_all_trails,
+    get_image_pins,
     get_sync_metadata,
     get_trail,
     get_trail_details,
@@ -1005,3 +1006,64 @@ class TestTrailImages:
         delete_trail_images("t1")
         mock_collection.document.assert_called_with("t1")
         mock_collection.document.return_value.delete.assert_called_once()
+
+
+class TestGetImagePins:
+    """Tests for batch image pin retrieval."""
+
+    def test_empty_trail_ids(self, mock_collection) -> None:
+        result = get_image_pins([])
+        assert result == []
+
+    def test_extracts_primary_with_thumbnail(self, mock_collection) -> None:
+        doc1 = _make_doc(
+            {
+                "trail_id": "t1",
+                "images": [
+                    {"image_data": "full", "role": "primary", "lat": 55.5, "lng": 13.2, "thumbnail": "thumb1"},
+                    {"image_data": "full2", "role": "secondary"},
+                ],
+            }
+        )
+        mock_collection.where.return_value.stream.return_value = [doc1]
+
+        result = get_image_pins(["t1"])
+        assert len(result) == 1
+        assert result[0].trail_id == "t1"
+        assert result[0].lat == 55.5
+        assert result[0].lng == 13.2
+        assert result[0].thumbnail == "thumb1"
+
+    def test_skips_pins_without_thumbnail(self, mock_collection) -> None:
+        doc1 = _make_doc(
+            {"trail_id": "t1", "images": [{"image_data": "full", "role": "primary", "lat": 55.5, "lng": 13.2}]}
+        )
+        mock_collection.where.return_value.stream.return_value = [doc1]
+
+        result = get_image_pins(["t1"])
+        assert result == []
+
+    def test_skips_pins_without_gps(self, mock_collection) -> None:
+        doc1 = _make_doc(
+            {"trail_id": "t1", "images": [{"image_data": "full", "role": "primary", "thumbnail": "thumb1"}]}
+        )
+        mock_collection.where.return_value.stream.return_value = [doc1]
+
+        result = get_image_pins(["t1"])
+        assert result == []
+
+    def test_skips_empty_documents(self, mock_collection) -> None:
+        doc1 = _make_doc(None)
+        mock_collection.where.return_value.stream.return_value = [doc1]
+
+        result = get_image_pins(["t1"])
+        assert result == []
+
+    def test_batches_large_id_lists(self, mock_collection) -> None:
+        # More than 30 IDs should trigger multiple Firestore queries
+        ids = [f"t{i}" for i in range(35)]
+        mock_collection.where.return_value.stream.return_value = []
+
+        get_image_pins(ids)
+        # Should call where() twice (30 + 5)
+        assert mock_collection.where.call_count == 2

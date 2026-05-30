@@ -182,6 +182,28 @@ class TestUploadTrailImage:
         assert response.status_code == 413
         assert "Processed image too large" in response.json()["detail"]
 
+    @patch("api.routers.trails.trail_storage.save_trail_images")
+    @patch("api.routers.trails.trail_storage.get_trail_images")
+    @patch("api.routers.trails.trail_storage.get_trail")
+    def test_upload_generates_thumbnail_when_gps_present(
+        self, mock_get_trail, mock_get_images, mock_save, authenticated_client
+    ):
+        mock_get_trail.return_value = SAMPLE_TRAIL
+        mock_get_images.return_value = TrailImagesResponse(trail_id="abc123", images=[])
+
+        with (
+            patch("api.routers.trails.process_image", return_value=("b64img", 55.5, 13.2)),
+            patch("api.routers.trails.generate_thumbnail", return_value="tiny_thumb") as mock_thumb,
+        ):
+            jpeg_data = _make_jpeg()
+            response = authenticated_client.post(
+                "/api/v1/trails/abc123/images?role=primary", files={"file": ("photo.jpg", jpeg_data, "image/jpeg")}
+            )
+            assert response.status_code == 201
+            mock_thumb.assert_called_once_with("b64img")
+            saved_images = mock_save.call_args[0][1]
+            assert saved_images[0].thumbnail == "tiny_thumb"
+
     @patch("api.routers.trails.trail_storage.get_trail")
     def test_upload_invalid_image(self, mock_get_trail, authenticated_client):
         mock_get_trail.return_value = SAMPLE_TRAIL
@@ -247,3 +269,58 @@ class TestDeleteTrailImage:
         mock_get_trail.return_value = SAMPLE_TRAIL
         response = member_client.delete("/api/v1/trails/abc123/images/0")
         assert response.status_code == 403
+
+
+class TestGetImagePins:
+    @patch("api.routers.trails.trail_storage.get_image_pins")
+    @patch("api.routers.trails.trail_storage.get_all_trails")
+    def test_returns_pins(self, mock_get_all, mock_get_pins, authenticated_client):
+        mock_get_all.return_value = [
+            TrailResponse(
+                trail_id="t1",
+                name="Explored",
+                difficulty="Easy",
+                length_km=3.0,
+                status="Explored!",
+                coordinates_map=[],
+                bounds=TrailBounds(north=56, south=55, east=14, west=13),
+                center=Coordinate(lat=55.5, lng=13.5),
+                source="other_trails",
+                last_updated="2026-01-01T00:00:00",
+                group_id=TEST_GROUP_ID,
+            ),
+            TrailResponse(
+                trail_id="t2",
+                name="Unexplored",
+                difficulty="Easy",
+                length_km=2.0,
+                status="To Explore",
+                coordinates_map=[],
+                bounds=TrailBounds(north=56, south=55, east=14, west=13),
+                center=Coordinate(lat=55.5, lng=13.5),
+                source="other_trails",
+                last_updated="2026-01-01T00:00:00",
+                group_id=TEST_GROUP_ID,
+            ),
+        ]
+        from api.models.trail import ImagePin
+
+        mock_get_pins.return_value = [ImagePin(trail_id="t1", lat=55.5, lng=13.2, thumbnail="thumb")]
+
+        response = authenticated_client.get("/api/v1/trails/image-pins")
+        assert response.status_code == 200
+        data = response.json()
+        assert len(data["pins"]) == 1
+        assert data["pins"][0] == {"trail_id": "t1", "lat": 55.5, "lng": 13.2, "thumbnail": "thumb"}
+        # Should only pass explored trail IDs
+        mock_get_pins.assert_called_once_with(["t1"])
+
+    @patch("api.routers.trails.trail_storage.get_image_pins")
+    @patch("api.routers.trails.trail_storage.get_all_trails")
+    def test_empty_when_no_explored(self, mock_get_all, mock_get_pins, authenticated_client):
+        mock_get_all.return_value = []
+        mock_get_pins.return_value = []
+
+        response = authenticated_client.get("/api/v1/trails/image-pins")
+        assert response.status_code == 200
+        assert response.json()["pins"] == []

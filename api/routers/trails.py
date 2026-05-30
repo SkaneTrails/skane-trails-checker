@@ -14,6 +14,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile
 from api.auth import AuthenticatedUser, require_auth, require_group
 from api.models.trail import (
     TRAIL_COLORS,
+    ImagePinsResponse,
     RecordingCreate,
     SyncMetadata,
     TrailDetailsResponse,
@@ -24,7 +25,7 @@ from api.models.trail import (
     TrailUpdate,
 )
 from api.services.gpx_parser import parse_gpx_upload
-from api.services.image_processor import process_image
+from api.services.image_processor import generate_thumbnail, process_image
 from api.services.recording_processor import process_recording
 from api.storage import trail_storage
 
@@ -97,6 +98,19 @@ def list_trails(
         return [trail.model_copy(update={"coordinates_map": []}) for trail in trails]
 
     return trails
+
+
+@router.get("/image-pins")
+def get_image_pins(user: Annotated[AuthenticatedUser, Depends(require_auth)]) -> ImagePinsResponse:
+    """Get lightweight image pins for map display.
+
+    Returns thumbnail + GPS coords for all primary images the user can see.
+    Single request replaces N individual trail image fetches.
+    """
+    all_trails = trail_storage.get_all_trails(group_id=user.group_id if user.role != "superuser" else None)
+    explored_ids = [t.trail_id for t in all_trails if t.status == "Explored!"]
+    pins = trail_storage.get_image_pins(explored_ids)
+    return ImagePinsResponse(pins=pins)
 
 
 @router.get("/{trail_id}")
@@ -319,6 +333,8 @@ def upload_trail_image(
     if len(image_data) > MAX_BASE64_SIZE:
         raise HTTPException(status_code=413, detail="Processed image too large. Try a simpler photo.")
 
+    thumbnail = generate_thumbnail(image_data) if lat is not None else None
+
     existing = trail_storage.get_trail_images(trail_id)
     images = existing.images
 
@@ -332,7 +348,7 @@ def upload_trail_image(
     if len(images) >= MAX_IMAGES_PER_TRAIL:
         raise HTTPException(status_code=400, detail=f"Maximum {MAX_IMAGES_PER_TRAIL} images per trail")
 
-    new_image = TrailImage(image_data=image_data, role=role, lat=lat, lng=lng, caption=caption)
+    new_image = TrailImage(image_data=image_data, role=role, lat=lat, lng=lng, caption=caption, thumbnail=thumbnail)
     images.append(new_image)
 
     trail_storage.save_trail_images(trail_id, images)
