@@ -259,6 +259,7 @@ export function useTrail(id: string) {
  * Fetch full trail data (including coordinates_map) for map rendering.
  *
  * Uses long stale time since trail routes rarely change.
+ * Mutations update this cache directly via setQueryData.
  * Shows summary data from the list cache as placeholder while loading.
  */
 export function useMapTrails(options?: { enabled?: boolean }) {
@@ -266,7 +267,7 @@ export function useMapTrails(options?: { enabled?: boolean }) {
   return useQuery({
     queryKey: trailKeys.map(),
     queryFn: () => trailsApi.getTrails({}),
-    staleTime: 30 * 60 * 1000, // 30 min — trail routes rarely change
+    staleTime: 30 * 60 * 1000, // 30 min — mutations update cache directly
     placeholderData: () => queryClient.getQueryData<Trail[]>(trailKeys.list()),
     enabled: options?.enabled,
   });
@@ -417,6 +418,7 @@ export function useUploadTrailImage() {
         trailKeys.images(result.trail_id),
         result,
       );
+      queryClient.invalidateQueries({ queryKey: trailKeys.imagePins() });
     },
   });
 }
@@ -438,6 +440,7 @@ export function useDeleteTrailImage() {
           };
         },
       );
+      queryClient.invalidateQueries({ queryKey: trailKeys.imagePins() });
     },
   });
 }
@@ -450,7 +453,7 @@ export function useImagePins(options?: { enabled?: boolean }) {
   return useQuery({
     queryKey: trailKeys.imagePins(),
     queryFn: () => trailsApi.getImagePins(),
-    staleTime: 5 * 60 * 1000,
+    staleTime: 5 * 60 * 1000, // 5 min — image mutations invalidate this
     enabled: options?.enabled,
     select: (data) => data.pins,
   });
