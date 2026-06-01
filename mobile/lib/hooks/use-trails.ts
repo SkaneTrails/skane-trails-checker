@@ -1,9 +1,10 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { trailsApi } from '@/lib/api';
+import type { ImageFile } from '@/lib/api/trails';
 import { trailCache } from '@/lib/storage/trail-cache';
 import type { TrackingPoint } from '@/lib/track-to-trail';
-import type { Trail, TrailUpdate } from '@/lib/types';
+import type { Trail, TrailImage, TrailImagesResponse, TrailUpdate } from '@/lib/types';
 
 export const SYNC_POLL_INTERVAL = 10 * 60 * 1000; // 10 minutes
 
@@ -35,6 +36,8 @@ export const trailKeys = {
   map: () => ['trails', 'map'] as const,
   detail: (id: string) => ['trails', 'detail', id] as const,
   details: (id: string) => ['trails', 'details', id] as const,
+  images: (id: string) => ['trails', 'images', id] as const,
+  imagePins: () => ['trails', 'image-pins'] as const,
   sync: ['trails', 'sync'] as const,
 };
 
@@ -256,6 +259,7 @@ export function useTrail(id: string) {
  * Fetch full trail data (including coordinates_map) for map rendering.
  *
  * Uses long stale time since trail routes rarely change.
+ * Mutations update this cache directly via setQueryData.
  * Shows summary data from the list cache as placeholder while loading.
  */
 export function useMapTrails(options?: { enabled?: boolean }) {
@@ -263,7 +267,7 @@ export function useMapTrails(options?: { enabled?: boolean }) {
   return useQuery({
     queryKey: trailKeys.map(),
     queryFn: () => trailsApi.getTrails({}),
-    staleTime: 30 * 60 * 1000, // 30 min — trail routes rarely change
+    staleTime: 30 * 60 * 1000, // 30 min — mutations update cache directly
     placeholderData: () => queryClient.getQueryData<Trail[]>(trailKeys.list()),
     enabled: options?.enabled,
   });
@@ -383,5 +387,74 @@ export function useSaveRecording() {
         trailCache.set(Array.from(merged.values()), lastSyncTime ?? new Date().toISOString());
       });
     },
+  });
+}
+
+export function useTrailImages(id: string) {
+  return useQuery({
+    queryKey: trailKeys.images(id),
+    queryFn: () => trailsApi.getTrailImages(id),
+    enabled: !!id,
+  });
+}
+
+export function useUploadTrailImage() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({
+      trailId,
+      file,
+      role,
+      caption,
+    }: {
+      trailId: string;
+      file: ImageFile;
+      role: 'primary' | 'secondary';
+      caption?: string;
+    }) => trailsApi.uploadTrailImage(trailId, file, role, caption),
+    onSuccess: (result) => {
+      queryClient.setQueryData<TrailImagesResponse>(
+        trailKeys.images(result.trail_id),
+        result,
+      );
+      queryClient.invalidateQueries({ queryKey: trailKeys.imagePins() });
+    },
+  });
+}
+
+export function useDeleteTrailImage() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ trailId, imageIndex }: { trailId: string; imageIndex: number }) =>
+      trailsApi.deleteTrailImage(trailId, imageIndex),
+    onSuccess: (_data, { trailId, imageIndex }) => {
+      queryClient.setQueryData<TrailImagesResponse>(
+        trailKeys.images(trailId),
+        (old) => {
+          if (!old) return old;
+          return {
+            ...old,
+            images: old.images.filter((_, i) => i !== imageIndex),
+          };
+        },
+      );
+      queryClient.invalidateQueries({ queryKey: trailKeys.imagePins() });
+    },
+  });
+}
+
+/**
+ * Fetch lightweight image pins for the map in a single batch request.
+ * Returns only thumbnail + GPS coords — no full image data.
+ */
+export function useImagePins(options?: { enabled?: boolean }) {
+  return useQuery({
+    queryKey: trailKeys.imagePins(),
+    queryFn: () => trailsApi.getImagePins(),
+    staleTime: 5 * 60 * 1000, // 5 min — image mutations invalidate this
+    enabled: options?.enabled,
+    select: (data) => data.pins,
   });
 }

@@ -20,13 +20,14 @@ import { StyleSheet, View } from 'react-native';
 import { foragingColorMap } from '@/lib/foraging-colors';
 import type { MapOverlay } from '@/lib/map-overlays';
 import { useTheme } from '@/lib/theme';
-import type { ForagingSpot, ForagingType, Place, Trail } from '@/lib/types';
+import type { ForagingSpot, ForagingType, ImagePin, Place, Trail } from '@/lib/types';
 import type { TrackingPoint } from '@/lib/track-to-trail';
 
 export interface MapLayers {
   trails: boolean;
   foraging: boolean;
   places: boolean;
+  images: boolean;
 }
 
 interface UnifiedMapProps {
@@ -38,6 +39,8 @@ interface UnifiedMapProps {
   selectedTrailId?: string | null;
   focusBounds?: { north: number; south: number; east: number; west: number } | null;
   recordingPoints?: TrackingPoint[];
+  /** Primary trail image locations for map markers */
+  imagePins?: ImagePin[];
   /** Georeferenced image overlays to render on the map */
   imageOverlays?: MapOverlay[];
   onTrailSelect?: (trail: Trail) => void;
@@ -101,6 +104,7 @@ export function UnifiedMap({
   selectedTrailId,
   focusBounds,
   recordingPoints,
+  imagePins,
   imageOverlays = [],
   onTrailSelect,
   onSpotSelect,
@@ -173,6 +177,21 @@ export function UnifiedMap({
             geometry: {
               type: 'Point' as const,
               coordinates: [place.lng, place.lat],
+            },
+          })),
+        }
+      : { type: 'FeatureCollection', features: [] };
+
+  const imagePinsGeoJSON: GeoJSON.FeatureCollection =
+    layers.images && imagePins?.length
+      ? {
+          type: 'FeatureCollection',
+          features: imagePins.map((pin) => ({
+            type: 'Feature' as const,
+            properties: { trailId: pin.trail_id },
+            geometry: {
+              type: 'Point' as const,
+              coordinates: [pin.lng, pin.lat],
             },
           })),
         }
@@ -379,6 +398,36 @@ export function UnifiedMap({
               'text-color': colors.text.primary,
               'text-halo-color': '#ffffff',
               'text-halo-width': 1,
+            }}
+          />
+        </GeoJSONSource>
+
+        {/* Image pin markers — primary photos with GPS */}
+        <GeoJSONSource
+          id="image-pins"
+          data={imagePinsGeoJSON}
+          onPress={(e) => {
+            const trailId = e.nativeEvent.features?.[0]?.properties?.trailId;
+            const trail = trails.find((t) => t.trail_id === trailId);
+            if (trail) onTrailSelect?.(trail);
+          }}
+        >
+          <Layer
+            id="image-pins-circle"
+            type="circle"
+            paint={{
+              'circle-radius': 10,
+              'circle-color': colors.explored,
+              'circle-stroke-width': 3,
+              'circle-stroke-color': '#ffffff',
+            }}
+          />
+          <Layer
+            id="image-pins-icon"
+            type="symbol"
+            layout={{
+              'text-field': '📷',
+              'text-size': 12,
             }}
           />
         </GeoJSONSource>

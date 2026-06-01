@@ -9,17 +9,21 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from api.models.trail import Coordinate, SyncMetadata, TrailBounds, TrailDetailsResponse, TrailResponse
+from api.models.trail import Coordinate, SyncMetadata, TrailBounds, TrailDetailsResponse, TrailImage, TrailResponse
 from api.storage.trail_storage import (
     _update_sync_metadata,
     _utc_now_z,
     delete_trail,
+    delete_trail_images,
     get_all_trails,
+    get_image_pins,
     get_sync_metadata,
     get_trail,
     get_trail_details,
+    get_trail_images,
     save_trail,
     save_trail_details,
+    save_trail_images,
     update_sync_metadata,
     update_trail,
     update_trail_name,
@@ -951,3 +955,115 @@ class TestUtcNowZ:
         result = _utc_now_z()
         assert result.endswith("Z")
         assert "+" not in result
+
+
+class TestTrailImages:
+    """Tests for trail image storage operations."""
+
+    def test_get_images_no_document(self, mock_collection) -> None:
+        mock_collection.document.return_value.get.return_value = _make_doc(None, exists=False)
+        result = get_trail_images("t1")
+        assert result.trail_id == "t1"
+        assert result.images == []
+
+    def test_get_images_empty_doc(self, mock_collection) -> None:
+        mock_collection.document.return_value.get.return_value = _make_doc({})
+        result = get_trail_images("t1")
+        assert result.trail_id == "t1"
+        assert result.images == []
+
+    def test_get_images_with_data(self, mock_collection) -> None:
+        data = {
+            "trail_id": "t1",
+            "images": [
+                {"image_data": "base64abc", "role": "primary", "lat": 56.0, "lng": 13.0, "caption": "View"},
+                {"image_data": "base64def", "role": "secondary"},
+            ],
+        }
+        mock_collection.document.return_value.get.return_value = _make_doc(data)
+        result = get_trail_images("t1")
+        assert len(result.images) == 2
+        assert result.images[0].role == "primary"
+        assert result.images[0].lat == 56.0
+        assert result.images[0].caption == "View"
+        assert result.images[1].role == "secondary"
+        assert result.images[1].lat is None
+
+    def test_save_images(self, mock_collection) -> None:
+        images = [
+            TrailImage(image_data="b64data", role="primary", lat=56.0, lng=13.0, caption="Peak"),
+            TrailImage(image_data="b64data2", role="secondary"),
+        ]
+        save_trail_images("t1", images)
+        mock_collection.document.assert_called_with("t1")
+        call_data = mock_collection.document.return_value.set.call_args[0][0]
+        assert call_data["trail_id"] == "t1"
+        assert len(call_data["images"]) == 2
+        assert call_data["images"][0]["lat"] == 56.0
+        assert "lat" not in call_data["images"][1]
+
+    def test_delete_images(self, mock_collection) -> None:
+        delete_trail_images("t1")
+        mock_collection.document.assert_called_with("t1")
+        mock_collection.document.return_value.delete.assert_called_once()
+
+
+class TestGetImagePins:
+    """Tests for batch image pin retrieval."""
+
+    def test_empty_trail_ids(self, mock_collection) -> None:
+        result = get_image_pins([])
+        assert result == []
+
+    def test_extracts_primary_with_thumbnail(self, mock_collection) -> None:
+        doc1 = _make_doc(
+            {
+                "trail_id": "t1",
+                "images": [
+                    {"image_data": "full", "role": "primary", "lat": 55.5, "lng": 13.2, "thumbnail": "thumb1"},
+                    {"image_data": "full2", "role": "secondary"},
+                ],
+            }
+        )
+        mock_collection.where.return_value.stream.return_value = [doc1]
+
+        result = get_image_pins(["t1"])
+        assert len(result) == 1
+        assert result[0].trail_id == "t1"
+        assert result[0].lat == 55.5
+        assert result[0].lng == 13.2
+        assert result[0].thumbnail == "thumb1"
+
+    def test_skips_pins_without_thumbnail(self, mock_collection) -> None:
+        doc1 = _make_doc(
+            {"trail_id": "t1", "images": [{"image_data": "full", "role": "primary", "lat": 55.5, "lng": 13.2}]}
+        )
+        mock_collection.where.return_value.stream.return_value = [doc1]
+
+        result = get_image_pins(["t1"])
+        assert result == []
+
+    def test_skips_pins_without_gps(self, mock_collection) -> None:
+        doc1 = _make_doc(
+            {"trail_id": "t1", "images": [{"image_data": "full", "role": "primary", "thumbnail": "thumb1"}]}
+        )
+        mock_collection.where.return_value.stream.return_value = [doc1]
+
+        result = get_image_pins(["t1"])
+        assert result == []
+
+    def test_skips_empty_documents(self, mock_collection) -> None:
+        doc1 = _make_doc(None)
+        mock_collection.where.return_value.stream.return_value = [doc1]
+
+        result = get_image_pins(["t1"])
+        assert result == []
+
+    def test_batches_large_id_lists(self, mock_collection) -> None:
+        # More than 30 IDs should trigger multiple Firestore queries
+        ids = [f"t{i}" for i in range(35)]
+        mock_collection.where.return_value.stream.return_value = []
+
+        get_image_pins(ids)
+        # Should call where() twice (30 + 5)
+        assert mock_collection.where.call_count == 2

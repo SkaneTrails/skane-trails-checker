@@ -1,7 +1,17 @@
-import type { SyncMetadata, Trail, TrailDetails, TrailUpdate } from '@/lib/types';
+import type {
+  ImagePinsResponse,
+  SyncMetadata,
+  Trail,
+  TrailDetails,
+  TrailImagesResponse,
+  TrailUpdate,
+} from '@/lib/types';
 import type { TrackingPoint } from '@/lib/track-to-trail';
 import { toRecordingPayload } from '@/lib/track-to-trail';
 import { apiRequest } from './client';
+
+/** File descriptor compatible with both web (File) and native (uri object). */
+export type ImageFile = File | { uri: string; type: string; name: string };
 
 export interface TrailFilters {
   source?: string;
@@ -85,6 +95,38 @@ export const trailsApi = {
     return apiRequest<Trail>('/api/v1/trails/record', {
       method: 'POST',
       body: JSON.stringify(toRecordingPayload(name, points)),
+    });
+  },
+
+  getTrailImages(id: string): Promise<TrailImagesResponse> {
+    return apiRequest<TrailImagesResponse>(`/api/v1/trails/${id}/images`);
+  },
+
+  getImagePins(): Promise<ImagePinsResponse> {
+    return apiRequest<ImagePinsResponse>('/api/v1/trails/image-pins');
+  },
+
+  uploadTrailImage(
+    id: string,
+    file: ImageFile,
+    role: 'primary' | 'secondary' = 'secondary',
+    caption?: string,
+  ): Promise<TrailImagesResponse> {
+    const formData = new FormData();
+    formData.append('file', file as any);
+
+    const params = new URLSearchParams({ role });
+    if (caption) params.set('caption', caption);
+
+    return apiRequest<TrailImagesResponse>(
+      `/api/v1/trails/${id}/images?${params.toString()}`,
+      { method: 'POST', body: formData },
+    );
+  },
+
+  deleteTrailImage(trailId: string, imageIndex: number): Promise<void> {
+    return apiRequest<void>(`/api/v1/trails/${trailId}/images/${imageIndex}`, {
+      method: 'DELETE',
     });
   },
 };

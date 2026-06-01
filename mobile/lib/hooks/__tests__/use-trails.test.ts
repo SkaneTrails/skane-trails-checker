@@ -11,12 +11,16 @@ import {
   sortTrails,
   useDeleteTrail,
   useMapTrails,
+  useImagePins,
   useSaveRecording,
   useTrail,
   useTrailDetails,
+  useTrailImages,
   useTrails,
   useUpdateTrail,
   useUploadGpx,
+  useUploadTrailImage,
+  useDeleteTrailImage,
 } from '../use-trails';
 
 vi.mock('@/lib/api', () => ({
@@ -30,6 +34,10 @@ vi.mock('@/lib/api', () => ({
     uploadGpx: vi.fn(),
     getSyncMetadata: vi.fn(),
     saveRecording: vi.fn(),
+    getTrailImages: vi.fn(),
+    getImagePins: vi.fn(),
+    uploadTrailImage: vi.fn(),
+    deleteTrailImage: vi.fn(),
   },
 }));
 
@@ -752,5 +760,144 @@ describe('useSaveRecording', () => {
     await waitFor(() => {
       expect(mockTrailCache.set).toHaveBeenCalled();
     });
+  });
+});
+
+describe('useTrailImages', () => {
+  it('fetches images for a trail', async () => {
+    const images = { trail_id: 'abc', images: [{ image_data: 'b64', role: 'primary', lat: 55.0, lng: 13.0, caption: null }] };
+    mockTrailsApi.getTrailImages.mockResolvedValue(images);
+
+    const { result } = renderHook(() => useTrailImages('abc'), { wrapper: createQueryWrapper() });
+
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+    expect(result.current.data).toEqual(images);
+  });
+});
+
+describe('useUploadTrailImage', () => {
+  it('uploads an image and updates cache', async () => {
+    const response = { trail_id: 'abc', images: [{ image_data: 'b64', role: 'primary', lat: null, lng: null, caption: null }] };
+    mockTrailsApi.uploadTrailImage.mockResolvedValue(response);
+
+    const { result } = renderHook(() => useUploadTrailImage(), { wrapper: createQueryWrapper() });
+
+    const file = new File(['img'], 'photo.jpg');
+    await result.current.mutateAsync({ trailId: 'abc', file, role: 'primary' });
+
+    expect(mockTrailsApi.uploadTrailImage).toHaveBeenCalledWith('abc', file, 'primary', undefined);
+  });
+
+  it('invalidates imagePins cache after upload', async () => {
+    const response = { trail_id: 'abc', images: [{ image_data: 'b64', role: 'primary', lat: 55.5, lng: 13.2, caption: null }] };
+    mockTrailsApi.uploadTrailImage.mockResolvedValue(response);
+    mockTrailsApi.getImagePins.mockResolvedValue({
+      pins: [{ trail_id: 'abc', lat: 55.5, lng: 13.2, thumbnail: 'thumb' }],
+    });
+
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    // Seed imagePins cache so invalidation triggers a refetch
+    queryClient.setQueryData(['trails', 'image-pins'], { pins: [] });
+
+    const wrapper = ({ children }: { children: ReactNode }) =>
+      createElement(QueryClientProvider, { client: queryClient }, children);
+
+    // Mount useImagePins so the query is active and will refetch on invalidation
+    renderHook(() => useImagePins({ enabled: true }), { wrapper });
+
+    const { result } = renderHook(() => useUploadTrailImage(), { wrapper });
+
+    const file = new File(['img'], 'photo.jpg');
+    await result.current.mutateAsync({ trailId: 'abc', file, role: 'primary' });
+
+    await waitFor(() => {
+      expect(mockTrailsApi.getImagePins).toHaveBeenCalled();
+    });
+  });
+});
+
+describe('useDeleteTrailImage', () => {
+  it('deletes an image by index', async () => {
+    mockTrailsApi.deleteTrailImage.mockResolvedValue(undefined);
+
+    const { result } = renderHook(() => useDeleteTrailImage(), { wrapper: createQueryWrapper() });
+
+    await result.current.mutateAsync({ trailId: 'abc', imageIndex: 0 });
+
+    expect(mockTrailsApi.deleteTrailImage).toHaveBeenCalledWith('abc', 0);
+  });
+
+  it('optimistically removes image from cache on success', async () => {
+    mockTrailsApi.deleteTrailImage.mockResolvedValue(undefined);
+
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    // Seed cache with existing images
+    queryClient.setQueryData(['trails', 'images', 'abc'], {
+      trail_id: 'abc',
+      images: [
+        { image_data: 'img0', role: 'primary', lat: null, lng: null, caption: null },
+        { image_data: 'img1', role: 'secondary', lat: null, lng: null, caption: null },
+      ],
+    });
+
+    const wrapper = ({ children }: { children: ReactNode }) =>
+      createElement(QueryClientProvider, { client: queryClient }, children);
+
+    const { result } = renderHook(() => useDeleteTrailImage(), { wrapper });
+
+    await result.current.mutateAsync({ trailId: 'abc', imageIndex: 0 });
+
+    await waitFor(() => {
+      const cached = queryClient.getQueryData(['trails', 'images', 'abc']) as any;
+      expect(cached.images).toHaveLength(1);
+      expect(cached.images[0].image_data).toBe('img1');
+    });
+  });
+
+  it('invalidates imagePins cache after delete', async () => {
+    mockTrailsApi.deleteTrailImage.mockResolvedValue(undefined);
+    mockTrailsApi.getImagePins.mockResolvedValue({
+      pins: [{ trail_id: 'abc', lat: 55.5, lng: 13.2, thumbnail: 'thumb' }],
+    });
+
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    queryClient.setQueryData(['trails', 'images', 'abc'], {
+      trail_id: 'abc',
+      images: [{ image_data: 'img0', role: 'primary', lat: null, lng: null, caption: null }],
+    });
+    // Seed imagePins so invalidation triggers refetch
+    queryClient.setQueryData(['trails', 'image-pins'], { pins: [] });
+
+    const wrapper = ({ children }: { children: ReactNode }) =>
+      createElement(QueryClientProvider, { client: queryClient }, children);
+
+    // Mount useImagePins so the query is active
+    renderHook(() => useImagePins({ enabled: true }), { wrapper });
+
+    const { result } = renderHook(() => useDeleteTrailImage(), { wrapper });
+
+    await result.current.mutateAsync({ trailId: 'abc', imageIndex: 0 });
+
+    await waitFor(() => {
+      expect(mockTrailsApi.getImagePins).toHaveBeenCalled();
+    });
+  });
+});
+
+describe('useImagePins', () => {
+  it('returns undefined when disabled', () => {
+    const { result } = renderHook(() => useImagePins({ enabled: false }), { wrapper: createQueryWrapper() });
+    expect(result.current.data).toBeUndefined();
+  });
+
+  it('fetches image pins when enabled', async () => {
+    mockTrailsApi.getImagePins.mockResolvedValue({
+      pins: [{ trail_id: 't1', lat: 55.5, lng: 13.2, thumbnail: 'thumb' }],
+    });
+
+    const { result } = renderHook(() => useImagePins({ enabled: true }), { wrapper: createQueryWrapper() });
+
+    await waitFor(() => expect(result.current.data?.length).toBe(1));
+    expect(result.current.data![0]).toEqual({ trail_id: 't1', lat: 55.5, lng: 13.2, thumbnail: 'thumb' });
   });
 });

@@ -217,6 +217,39 @@ class SyncMetadata(BaseModel):
     )
 
 
+class TrailImage(BaseModel):
+    """An image attached to a trail."""
+
+    image_data: str = Field(description="Base64-encoded JPEG")
+    role: str = Field(description="'primary' or 'secondary'", pattern=r"^(primary|secondary)$")
+    lat: float | None = Field(default=None, ge=-90, le=90, description="EXIF GPS latitude")
+    lng: float | None = Field(default=None, ge=-180, le=180, description="EXIF GPS longitude")
+    caption: str | None = Field(default=None, max_length=200)
+    thumbnail: str | None = Field(default=None, description="Base64-encoded 60px JPEG thumbnail for map pins")
+
+
+class TrailImagesResponse(BaseModel):
+    """Response for trail images."""
+
+    trail_id: str
+    images: list[TrailImage] = Field(default_factory=list, max_length=3)
+
+
+class ImagePin(BaseModel):
+    """Lightweight image pin for map display."""
+
+    trail_id: str
+    lat: float
+    lng: float
+    thumbnail: str = Field(description="Base64-encoded 60px JPEG thumbnail")
+
+
+class ImagePinsResponse(BaseModel):
+    """Batch response of all image pins the user can see."""
+
+    pins: list[ImagePin] = Field(default_factory=list)
+
+
 class RecordingCoordinate(BaseModel):
     """A GPS coordinate from a device recording."""
 

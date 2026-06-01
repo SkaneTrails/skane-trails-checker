@@ -23,6 +23,7 @@ import {
   useDeleteTrail,
   useForagingSpots,
   useForagingTypes,
+  useImagePins,
   useMapTrails,
   usePlaces,
   useUpdateForagingSpot,
@@ -73,7 +74,10 @@ export default function MapScreen() {
     trails: true,
     foraging: true,
     places: true,
+    images: true,
   });
+
+  const { data: imagePins } = useImagePins({ enabled: mapLayers.images });
 
   const [showLayers, setShowLayers] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
@@ -126,6 +130,7 @@ export default function MapScreen() {
     { id: 'trails', label: t('tabs.trails'), icon: '', color: colors.layer.trails, enabled: mapLayers.trails },
     { id: 'foraging', label: t('tabs.foraging'), icon: '', color: colors.layer.foraging, enabled: mapLayers.foraging },
     { id: 'places', label: t('tabs.places'), icon: '', color: colors.layer.places, enabled: mapLayers.places },
+    { id: 'images', label: t('map.images'), icon: '', color: colors.layer.trails, enabled: mapLayers.images },
   ];
 
   const handleToggleLayer = useCallback((layerId: string) => {
@@ -385,6 +390,7 @@ export default function MapScreen() {
         selectedTrailId={selectedTrailId}
         focusBounds={focusBounds}
         recordingPoints={recordingPoints}
+        imagePins={imagePins}
         imageOverlays={visibleOverlays}
         onTrailSelect={handleTrailSelect}
         onSpotSelect={handleSpotSelect}

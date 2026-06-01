@@ -83,6 +83,7 @@ const sv: Translations = {
     useTrailsTab: 'Använd Leder-fliken för att se dina leder.',
     couldNotConnect: 'Kunde inte ansluta till API',
     layers: 'Lager',
+    images: 'Bilder',
     menu: 'Meny',
     closeMenu: 'Stäng meny',
   },
@@ -198,6 +199,20 @@ const sv: Translations = {
     visibility: 'Synlighet',
     publicTrail: 'Publik',
     privateTrail: 'Privat',
+  },
+
+  trailImages: {
+    noPhotos: 'Inga foton ännu',
+    primaryPhoto: 'Huvudfoto',
+    morePhotos: 'Fler foton',
+    addPrimary: 'Lägg till huvud',
+    addPhoto: 'Lägg till foto',
+    uploading: 'Laddar upp...',
+    uploadFailed: 'Uppladdning misslyckades',
+    deleteImage: 'Radera bild',
+    deleteConfirm: 'Radera detta foto?',
+    photos: 'Foton',
+    info: 'Info',
   },
 
   months: {

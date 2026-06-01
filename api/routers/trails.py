@@ -14,14 +14,18 @@ from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile
 from api.auth import AuthenticatedUser, require_auth, require_group
 from api.models.trail import (
     TRAIL_COLORS,
+    ImagePinsResponse,
     RecordingCreate,
     SyncMetadata,
     TrailDetailsResponse,
     TrailFilterParams,
+    TrailImage,
+    TrailImagesResponse,
     TrailResponse,
     TrailUpdate,
 )
 from api.services.gpx_parser import parse_gpx_upload
+from api.services.image_processor import generate_thumbnail, process_image
 from api.services.recording_processor import process_recording
 from api.storage import trail_storage
 
@@ -96,6 +100,19 @@ def list_trails(
     return trails
 
 
+@router.get("/image-pins")
+def get_image_pins(user: Annotated[AuthenticatedUser, Depends(require_auth)]) -> ImagePinsResponse:
+    """Get lightweight image pins for map display.
+
+    Returns thumbnail + GPS coords for all primary images the user can see.
+    Single request replaces N individual trail image fetches.
+    """
+    all_trails = trail_storage.get_all_trails(group_id=user.group_id if user.role != "superuser" else None)
+    explored_ids = [t.trail_id for t in all_trails if t.status == "Explored!"]
+    pins = trail_storage.get_image_pins(explored_ids)
+    return ImagePinsResponse(pins=pins)
+
+
 @router.get("/{trail_id}")
 def get_trail(trail_id: str, user: Annotated[AuthenticatedUser, Depends(require_auth)]) -> TrailResponse:
     """Get a single trail by ID. Must have access to the trail's group."""
@@ -158,6 +175,7 @@ def delete_trail(trail_id: str, user: Annotated[AuthenticatedUser, Depends(requi
     _require_write_access(user, existing)
 
     trail_storage.delete_trail(trail_id)
+    trail_storage.delete_trail_images(trail_id)
 
 
 @router.post("/upload", status_code=201)
@@ -254,3 +272,117 @@ def save_recording(body: RecordingCreate, user: Annotated[AuthenticatedUser, Dep
 
     logger.info("Saved GPS recording '%s' (%d points)", body.name, len(body.coordinates))
     return trail
+
+
+MAX_IMAGES_PER_TRAIL = 3
+MAX_SECONDARY_IMAGES = 2
+MAX_IMAGE_UPLOAD_SIZE = 15 * 1024 * 1024  # 15 MB — phones take large photos; server scales down
+MAX_BASE64_SIZE = 300_000  # ~300 KB base64 per image — 3 images + JSON overhead stays under Firestore 1 MiB doc limit
+
+
+@router.get("/{trail_id}/images")
+def get_trail_images(trail_id: str, user: Annotated[AuthenticatedUser, Depends(require_auth)]) -> TrailImagesResponse:
+    """Get images for a trail."""
+    trail = trail_storage.get_trail(trail_id)
+    if not trail:
+        raise HTTPException(status_code=404, detail="Trail not found")
+
+    if trail.group_id is not None and user.role != "superuser" and user.group_id != trail.group_id:
+        raise HTTPException(status_code=403, detail="Not authorized to view this trail")
+
+    return trail_storage.get_trail_images(trail_id)
+
+
+def _read_image_upload(file: UploadFile) -> bytes:
+    """Read and validate an uploaded image file."""
+    try:
+        content = file.file.read()
+    except Exception:  # pragma: no cover
+        raise HTTPException(status_code=400, detail="Failed to read uploaded file")  # noqa: B904
+
+    if not content:
+        raise HTTPException(status_code=400, detail="Uploaded file is empty")
+
+    if len(content) > MAX_IMAGE_UPLOAD_SIZE:
+        raise HTTPException(status_code=413, detail="Image too large. Maximum upload size is 15 MB.")
+
+    return content
+
+
+@router.post("/{trail_id}/images", status_code=201)
+def upload_trail_image(
+    trail_id: str,
+    file: UploadFile,
+    user: Annotated[AuthenticatedUser, Depends(require_auth)],
+    role: Annotated[str, Query(pattern=r"^(primary|secondary)$")] = "secondary",
+    caption: Annotated[str | None, Query(max_length=200)] = None,
+) -> TrailImagesResponse:
+    """Upload an image for a trail.
+
+    Max 3 images per trail (1 primary + 2 secondary). Images are resized to
+    max 800px and compressed to JPEG. EXIF GPS data is extracted for map pins.
+    """
+    _require_admin_role(user)
+
+    trail = trail_storage.get_trail(trail_id)
+    if not trail:
+        raise HTTPException(status_code=404, detail="Trail not found")
+
+    _require_write_access(user, trail)
+
+    content = _read_image_upload(file)
+
+    try:
+        image_data, lat, lng = process_image(content)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e)) from e
+
+    if len(image_data) > MAX_BASE64_SIZE:
+        raise HTTPException(status_code=413, detail="Processed image too large. Try a simpler photo.")
+
+    # Fall back to trail midpoint when EXIF GPS is missing (e.g. Android photo picker strips it)
+    if lat is None and trail.coordinates_map:
+        mid = trail.coordinates_map[len(trail.coordinates_map) // 2]
+        lat, lng = mid.lat, mid.lng
+
+    thumbnail = generate_thumbnail(image_data) if lat is not None else None
+
+    existing = trail_storage.get_trail_images(trail_id)
+    images = existing.images
+
+    # Enforce limits: max 1 primary + 2 secondary
+    if role == "primary":
+        images = [img for img in images if img.role != "primary"]
+    else:
+        secondary_count = sum(1 for img in images if img.role == "secondary")
+        if secondary_count >= MAX_SECONDARY_IMAGES:
+            raise HTTPException(status_code=400, detail=f"Maximum {MAX_SECONDARY_IMAGES} secondary images per trail")
+    if len(images) >= MAX_IMAGES_PER_TRAIL:
+        raise HTTPException(status_code=400, detail=f"Maximum {MAX_IMAGES_PER_TRAIL} images per trail")
+
+    new_image = TrailImage(image_data=image_data, role=role, lat=lat, lng=lng, caption=caption, thumbnail=thumbnail)
+    images.append(new_image)
+
+    trail_storage.save_trail_images(trail_id, images)
+    return TrailImagesResponse(trail_id=trail_id, images=images)
+
+
+@router.delete("/{trail_id}/images/{image_index}", status_code=204)
+def delete_trail_image(
+    trail_id: str, image_index: int, user: Annotated[AuthenticatedUser, Depends(require_auth)]
+) -> None:
+    """Delete a specific image from a trail by index (0-based)."""
+    _require_admin_role(user)
+
+    trail = trail_storage.get_trail(trail_id)
+    if not trail:
+        raise HTTPException(status_code=404, detail="Trail not found")
+
+    _require_write_access(user, trail)
+
+    existing = trail_storage.get_trail_images(trail_id)
+    if image_index < 0 or image_index >= len(existing.images):
+        raise HTTPException(status_code=404, detail="Image not found")
+
+    images = [img for i, img in enumerate(existing.images) if i != image_index]
+    trail_storage.save_trail_images(trail_id, images)

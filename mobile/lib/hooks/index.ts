@@ -24,12 +24,16 @@ export { placeKeys, usePlaceCategories, usePlaces } from './use-places';
 export {
   trailKeys,
   useDeleteTrail,
+  useDeleteTrailImage,
+  useImagePins,
   useMapTrails,
   useSaveRecording,
   useTrail,
   useTrailDetails,
+  useTrailImages,
   useTrails,
   useUpdateTrail,
   useUploadGpx,
+  useUploadTrailImage,
   filterTrails,
 } from './use-trails';

@@ -33,6 +33,7 @@ from app.functions.env_loader import load_env_if_needed
 load_env_if_needed()
 
 from api.services.gpx_parser import parse_gpx_upload  # noqa: E402
+from api.services.image_processor import generate_thumbnail  # noqa: E402
 from api.storage.firestore_client import get_collection  # noqa: E402
 from api.storage.foraging_storage import get_foraging_spots, get_foraging_types  # noqa: E402
 from api.storage.places_storage import get_all_places, get_places_by_category  # noqa: E402
@@ -41,6 +42,7 @@ from api.storage.trail_storage import (  # noqa: E402
     get_all_trails,
     get_sync_metadata,
     get_trail,
+    get_trail_images,
     save_trail,
     save_trail_details,
     update_sync_metadata,
@@ -194,6 +196,120 @@ def cmd_trails_stats(_args: argparse.Namespace) -> None:
     explored = sum(1 for t in trails if t.status == "Explored!")
     print(f"\n  Total distance: {total_km:.1f} km")
     print(f"  Explored: {explored}/{len(trails)} ({explored * 100 // max(len(trails), 1)}%)")
+
+
+# ── Trail images commands ────────────────────────────────────────────────────
+
+
+def cmd_trails_images(args: argparse.Namespace) -> None:
+    """Show image info for a trail (or search by name)."""
+    trail_id = args.trail_id
+
+    # Allow searching by name
+    if not trail_id:
+        query = getattr(args, "query", None) or ""
+        if not query:
+            print("  ❌ Provide --trail-id or --query")
+            return
+        trails = get_all_trails()
+        matches = [t for t in trails if query.lower() in t.name.lower()]
+        if not matches:
+            print(f"  ❌ No trails matching '{query}'")
+            return
+        if len(matches) > 1:
+            print(f"  Multiple matches for '{query}':")
+            for t in matches:
+                print(f"    {t.trail_id}  {t.name}")
+            return
+        trail_id = matches[0].trail_id
+        print(f"  Matched: {matches[0].name} ({trail_id})")
+
+    result = get_trail_images(trail_id)
+    _header(f"Images for trail: {trail_id}")
+    if not result.images:
+        print("  No images")
+        return
+
+    for i, img in enumerate(result.images):
+        print(f"  [{i}] role={img.role}")
+        _row("GPS", f"({img.lat}, {img.lng})" if img.lat is not None else "none", indent=6)
+        _row("thumbnail", f"{len(img.thumbnail)} chars" if img.thumbnail else "MISSING", indent=6)
+        _row("image_data", f"{len(img.image_data)} chars", indent=6)
+
+
+def _backfill_single_doc(data: dict) -> str:
+    """Try to generate thumbnail for primary image in a document.
+
+    Returns: "updated", "skipped", or "error".
+    Mutates data["images"] in place on success.
+    """
+    images = data.get("images", [])
+    for img in images:
+        if img.get("role") != "primary":
+            continue
+        if img.get("thumbnail"):
+            return "skipped"
+        if img.get("lat") is None or img.get("lng") is None:
+            return "skipped"
+        image_data = img.get("image_data")
+        if not image_data:
+            return "skipped"
+        try:
+            img["thumbnail"] = generate_thumbnail(image_data)
+            return "updated"
+        except Exception:
+            return "error"
+    return "skipped"
+
+
+def cmd_trails_backfill_thumbnails(args: argparse.Namespace) -> None:
+    """Generate thumbnails for images missing them."""
+    dry_run = args.dry_run if hasattr(args, "dry_run") else not getattr(args, "apply", False)
+    target_trail_id = getattr(args, "trail_id", None)
+
+    collection = get_collection("trail_images")
+
+    if target_trail_id:
+        doc = collection.document(target_trail_id).get()
+        docs = [doc] if doc.exists else []
+    else:
+        docs = list(collection.stream())
+
+    _header(f"Backfill Thumbnails{' (DRY RUN)' if dry_run else ''}")
+    print(f"  Documents to check: {len(docs)}")
+    print()
+
+    updated = 0
+    skipped = 0
+    errors = 0
+
+    for doc in docs:
+        data = doc.to_dict()
+        if not data:
+            continue
+
+        result = _backfill_single_doc(data)
+        trail_label = data.get("trail_id", doc.id)
+
+        if result == "updated":
+            if dry_run:
+                print(f"  Would generate thumbnail: {trail_label}")
+            else:
+                collection.document(doc.id).update({"images": data["images"]})
+                print(f"  Generated thumbnail: {trail_label}")
+            updated += 1
+        elif result == "error":
+            print(f"  Failed: {trail_label}")
+            errors += 1
+        else:
+            skipped += 1
+
+    _header("Summary")
+    _row("Updated", updated)
+    _row("Skipped", skipped)
+    _row("Errors", errors)
+    if dry_run:
+        print("\n  DRY RUN -- use --apply to write changes")
 
 
 # ── Places commands ──────────────────────────────────────────────────────────
@@ -517,6 +633,8 @@ MENU_ITEMS = [
     ("10", "Foraging statistics", cmd_foraging_stats),
     ("11", "List hike groups", cmd_groups_list),
     ("12", "Import GPX trails", cmd_trails_import),
+    ("13", "Trail images (inspect)", cmd_trails_images),
+    ("14", "Backfill thumbnails", cmd_trails_backfill_thumbnails),
     ("q", "Quit", None),
 ]
 
@@ -540,32 +658,65 @@ def _prompt_import_args() -> argparse.Namespace | None:
     return ns
 
 
+def _prompt_images_args() -> argparse.Namespace | None:
+    """Prompt for trail images command arguments."""
+    ns = argparse.Namespace()
+    ns.trail_id = input("  Trail ID (or leave empty to search by name): ").strip() or None
+    if not ns.trail_id:
+        ns.query = input("  Trail name search: ").strip()
+        if not ns.query:
+            print("  Need trail ID or name")
+            return None
+    return ns
+
+
+def _prompt_backfill_args() -> argparse.Namespace:
+    """Prompt for backfill thumbnails arguments."""
+    ns = argparse.Namespace()
+    ns.trail_id = input("  Trail ID (or blank for all): ").strip() or None
+    dry = input("  Dry run? [Y/n]: ").strip().lower()
+    ns.dry_run = dry != "n"
+    return ns
+
+
+def _prompt_query_arg() -> argparse.Namespace | None:
+    """Prompt for a search query argument."""
+    ns = argparse.Namespace()
+    ns.query = input("  Search query: ").strip()
+    return ns if ns.query else None
+
+
+# Handlers that need custom prompts
+_INTERACTIVE_PROMPTERS: dict[object, object] = {}
+
+
 def _build_interactive_namespace(handler: object) -> argparse.Namespace | None:
     """Build a namespace with extra input for interactive commands."""
-    if handler == cmd_trails_import:
-        return _prompt_import_args()
+    prompter = _INTERACTIVE_PROMPTERS.get(handler)
+    if prompter:
+        return prompter()
 
+    # Simple defaults
     ns = argparse.Namespace()
-    if handler == cmd_places_search:
-        ns.query = input("  Search query: ").strip()
-        if not ns.query:
-            print("  ❌ Empty query")
-            return None
-    elif handler == cmd_trails_get:
+    if handler in (cmd_places_search, cmd_trails_search):
+        return _prompt_query_arg()
+    if handler == cmd_trails_get:
         ns.trail_id = input("  Trail ID: ").strip()
     elif handler == cmd_trails_list:
         ns.source = None
-    elif handler == cmd_trails_search:
-        ns.query = input("  Search query: ").strip()
-        if not ns.query:
-            print("  \u274c Empty query")
-            return None
     elif handler == cmd_places_list:
         ns.category = None
         ns.limit = 20
     elif handler == cmd_foraging_list:
         ns.month = None
     return ns
+
+
+_INTERACTIVE_PROMPTERS = {
+    cmd_trails_import: _prompt_import_args,
+    cmd_trails_images: _prompt_images_args,
+    cmd_trails_backfill_thumbnails: _prompt_backfill_args,
+}
 
 
 def _interactive() -> None:
@@ -633,6 +784,14 @@ def _build_parser() -> argparse.ArgumentParser:
     )
     trails_import.add_argument("--dry-run", action="store_true", help="Show what would happen")
 
+    trails_images = trails_sub.add_parser("images", help="Show image info for a trail")
+    trails_images.add_argument("--trail-id", help="Trail ID")
+    trails_images.add_argument("--query", help="Search trail by name instead of ID")
+
+    trails_bt = trails_sub.add_parser("backfill-thumbnails", help="Generate missing thumbnails")
+    trails_bt.add_argument("--trail-id", help="Only process this trail (default: all)")
+    trails_bt.add_argument("--apply", action="store_true", help="Actually write (default is dry run)")
+
     # places
     places = sub.add_parser("places", help="Place operations")
     places_sub = places.add_subparsers(dest="places_command")
@@ -676,8 +835,10 @@ _COMMAND_HANDLERS = {
             "stats": cmd_trails_stats,
             "search": cmd_trails_search,
             "import": cmd_trails_import,
+            "images": cmd_trails_images,
+            "backfill-thumbnails": cmd_trails_backfill_thumbnails,
         },
-        "usage": "trails {list|get|stats|search|import}",
+        "usage": "trails {list|get|stats|search|import|images|backfill-thumbnails}",
     },
     "places": {
         "sub_attr": "places_command",

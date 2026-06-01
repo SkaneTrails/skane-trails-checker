@@ -1,21 +1,29 @@
 import { useEffect, useRef } from 'react';
+import type * as L from 'leaflet';
 import { injectLeafletCSS } from '@/lib/inject-css';
 import { useTheme } from '@/lib/theme';
-import type { Trail } from '@/lib/types';
+import type { Trail, TrailImage } from '@/lib/types';
+
+interface TrailImagePin {
+  trailId: string;
+  image: TrailImage;
+}
 
 interface TrailMapProps {
   trails: Trail[];
   onTrailSelect?: (trail: Trail) => void;
+  imagePins?: TrailImagePin[];
 }
 
 // Default center: Skåne, Sweden
 const DEFAULT_CENTER: [number, number] = [55.95, 13.4];
 const DEFAULT_ZOOM = 9;
 
-export function TrailMap({ trails, onTrailSelect }: TrailMapProps) {
+export function TrailMap({ trails, onTrailSelect, imagePins }: TrailMapProps) {
   const { colors } = useTheme();
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<L.Map | null>(null);
+  const pinMarkersRef = useRef<L.Marker[]>([]);
   const onTrailSelectRef = useRef(onTrailSelect);
   onTrailSelectRef.current = onTrailSelect;
 
@@ -84,6 +92,9 @@ export function TrailMap({ trails, onTrailSelect }: TrailMapProps) {
           }
         });
       }
+
+      // Add image pin markers for trails with primary photos
+      // (handled by separate effect that watches imagePins)
     }
 
     initMap();
@@ -96,6 +107,54 @@ export function TrailMap({ trails, onTrailSelect }: TrailMapProps) {
       }
     };
   }, [trails]);
+
+  // Separate effect: update image pin markers without tearing down the map
+  useEffect(() => {
+    const map = mapInstanceRef.current;
+    if (!map) return;
+
+    // Remove previous pin markers
+    for (const marker of pinMarkersRef.current) {
+      marker.remove();
+    }
+    pinMarkersRef.current = [];
+
+    if (!imagePins) return;
+
+    // Dynamically import leaflet for marker/icon creation
+    void import('leaflet').then((L) => {
+      if (!mapInstanceRef.current) return;
+
+      for (const pin of imagePins) {
+        const { image } = pin;
+        if (image.lat == null || image.lng == null) continue;
+
+        const iconHtml = `<div style="
+          width: 40px; height: 40px; border-radius: 50%;
+          border: 3px solid ${colors.status.exploredText}; overflow: hidden;
+          box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+          background: #fff;
+        "><img src="data:image/jpeg;base64,${image.image_data}"
+          style="width: 100%; height: 100%; object-fit: cover;"
+        /></div>`;
+
+        const icon = L.divIcon({
+          html: iconHtml,
+          className: '',
+          iconSize: [46, 46],
+          iconAnchor: [23, 23],
+        });
+
+        const marker = L.marker([image.lat, image.lng], { icon }).addTo(map).on('click', () => {
+          const matchTrail = trails.find((t) => t.trail_id === pin.trailId);
+          if (matchTrail && onTrailSelectRef.current) {
+            onTrailSelectRef.current(matchTrail);
+          }
+        });
+        pinMarkersRef.current.push(marker);
+      }
+    });
+  }, [imagePins, colors.status.exploredText, trails]);
 
   return <div ref={mapRef} style={{ width: '100%', height: '100%', minHeight: 400 }} />;
 }

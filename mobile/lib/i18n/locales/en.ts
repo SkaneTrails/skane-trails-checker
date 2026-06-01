@@ -83,6 +83,7 @@ const en = {
     useTrailsTab: 'Use the Trails tab to see your trails.',
     couldNotConnect: 'Could not connect to API',
     layers: 'Layers',
+    images: 'Images',
     menu: 'Menu',
     closeMenu: 'Close menu',
   },
@@ -198,6 +199,20 @@ const en = {
     visibility: 'Visibility',
     publicTrail: 'Public',
     privateTrail: 'Private',
+  },
+
+  trailImages: {
+    noPhotos: 'No photos yet',
+    primaryPhoto: 'Primary Photo',
+    morePhotos: 'More Photos',
+    addPrimary: 'Add Primary',
+    addPhoto: 'Add Photo',
+    uploading: 'Uploading...',
+    uploadFailed: 'Upload failed',
+    deleteImage: 'Delete Image',
+    deleteConfirm: 'Delete this photo?',
+    photos: 'Photos',
+    info: 'Info',
   },
 
   months: {

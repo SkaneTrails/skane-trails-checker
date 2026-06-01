@@ -4,7 +4,16 @@ import logging
 from datetime import UTC, datetime
 from typing import Any
 
-from api.models.trail import Coordinate, SyncMetadata, TrailBounds, TrailDetailsResponse, TrailResponse
+from api.models.trail import (
+    Coordinate,
+    ImagePin,
+    SyncMetadata,
+    TrailBounds,
+    TrailDetailsResponse,
+    TrailImage,
+    TrailImagesResponse,
+    TrailResponse,
+)
 from api.storage.firestore_client import get_collection
 from api.storage.validation import validate_document_id
 
@@ -264,3 +273,89 @@ def _update_sync_metadata() -> None:
     count_result = collection.count().get()
     count = count_result[0][0].value
     get_collection("_meta").document("trails_sync").set({"count": count, "last_modified": now})
+
+
+def get_trail_images(trail_id: str) -> TrailImagesResponse:
+    """Get images for a trail."""
+    validate_document_id(trail_id, field_name="trail_id")
+    doc = get_collection("trail_images").document(trail_id).get()
+    if not doc.exists:
+        return TrailImagesResponse(trail_id=trail_id, images=[])
+    data = doc.to_dict()
+    if not data:
+        return TrailImagesResponse(trail_id=trail_id, images=[])
+    images = [
+        TrailImage(
+            image_data=img["image_data"],
+            role=img["role"],
+            lat=img.get("lat"),
+            lng=img.get("lng"),
+            caption=img.get("caption"),
+            thumbnail=img.get("thumbnail"),
+        )
+        for img in data.get("images", [])
+    ]
+    return TrailImagesResponse(trail_id=trail_id, images=images)
+
+
+def save_trail_images(trail_id: str, images: list[TrailImage]) -> None:
+    """Save trail images to Firestore.
+
+    Note: With 800px/60% JPEG compression, images are typically 50-100KB each.
+    Max 3 images stays well under Firestore's 1 MiB document limit.
+    """
+    validate_document_id(trail_id, field_name="trail_id")
+    logger.info("Saving %d image(s) for trail %s", len(images), trail_id)
+    data = {
+        "trail_id": trail_id,
+        "images": [
+            {
+                "image_data": img.image_data,
+                "role": img.role,
+                **({"lat": img.lat} if img.lat is not None else {}),
+                **({"lng": img.lng} if img.lng is not None else {}),
+                **({"caption": img.caption} if img.caption is not None else {}),
+                **({"thumbnail": img.thumbnail} if img.thumbnail is not None else {}),
+            }
+            for img in images
+        ],
+    }
+    get_collection("trail_images").document(trail_id).set(data)
+
+
+def delete_trail_images(trail_id: str) -> None:
+    """Delete trail images document."""
+    validate_document_id(trail_id, field_name="trail_id")
+    get_collection("trail_images").document(trail_id).delete()
+
+
+def get_image_pins(trail_ids: list[str]) -> list[ImagePin]:
+    """Get lightweight image pins for map display.
+
+    Returns only the primary image thumbnail + GPS coords for given trail IDs.
+    Reads one Firestore document per trail that has images.
+    """
+    if not trail_ids:
+        return []
+
+    pins: list[ImagePin] = []
+    collection = get_collection("trail_images")
+
+    # Firestore 'in' queries support max 30 items per batch
+    for i in range(0, len(trail_ids), 30):
+        batch_ids = trail_ids[i : i + 30]
+        docs = collection.where("trail_id", "in", batch_ids).stream()
+        for doc in docs:
+            data = doc.to_dict()
+            if not data:
+                continue
+            for img in data.get("images", []):
+                if img.get("role") != "primary":
+                    continue
+                lat = img.get("lat")
+                lng = img.get("lng")
+                thumbnail = img.get("thumbnail")
+                if lat is not None and lng is not None and thumbnail:
+                    pins.append(ImagePin(trail_id=data["trail_id"], lat=lat, lng=lng, thumbnail=thumbnail))
+                break  # Only one primary per trail
+    return pins
