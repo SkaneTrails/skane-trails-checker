@@ -59,6 +59,7 @@ You are collaborating with a human who may make changes between your edits:
 - **Use existing scripts first** - check `dev-tools/` before writing ad-hoc commands
 - **PowerShell backtick escaping** - NEVER include backticks in `gh` CLI string arguments. Write to temp file and use `-F "body=@file.md"`
 - **PowerShell pipeline commands hang** - use Copilot tools (`grep_search`, `file_search`, etc.) instead of PowerShell pipelines
+- **Never delete `node_modules` or large dependency directories** - use incremental `pnpm install` instead. If file locks (EPERM) block, tell the user and let them close the locking process
 - **Zero tolerance for errors** - every error is your responsibility regardless of when introduced. Do not commit until clean
 
 ______________________________________________________________________
