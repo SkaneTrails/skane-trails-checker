@@ -83,6 +83,7 @@ const sv: Translations = {
     useTrailsTab: 'Använd Leder-fliken för att se dina leder.',
     couldNotConnect: 'Kunde inte ansluta till API',
     layers: 'Lager',
+    images: 'Bilder',
     menu: 'Meny',
     closeMenu: 'Stäng meny',
   },

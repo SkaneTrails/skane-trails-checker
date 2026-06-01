@@ -1,4 +1,11 @@
-import type { SyncMetadata, Trail, TrailDetails, TrailImagesResponse, TrailUpdate } from '@/lib/types';
+import type {
+  ImagePinsResponse,
+  SyncMetadata,
+  Trail,
+  TrailDetails,
+  TrailImagesResponse,
+  TrailUpdate,
+} from '@/lib/types';
 import type { TrackingPoint } from '@/lib/track-to-trail';
 import { toRecordingPayload } from '@/lib/track-to-trail';
 import { apiRequest } from './client';
@@ -93,6 +100,10 @@ export const trailsApi = {
 
   getTrailImages(id: string): Promise<TrailImagesResponse> {
     return apiRequest<TrailImagesResponse>(`/api/v1/trails/${id}/images`);
+  },
+
+  getImagePins(): Promise<ImagePinsResponse> {
+    return apiRequest<ImagePinsResponse>('/api/v1/trails/image-pins');
   },
 
   uploadTrailImage(

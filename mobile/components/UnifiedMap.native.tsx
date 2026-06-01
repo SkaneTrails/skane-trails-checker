@@ -20,18 +20,14 @@ import { StyleSheet, View } from 'react-native';
 import { foragingColorMap } from '@/lib/foraging-colors';
 import type { MapOverlay } from '@/lib/map-overlays';
 import { useTheme } from '@/lib/theme';
-import type { ForagingSpot, ForagingType, Place, Trail, TrailImage } from '@/lib/types';
+import type { ForagingSpot, ForagingType, ImagePin, Place, Trail } from '@/lib/types';
 import type { TrackingPoint } from '@/lib/track-to-trail';
 
 export interface MapLayers {
   trails: boolean;
   foraging: boolean;
   places: boolean;
-}
-
-interface TrailImagePin {
-  trailId: string;
-  image: TrailImage;
+  images: boolean;
 }
 
 interface UnifiedMapProps {
@@ -44,7 +40,7 @@ interface UnifiedMapProps {
   focusBounds?: { north: number; south: number; east: number; west: number } | null;
   recordingPoints?: TrackingPoint[];
   /** Primary trail image locations for map markers */
-  imagePins?: TrailImagePin[];
+  imagePins?: ImagePin[];
   /** Georeferenced image overlays to render on the map */
   imageOverlays?: MapOverlay[];
   onTrailSelect?: (trail: Trail) => void;
@@ -187,19 +183,17 @@ export function UnifiedMap({
       : { type: 'FeatureCollection', features: [] };
 
   const imagePinsGeoJSON: GeoJSON.FeatureCollection =
-    layers.trails && imagePins?.length
+    layers.images && imagePins?.length
       ? {
           type: 'FeatureCollection',
-          features: imagePins
-            .filter((pin) => pin.image.lat != null && pin.image.lng != null)
-            .map((pin) => ({
-              type: 'Feature' as const,
-              properties: { trailId: pin.trailId },
-              geometry: {
-                type: 'Point' as const,
-                coordinates: [pin.image.lng!, pin.image.lat!],
-              },
-            })),
+          features: imagePins.map((pin) => ({
+            type: 'Feature' as const,
+            properties: { trailId: pin.trail_id },
+            geometry: {
+              type: 'Point' as const,
+              coordinates: [pin.lng, pin.lat],
+            },
+          })),
         }
       : { type: 'FeatureCollection', features: [] };
 

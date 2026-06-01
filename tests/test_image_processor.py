@@ -6,7 +6,7 @@ import io
 import pytest
 from PIL import Image
 
-from api.services.image_processor import MAX_DIMENSION, process_image
+from api.services.image_processor import MAX_DIMENSION, THUMBNAIL_DIMENSION, generate_thumbnail, process_image
 
 
 def _make_jpeg(width: int = 1600, height: int = 1200) -> bytes:
@@ -184,3 +184,35 @@ class TestAutoOrient:
         # 270° rotation swaps dimensions
         assert result.width == 100
         assert result.height == 200
+
+
+class TestGenerateThumbnail:
+    def test_generates_small_jpeg(self):
+        raw = _make_jpeg(800, 600)
+        b64_full = base64.b64encode(raw).decode("ascii")
+        thumb = generate_thumbnail(b64_full)
+
+        decoded = base64.b64decode(thumb)
+        img = Image.open(io.BytesIO(decoded))
+        assert img.format == "JPEG"
+        assert max(img.width, img.height) <= THUMBNAIL_DIMENSION
+
+    def test_much_smaller_than_original(self):
+        raw = _make_jpeg(1600, 1200)
+        b64_original, _, _ = process_image(raw)
+        thumb = generate_thumbnail(b64_original)
+
+        # Thumbnail should be significantly smaller
+        assert len(thumb) < len(b64_original) / 5
+
+    def test_handles_png_input(self):
+        """PNG (RGBA) base64 input is converted to RGB JPEG thumbnail."""
+        raw = _make_png(400, 300)
+        b64_input = base64.b64encode(raw).decode("ascii")
+        thumb = generate_thumbnail(b64_input)
+
+        decoded = base64.b64decode(thumb)
+        img = Image.open(io.BytesIO(decoded))
+        assert img.format == "JPEG"
+        assert img.mode == "RGB"
+        assert max(img.width, img.height) <= THUMBNAIL_DIMENSION
