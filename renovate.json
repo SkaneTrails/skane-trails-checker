@@ -16,6 +16,7 @@
   "minimumReleaseAge": "3 days",
   "prHourlyLimit": 2,
   "prConcurrentLimit": 5,
+  "postUpdateOptions": ["pnpmDedupe"],
   "packageRules": [
     {
       "description": "Auto-merge minor, patch, pin, and digest updates",
