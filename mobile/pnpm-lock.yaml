@@ -121,8 +121,8 @@ importers:
         specifier: ^2.4.3
         version: 2.5.1
       '@react-native/babel-plugin-codegen':
-        specifier: 0.85.3
-        version: 0.85.3(@babel/core@7.29.7)
+        specifier: 0.86.0
+        version: 0.86.0(@babel/core@7.29.7)
       '@testing-library/dom':
         specifier: ^10.4.1
         version: 10.4.1
@@ -1595,6 +1595,10 @@ packages:
     resolution: {integrity: sha512-Wc94zGfeFG8Njf9SHMPfYZP04kjigkOps6F1TYTvd7ZVXuGxqseCDgxc50LWcOhOCLypI9n3oVVqz81C3p44ZA==}
     engines: {node: ^20.19.4 || ^22.13.0 || ^24.3.0 || >= 25.0.0}
 
+  '@react-native/babel-plugin-codegen@0.86.0':
+    resolution: {integrity: sha512-qdsABWNW7uTll90l4Vh03gjeyu3WVDi2CyiiyvYGMRDcoYbjbQi6df3BMAm9lQI2yslZ1T14LlDDAsgTwNxplA==}
+    engines: {node: ^20.19.4 || ^22.13.0 || ^24.3.0 || >= 25.0.0}
+
   '@react-native/babel-preset@0.85.3':
     resolution: {integrity: sha512-fD7fxEhkJB/aF57tWoXjaAWpklfrExYZS3k6aXPP3BQ77DZY7gvf/b7dbirwjID6NVnP1JDRJyTuPBGr0K/vlw==}
     engines: {node: ^20.19.4 || ^22.13.0 || ^24.3.0 || >= 25.0.0}
@@ -1603,6 +1607,12 @@ packages:
 
   '@react-native/codegen@0.85.3':
     resolution: {integrity: sha512-/JkS1lGLyzBWP1FbgDwaqEf7qShIC6pUC1M0a/YMAd/v4iqR24MRkQWe7jkYvcBQ2LpEhs5NGE9InhxSv21zCA==}
+    engines: {node: ^20.19.4 || ^22.13.0 || ^24.3.0 || >= 25.0.0}
+    peerDependencies:
+      '@babel/core': '*'
+
+  '@react-native/codegen@0.86.0':
+    resolution: {integrity: sha512-uTs9DBo3+/lUqinsGZK0FKJRBVClrwMXoZToaDxE1Q2SL2e55vs2GwyZfIKzPl5uJnbu4PfFMIp0/mLXLWUMuA==}
     engines: {node: ^20.19.4 || ^22.13.0 || ^24.3.0 || >= 25.0.0}
     peerDependencies:
       '@babel/core': '*'
@@ -2812,11 +2822,17 @@ packages:
   hermes-estree@0.35.0:
     resolution: {integrity: sha512-xVx5Opwy8Oo1I5yGpVRhCvWL/iV3M+ylksSKVNlxxD90cpDpR/AR1jLYqK8HWihm065a6UI3HeyAmYzwS8NOOg==}
 
+  hermes-estree@0.36.0:
+    resolution: {integrity: sha512-A1+8zn5oss2CFP7pKsOaxorQG6FNIz1WU1VDqruLPPZl3LVgeE2C5xfFg8Ow6/Ow4mSslLLtYP1J3n38eKyW9w==}
+
   hermes-parser@0.33.3:
     resolution: {integrity: sha512-Yg3HgaG4CqgyowtYjX/FsnPAuZdHOqSMtnbpylbptsQ9nwwSKsy6uRWcGO5RK0EqiX12q8HvDWKgeAVajRO5DA==}
 
   hermes-parser@0.35.0:
     resolution: {integrity: sha512-9JLjeHxBx8T4CAsydZR49PNZUaix+WpQJwu9p2010lu+7Kwl6D/7wYFFJxoz+aXkaaClp9Zfg6W6/zVlSJORaA==}
+
+  hermes-parser@0.36.0:
+    resolution: {integrity: sha512-GdpwMmH5x6IpC1cijvcvYnlPB60Mh6kTSF/NFdYV/j56gYdi+0RIakYs+eqOV+bbO0SW7mgVVGSsTJxyPQfo3w==}
 
   hosted-git-info@7.0.2:
     resolution: {integrity: sha512-puUZAUKT5m8Zzvs72XWy3HtvVbTWljRE66cP60bxJzAqf2DgICo7lYTY2IHUmLnNpjYvw5bvmoHvPc0QO2a62w==}
@@ -5925,6 +5941,14 @@ snapshots:
       - '@babel/core'
       - supports-color
 
+  '@react-native/babel-plugin-codegen@0.86.0(@babel/core@7.29.7)':
+    dependencies:
+      '@babel/traverse': 7.29.7
+      '@react-native/codegen': 0.86.0(@babel/core@7.29.7)
+    transitivePeerDependencies:
+      - '@babel/core'
+      - supports-color
+
   '@react-native/babel-preset@0.85.3(@babel/core@7.29.7)':
     dependencies:
       '@babel/core': 7.29.7
@@ -5968,6 +5992,16 @@ snapshots:
       '@babel/core': 7.29.7
       '@babel/parser': 7.29.7
       hermes-parser: 0.33.3
+      invariant: 2.2.4
+      nullthrows: 1.1.1
+      tinyglobby: 0.2.17
+      yargs: 17.7.3
+
+  '@react-native/codegen@0.86.0(@babel/core@7.29.7)':
+    dependencies:
+      '@babel/core': 7.29.7
+      '@babel/parser': 7.29.7
+      hermes-parser: 0.36.0
       invariant: 2.2.4
       nullthrows: 1.1.1
       tinyglobby: 0.2.17
@@ -7269,6 +7303,8 @@ snapshots:
 
   hermes-estree@0.35.0: {}
 
+  hermes-estree@0.36.0: {}
+
   hermes-parser@0.33.3:
     dependencies:
       hermes-estree: 0.33.3
@@ -7276,6 +7312,10 @@ snapshots:
   hermes-parser@0.35.0:
     dependencies:
       hermes-estree: 0.35.0
+
+  hermes-parser@0.36.0:
+    dependencies:
+      hermes-estree: 0.36.0
 
   hosted-git-info@7.0.2:
     dependencies:
