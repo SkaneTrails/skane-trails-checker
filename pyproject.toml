@@ -97,15 +97,9 @@ lint.isort.combine-as-imports = true
 lint.isort.split-on-trailing-comma = false
 
 [tool.deptry]
-known_first_party = [ "api", "skane-trails-checker" ]
-ignore_notebooks = true
-pep621_dev_dependency_groups = [ "dev" ]
 # Exclude Cloud Function code (has its own requirements.txt) and venv
-exclude = [ "infra/modules/backup/function", ".venv", "venv", "htmlcov" ]
-package_module_name_map.skane-trails-checker = "app"
-package_module_name_map.fastapi = "fastapi"
-# numpy is a transitive dependency used via rdp for coordinate simplification
-per_rule_ignores.DEP003 = [ "numpy" ]
+exclude = [ ".venv", "htmlcov", "infra/modules/backup/function", "venv" ]
+ignore_notebooks = true
 # These are local packages within app/ and dev-tools/
 per_rule_ignores.DEP001 = [
   "api",
@@ -115,8 +109,6 @@ per_rule_ignores.DEP001 = [
   "sentiero_italia_firestore",
   "sentiero_italia_wfs"
 ]
-# app is a local package (part of the project, not a dev dependency)
-per_rule_ignores.DEP004 = [ "app" ]
 # Dependencies not directly imported (test deps, implicit runtime deps like uvicorn/multipart)
 per_rule_ignores.DEP002 = [
   "pytest",
@@ -127,18 +119,25 @@ per_rule_ignores.DEP002 = [
   "httpx",
   "python-multipart"
 ]
+# numpy is a transitive dependency used via rdp for coordinate simplification
+per_rule_ignores.DEP003 = [ "numpy" ]
+# app is a local package (part of the project, not a dev dependency)
+per_rule_ignores.DEP004 = [ "app" ]
+known_first_party = [ "api", "skane-trails-checker" ]
+package_module_name_map.fastapi = "fastapi"
+package_module_name_map.skane-trails-checker = "app"
+pep621_dev_dependency_groups = [ "dev" ]
 
 [tool.pyproject-fmt]
 keep_full_version = true
 
 [tool.pytest]
-ini_options.cache_dir = ".cache/.pytest_cache"
+# Test paths
+ini_options.testpaths = [ "tests" ]
 # Test discovery patterns
 ini_options.python_files = "test_*.py"
 ini_options.python_classes = "Test*"
 ini_options.python_functions = "test_*"
-# Test paths
-ini_options.testpaths = [ "tests" ]
 # Output options
 ini_options.addopts = [
   "--pythonwarnings=error",
@@ -150,9 +149,6 @@ ini_options.addopts = [
   "--cov-report=term-missing",
   "--cov-report=html",
 ]
-ini_options.log_cli = true
-ini_options.log_cli_level = "INFO"
-ini_options.log_cli_format = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 # Filter specific warnings from external libraries
 ini_options.filterwarnings = [
   # Ignore NumPy 2.0 deprecation warning triggered by rdp library
@@ -160,6 +156,10 @@ ini_options.filterwarnings = [
   # This needs to be fixed in the rdp library upstream
   "ignore:Arrays of 2-dimensional vectors are deprecated.*:DeprecationWarning",
 ]
+ini_options.log_cli = true
+ini_options.log_cli_level = "INFO"
+ini_options.log_cli_format = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+ini_options.cache_dir = ".cache/.pytest_cache"
 
 [tool.coverage]
 run.branch = true
