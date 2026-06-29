@@ -56,7 +56,7 @@ export function ImageLightbox({ images, visible, onClose, initialIndex = 0 }: Im
         <Pressable
           style={styles.imageArea}
           onPress={showNext}
-          accessibilityRole="imagebutton"
+          accessibilityRole="button"
           accessibilityLabel={t('trailImages.viewImage')}
         >
           <Image source={{ uri: current.uri }} style={styles.image} resizeMode="contain" />

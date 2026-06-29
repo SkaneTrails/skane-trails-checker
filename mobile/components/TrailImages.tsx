@@ -156,7 +156,7 @@ export function TrailImages({ trailId, canEdit }: TrailImagesProps) {
           <View style={styles.imageWrapper}>
             <Pressable
               onPress={() => setLightboxIndex(images.indexOf(primaryImage))}
-              accessibilityRole="imagebutton"
+              accessibilityRole="button"
               accessibilityLabel={t('trailImages.viewImage')}
             >
               <AspectImage
@@ -202,7 +202,7 @@ export function TrailImages({ trailId, canEdit }: TrailImagesProps) {
                 <View key={globalIndex} style={styles.secondaryItem}>
                   <Pressable
                     onPress={() => setLightboxIndex(globalIndex)}
-                    accessibilityRole="imagebutton"
+                    accessibilityRole="button"
                     accessibilityLabel={t('trailImages.viewImage')}
                   >
                     <AspectImage

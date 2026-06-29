@@ -49,8 +49,9 @@ export const MapInfoCard = ({ title, onClose, action, headerAccessory, children 
   const { height: windowHeight } = useWindowDimensions();
   // Bound the scroll area so it scrolls rather than expanding the card. Capped
   // by MAX_BODY_HEIGHT to keep the card compact, and by the window on small
-  // screens. (RNW web won't scroll an auto-height flex child reliably.)
-  const scrollMaxHeight = Math.min(windowHeight * 0.8 - HEADER_ALLOWANCE, MAX_BODY_HEIGHT);
+  // screens. Floored so it stays usable (and never negative) on tiny windows.
+  // (RNW web won't scroll an auto-height flex child reliably.)
+  const scrollMaxHeight = Math.max(160, Math.min(windowHeight * 0.8 - HEADER_ALLOWANCE, MAX_BODY_HEIGHT));
 
   return (
     <View
