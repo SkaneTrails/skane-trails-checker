@@ -14,8 +14,8 @@
   "dependencyDashboard": true,
   "dependencyDashboardTitle": "🤖 Renovate Dependency Dashboard",
   "minimumReleaseAge": "3 days",
-  "prHourlyLimit": 2,
-  "prConcurrentLimit": 5,
+  "prHourlyLimit": 6,
+  "prConcurrentLimit": 10,
   "postUpdateOptions": ["pnpmDedupe"],
   "packageRules": [
     {
