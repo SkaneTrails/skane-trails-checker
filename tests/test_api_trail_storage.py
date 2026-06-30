@@ -265,6 +265,37 @@ class TestGetAllTrails:
         assert len(result) == 1
         mock_collection.where.assert_called_once_with("source", "==", "planned_hikes")
 
+    def test_summary_projects_away_coordinates(self, mock_collection) -> None:
+        """Summary path must use Firestore select() and never read coordinates_map.
+
+        Regression for slow list load: previously coordinates_map was streamed and
+        deserialized for every doc, then stripped in Python.
+        """
+        mock_collection.select.return_value.stream.return_value = [_make_doc({"trail_id": "t1", "name": "Trail A"})]
+
+        result = get_all_trails(summary=True)
+
+        assert len(result) == 1
+        assert result[0].coordinates_map == []
+        mock_collection.select.assert_called_once()
+        selected_fields = mock_collection.select.call_args.args[0]
+        assert "coordinates_map" not in selected_fields
+        assert "name" in selected_fields
+        # No coordinates were read from the streamed docs.
+        mock_collection.stream.assert_not_called()
+
+    def test_summary_projects_away_coordinates_for_group(self, mock_collection) -> None:
+        """Group/public summary path must also project away coordinates_map."""
+        query = MagicMock()
+        mock_collection.where.return_value = query
+        query.select.return_value.stream.return_value = []
+
+        get_all_trails(group_id="grp-1", summary=True)
+
+        assert query.select.call_count == 3  # group + public + is_public queries
+        selected_fields = query.select.call_args.args[0]
+        assert "coordinates_map" not in selected_fields
+
     def test_empty_collection(self, mock_collection) -> None:
         mock_collection.stream.return_value = []
 

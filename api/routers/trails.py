@@ -75,7 +75,10 @@ def list_trails(
     Use ?fields=summary to exclude coordinates_map (much smaller payload for list views).
     """
     group_id = None if user.role == "superuser" else require_group(user)
-    trails = trail_storage.get_all_trails(source=filters.source, since=filters.since, group_id=group_id)
+    summary = filters.fields == "summary"
+    trails = trail_storage.get_all_trails(
+        source=filters.source, since=filters.since, group_id=group_id, summary=summary
+    )
 
     if filters.search:
         query_lower = filters.search.lower()

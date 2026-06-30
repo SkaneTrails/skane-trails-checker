@@ -7,6 +7,7 @@ from collections.abc import Awaitable, Callable
 from dotenv import load_dotenv
 from fastapi import FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import JSONResponse
 
 from api.routers import foraging, hike_groups, places, trails
@@ -26,6 +27,10 @@ app = FastAPI(
 )
 
 ALLOWED_ORIGINS = [o.strip() for o in os.getenv("ALLOWED_ORIGINS", "").split(",") if o.strip()]
+
+# Compress large responses (e.g. the ~21 MB full trail map payload of
+# repetitive coordinate JSON compresses to a fraction of its size).
+app.add_middleware(GZipMiddleware, minimum_size=1024)
 
 app.add_middleware(
     CORSMiddleware,  # type: ignore[arg-type]
