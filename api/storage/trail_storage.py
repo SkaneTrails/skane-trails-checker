@@ -19,6 +19,34 @@ from api.storage.validation import validate_document_id
 
 logger = logging.getLogger(__name__)
 
+# Fields returned for the "summary" list view (everything except the heavy
+# coordinates_map polyline). Used with Firestore query.select() so the
+# coordinate arrays are never read or deserialized server-side.
+_SUMMARY_FIELDS: tuple[str, ...] = (
+    "trail_id",
+    "name",
+    "difficulty",
+    "length_km",
+    "status",
+    "bounds",
+    "center",
+    "source",
+    "last_updated",
+    "created_at",
+    "modified_at",
+    "activity_date",
+    "activity_type",
+    "elevation_gain",
+    "elevation_loss",
+    "duration_minutes",
+    "avg_inclination_deg",
+    "max_inclination_deg",
+    "created_by",
+    "group_id",
+    "line_color",
+    "is_public",
+)
+
 
 def _doc_to_trail(data: dict) -> TrailResponse:
     """Convert a Firestore document dict to a TrailResponse model."""
@@ -76,7 +104,7 @@ def _doc_to_trail_details(data: dict) -> TrailDetailsResponse:
 
 
 def get_all_trails(
-    source: str | None = None, since: str | None = None, group_id: str | None = None
+    source: str | None = None, since: str | None = None, group_id: str | None = None, *, summary: bool = False
 ) -> list[TrailResponse]:
     """Get all trails, filtered by group and optionally by source/modified_at.
 
@@ -86,29 +114,41 @@ def get_all_trails(
         group_id: If provided, return trails belonging to this group PLUS
             public trails (group_id is None). If not provided (superuser),
             return all trails.
+        summary: When True, project away coordinates_map via Firestore
+            select() so the heavy polyline arrays are never read or
+            deserialized server-side.
     """
-    logger.info("Loading trails (source=%s, since=%s, group_id=%s)", source, since, group_id)
+    logger.info("Loading trails (source=%s, since=%s, group_id=%s, summary=%s)", source, since, group_id, summary)
     collection = get_collection("trails")
 
     if group_id is not None:
-        trails = _fetch_group_and_public_trails(collection, group_id, source, since)
+        trails = _fetch_group_and_public_trails(collection, group_id, source, since, summary=summary)
     else:
-        trails = _fetch_all_trails(collection, source, since)
+        trails = _fetch_all_trails(collection, source, since, summary=summary)
 
     logger.info("Loaded %d trails", len(trails))
     return trails
 
 
-def _fetch_all_trails(collection: Any, source: str | None, since: str | None) -> list[TrailResponse]:
+def _select_summary(query: Any) -> Any:
+    """Project a query to summary fields only (excludes coordinates_map)."""
+    return query.select(list(_SUMMARY_FIELDS))
+
+
+def _fetch_all_trails(
+    collection: Any, source: str | None, since: str | None, *, summary: bool = False
+) -> list[TrailResponse]:
     """Fetch all trails (superuser view)."""
     query = collection.where("source", "==", source) if source else collection
     if since:
         query = query.where("modified_at", ">=", since)
+    if summary:
+        query = _select_summary(query)
     return [_doc_to_trail(data) for doc in query.stream() if (data := doc.to_dict())]
 
 
 def _fetch_group_and_public_trails(
-    collection: Any, group_id: str, source: str | None, since: str | None
+    collection: Any, group_id: str, source: str | None, since: str | None, *, summary: bool = False
 ) -> list[TrailResponse]:
     """Fetch trails belonging to a group plus public/bootstrapped trails.
 
@@ -125,6 +165,8 @@ def _fetch_group_and_public_trails(
             query = query.where("source", "==", source)
         if since:
             query = query.where("modified_at", ">=", since)
+        if summary:
+            query = _select_summary(query)
         return query
 
     def _collect(query: Any) -> None:
