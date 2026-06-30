@@ -346,7 +346,7 @@ export function UnifiedMap({
     import('leaflet').then((L) => {
       renderImagePins(L, map.getZoom());
     });
-  }, [imagePins, layers.images, mapReady, trails]);
+  }, [imagePins, layers.images, mapReady]);
 
   return <div ref={mapRef} style={{ width: '100%', height: '100%' }} />;
 }
