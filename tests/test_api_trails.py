@@ -53,7 +53,7 @@ class TestListTrails:
         mock_get_all.return_value = [SAMPLE_TRAIL]
         response = superuser_client.get("/api/v1/trails")
         assert response.status_code == 200
-        mock_get_all.assert_called_once_with(source=None, since=None, group_id=None)
+        mock_get_all.assert_called_once_with(source=None, since=None, group_id=None, summary=False)
 
     @patch("api.routers.trails.trail_storage.get_all_trails")
     def test_list_all_trails(self, mock_get_all, authenticated_client):
@@ -65,7 +65,7 @@ class TestListTrails:
         # Uploaded trails (other_trails) sorted before planned_hikes
         assert data[0]["trail_id"] == "def456"
         assert data[1]["trail_id"] == "abc123"
-        mock_get_all.assert_called_once_with(source=None, since=None, group_id=TEST_GROUP_ID)
+        mock_get_all.assert_called_once_with(source=None, since=None, group_id=TEST_GROUP_ID, summary=False)
 
     @patch("api.routers.trails.trail_storage.get_all_trails")
     def test_list_trails_sorts_uploaded_before_planned(self, mock_get_all, authenticated_client):
@@ -133,7 +133,7 @@ class TestListTrails:
         response = authenticated_client.get("/api/v1/trails?source=planned_hikes")
         assert response.status_code == 200
         assert len(response.json()) == 1
-        mock_get_all.assert_called_once_with(source="planned_hikes", since=None, group_id=TEST_GROUP_ID)
+        mock_get_all.assert_called_once_with(source="planned_hikes", since=None, group_id=TEST_GROUP_ID, summary=False)
 
     @patch("api.routers.trails.trail_storage.get_all_trails")
     def test_list_trails_filter_by_search(self, mock_get_all, authenticated_client):
@@ -175,7 +175,9 @@ class TestListTrails:
         response = authenticated_client.get("/api/v1/trails?since=2026-03-01T00:00:00Z")
         assert response.status_code == 200
         assert len(response.json()) == 1
-        mock_get_all.assert_called_once_with(source=None, since="2026-03-01T00:00:00Z", group_id=TEST_GROUP_ID)
+        mock_get_all.assert_called_once_with(
+            source=None, since="2026-03-01T00:00:00Z", group_id=TEST_GROUP_ID, summary=False
+        )
 
     @patch("api.routers.trails.trail_storage.get_all_trails")
     def test_list_trails_with_source_and_since(self, mock_get_all, authenticated_client):
@@ -183,7 +185,7 @@ class TestListTrails:
         response = authenticated_client.get("/api/v1/trails?source=planned_hikes&since=2026-03-01T00:00:00Z")
         assert response.status_code == 200
         mock_get_all.assert_called_once_with(
-            source="planned_hikes", since="2026-03-01T00:00:00Z", group_id=TEST_GROUP_ID
+            source="planned_hikes", since="2026-03-01T00:00:00Z", group_id=TEST_GROUP_ID, summary=False
         )
 
     @patch("api.routers.trails.trail_storage.get_all_trails")
@@ -192,7 +194,9 @@ class TestListTrails:
         response = authenticated_client.get("/api/v1/trails?since=2026-03-01T00:00:00.123Z")
         assert response.status_code == 200
         assert len(response.json()) == 1
-        mock_get_all.assert_called_once_with(source=None, since="2026-03-01T00:00:00.123Z", group_id=TEST_GROUP_ID)
+        mock_get_all.assert_called_once_with(
+            source=None, since="2026-03-01T00:00:00.123Z", group_id=TEST_GROUP_ID, summary=False
+        )
 
     def test_list_trails_rejects_invalid_since_format(self, authenticated_client):
         response = authenticated_client.get("/api/v1/trails?since=2026-03-01")
@@ -208,6 +212,8 @@ class TestListTrails:
         assert len(data) == 2
         for trail in data:
             assert trail["coordinates_map"] == []
+        # Summary flag must reach storage so coordinates are projected away server-side.
+        mock_get_all.assert_called_once_with(source=None, since=None, group_id=TEST_GROUP_ID, summary=True)
 
     @patch("api.routers.trails.trail_storage.get_all_trails")
     def test_list_trails_without_fields_includes_coordinates(self, mock_get_all, authenticated_client):
