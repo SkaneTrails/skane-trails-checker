@@ -7,7 +7,7 @@ settings:
 overrides:
   postcss@<8.5.10: '>=8.5.10'
   vite@<7.3.2: '>=7.3.2'
-  undici@<7.28.0: '>=7.28.0 <8'
+  undici@<7.28.0: '>=7.28.0 <9'
 
 importers:
 
@@ -6075,7 +6075,9 @@ snapshots:
       metro-runtime: 0.84.4
     transitivePeerDependencies:
       - '@babel/core'
+      - bufferutil
       - supports-color
+      - utf-8-validate
 
   '@react-native/normalize-colors@0.74.89': {}
 
