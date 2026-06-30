@@ -176,7 +176,21 @@ export const TrailCard = ({ trail, onClose, onUpdate, isUpdating, onDelete, isDe
   }
 
   return (
-    <MapInfoCard title={trail.name} onClose={onClose}>
+    <MapInfoCard
+      title={trail.name}
+      onClose={onClose}
+      headerAccessory={
+        onUpdate ? (
+          <Pressable
+            onPress={() => setEditing(true)}
+            style={styles.editIcon}
+            accessibilityLabel={t('trailCard.edit')}
+          >
+            <TabIcon name="edit" color={colors.primary} size={16} strokeWidth={2} />
+          </Pressable>
+        ) : undefined
+      }
+    >
       {/* Tabs */}
       <View style={[styles.tabBar, { borderBottomColor: colors.border }]}>
         <Pressable
@@ -249,17 +263,6 @@ export const TrailCard = ({ trail, onClose, onUpdate, isUpdating, onDelete, isDe
       ) : (
         <TrailImages trailId={trail.trail_id} canEdit={!!onUpdate} />
       )}
-
-      {/* Edit icon */}
-      {onUpdate && (
-        <Pressable
-          onPress={() => setEditing(true)}
-          style={[styles.editIcon, { borderColor: colors.border }]}
-          accessibilityLabel={t('trailCard.edit')}
-        >
-          <TabIcon name="edit" color={colors.primary} size={16} strokeWidth={2} />
-        </Pressable>
-      )}
     </MapInfoCard>
   );
 };
@@ -301,10 +304,8 @@ const styles = StyleSheet.create({
     borderRadius: borderRadius.sm,
   },
   editIcon: {
-    position: 'absolute',
-    top: spacing.lg,
-    right: spacing.lg + spacing.xl + spacing.xs,
     padding: spacing.xs,
+    marginRight: spacing.xs,
   },
   fieldRow: {
     marginBottom: spacing.sm,

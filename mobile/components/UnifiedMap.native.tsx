@@ -46,6 +46,7 @@ interface UnifiedMapProps {
   onTrailSelect?: (trail: Trail) => void;
   onSpotSelect?: (spot: ForagingSpot) => void;
   onPlaceSelect?: (place: Place) => void;
+  onImagePinSelect?: (trailId: string) => void;
   onMapClick?: (lat: number, lng: number) => void;
   onLongPress?: (lat: number, lng: number) => void;
   onBoundsChange?: (bounds: { north: number; south: number; east: number; west: number }) => void;
@@ -109,6 +110,7 @@ export function UnifiedMap({
   onTrailSelect,
   onSpotSelect,
   onPlaceSelect,
+  onImagePinSelect,
   onMapClick,
   onLongPress,
   onBoundsChange,
@@ -408,8 +410,7 @@ export function UnifiedMap({
           data={imagePinsGeoJSON}
           onPress={(e) => {
             const trailId = e.nativeEvent.features?.[0]?.properties?.trailId;
-            const trail = trails.find((t) => t.trail_id === trailId);
-            if (trail) onTrailSelect?.(trail);
+            if (trailId) onImagePinSelect?.(trailId);
           }}
         >
           <Layer

@@ -82,6 +82,30 @@ export const ScrollView = React.forwardRef<HTMLDivElement, React.HTMLAttributes<
 );
 ScrollView.displayName = 'ScrollView';
 
+export const Image = React.forwardRef<
+  HTMLImageElement,
+  { source?: { uri?: string } | number; style?: unknown; resizeMode?: string; accessibilityLabel?: string }
+>(({ source, style, resizeMode: _resizeMode, accessibilityLabel, ...props }, ref) =>
+  React.createElement('img', {
+    ...props,
+    src: typeof source === 'object' ? source?.uri : undefined,
+    alt: accessibilityLabel,
+    style: flattenStyle(style),
+    ref,
+  }),
+);
+Image.displayName = 'Image';
+// Static helper used by app code; harmless no-op in tests.
+(Image as unknown as { getSize: unknown }).getSize = (
+  _uri: string,
+  success?: (w: number, h: number) => void,
+) => success?.(0, 0);
+
+export const Modal = ({ visible, children }: { visible?: boolean; children?: React.ReactNode }) =>
+  visible ? React.createElement('div', null, children) : null;
+
+export const useWindowDimensions = () => ({ width: 1024, height: 768, scale: 1, fontScale: 1 });
+
 export const ActivityIndicator = () =>
   React.createElement('div', { 'data-testid': 'activity-indicator' });
 

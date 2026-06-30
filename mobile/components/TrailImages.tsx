@@ -3,17 +3,57 @@
  * Displayed as a tab in the trail card / detail view.
  */
 
-import React, { useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Alert, Image, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { useDeleteTrailImage, useTrailImages, useUploadTrailImage } from '@/lib/hooks';
 import { useTranslation } from '@/lib/i18n';
 import { borderRadius, fontSize, fontWeight, spacing, useTheme } from '@/lib/theme';
+import { ImageLightbox } from './ImageLightbox';
 import { TabIcon } from './TabIcon';
 
 interface TrailImagesProps {
   trailId: string;
   canEdit?: boolean;
+}
+
+/**
+ * Image that sizes itself to the photo's natural aspect ratio, so the full
+ * picture is shown (never cropped). Falls back to a 4:3 ratio until the real
+ * dimensions are known.
+ */
+function AspectImage({
+  uri,
+  style,
+  borderColor,
+}: {
+  uri: string;
+  style: object;
+  borderColor: string;
+}) {
+  const [aspectRatio, setAspectRatio] = useState(4 / 3);
+
+  useEffect(() => {
+    let active = true;
+    Image.getSize(
+      uri,
+      (width, height) => {
+        if (active && width > 0 && height > 0) setAspectRatio(width / height);
+      },
+      () => {},
+    );
+    return () => {
+      active = false;
+    };
+  }, [uri]);
+
+  return (
+    <Image
+      source={{ uri }}
+      style={[style, { aspectRatio, borderColor }]}
+      resizeMode="contain"
+    />
+  );
 }
 
 export function TrailImages({ trailId, canEdit }: TrailImagesProps) {
@@ -24,12 +64,18 @@ export function TrailImages({ trailId, canEdit }: TrailImagesProps) {
   const deleteImage = useDeleteTrailImage();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [uploadRole, setUploadRole] = useState<'primary' | 'secondary'>('secondary');
+  const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
 
   const images = imagesData?.images ?? [];
   const primaryImage = images.find((img) => img.role === 'primary');
   const secondaryImages = images.filter((img) => img.role === 'secondary');
   const canUpload = canEdit && images.length < 3;
   const hasPrimary = !!primaryImage;
+
+  const lightboxImages = images.map((img) => ({
+    uri: `data:image/jpeg;base64,${img.image_data}`,
+    caption: img.caption,
+  }));
 
   const handleFileSelect = async (role: 'primary' | 'secondary') => {
     if (Platform.OS === 'web') {
@@ -108,11 +154,17 @@ export function TrailImages({ trailId, canEdit }: TrailImagesProps) {
             {t('trailImages.primaryPhoto')}
           </Text>
           <View style={styles.imageWrapper}>
-            <Image
-              source={{ uri: `data:image/jpeg;base64,${primaryImage.image_data}` }}
-              style={[styles.primaryImage, { borderColor: colors.border }]}
-              resizeMode="cover"
-            />
+            <Pressable
+              onPress={() => setLightboxIndex(images.indexOf(primaryImage))}
+              accessibilityRole="button"
+              accessibilityLabel={t('trailImages.viewImage')}
+            >
+              <AspectImage
+                uri={`data:image/jpeg;base64,${primaryImage.image_data}`}
+                style={styles.primaryImage}
+                borderColor={colors.border}
+              />
+            </Pressable>
             {primaryImage.caption && (
               <Text style={[styles.caption, { color: colors.text.secondary }]}>
                 {primaryImage.caption}
@@ -148,11 +200,17 @@ export function TrailImages({ trailId, canEdit }: TrailImagesProps) {
               const globalIndex = images.indexOf(img);
               return (
                 <View key={globalIndex} style={styles.secondaryItem}>
-                  <Image
-                    source={{ uri: `data:image/jpeg;base64,${img.image_data}` }}
-                    style={[styles.secondaryImage, { borderColor: colors.border }]}
-                    resizeMode="cover"
-                  />
+                  <Pressable
+                    onPress={() => setLightboxIndex(globalIndex)}
+                    accessibilityRole="button"
+                    accessibilityLabel={t('trailImages.viewImage')}
+                  >
+                    <AspectImage
+                      uri={`data:image/jpeg;base64,${img.image_data}`}
+                      style={styles.secondaryImage}
+                      borderColor={colors.border}
+                    />
+                  </Pressable>
                   {img.caption && (
                     <Text style={[styles.captionSmall, { color: colors.text.secondary }]} numberOfLines={1}>
                       {img.caption}
@@ -210,6 +268,13 @@ export function TrailImages({ trailId, canEdit }: TrailImagesProps) {
           {t('trailImages.uploadFailed')}
         </Text>
       )}
+
+      <ImageLightbox
+        images={lightboxImages}
+        visible={lightboxIndex !== null}
+        initialIndex={lightboxIndex ?? 0}
+        onClose={() => setLightboxIndex(null)}
+      />
     </View>
   );
 }
@@ -235,7 +300,6 @@ const styles = StyleSheet.create({
   },
   primaryImage: {
     width: '100%',
-    height: 200,
     borderRadius: borderRadius.md,
     borderWidth: 1,
   },
@@ -249,6 +313,7 @@ const styles = StyleSheet.create({
   },
   secondaryGrid: {
     flexDirection: 'row',
+    alignItems: 'flex-start',
     gap: spacing.sm,
   },
   secondaryItem: {
@@ -257,7 +322,6 @@ const styles = StyleSheet.create({
   },
   secondaryImage: {
     width: '100%',
-    height: 120,
     borderRadius: borderRadius.sm,
     borderWidth: 1,
   },

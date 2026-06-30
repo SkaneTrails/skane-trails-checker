@@ -19,9 +19,9 @@ class TrackData(TypedDict):
     segments: list[list[tuple[float, float]]]
 
 
-def load_additional_gpx_files(directory: Path | str) -> list[dict]:
+def load_additional_gpx_files(directory: Path | str) -> list[TrackData]:
     # Function to load additional GPX files
-    additional_tracks = []
+    additional_tracks: list[TrackData] = []
     dir_path = Path(directory)
 
     # Check if directory exists
