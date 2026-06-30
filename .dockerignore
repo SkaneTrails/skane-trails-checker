@@ -1,0 +1,40 @@
+# Version control
+.git
+.gitignore
+
+# Python
+__pycache__
+*.pyc
+*.pyo
+.venv
+.mypy_cache
+.ruff_cache
+.pytest_cache
+htmlcov
+.coverage
+
+# Development tools
+dev-tools/
+tests/
+tmp/
+docs/
+
+# IDE
+.vscode/
+.idea/
+
+# CI/CD & config
+.github/
+infra/
+.pre-commit-config.yaml
+renovate.json
+
+# Mobile app (not needed in API image)
+mobile/
+
+# GPX data (bundled trails loaded via bootstrap, not runtime)
+app/tracks_gpx/
+
+# Misc
+*.md
+LICENSE

@@ -1,29 +1,58 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { useTrail, useTrailDetails, useUpdateTrail } from '@/lib/hooks';
+import { useState } from 'react';
+import { Alert, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Button, EmptyState, FormField, StatCard, StatusBadge } from '@/components';
+import { ElevationRibbon } from '@/components/ElevationRibbon';
+import { TabIcon } from '@/components/TabIcon';
+import { TrailImages } from '@/components/TrailImages';
+import { useDeleteTrail, useTrail, useTrailDetails, useUpdateTrail } from '@/lib/hooks';
+import { useTranslation } from '@/lib/i18n';
+import {
+  animation,
+  borderRadius,
+  fontSize,
+  fontWeight,
+  letterSpacing,
+  sheet,
+  spacing,
+  useTheme,
+} from '@/lib/theme';
+import { cssShadow, glassSheet } from '@/lib/theme/styles';
 
 export default function TrailDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
+  const { colors, shadows } = useTheme();
+  const { t } = useTranslation();
   const { data: trail, isLoading: trailLoading } = useTrail(id);
   const { data: details, isLoading: detailsLoading } = useTrailDetails(id);
   const updateTrail = useUpdateTrail();
+  const deleteTrail = useDeleteTrail();
+
+  const [isEditing, setIsEditing] = useState(false);
+  const [editName, setEditName] = useState('');
+  const [activeTab, setActiveTab] = useState<'info' | 'photos'>('info');
 
   if (trailLoading || detailsLoading) {
     return (
-      <View style={styles.center}>
-        <Text>Loading trail...</Text>
+      <View style={[styles.backdrop, { backgroundColor: colors.backdrop }]}>
+        <View style={styles.cardWrap}>
+          <EmptyState title={t('trail.loadingTrail')} />
+        </View>
       </View>
     );
   }
 
   if (!trail) {
     return (
-      <View style={styles.center}>
-        <Text style={styles.error}>Trail not found</Text>
-        <Pressable style={styles.button} onPress={() => router.back()}>
-          <Text style={styles.buttonText}>Go Back</Text>
-        </Pressable>
+      <View style={[styles.backdrop, { backgroundColor: colors.backdrop }]}>
+        <View style={styles.cardWrap}>
+          <EmptyState
+            title={t('trail.trailNotFound')}
+            actionLabel={t('common.goBack')}
+            onAction={() => router.back()}
+          />
+        </View>
       </View>
     );
   }
@@ -34,174 +63,359 @@ export default function TrailDetailScreen() {
     updateTrail.mutate({ id, data: { status: newStatus } });
   };
 
+  const startEditing = () => {
+    setEditName(trail.name);
+    setIsEditing(true);
+  };
+
+  const saveRename = () => {
+    if (!id || !editName.trim()) return;
+    updateTrail.mutate(
+      { id, data: { name: editName.trim() } },
+      { onSuccess: () => setIsEditing(false) },
+    );
+  };
+
+  const confirmDelete = () => {
+    if (!id) return;
+    if (Platform.OS === 'web') {
+      if (window.confirm(t('trail.deleteConfirm', { name: trail.name }))) {
+        deleteTrail.mutate(id, { onSuccess: () => router.back() });
+      }
+    } else {
+      Alert.alert(t('common.delete'), t('trail.deleteConfirm', { name: trail.name }), [
+        { text: t('common.cancel'), style: 'cancel' },
+        {
+          text: t('common.delete'),
+          style: 'destructive',
+          onPress: () => deleteTrail.mutate(id, { onSuccess: () => router.back() }),
+        },
+      ]);
+    }
+  };
+
+  const isWeb = Platform.OS === 'web';
+  const glass = glassSheet(colors.glass);
+
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-      <Text style={styles.title}>{trail.name}</Text>
-
-      <View style={styles.statsRow}>
-        <View style={styles.stat}>
-          <Text style={styles.statLabel}>Distance</Text>
-          <Text style={styles.statValue}>{trail.length_km.toFixed(1)} km</Text>
+    <View style={[styles.backdrop, { backgroundColor: colors.backdrop }]}>
+      <Pressable style={StyleSheet.absoluteFill} onPress={() => router.back()} />
+      <View
+        style={[
+          styles.cardWrap,
+          glass,
+          shadows.elevated,
+          isWeb &&
+            ({
+              boxShadow: cssShadow(shadows, 'elevated'),
+            } as any),
+        ]}
+      >
+        {/* Handle + close row */}
+        <View style={styles.handleContainer}>
+          <View style={[styles.handle, { backgroundColor: colors.text.muted, opacity: 0.3 }]} />
         </View>
-        {trail.elevation_gain != null && (
-          <View style={styles.stat}>
-            <Text style={styles.statLabel}>Elevation Gain</Text>
-            <Text style={styles.statValue}>{Math.round(trail.elevation_gain)} m</Text>
-          </View>
-        )}
-        {trail.elevation_loss != null && (
-          <View style={styles.stat}>
-            <Text style={styles.statLabel}>Elevation Loss</Text>
-            <Text style={styles.statValue}>{Math.round(trail.elevation_loss)} m</Text>
-          </View>
-        )}
-        {trail.difficulty && (
-          <View style={styles.stat}>
-            <Text style={styles.statLabel}>Difficulty</Text>
-            <Text style={styles.statValue}>{trail.difficulty}</Text>
-          </View>
-        )}
-      </View>
+        <View style={styles.headerRow}>
+          <Text style={[styles.headerTitle, { color: colors.text.primary }]}>
+            {t('trail.title')}
+          </Text>
+          <Pressable
+            onPress={() => router.back()}
+            style={styles.closeButton}
+            accessibilityLabel={t('common.cancel')}
+          >
+            <TabIcon name="close" color={colors.text.muted} size={20} strokeWidth={2} />
+          </Pressable>
+        </View>
 
-      <View style={styles.statusSection}>
-        <Pressable
-          style={[
-            styles.statusButton,
-            trail.status === 'Explored!' ? styles.exploredButton : styles.toExploreButton,
-          ]}
-          onPress={toggleStatus}
-          disabled={updateTrail.isPending}
+        <ScrollView
+          contentContainerStyle={styles.content}
+          showsVerticalScrollIndicator={false}
         >
-          <Text style={styles.statusButtonText}>
-            {updateTrail.isPending
-              ? 'Updating...'
-              : trail.status === 'Explored!'
-                ? '✅ Explored!'
-                : '🔴 Mark as Explored'}
-          </Text>
-        </Pressable>
-      </View>
+        {isEditing ? (
+          <View style={styles.editSection}>
+            <FormField label={t('trail.trailName')} value={editName} onChangeText={setEditName} />
+            <View style={styles.editButtons}>
+              <Button
+                title={t('common.save')}
+                onPress={saveRename}
+                disabled={!editName.trim() || updateTrail.isPending}
+              />
+              <Button
+                title={t('common.cancel')}
+                variant="secondary"
+                onPress={() => setIsEditing(false)}
+              />
+            </View>
+          </View>
+        ) : (
+          <Pressable onLongPress={startEditing}>
+            <Text style={[styles.title, { color: colors.primary }]}>{trail.name}</Text>
+          </Pressable>
+        )}
 
-      <View style={styles.infoSection}>
-        <Text style={styles.sectionTitle}>Info</Text>
-        <Text style={styles.infoText}>Source: {trail.source.replace(/_/g, ' ')}</Text>
-        {trail.last_updated && (
-          <Text style={styles.infoText}>
-            Last updated: {new Date(trail.last_updated).toLocaleDateString()}
+        {/* Tab bar */}
+        <View style={[styles.tabBar, { borderBottomColor: colors.border }]}>
+          <Pressable
+            style={[styles.tab, activeTab === 'info' && { borderBottomWidth: 2, borderBottomColor: colors.primary }]}
+            onPress={() => setActiveTab('info')}
+          >
+            <Text style={[styles.tabLabel, { color: activeTab === 'info' ? colors.primary : colors.text.muted }]}>
+              {t('trailImages.info')}
+            </Text>
+          </Pressable>
+          <Pressable
+            style={[styles.tab, activeTab === 'photos' && { borderBottomWidth: 2, borderBottomColor: colors.primary }]}
+            onPress={() => setActiveTab('photos')}
+          >
+            <Text style={[styles.tabLabel, { color: activeTab === 'photos' ? colors.primary : colors.text.muted }]}>
+              {t('trailImages.photos')}
+            </Text>
+          </Pressable>
+        </View>
+
+        {activeTab === 'info' ? (
+        <>
+        <View style={styles.statsRow}>
+          <StatCard label={t('trail.distance')} value={`${trail.length_km.toFixed(1)} km`} />
+          {trail.elevation_gain != null && (
+            <StatCard
+              label={t('trail.elevationGain')}
+              value={`${Math.round(trail.elevation_gain)} m`}
+            />
+          )}
+          {trail.elevation_loss != null && (
+            <StatCard
+              label={t('trail.elevationLoss')}
+              value={`${Math.round(trail.elevation_loss)} m`}
+            />
+          )}
+          {!!trail.difficulty && (
+            <StatCard label={t('trail.difficultyLabel')} value={trail.difficulty} />
+          )}
+        </View>
+
+        {details?.coordinates_full && details.coordinates_full.length > 1 && (
+          <View style={styles.ribbonSection}>
+            <ElevationRibbon coordinates={details.coordinates_full} height={180} />
+          </View>
+        )}
+
+        <View style={styles.statusSection}>
+          <Pressable
+            style={[
+              styles.statusButton,
+              {
+                backgroundColor:
+                  trail.status === 'Explored!'
+                    ? colors.status.exploredBg
+                    : colors.status.toExploreBg,
+              },
+            ]}
+            onPress={toggleStatus}
+            disabled={updateTrail.isPending}
+          >
+            <Text style={[styles.statusButtonText, { color: colors.text.primary }]}>
+              {updateTrail.isPending
+                ? t('trail.updating')
+                : trail.status === 'Explored!'
+                  ? t('trail.exploredStatus')
+                  : t('trail.markExplored')}
+            </Text>
+          </Pressable>
+        </View>
+
+        <View style={[styles.infoSection, { backgroundColor: colors.glass.background }]}>
+          <Text style={[styles.sectionTitle, { color: colors.text.primary }]}>
+            {t('trail.info')}
           </Text>
+          <View style={styles.infoRow}>
+            <Text style={[styles.infoLabel, { color: colors.text.muted }]}>
+              {t('trail.sourceLabel')}
+            </Text>
+            <Text style={[styles.infoText, { color: colors.text.secondary }]}>
+              {trail.source.replace(/_/g, ' ')}
+            </Text>
+          </View>
+          <View style={styles.infoRow}>
+            <Text style={[styles.infoLabel, { color: colors.text.muted }]}>
+              {t('trail.statusLabel')}
+            </Text>
+            <StatusBadge status={trail.status} />
+          </View>
+          {trail.last_updated && (
+            <View style={styles.infoRow}>
+              <Text style={[styles.infoLabel, { color: colors.text.muted }]}>
+                {t('trail.updatedLabel')}
+              </Text>
+              <Text style={[styles.infoText, { color: colors.text.secondary }]}>
+                {new Date(trail.last_updated).toLocaleDateString()}
+              </Text>
+            </View>
+          )}
+          {trail.activity_date && (
+            <View style={styles.infoRow}>
+              <Text style={[styles.infoLabel, { color: colors.text.muted }]}>
+                {t('trail.activityLabel')}
+              </Text>
+              <Text style={[styles.infoText, { color: colors.text.secondary }]}>
+                {new Date(trail.activity_date).toLocaleString(undefined, { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })}
+              </Text>
+            </View>
+          )}
+          {trail.activity_type && (
+            <View style={styles.infoRow}>
+              <Text style={[styles.infoLabel, { color: colors.text.muted }]}>
+                {t('trail.typeLabel')}
+              </Text>
+              <Text style={[styles.infoText, { color: colors.text.secondary }]}>
+                {trail.activity_type}
+              </Text>
+            </View>
+          )}
+          {details && (
+            <View style={styles.infoRow}>
+              <Text style={[styles.infoLabel, { color: colors.text.muted }]}>
+                {t('trail.trackPoints')}
+              </Text>
+              <Text style={[styles.infoText, { color: colors.text.secondary }]}>
+                {details.coordinates_full.length}
+              </Text>
+            </View>
+          )}
+        </View>
+
+        <View style={styles.actions}>
+          <Button title={t('trail.rename')} variant="secondary" onPress={startEditing} />
+          <Button
+            title={t('trail.deleteTrail')}
+            variant="danger"
+            onPress={confirmDelete}
+            disabled={deleteTrail.isPending}
+          />
+        </View>
+        </>
+        ) : (
+          <TrailImages trailId={id} canEdit />
         )}
-        {trail.activity_date && (
-          <Text style={styles.infoText}>
-            Activity date: {new Date(trail.activity_date).toLocaleDateString()}
-          </Text>
-        )}
-        {trail.activity_type && (
-          <Text style={styles.infoText}>Activity: {trail.activity_type}</Text>
-        )}
-        {details && (
-          <Text style={styles.infoText}>Track points: {details.coordinates_full.length}</Text>
-        )}
+        </ScrollView>
       </View>
-    </ScrollView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
+  backdrop: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
+  },
+  cardWrap: {
+    maxHeight: '85%',
+    borderBottomLeftRadius: borderRadius.xl,
+    borderBottomRightRadius: borderRadius.xl,
+    borderTopLeftRadius: 0,
+    borderTopRightRadius: 0,
+    overflow: 'hidden',
+  },
+  handleContainer: {
+    alignItems: 'center',
+    paddingTop: spacing.md,
+    paddingBottom: spacing.xs,
+  },
+  handle: {
+    width: sheet.handleWidth,
+    height: sheet.handleHeight,
+    borderRadius: borderRadius.full,
+  },
+  headerRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: spacing.xl,
+    paddingBottom: spacing.sm,
+  },
+  headerTitle: {
+    fontSize: fontSize.lg,
+    fontWeight: fontWeight.semibold,
+  },
+  closeButton: {
+    padding: spacing.xs,
   },
   content: {
-    padding: 16,
-  },
-  center: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 20,
+    padding: spacing.xl,
+    paddingTop: spacing.sm,
   },
   title: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    marginBottom: 16,
-    color: '#1a5e2a',
+    fontSize: fontSize.title,
+    fontWeight: fontWeight.bold,
+    letterSpacing: letterSpacing.tight,
+    marginBottom: spacing.xl,
   },
   statsRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 12,
-    marginBottom: 20,
+    gap: spacing.md,
+    marginBottom: spacing.xl,
   },
-  stat: {
-    backgroundColor: '#fff',
-    borderRadius: 10,
-    padding: 14,
-    minWidth: 100,
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.08,
-    shadowRadius: 2,
-    elevation: 1,
-  },
-  statLabel: {
-    fontSize: 12,
-    color: '#888',
-    marginBottom: 4,
-  },
-  statValue: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#333',
+  ribbonSection: {
+    marginBottom: spacing.xl,
   },
   statusSection: {
-    marginBottom: 20,
+    marginBottom: spacing.xl,
   },
   statusButton: {
-    padding: 16,
-    borderRadius: 10,
+    padding: spacing.lg,
+    borderRadius: borderRadius.full,
     alignItems: 'center',
   },
-  exploredButton: {
-    backgroundColor: '#d4edda',
-  },
-  toExploreButton: {
-    backgroundColor: '#f8d7da',
-  },
   statusButtonText: {
-    fontSize: 18,
-    fontWeight: '600',
+    fontSize: fontSize.xl,
+    fontWeight: fontWeight.semibold,
   },
   infoSection: {
-    backgroundColor: '#fff',
-    borderRadius: 10,
-    padding: 16,
+    borderRadius: borderRadius.xl,
+    padding: spacing.xl,
+    marginBottom: spacing.xl,
   },
   sectionTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    marginBottom: 10,
-    color: '#333',
+    fontSize: fontSize.xl,
+    fontWeight: fontWeight.semibold,
+    marginBottom: spacing.md,
+  },
+  infoRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: spacing.sm,
+  },
+  infoLabel: {
+    fontSize: fontSize.sm,
   },
   infoText: {
-    fontSize: 14,
-    color: '#555',
-    marginBottom: 6,
+    fontSize: fontSize.md,
   },
-  error: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#c00',
-    marginBottom: 12,
+  editSection: {
+    marginBottom: spacing.lg,
   },
-  button: {
-    backgroundColor: '#1a5e2a',
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-    borderRadius: 8,
+  editButtons: {
+    flexDirection: 'row',
+    gap: spacing.sm,
   },
-  buttonText: {
-    color: '#fff',
-    fontWeight: '600',
+  actions: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+  },
+  tabBar: {
+    flexDirection: 'row',
+    marginBottom: spacing.lg,
+    borderBottomWidth: 1,
+  },
+  tab: {
+    flex: 1,
+    alignItems: 'center',
+    paddingVertical: spacing.sm,
+  },
+  tabLabel: {
+    fontSize: fontSize.sm,
+    fontWeight: fontWeight.semibold,
   },
 });

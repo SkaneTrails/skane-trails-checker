@@ -5,7 +5,7 @@ requires = [ "uv-build" ]
 [project]
 name = "skane-trails-checker"
 version = "0.1.0"
-description = "A Streamlit app for tracking hiking trails and foraging spots in Skåne, Sweden"
+description = "A FastAPI + Expo app for tracking hiking trails and foraging spots in Skåne, Sweden"
 readme = "README.md"
 license = { text = "MIT" }
 requires-python = ">=3.14.2"
@@ -16,20 +16,18 @@ classifiers = [
 ]
 dependencies = [
   "fastapi>=0.115.0",
-  "folium>=0.15.0",
+  "firebase-admin>=7.2.0",
   "geopy>=2.4.0",
   "google-cloud-firestore>=2.19.0",
   "google-cloud-secret-manager>=2.20.0",
   "gpxpy>=1.6.0",
-  "pandas>=2.1.0",
-  "plotly>=5.18.0",
+  "pillow>=12.2.0",
   "pydantic>=2.10.0",
   "python-dotenv>=1.0.0",
+  "python-multipart>=0.0.22",
   "pyyaml>=6.0.0",
   "rdp>=0.8",
   "requests>=2.32.5",
-  "streamlit>=1.28.0",
-  "streamlit-folium>=0.15.0",
   "uvicorn>=0.34.0",
 ]
 optional-dependencies.dev = [
@@ -70,17 +68,20 @@ lint.select = [
   "ALL", # include all the rules, including new ones
 ]
 lint.ignore = [
-  "ANN401",  # Any type (acceptable for Streamlit UploadedFile and similar dynamic types)
-  "BLE001",  # Blind exception (acceptable with st.warning/st.error for user-facing messages)
+  "ANN401",  # Any type (acceptable for dynamic types like UploadedFile)
+  "BLE001",  # Blind exception (acceptable with logger.warning for user-facing messages)
   "COM812",  # Trailing comma conflicts with formatter
   "D",       # Docstring rules (too verbose for now)
   "DTZ007",  # Datetime without timezone (not critical for this use case)
   "E501",    # Line too long (handled by formatter)
-  "INP001",  # Implicit namespace package (Streamlit pages pattern)
+  "FBT001",  # Boolean positional argument (FastAPI Query parameters)
+  "FBT002",  # Boolean default positional argument (FastAPI Query parameters)
+  "FBT003",  # Boolean positional value (Firestore FieldFilter)
+  "INP001",  # Implicit namespace package (dev-tools pattern)
   "PLC0415", # Import not at top-level (needed for optional dependencies like rdp/numpy)
   "S113",    # Request without timeout (not critical for weather API)
   "S311",    # Random for non-crypto (not used for security purposes)
-  "T201",    # Print statements (used for logging/debugging in Streamlit)
+  "T201",    # Print statements (used in dev-tools scripts)
   "TRY300",  # Consider else block (style preference)
 ]
 lint.per-file-ignores."tests/**/*.py" = [
@@ -96,31 +97,47 @@ lint.isort.combine-as-imports = true
 lint.isort.split-on-trailing-comma = false
 
 [tool.deptry]
-known_first_party = [ "api", "skane-trails-checker" ]
-ignore_notebooks = true
-pep621_dev_dependency_groups = [ "dev" ]
 # Exclude Cloud Function code (has its own requirements.txt) and venv
-exclude = [ "infra/modules/backup/function", ".venv", "venv", "htmlcov" ]
-package_module_name_map.skane-trails-checker = "app"
-package_module_name_map.fastapi = "fastapi"
+exclude = [ ".venv", "htmlcov", "infra/modules/backup/function", "venv" ]
+ignore_notebooks = true
+# These are local packages within app/ and dev-tools/
+per_rule_ignores.DEP001 = [
+  "api",
+  "functions",
+  "resources",
+  "gpx_pipeline",
+  "sentiero_italia_firestore",
+  "sentiero_italia_wfs"
+]
+# Dependencies not directly imported (test deps, implicit runtime deps like uvicorn/multipart)
+per_rule_ignores.DEP002 = [
+  "pytest",
+  "pytest-cov",
+  "pytest-mock",
+  "pytest-xdist",
+  "uvicorn",
+  "httpx",
+  "python-multipart"
+]
 # numpy is a transitive dependency used via rdp for coordinate simplification
 per_rule_ignores.DEP003 = [ "numpy" ]
-# These are local packages within the app/ directory
-per_rule_ignores.DEP001 = [ "api", "functions", "resources" ]
-# Test dependencies are in optional-dependencies.test group
-per_rule_ignores.DEP002 = [ "pytest", "pytest-cov", "pytest-mock", "pytest-xdist", "uvicorn", "httpx" ]
+# app is a local package (part of the project, not a dev dependency)
+per_rule_ignores.DEP004 = [ "app" ]
+known_first_party = [ "api", "skane-trails-checker" ]
+package_module_name_map.fastapi = "fastapi"
+package_module_name_map.skane-trails-checker = "app"
+pep621_dev_dependency_groups = [ "dev" ]
 
 [tool.pyproject-fmt]
 keep_full_version = true
 
 [tool.pytest]
-ini_options.cache_dir = ".cache/.pytest_cache"
+# Test paths
+ini_options.testpaths = [ "tests" ]
 # Test discovery patterns
 ini_options.python_files = "test_*.py"
 ini_options.python_classes = "Test*"
 ini_options.python_functions = "test_*"
-# Test paths
-ini_options.testpaths = [ "tests" ]
 # Output options
 ini_options.addopts = [
   "--pythonwarnings=error",
@@ -132,9 +149,6 @@ ini_options.addopts = [
   "--cov-report=term-missing",
   "--cov-report=html",
 ]
-ini_options.log_cli = true
-ini_options.log_cli_level = "INFO"
-ini_options.log_cli_format = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 # Filter specific warnings from external libraries
 ini_options.filterwarnings = [
   # Ignore NumPy 2.0 deprecation warning triggered by rdp library
@@ -142,6 +156,10 @@ ini_options.filterwarnings = [
   # This needs to be fixed in the rdp library upstream
   "ignore:Arrays of 2-dimensional vectors are deprecated.*:DeprecationWarning",
 ]
+ini_options.log_cli = true
+ini_options.log_cli_level = "INFO"
+ini_options.log_cli_format = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+ini_options.cache_dir = ".cache/.pytest_cache"
 
 [tool.coverage]
 run.branch = true
@@ -151,5 +169,6 @@ report.exclude_lines = [
   "if __name__ == .__main__.:",
   "pragma: no cover",
 ]
+report.fail_under = 99
 report.precision = 2
 report.skip_empty = true

@@ -18,13 +18,8 @@ from pathlib import Path
 # Add project root to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
+from api.storage.foraging_storage import get_foraging_spots, get_foraging_types, save_foraging_spot, save_foraging_type
 from app.functions.env_loader import load_env_if_needed
-from app.functions.foraging_storage import (
-    get_foraging_spots,
-    get_foraging_types,
-    save_foraging_spot,
-    save_foraging_type,
-)
 
 # Load environment variables
 load_env_if_needed()
@@ -59,7 +54,7 @@ def import_foraging_types(*, dry_run: bool = False, force: bool = False) -> tupl
     print(f"   Found {len(types_from_file)} types in file")
 
     # Check existing types in Firestore
-    existing_types = get_foraging_types() if not force else {}
+    existing_types = {t.name: t for t in get_foraging_types()} if not force else {}
     print(f"   Found {len(existing_types)} types in Firestore")
 
     imported = 0
@@ -128,10 +123,10 @@ def import_foraging_spots(*, dry_run: bool = False, force: bool = False) -> tupl
     for spot in spots_from_file:
         # Check if spot already exists (same type, lat, lng, month)
         exists = any(
-            existing["type"] == spot["type"]
-            and abs(existing["lat"] - spot["lat"]) < COORDINATE_TOLERANCE
-            and abs(existing["lng"] - spot["lng"]) < COORDINATE_TOLERANCE
-            and existing["month"] == spot["month"]
+            existing.type == spot["type"]
+            and abs(existing.lat - spot["lat"]) < COORDINATE_TOLERANCE
+            and abs(existing.lng - spot["lng"]) < COORDINATE_TOLERANCE
+            and existing.month == spot["month"]
             for existing in existing_spots
         )
 

@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { ApiClientError, apiRequest } from '../client';
+import { ApiClientError, apiRequest, setAuthTokenGetter, setOnUnauthorized } from '../client';
 
 // Mock global fetch
 const mockFetch = vi.fn();
@@ -8,6 +8,9 @@ global.fetch = mockFetch;
 describe('apiRequest', () => {
   beforeEach(() => {
     mockFetch.mockReset();
+    // Reset auth state between tests
+    setAuthTokenGetter(null);
+    setOnUnauthorized(null);
   });
 
   it('makes a GET request and returns JSON', async () => {
@@ -68,5 +71,203 @@ describe('apiRequest', () => {
         body: '{"type":"Mushrooms"}',
       }),
     );
+  });
+
+  it('attaches Authorization header when token getter is set', async () => {
+    setAuthTokenGetter(async () => 'test-firebase-token');
+
+    mockFetch.mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: () => Promise.resolve({ id: '1' }),
+    });
+
+    await apiRequest('/api/v1/trails');
+
+    expect(mockFetch).toHaveBeenCalledWith(
+      expect.any(String),
+      expect.objectContaining({
+        headers: expect.objectContaining({
+          Authorization: 'Bearer test-firebase-token',
+        }),
+      }),
+    );
+  });
+
+  it('does not attach Authorization header when token getter returns null', async () => {
+    setAuthTokenGetter(async () => null);
+
+    mockFetch.mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: () => Promise.resolve([]),
+    });
+
+    await apiRequest('/api/v1/trails');
+
+    const callHeaders = mockFetch.mock.calls[0][1].headers;
+    expect(callHeaders).not.toHaveProperty('Authorization');
+  });
+
+  it('proceeds without auth when token getter throws', async () => {
+    setAuthTokenGetter(async () => {
+      throw new Error('Firebase transient failure');
+    });
+
+    mockFetch.mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: () => Promise.resolve({ id: '1' }),
+    });
+
+    const result = await apiRequest('/api/v1/trails');
+
+    expect(result).toEqual({ id: '1' });
+    const callHeaders = mockFetch.mock.calls[0][1].headers;
+    expect(callHeaders).not.toHaveProperty('Authorization');
+  });
+
+  it('calls onUnauthorized with hadToken=true on 401 when token was sent', async () => {
+    const onUnauthorized = vi.fn();
+    setAuthTokenGetter(async () => 'valid-token');
+    setOnUnauthorized(onUnauthorized);
+
+    mockFetch.mockResolvedValue({
+      ok: false,
+      status: 401,
+      text: () => Promise.resolve('Unauthorized'),
+    });
+
+    await expect(apiRequest('/api/v1/trails')).rejects.toThrow(ApiClientError);
+    expect(onUnauthorized).toHaveBeenCalledWith(true);
+  });
+
+  it('calls onUnauthorized with hadToken=false on 401 when no token available', async () => {
+    const onUnauthorized = vi.fn();
+    setOnUnauthorized(onUnauthorized);
+
+    mockFetch.mockResolvedValue({
+      ok: false,
+      status: 401,
+      text: () => Promise.resolve('Unauthorized'),
+    });
+
+    await expect(apiRequest('/api/v1/trails')).rejects.toThrow(ApiClientError);
+    expect(onUnauthorized).toHaveBeenCalledWith(false);
+  });
+
+  it('does not set Content-Type for FormData body', async () => {
+    mockFetch.mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: () => Promise.resolve([]),
+    });
+
+    const formData = new FormData();
+    formData.append('file', new Blob(['gpx-data']), 'trail.gpx');
+
+    await apiRequest('/api/v1/trails/upload', {
+      method: 'POST',
+      body: formData,
+    });
+
+    const callHeaders = mockFetch.mock.calls[0][1].headers;
+    expect(callHeaders).not.toHaveProperty('Content-Type');
+  });
+
+  it('uses fallback text when response.text() rejects on 401', async () => {
+    setAuthTokenGetter(async () => 'token');
+    const onUnauth = vi.fn();
+    setOnUnauthorized(onUnauth);
+
+    mockFetch.mockResolvedValue({
+      ok: false,
+      status: 401,
+      text: () => Promise.reject(new Error('stream error')),
+    });
+
+    await expect(apiRequest('/api/v1/trails')).rejects.toThrow('API Error 401: Unauthorized');
+    expect(onUnauth).toHaveBeenCalledWith(true);
+  });
+
+  it('uses fallback text when response.text() rejects on non-401 error', async () => {
+    mockFetch.mockResolvedValue({
+      ok: false,
+      status: 500,
+      text: () => Promise.reject(new Error('stream error')),
+    });
+
+    await expect(apiRequest('/api/v1/trails')).rejects.toThrow('API Error 500: Unknown error');
+  });
+
+  it('throws timeout error when fetch exceeds 30 seconds', async () => {
+    vi.useFakeTimers();
+
+    const setTimeoutSpy = vi.spyOn(globalThis, 'setTimeout');
+
+    mockFetch.mockImplementation((_url: string, options: RequestInit) => {
+      return new Promise((_resolve, reject) => {
+        options.signal?.addEventListener('abort', () => {
+          const err = new Error('The operation was aborted.');
+          err.name = 'AbortError';
+          reject(err);
+        });
+      });
+    });
+
+    const promise = apiRequest('/api/v1/trails').catch((e) => e);
+
+    // Verify setTimeout was called with 30_000
+    expect(setTimeoutSpy).toHaveBeenCalledWith(expect.any(Function), 30_000);
+
+    // Advance past the timeout — triggers controller.abort() → fetch rejects
+    await vi.advanceTimersByTimeAsync(30_000);
+
+    const error = await promise;
+    expect(error).toBeInstanceOf(ApiClientError);
+    expect(error.status).toBe(0);
+    expect(error.reason).toBe('Request timed out');
+
+    setTimeoutSpy.mockRestore();
+    vi.useRealTimers();
+  });
+
+  it('maps AbortError to ApiClientError with timeout message', async () => {
+    const abortError = new Error('The operation was aborted.');
+    abortError.name = 'AbortError';
+    mockFetch.mockRejectedValueOnce(abortError);
+
+    const error = await apiRequest('/api/v1/trails').catch((e) => e);
+    expect(error).toBeInstanceOf(ApiClientError);
+    expect(error.status).toBe(0);
+    expect(error.reason).toBe('Request timed out');
+  });
+
+  it('clears timeout on successful response', async () => {
+    const clearTimeoutSpy = vi.spyOn(globalThis, 'clearTimeout');
+
+    mockFetch.mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: () => Promise.resolve([]),
+    });
+
+    await apiRequest('/api/v1/trails');
+    expect(clearTimeoutSpy).toHaveBeenCalled();
+
+    clearTimeoutSpy.mockRestore();
+  });
+
+  it('passes abort signal to fetch', async () => {
+    mockFetch.mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: () => Promise.resolve([]),
+    });
+
+    await apiRequest('/api/v1/trails');
+
+    const callOptions = mockFetch.mock.calls[0][1];
+    expect(callOptions.signal).toBeInstanceOf(AbortSignal);
   });
 });

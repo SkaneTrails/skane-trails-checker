@@ -15,30 +15,32 @@ class ForagingSpotResponse(BaseModel):
     date: str = ""
     created_at: str = ""
     last_updated: str = ""
+    created_by: str | None = Field(default=None, exclude=True)
+    group_id: str | None = None
 
 
 class ForagingSpotCreate(BaseModel):
     """Request body for creating a foraging spot."""
 
-    type: str = Field(min_length=1)
+    type: str = Field(min_length=1, max_length=100)
     lat: float = Field(ge=-90, le=90)
     lng: float = Field(ge=-180, le=180)
-    notes: str = ""
+    notes: str = Field(default="", max_length=1000)
     month: str = Field(min_length=3, max_length=3, pattern=r"^(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)$")
-    date: str = ""
+    date: str = Field(default="", max_length=50)
 
 
 class ForagingSpotUpdate(BaseModel):
     """Request body for updating a foraging spot."""
 
-    type: str | None = Field(default=None, min_length=1)
+    type: str | None = Field(default=None, min_length=1, max_length=100)
     lat: float | None = Field(default=None, ge=-90, le=90)
     lng: float | None = Field(default=None, ge=-180, le=180)
-    notes: str | None = None
+    notes: str | None = Field(default=None, max_length=1000)
     month: str | None = Field(
         default=None, min_length=3, max_length=3, pattern=r"^(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)$"
     )
-    date: str | None = None
+    date: str | None = Field(default=None, max_length=50)
 
 
 class ForagingTypeResponse(BaseModel):
@@ -47,6 +49,11 @@ class ForagingTypeResponse(BaseModel):
     name: str
     icon: str = ""
     color: str = ""
+    swedish_name: str = ""
+    description: str = ""
+    season: str = ""
+    usage: str = ""
+    image_file: str = ""
 
 
 class ForagingTypeCreate(BaseModel):
@@ -55,3 +62,20 @@ class ForagingTypeCreate(BaseModel):
     name: str = Field(min_length=1, max_length=100)
     icon: str = Field(min_length=1, max_length=10)
     color: str = ""
+    swedish_name: str = ""
+    description: str = ""
+    season: str = ""
+    usage: str = ""
+    image_file: str = ""
+
+
+class ForagingTypeUpdate(BaseModel):
+    """Request body for updating a foraging type."""
+
+    icon: str | None = Field(default=None, min_length=1, max_length=10)
+    color: str | None = Field(default=None, max_length=50)
+    swedish_name: str | None = Field(default=None, max_length=100)
+    description: str | None = Field(default=None, max_length=500)
+    season: str | None = Field(default=None, max_length=100)
+    usage: str | None = Field(default=None, max_length=200)
+    image_file: str | None = Field(default=None, max_length=200)

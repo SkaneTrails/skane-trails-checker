@@ -10,6 +10,7 @@ resource "google_storage_bucket" "firestore_backups" {
   project  = var.project
   name     = var.backup_bucket_name
   location = var.backup_bucket_location
+  labels   = var.labels
 
   # Use standard storage class (free tier eligible)
   storage_class = "STANDARD"

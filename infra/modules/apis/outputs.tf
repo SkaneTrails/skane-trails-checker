@@ -54,6 +54,11 @@ output "firebase_service" {
   value       = google_project_service.firebase
 }
 
+output "firebaserules_service" {
+  description = "Firebase Rules API service resource for depends_on"
+  value       = google_project_service.firebaserules
+}
+
 output "identitytoolkit_service" {
   description = "Identity Toolkit (Firebase Auth) API service resource for depends_on"
   value       = google_project_service.identitytoolkit

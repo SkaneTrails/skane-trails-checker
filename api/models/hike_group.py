@@ -1,0 +1,74 @@
+"""Pydantic models for hike group and admin API endpoints."""
+
+from pydantic import BaseModel, Field
+
+MAX_GROUP_NAME_LENGTH = 50
+MAX_EMAIL_LENGTH = 200
+
+
+class HikeGroupResponse(BaseModel):
+    """Hike group data returned by the API."""
+
+    group_id: str
+    name: str
+    created_by: str
+    member_count: int = 0
+    created_at: str = ""
+    last_updated: str = ""
+
+
+class HikeGroupCreate(BaseModel):
+    """Request body for creating a hike group."""
+
+    name: str = Field(min_length=1, max_length=MAX_GROUP_NAME_LENGTH)
+
+
+class HikeGroupUpdate(BaseModel):
+    """Request body for updating a hike group."""
+
+    name: str | None = Field(default=None, min_length=1, max_length=MAX_GROUP_NAME_LENGTH)
+
+
+class MemberResponse(BaseModel):
+    """Group member data returned by the API."""
+
+    email: str
+    group_id: str
+    role: str
+    display_name: str | None = None
+
+
+class MemberAdd(BaseModel):
+    """Request body for adding a member to a group."""
+
+    email: str = Field(min_length=1, max_length=MAX_EMAIL_LENGTH)
+    role: str = Field(default="member", pattern=r"^(admin|member)$")
+    display_name: str | None = None
+
+
+class MemberUpdate(BaseModel):
+    """Request body for updating a member's role."""
+
+    role: str = Field(pattern=r"^(admin|member)$")
+
+
+class CurrentUserResponse(BaseModel):
+    """Current user info returned by GET /admin/me."""
+
+    uid: str
+    email: str
+    role: str
+    group_id: str | None = None
+    group_name: str | None = None
+
+
+class SuperuserAdd(BaseModel):
+    """Request body for adding a superuser."""
+
+    email: str = Field(min_length=1, max_length=MAX_EMAIL_LENGTH)
+
+
+class SuperuserResponse(BaseModel):
+    """Superuser email returned by the API."""
+
+    email: str

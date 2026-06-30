@@ -1,130 +1,487 @@
 # Development Guide
 
-This guide covers the technical architecture, design patterns, and implementation details for developers working on the codebase.
+Local setup, environment configuration, and API reference for developers.
 
 > **For contribution guidelines**, see [CONTRIBUTING.md](../CONTRIBUTING.md)
+> **For infrastructure setup**, see [infra/environments/dev/README.md](../infra/environments/dev/README.md)
 
 ## Quick Reference
 
 ```bash
-# Run app
-uv run streamlit run app/_Home_.py
+# API server
+uv run uvicorn api.main:app --reload --reload-dir api --port 8000
 
-# Run tests
-uv run pytest --cov=app
+# Mobile / web
+cd mobile && npx expo start --web
 
-# Lint/format
+# Tests
+uv run pytest --cov=app --cov=api --cov-report=term-missing
+
+# Lint / format
 uv run ruff check --fix && uv run ruff format
 ```
 
-## Project Architecture
+## Setup
 
-### Streamlit Multi-Page App Structure
+### Prerequisites
 
-- **Entry point**: `app/_Home_.py`
-- **Pages**: Auto-discovered from `app/pages/` directory
-- **Naming**: `N_emoji_Name.py` (N = display order)
+- Python 3.14+
+- [UV package manager](https://github.com/astral-sh/uv)
+- Node.js 20+ and [pnpm](https://pnpm.io/) (for mobile/web app)
 
-### State Management
-
-Streamlit session state (`st.session_state`) is the primary state container:
-
-```python
-# Initialize state
-if "gpx_data" not in st.session_state:
-    st.session_state.gpx_data = load_gpx_data()
-
-# Access state
-tracks = st.session_state.gpx_data
-
-# Modify state
-st.session_state.track_status[track_id] = "Explored!"
-```
-
-### Data Flow
-
-1. **GPX Files** → `functions/gpx.py` → Parse tracks
-1. **Track Status** → `functions/tracks.py` → Load/save CSV
-1. **Foraging Data** → `functions/foraging.py` → Load/save JSON
-1. **Map Rendering** → Folium → `streamlit_folium` → Display
-
-### Key Patterns
-
-#### GPX File Handling
-
-```python
-from functions.gpx import parse_gpx_file, simplify_track_coordinates
-
-tracks = parse_gpx_file(filepath)
-simplified = simplify_track_coordinates(tracks, tolerance=0.0001)
-```
-
-#### Track Status Management
-
-```python
-from functions.tracks import load_track_status, save_track_status
-
-status = load_track_status("skaneleden")
-status[track_id] = "Explored!"
-save_track_status(status, "skaneleden")
-```
-
-#### Map Rendering
-
-```python
-import folium
-from streamlit_folium import st_folium
-
-m = folium.Map(location=[center_lat, center_lng], zoom_start=10)
-folium.PolyLine(coordinates, color="green").add_to(m)
-st_folium(m, width=1200, height=600)
-```
-
-## Debugging
-
-### Enable Debug Logging
-
-```python
-import logging
-logging.basicConfig(level=logging.DEBUG)
-```
-
-### Streamlit Debug Mode
+### Installation
 
 ```bash
-streamlit run app/_Home_.py --logger.level=debug
+git clone https://github.com/SkaneTrails/skane-trails-checker.git
+cd skane-trails-checker
+
+# API dependencies
+uv sync --extra dev
+uv run pre-commit install
+
+# Mobile dependencies
+cd mobile
+pnpm install
 ```
 
-### Check Debug Log
+## Environment Setup
 
-The app creates `app_debug.log` with:
+### API Environment Variables
 
-- Python version
-- Working directory
-- Streamlit version
-- Error tracebacks
+First-time setup requires Firestore connection configuration:
+
+1. **Authenticate with Google Cloud:**
+
+   ```bash
+   gcloud auth application-default login
+   ```
+
+1. **Fetch Firestore secrets from GCP Secret Manager:**
+
+   ```bash
+   uv run python dev-tools/setup_env.py
+   ```
+
+   This creates a `.env` file with Firestore connection details (gitignored). The script checks freshness (24h) and skips if the file is recent.
+
+   **Options:**
+
+   - `--force` — Force refresh even if `.env` is fresh
+   - `--check` — Validate `.env` has all required variables
+   - `--list` — Show secret mappings
+
+The API requires these environment variables (set automatically by `setup_env.py`):
+
+| Variable                | Required | Description                                                |
+| ----------------------- | -------- | ---------------------------------------------------------- |
+| `FIRESTORE_PROJECT_ID`  | Yes      | GCP project ID                                             |
+| `FIRESTORE_DATABASE_ID` | Yes      | Firestore database name (default: `skane-trails-db`)       |
+| `FIRESTORE_LOCATION_ID` | Yes      | Firestore region (e.g., `eur3`)                            |
+| `ALLOWED_ORIGINS`       | No       | Comma-separated CORS origins (defaults to localhost ports) |
+| `SKIP_AUTH`             | No       | Set to `true` to skip Firebase auth (local dev)            |
+
+### Mobile Environment Variables
+
+```bash
+cd mobile
+cp .env.example .env.development
+```
+
+Without Firebase/OAuth values, the app runs in dev mode with a mock user.
+
+| Variable                         | Required | Description                                |
+| -------------------------------- | -------- | ------------------------------------------ |
+| `EXPO_PUBLIC_API_URL`            | Yes      | API URL (default: `http://localhost:8000`) |
+| `EXPO_PUBLIC_FIREBASE_*`         | No\*     | Firebase config for authentication         |
+| `EXPO_PUBLIC_GOOGLE_*_CLIENT_ID` | No\*     | OAuth client IDs for Google Sign-In        |
+
+**\*Authentication in dev mode:** If Firebase/OAuth credentials are not configured, the app runs in "dev mode" with a mock authenticated user. This allows local development without setting up Firebase.
+
+## Running the Application
+
+### FastAPI Backend
+
+```bash
+uv run uvicorn api.main:app --reload --reload-dir api --port 8000
+```
+
+API docs available at `http://localhost:8000/api/docs` (Swagger) and `http://localhost:8000/api/redoc` (ReDoc).
+
+### Mobile / Web App
+
+```bash
+cd mobile
+npx expo start --web
+```
+
+### Android App (Native)
+
+The app supports building a standalone Android APK with native maps (MapLibre GL + OpenStreetMap) and background GPS tracking. The web app continues working unchanged — platform-specific code uses file extensions (`.web.tsx` / `.native.tsx`).
+
+#### Prerequisites
+
+- [Android Studio](https://developer.android.com/studio) with Android SDK installed
+- Android SDK Platform 35 (or latest)
+- Android SDK Build-Tools
+- An Android device with USB debugging enabled, or an Android emulator
+- [EAS CLI](https://docs.expo.dev/eas/): `npm install -g eas-cli`
+
+> **USB Debugging:** On your phone, go to Settings → About Phone → tap "Build Number" 7 times to enable Developer Options. Then enable "USB Debugging" in Developer Options.
+
+#### Java / JAVA_HOME Setup (Windows)
+
+The Android build uses the JDK bundled with Android Studio. Set `JAVA_HOME` to point to it:
+
+```powershell
+# PowerShell (current session)
+$env:JAVA_HOME = "C:\Program Files\Android\Android Studio\jbr"
+
+# Or set permanently via System Environment Variables
+[System.Environment]::SetEnvironmentVariable("JAVA_HOME", "C:\Program Files\Android\Android Studio\jbr", "User")
+```
+
+Verify: `& "$env:JAVA_HOME\bin\java" -version` should show Java 21+.
+
+#### Production Environment Setup
+
+To connect the Android app to the production API and Firebase Auth:
+
+```bash
+# Authenticate with GCP
+gcloud auth application-default login
+
+# Fetch secrets and create mobile/.env.development
+uv run python dev-tools/setup_mobile_env.py
+```
+
+This populates `EXPO_PUBLIC_API_URL`, Firebase config, and the web OAuth client ID from GCP Secret Manager. Use `--force` to overwrite an existing file.
+
+#### First-Time Development Build
+
+The Android app requires an Expo development build (not Expo Go) because it uses custom native modules (`@maplibre/maplibre-react-native`, `expo-location` background tracking).
+
+```bash
+cd mobile
+
+# Install dependencies
+pnpm install
+
+# Build and run on connected Android device via USB
+npx expo run:android
+```
+
+This will:
+
+1. Generate the `android/` directory with native project files
+1. Compile the native code (Gradle build)
+1. Install the app on your connected device
+1. Start the Metro bundler
+
+> **First build takes several minutes.** Subsequent builds are much faster as Gradle caches compiled code.
+
+> **React version:** React must be pinned to `19.2.3` (exact, no caret) to match `react-native-renderer`. If `pnpm install` bumps it, run: `pnpm add react@19.2.3 --save-exact`
+
+#### Running After First Build
+
+Once the app is installed, start the dev server without rebuilding:
+
+```bash
+cd mobile
+npx expo start --android
+```
+
+The app connects to Metro over your local network. Both the phone and computer must be on the same WiFi network.
+
+#### Building a Standalone APK
+
+To build a sideloadable APK that runs without a dev server:
+
+```bash
+# Local build (requires Android SDK)
+npx eas build --platform android --profile preview --local
+
+# Cloud build (requires Expo account)
+npx eas build --platform android --profile preview
+```
+
+The `preview` profile in `eas.json` produces a standalone APK for internal distribution (no dev server required).
+
+#### Installing the APK
+
+```bash
+# Via ADB (USB connected)
+adb install build-*.apk
+
+# Or transfer the .apk file to your phone and open it
+# You may need to enable "Install from unknown sources" in Settings
+```
+
+#### API Connection
+
+The Android app connects to the same API as the web app. Set the API URL in `mobile/.env.development`:
+
+```
+EXPO_PUBLIC_API_URL=http://<your-computer-ip>:8000
+```
+
+Use your computer's local IP (not `localhost`) since the phone connects over WiFi. Find it with `ipconfig` (Windows) or `ifconfig` (macOS/Linux).
+
+#### Native Map (MapLibre GL v11 + OpenStreetMap)
+
+The native Android map uses [MapLibre GL v11](https://github.com/maplibre/maplibre-react-native) with OpenStreetMap raster tiles — **no API key or billing required**. This keeps the project within its zero-cost constraint.
+
+> **Why v11?** MapLibre React Native v10 has a rendering bug with React Native's New Architecture (Fabric) where tile layers fail to paint despite loading successfully. v11 (beta) resolves this with a rewritten TurboModule-based renderer.
+
+Both web (Leaflet) and native (MapLibre) render the same OpenStreetMap tile data, ensuring visual consistency across platforms.
+
+#### Architecture: Platform-Specific Files
+
+Native code uses Expo's platform file extensions. Metro resolves imports automatically:
+
+| Import               | Web resolves to            | Android resolves to           |
+| -------------------- | -------------------------- | ----------------------------- |
+| `./UnifiedMap`       | `UnifiedMap.web.tsx`       | `UnifiedMap.native.tsx`       |
+| `./TrackingControls` | `TrackingControls.web.tsx` | `TrackingControls.native.tsx` |
+
+Key platform-specific files:
+
+| File                                     | Purpose                               |
+| ---------------------------------------- | ------------------------------------- |
+| `components/UnifiedMap.web.tsx`          | Leaflet map (OpenStreetMap tiles)     |
+| `components/UnifiedMap.native.tsx`       | MapLibre GL map (OpenStreetMap tiles) |
+| `components/TrackingControls.web.tsx`    | Empty stub (GPS not available on web) |
+| `components/TrackingControls.native.tsx` | FAB buttons for start/pause/stop GPS  |
+| `lib/tracking-service.ts`                | Background GPS via expo-task-manager  |
+| `lib/location-permissions.ts`            | Android permission request flow       |
+
+All business logic (hooks, types, API client, TrackingContext, TrackingOverlay) is shared across platforms.
+
+#### Background GPS Tracking
+
+The Android app records hikes with the screen off using a foreground service:
+
+- `expo-location` provides GPS coordinates (high accuracy, 3s interval, 5m minimum movement)
+- `expo-task-manager` registers a background task that survives screen lock
+- A persistent notification shows "Recording hike" while tracking is active
+- Coordinates are flushed to AsyncStorage every 30s for crash recovery
+- Recorded tracks are saved as trails via POST `/api/v1/trails/record`
+
+#### Permissions
+
+The app requests these Android permissions (configured in `app.json`):
+
+| Permission                    | Purpose                           |
+| ----------------------------- | --------------------------------- |
+| `ACCESS_FINE_LOCATION`        | GPS coordinates while app is open |
+| `ACCESS_COARSE_LOCATION`      | Approximate location fallback     |
+| `ACCESS_BACKGROUND_LOCATION`  | GPS with screen off               |
+| `FOREGROUND_SERVICE`          | Keep tracking alive in background |
+| `FOREGROUND_SERVICE_LOCATION` | Location-type foreground service  |
+
+Background location requires a two-step permission flow: foreground first, then background (Android 10+ requirement).
+
+#### Troubleshooting
+
+| Problem                              | Solution                                                                                    |
+| ------------------------------------ | ------------------------------------------------------------------------------------------- |
+| `INSTALL_FAILED_UPDATE_INCOMPATIBLE` | Uninstall the existing app: `adb uninstall com.skanetrails.checker`                         |
+| Build fails with SDK errors          | Open `mobile/android/` in Android Studio and let it sync Gradle                             |
+| Build fails with Kotlin errors       | Ensure Gradle wrapper version is 8.x (not 9.x) in `gradle-wrapper.properties`               |
+| `JAVA_HOME` not set                  | Set to Android Studio JBR: `$env:JAVA_HOME = "C:\Program Files\Android\Android Studio\jbr"` |
+| App can't reach API                  | Check `EXPO_PUBLIC_API_URL` uses your computer's LAN IP, not localhost                      |
+| GPS not recording in background      | Ensure "Allow all the time" location permission is granted                                  |
+| Emulator has no GPS                  | Use Android Studio's Extended Controls (three dots) to set a mock location                  |
+
+## Project Structure
+
+```
+skane-trails-checker/
+├── api/                       # FastAPI REST backend
+│   ├── main.py                # App entry point, CORS, security headers
+│   ├── auth/                  # Firebase Auth middleware
+│   ├── models/                # Pydantic models (Trail, Foraging, Place)
+│   ├── routers/               # REST endpoints (trails, foraging, places)
+│   ├── services/              # Business logic (GPX parsing)
+│   └── storage/               # Firestore persistence
+├── app/                       # Server-side GPX processing
+│   ├── functions/             # GPX parsing, trail conversion, bootstrap
+│   ├── resources/             # Static data
+│   └── tracks_gpx/            # Bundled Skåneleden GPX files
+├── mobile/                    # Expo / React Native app
+│   ├── app/                   # Expo Router screens (tabs, trail detail, upload)
+│   ├── components/            # Shared UI (Button, TrailCard, TrailMap, etc.)
+│   └── lib/                   # API client, hooks, theme, types, storage
+├── dev-tools/                 # Admin scripts (setup, import, backfill)
+├── infra/                     # Terraform infrastructure
+│   ├── environments/dev/      # Dev environment config + setup guide
+│   └── modules/               # 8 reusable modules
+├── tests/                     # pytest test suite
+└── docs/                      # This guide + troubleshooting
+```
+
+## API Endpoints
+
+All endpoints are prefixed with `/api/v1`.
+
+### Trails
+
+| Method   | Path                   | Auth | Description                                      |
+| -------- | ---------------------- | ---- | ------------------------------------------------ |
+| `GET`    | `/trails/sync`         | No   | Sync metadata (count, last_modified)             |
+| `GET`    | `/trails`              | No   | List trails (filter by source, status, distance) |
+| `GET`    | `/trails/{id}`         | No   | Get single trail                                 |
+| `GET`    | `/trails/{id}/details` | No   | Full trail data (all coordinates)                |
+| `PATCH`  | `/trails/{id}`         | Yes  | Update trail                                     |
+| `DELETE` | `/trails/{id}`         | Yes  | Delete trail                                     |
+| `POST`   | `/trails/upload`       | Yes  | Upload GPX file                                  |
+
+### Foraging
+
+| Method   | Path                     | Auth | Description                  |
+| -------- | ------------------------ | ---- | ---------------------------- |
+| `GET`    | `/foraging/spots`        | No   | List spots (filter by month) |
+| `POST`   | `/foraging/spots`        | Yes  | Create spot                  |
+| `PATCH`  | `/foraging/spots/{id}`   | Yes  | Update spot                  |
+| `DELETE` | `/foraging/spots/{id}`   | Yes  | Delete spot                  |
+| `GET`    | `/foraging/types`        | No   | List foraging types          |
+| `POST`   | `/foraging/types`        | Yes  | Create/update type           |
+| `DELETE` | `/foraging/types/{name}` | Yes  | Delete type                  |
+
+### Places
+
+| Method | Path                 | Auth | Description                      |
+| ------ | -------------------- | ---- | -------------------------------- |
+| `GET`  | `/places`            | No   | List places (filter by category) |
+| `GET`  | `/places/categories` | No   | List place categories            |
+
+### Other
+
+| Method | Path      | Auth | Description  |
+| ------ | --------- | ---- | ------------ |
+| `GET`  | `/health` | No   | Health check |
+
+## Seeding Trail Data
+
+After deploying infrastructure, Firestore is empty. There are two ways to add trails:
+
+### Skåneleden Trails (Bootstrap)
+
+The repo includes a bundled GPX file with all 169 Skåneleden etapps at `app/tracks_gpx/planned_hikes/all-skane-trails.gpx`. To seed them into Firestore:
+
+```bash
+uv run python -c "from app.functions.bootstrap_trails import bootstrap_planned_trails; bootstrap_planned_trails('app/tracks_gpx/planned_hikes/all-skane-trails.gpx')"
+```
+
+This is idempotent — it skips if `planned_hikes` trails already exist in Firestore.
+
+To refresh the bundled GPX file from the official Skåneleden website:
+
+```bash
+uv run python dev-tools/update_skaneleden_trails.py
+```
+
+Then re-bootstrap after clearing old data:
+
+```bash
+uv run python dev-tools/delete_planned_trails.py
+```
+
+### Custom Trails (GPX Upload)
+
+Upload GPX files through the app's upload screen, or via the API:
+
+```bash
+curl -X POST http://localhost:8000/api/v1/trails/upload \
+  -H "Authorization: Bearer <token>" \
+  -F "file=@my-trail.gpx" \
+  -F "source=other_trails"
+```
+
+### Bulk GPX Import (CLI)
+
+Import GPX files directly into Firestore using the database manager:
+
+```bash
+# Import all GPX files from a directory
+uv run python dev-tools/db_manager.py trails import --gpx-dir path/to/gpx/ --source other_trails
+
+# Preview first
+uv run python dev-tools/db_manager.py trails import --gpx-dir path/to/gpx/ --dry-run
+```
+
+Includes duplicate detection (by date ±60min, then name). See [dev-tools/README.md](../dev-tools/README.md) for full options.
+
+### Database Management
+
+The `db_manager.py` tool provides interactive and CLI access to all Firestore collections:
+
+```bash
+# Interactive menu
+uv run python dev-tools/db_manager.py
+
+# Search trails
+uv run python dev-tools/db_manager.py trails search "söderåsen"
+
+# View full trail details
+uv run python dev-tools/db_manager.py trails get <trail_id>
+
+# Collection overview
+uv run python dev-tools/db_manager.py status
+```
+
+See [dev-tools/README.md](../dev-tools/README.md) for the complete command reference.
+
+## Authentication
+
+The API uses Firebase Auth with Google Sign-In:
+
+1. Mobile signs in via Firebase (Google OAuth)
+1. Gets ID token from Firebase SDK
+1. Sends token in `Authorization: Bearer <token>` header
+1. API validates token with Firebase Admin SDK
+1. Write endpoints return 401 if token is invalid/expired
+
+For local development, set `SKIP_AUTH=true` to bypass authentication.
+
+## Testing
+
+### API (pytest)
+
+```bash
+# All tests
+uv run pytest
+
+# With coverage
+uv run pytest --cov=app --cov=api --cov-report=term-missing
+
+# Specific file
+uv run pytest tests/test_api_trails.py -v
+```
+
+Coverage threshold: 85% (enforced by `fail_under` in `pyproject.toml`).
+
+### Mobile (Vitest)
+
+```bash
+cd mobile
+pnpm test
+pnpm test:coverage
+```
+
+## Linting and Formatting
+
+```bash
+# Python
+uv run ruff check --fix
+uv run ruff format
+
+# All pre-commit hooks
+uv run pre-commit run --all-files
+```
+
+## Troubleshooting
 
 See [TROUBLESHOOTING.md](TROUBLESHOOTING.md) for common issues.
-
-## Performance Considerations
-
-### GPX Coordinate Simplification
-
-- Use RDP algorithm to reduce point density
-- Default tolerance: 0.0001 (balance accuracy vs performance)
-- Apply before map rendering: `simplify_track_coordinates()`
-
-### Map Rendering
-
-- Generate map only when needed (state changes)
-- Use unique keys for `st_folium()` to prevent unnecessary re-renders
-- Limit number of tracks displayed simultaneously
-
-### Session State
-
-- Minimize data stored in session state
-- Use lazy loading where possible
-- Clear unused state variables
 
 ## Dependency Management
 

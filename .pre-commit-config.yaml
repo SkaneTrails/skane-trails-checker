@@ -9,7 +9,7 @@ default_language_version:
   python: python3.14
 repos:
   - repo: https://github.com/tox-dev/pyproject-fmt
-    rev: "v2.16.2"
+    rev: "v2.25.1"
     hooks:
       - id: pyproject-fmt
   - repo: https://github.com/abravalheri/validate-pyproject
@@ -21,6 +21,7 @@ repos:
     rev: v0.21.0
     hooks:
       - id: yamlfmt
+        exclude: pnpm-lock\.yaml$
         args:
           - -formatter
           - line_ending=lf,retain_line_breaks=true,max_empty_lines=2
@@ -44,17 +45,17 @@ repos:
       - id: check-ast
       - id: check-added-large-files
         args: [--maxkb=150]
-        exclude: pnpm-lock\.yaml$
+        exclude: (pnpm-lock\.yaml|package-lock\.json)$
       - id: detect-private-key
       - id: debug-statements
   - repo: https://github.com/rhysd/actionlint
     # Validate GitHub Actions workflows
 
-    rev: v1.7.11
+    rev: v1.7.12
     hooks:
       - id: actionlint
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.15.4
+    rev: v0.15.20
     hooks:
       - id: ruff
         args: [--fix, --exit-non-zero-on-fix]
@@ -83,7 +84,7 @@ repos:
         files: \.(json|toml)$
         exclude: ^(renovate\.json)$
   - repo: https://github.com/astral-sh/uv-pre-commit
-    rev: 0.10.7
+    rev: 0.11.25
     hooks:
       - id: uv-lock
       - id: uv-sync
@@ -95,24 +96,17 @@ repos:
     # Ty type checker (run as local command since no pre-commit repo yet)
 
     hooks:
-      - id: pytest
-        name: pytest
-        entry: uv run pytest
-        language: system
-        types: [python]
-        pass_filenames: false
-        args: [tests/, -x, --no-cov, -q]
       - id: ty
         name: ty type check
         entry: uv run ty check
         language: system
         types: [python]
         pass_filenames: false
-        args: [app/, --error-on-warning]
+        args: [app/, --error-on-warning, --extra-search-path, app/]
   - repo: https://github.com/antonbabenko/pre-commit-terraform
     # Terraform hooks
 
-    rev: v1.105.0
+    rev: v1.108.0
     hooks:
       - id: terraform_fmt
         name: terraform fmt

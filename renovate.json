@@ -14,8 +14,8 @@
   "dependencyDashboard": true,
   "dependencyDashboardTitle": "🤖 Renovate Dependency Dashboard",
   "minimumReleaseAge": "3 days",
-  "prHourlyLimit": 2,
-  "prConcurrentLimit": 5,
+  "prHourlyLimit": 6,
+  "prConcurrentLimit": 10,
   "packageRules": [
     {
       "description": "Auto-merge minor, patch, pin, and digest updates",
@@ -144,13 +144,17 @@
       "description": "Only allow Python patch updates"
     },
     {
-      "rangeStrategy": "bump",
+      "groupName": "Python runtime",
+      "groupSlug": "python-runtime",
       "matchPackageNames": [
         "python"
       ],
       "matchManagers": [
-        "pep621"
-      ]
+        "pep621",
+        "pyenv"
+      ],
+      "rangeStrategy": "bump",
+      "description": "Group pyproject.toml requires-python and .python-version updates together"
     }
   ],
   "lockFileMaintenance": {

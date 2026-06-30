@@ -201,12 +201,12 @@ def parse_ingredients(text: str, servings: int = 4) -> list[str]:
 
 ### Coverage Standards
 
-Every file in `api/` must maintain ≥95% coverage. The overall threshold is enforced by `fail_under` in `pyproject.toml`, but per-file coverage requires manual review of `--cov-report=term-missing` output.
+Every file in `app/` and `api/` must maintain high coverage. The overall threshold is enforced by `fail_under` in `pyproject.toml`, but per-file coverage requires manual review of `--cov-report=term-missing` output.
 
 After adding new code, always run:
 
 ```bash
-uv run pytest --cov=api --cov-report=term-missing
+uv run pytest --cov=app --cov=api --cov-report=term-missing
 ```
 
 Check both overall percentage AND individual file percentages. No file gets a pass for "bringing the average down."
@@ -254,6 +254,18 @@ def test_parse_ingredients_extracts_quantities():
     assert result[0].quantity == 2
     assert result[0].unit == "cups"
 ```
+
+### TDD & Bug Fixes
+
+Prefer TDD for new modules, complex logic, and bug fixes:
+
+1. Write a failing test defining expected behavior
+1. Implement minimal code to make it pass
+1. Refactor while keeping tests green
+
+For **bug fixes**: run existing tests first. If they don't catch it, write a failing test that reproduces the bug, then fix. Every bug fix must include a regression test.
+
+TDD is **not required** for: trivial wrappers, exploratory spikes (add tests before merging).
 
 ## Code Smells to Avoid
 

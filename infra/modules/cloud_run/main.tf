@@ -33,6 +33,7 @@ resource "google_cloud_run_v2_service" "api" {
   name                = var.service_name
   location            = var.region
   deletion_protection = false
+  labels              = var.labels
 
   # Allow unauthenticated access - Firebase Auth is validated in code
   ingress = "INGRESS_TRAFFIC_ALL"
@@ -56,7 +57,8 @@ resource "google_cloud_run_v2_service" "api" {
           cpu    = var.cpu
           memory = var.memory
         }
-        cpu_idle = true # Allow CPU to be throttled when idle
+        cpu_idle          = true # Allow CPU to be throttled when idle
+        startup_cpu_boost = true # Faster cold starts
       }
 
       # Environment variables
@@ -65,8 +67,14 @@ resource "google_cloud_run_v2_service" "api" {
         value = var.project
       }
 
+      # Firestore client expects FIRESTORE_PROJECT_ID and FIRESTORE_DATABASE_ID
       env {
-        name  = "FIRESTORE_DATABASE"
+        name  = "FIRESTORE_PROJECT_ID"
+        value = var.project
+      }
+
+      env {
+        name  = "FIRESTORE_DATABASE_ID"
         value = var.firestore_database
       }
 

@@ -18,3 +18,9 @@ variable "artifactregistry_api_service" {
   description = "Artifact Registry API service resource (for dependency)"
   type        = any
 }
+
+variable "labels" {
+  description = "Labels to apply to resources for billing and organization"
+  type        = map(string)
+  default     = {}
+}

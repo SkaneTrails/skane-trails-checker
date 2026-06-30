@@ -6,20 +6,20 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from app.functions.firestore_client import FirestoreConfig, get_collection, get_firestore_client
+from api.storage.firestore_client import FirestoreConfig, get_collection, get_firestore_client
 
 
 @pytest.fixture
 def mock_firestore_client() -> Generator:
     """Mock Firestore client."""
-    with patch("app.functions.firestore_client.firestore.Client") as mock_client:
+    with patch("api.storage.firestore_client.firestore.Client") as mock_client:
         yield mock_client
 
 
 @pytest.fixture
 def mock_secret_manager() -> Generator:
     """Mock Secret Manager client."""
-    with patch("app.functions.firestore_client.secretmanager.SecretManagerServiceClient") as mock_sm:
+    with patch("api.storage.firestore_client.secretmanager.SecretManagerServiceClient") as mock_sm:
         mock_instance = MagicMock()
         mock_sm.return_value = mock_instance
         yield mock_instance

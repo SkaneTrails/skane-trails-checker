@@ -157,13 +157,17 @@ This script performs three steps automatically:
 
 #### After Running
 
-Run the Streamlit app to bootstrap the new trails into Firestore:
+Bootstrap the new trails into Firestore:
 
 ```bash
-uv run streamlit run app/_Home_.py
+# Clear old planned trails first
+uv run python dev-tools/delete_planned_trails.py
+
+# Re-bootstrap from updated GPX
+uv run python -c "from app.functions.bootstrap_trails import bootstrap_planned_trails; bootstrap_planned_trails('app/tracks_gpx/planned_hikes/all-skane-trails.gpx')"
 ```
 
-The app will automatically detect that no `planned_hikes` trails exist and load them from the GPX file.
+The bootstrap function is idempotent — it skips if `planned_hikes` trails already exist.
 
 #### Notes
 
@@ -171,6 +175,110 @@ The app will automatically detect that no `planned_hikes` trails exist and load 
 - Handles both track-format (`<trk>`) and route-format (`<rte>`) GPX files
 - Some GPX files contain multiple track segments, resulting in 156 tracks from 169 etapps
 - Uses RDP simplification with tolerance 0.00005 (~5m accuracy, ~80% size reduction)
+
+## Database Manager
+
+### `db_manager.py`
+
+Unified Firestore database management tool with both interactive and CLI modes. Covers all collections: trails, places, foraging spots, foraging types, and hike groups.
+
+#### Prerequisites
+
+Requires a configured `.env` file. Run `setup_env.py` first (see above).
+
+#### Usage
+
+**Interactive mode** (menu-driven):
+
+```bash
+uv run python dev-tools/db_manager.py
+```
+
+**CLI mode** (direct commands):
+
+```bash
+# Overview of all collections
+uv run python dev-tools/db_manager.py status
+
+# Trails
+uv run python dev-tools/db_manager.py trails list
+uv run python dev-tools/db_manager.py trails list --source planned_hikes
+uv run python dev-tools/db_manager.py trails get <trail_id>
+uv run python dev-tools/db_manager.py trails search "söderåsen"
+uv run python dev-tools/db_manager.py trails stats
+
+# Import GPX files (with duplicate detection)
+uv run python dev-tools/db_manager.py trails import --gpx-dir path/to/folder/
+uv run python dev-tools/db_manager.py trails import --gpx-dir path/to/folder/ --source other_trails
+uv run python dev-tools/db_manager.py trails import --gpx-dir path/to/folder/ --dry-run
+uv run python dev-tools/db_manager.py trails import --gpx-dir path/to/folder/ --duplicates replace
+
+# Places
+uv run python dev-tools/db_manager.py places list
+uv run python dev-tools/db_manager.py places list --category parkering --limit 10
+uv run python dev-tools/db_manager.py places get <place_id>
+uv run python dev-tools/db_manager.py places stats
+uv run python dev-tools/db_manager.py places search "Söderåsen"
+
+# Foraging
+uv run python dev-tools/db_manager.py foraging list
+uv run python dev-tools/db_manager.py foraging list --month Jun
+uv run python dev-tools/db_manager.py foraging types
+uv run python dev-tools/db_manager.py foraging stats
+
+# Hike groups
+uv run python dev-tools/db_manager.py groups list
+```
+
+The tool shows the connected project and database on every run. If credentials are missing, it displays a clear error message with setup instructions.
+
+#### Trail Search
+
+Case-insensitive substring search across trail names:
+
+```bash
+uv run python dev-tools/db_manager.py trails search "vellinge"
+```
+
+Output includes trail ID, name, distance, duration, elevation status, and activity date.
+
+#### Trail Details
+
+`trails get` shows all available metadata for a trail:
+
+- Name, status, source, length, difficulty
+- Activity date and type (walking, cycling, etc.)
+- Duration, elevation gain/loss, inclination (avg/max)
+- Coordinate count and whether they include elevation data
+- Geographic bounds
+- Timestamps (created, updated)
+
+#### GPX Import
+
+Import GPX files into Firestore with automatic duplicate detection:
+
+```bash
+# Import all GPX files from a directory
+uv run python dev-tools/db_manager.py trails import --gpx-dir path/to/folder/
+
+# Preview without writing
+uv run python dev-tools/db_manager.py trails import --gpx-dir path/to/folder/ --dry-run
+
+# Set trail source (default: other_trails)
+uv run python dev-tools/db_manager.py trails import --gpx-dir path/to/folder/ --source world_wide_hikes
+```
+
+Note: Only reads `.gpx` files directly in the given directory (not recursive).
+
+**Duplicate detection** matches by activity date (±60 min window), falling back to exact name match. Control behavior with `--duplicates`:
+
+| Flag                     | Behavior                          |
+| ------------------------ | --------------------------------- |
+| `--duplicates skip`      | Skip duplicates (default)         |
+| `--duplicates replace`   | Overwrite existing with new data  |
+| `--duplicates keep-both` | Import as new trail alongside old |
+
+The import pipeline preserves elevation data, extracts duration from timestamps, and computes inclination metrics.
 
 ## Other Tools
 

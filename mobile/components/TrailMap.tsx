@@ -1,37 +1,42 @@
 import { useEffect, useRef } from 'react';
-import type { Trail } from '@/lib/types';
+import type * as L from 'leaflet';
+import { injectLeafletCSS } from '@/lib/inject-css';
+import { useTheme } from '@/lib/theme';
+import type { Trail, TrailImage } from '@/lib/types';
 
-// Leaflet CSS is loaded dynamically to avoid SSR/RN issues
-function loadLeafletCSS() {
-  if (typeof document === 'undefined') return;
-  if (document.getElementById('leaflet-css')) return;
-  const link = document.createElement('link');
-  link.id = 'leaflet-css';
-  link.rel = 'stylesheet';
-  link.href = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css';
-  document.head.appendChild(link);
+interface TrailImagePin {
+  trailId: string;
+  image: TrailImage;
 }
 
 interface TrailMapProps {
   trails: Trail[];
+  onTrailSelect?: (trail: Trail) => void;
+  imagePins?: TrailImagePin[];
 }
 
-// Default center: Southern Sweden (Skåne)
-const DEFAULT_CENTER: [number, number] = [56.0, 13.5];
+// Default center: Skåne, Sweden
+const DEFAULT_CENTER: [number, number] = [55.95, 13.4];
 const DEFAULT_ZOOM = 9;
 
-export function TrailMap({ trails }: TrailMapProps) {
+export function TrailMap({ trails, onTrailSelect, imagePins }: TrailMapProps) {
+  const { colors } = useTheme();
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<L.Map | null>(null);
+  const pinMarkersRef = useRef<L.Marker[]>([]);
+  const onTrailSelectRef = useRef(onTrailSelect);
+  onTrailSelectRef.current = onTrailSelect;
 
   useEffect(() => {
-    loadLeafletCSS();
-
-    // Dynamically import leaflet (web only)
+    // Dynamically import leaflet and its CSS (web only)
     let cancelled = false;
 
     async function initMap() {
-      const L = await import('leaflet');
+      injectLeafletCSS(colors);
+      const [L, { LocateControl }] = await Promise.all([
+        import('leaflet'),
+        import('leaflet.locatecontrol'),
+      ]);
 
       if (cancelled || !mapRef.current) return;
 
@@ -48,34 +53,48 @@ export function TrailMap({ trails }: TrailMapProps) {
         maxZoom: 18,
       }).addTo(map);
 
-      // Add trail polylines
-      const bounds: L.LatLngBounds[] = [];
-      for (const trail of trails) {
+      // User location control — shows a "locate me" button on the map
+      new LocateControl({
+        position: 'topleft',
+        setView: 'untilPan',
+        keepCurrentZoomLevel: true,
+        flyTo: true,
+        drawCircle: true,
+        drawMarker: true,
+        showCompass: true,
+        showPopup: false,
+        metric: true,
+        strings: { title: 'Show my location' },
+        locateOptions: { enableHighAccuracy: true },
+      }).addTo(map);
+
+      // Add trail polylines in two passes:
+      // 1. "To Explore" trails (orange) rendered first → bottom layer
+      // 2. Explored trails (blue) rendered second → painted on top
+      const toExplore = trails.filter((t) => t.status !== 'Explored!');
+      const explored = trails.filter((t) => t.status === 'Explored!');
+
+      for (const trail of [...toExplore, ...explored]) {
         if (!trail.coordinates_map || trail.coordinates_map.length === 0) continue;
 
         const latlngs = trail.coordinates_map.map((c) => [c.lat, c.lng] as [number, number]);
-        const color = trail.status === 'Explored!' ? '#2d8a4e' : '#dc3545';
+        const isExplored = trail.status === 'Explored!';
+        const color = trail.line_color ?? (isExplored ? '#4169E1' : '#E53E3E');
         const polyline = L.polyline(latlngs, {
           color,
-          weight: 3,
+          weight: isExplored ? 4 : 3,
           opacity: 0.8,
         }).addTo(map);
 
-        polyline.bindPopup(
-          `<b>${trail.name}</b><br/>${trail.length_km?.toFixed(1) ?? '?'} km<br/>${trail.status}`,
-        );
-
-        bounds.push(polyline.getBounds());
+        polyline.on('click', () => {
+          if (onTrailSelectRef.current) {
+            onTrailSelectRef.current(trail);
+          }
+        });
       }
 
-      // Fit map to show all trails
-      if (bounds.length > 0) {
-        const combined = bounds[0];
-        for (let i = 1; i < bounds.length; i++) {
-          combined.extend(bounds[i]);
-        }
-        map.fitBounds(combined, { padding: [30, 30] });
-      }
+      // Add image pin markers for trails with primary photos
+      // (handled by separate effect that watches imagePins)
     }
 
     initMap();
@@ -88,6 +107,54 @@ export function TrailMap({ trails }: TrailMapProps) {
       }
     };
   }, [trails]);
+
+  // Separate effect: update image pin markers without tearing down the map
+  useEffect(() => {
+    const map = mapInstanceRef.current;
+    if (!map) return;
+
+    // Remove previous pin markers
+    for (const marker of pinMarkersRef.current) {
+      marker.remove();
+    }
+    pinMarkersRef.current = [];
+
+    if (!imagePins) return;
+
+    // Dynamically import leaflet for marker/icon creation
+    void import('leaflet').then((L) => {
+      if (!mapInstanceRef.current) return;
+
+      for (const pin of imagePins) {
+        const { image } = pin;
+        if (image.lat == null || image.lng == null) continue;
+
+        const iconHtml = `<div style="
+          width: 40px; height: 40px; border-radius: 50%;
+          border: 3px solid ${colors.status.exploredText}; overflow: hidden;
+          box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+          background: #fff;
+        "><img src="data:image/jpeg;base64,${image.image_data}"
+          style="width: 100%; height: 100%; object-fit: cover;"
+        /></div>`;
+
+        const icon = L.divIcon({
+          html: iconHtml,
+          className: '',
+          iconSize: [46, 46],
+          iconAnchor: [23, 23],
+        });
+
+        const marker = L.marker([image.lat, image.lng], { icon }).addTo(map).on('click', () => {
+          const matchTrail = trails.find((t) => t.trail_id === pin.trailId);
+          if (matchTrail && onTrailSelectRef.current) {
+            onTrailSelectRef.current(matchTrail);
+          }
+        });
+        pinMarkersRef.current.push(marker);
+      }
+    });
+  }, [imagePins, colors.status.exploredText, trails]);
 
   return <div ref={mapRef} style={{ width: '100%', height: '100%', minHeight: 400 }} />;
 }

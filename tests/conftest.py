@@ -1,10 +1,73 @@
-"""Pytest configuration and shared fixtures for Streamlit app testing."""
+"""Pytest configuration and shared fixtures."""
 
 import tempfile
 from collections.abc import Generator
 from pathlib import Path
 
 import pytest
+from fastapi.testclient import TestClient
+
+from api.auth import AuthenticatedUser, require_auth
+from api.main import app
+
+TEST_GROUP_ID = "test-group"
+
+
+@pytest.fixture
+def authenticated_client() -> Generator[TestClient]:
+    """Test client with auth — admin user with group (for write tests)."""
+
+    async def _mock_auth() -> AuthenticatedUser:
+        return AuthenticatedUser(
+            uid="test-user", email="test@example.com", name="Test User", group_id=TEST_GROUP_ID, role="admin"
+        )
+
+    app.dependency_overrides[require_auth] = _mock_auth
+    yield TestClient(app)
+    app.dependency_overrides.clear()
+
+
+@pytest.fixture
+def member_client() -> Generator[TestClient]:
+    """Test client — member user (read-only within group)."""
+
+    async def _mock_auth() -> AuthenticatedUser:
+        return AuthenticatedUser(
+            uid="member-user", email="member@example.com", name="Member User", group_id=TEST_GROUP_ID, role="member"
+        )
+
+    app.dependency_overrides[require_auth] = _mock_auth
+    yield TestClient(app)
+    app.dependency_overrides.clear()
+
+
+@pytest.fixture
+def superuser_client() -> Generator[TestClient]:
+    """Test client — superuser (global access, no group)."""
+
+    async def _mock_auth() -> AuthenticatedUser:
+        return AuthenticatedUser(uid="su-user", email="su@example.com", name="Super User", role="superuser")
+
+    app.dependency_overrides[require_auth] = _mock_auth
+    yield TestClient(app)
+    app.dependency_overrides.clear()
+
+
+@pytest.fixture
+def unauthenticated_client() -> Generator[TestClient]:
+    """Test client with auth dependency overridden to raise 401."""
+    from fastapi import HTTPException, status
+
+    async def _mock_no_auth() -> AuthenticatedUser:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Authentication required",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    app.dependency_overrides[require_auth] = _mock_no_auth
+    yield TestClient(app)
+    app.dependency_overrides.clear()
 
 
 @pytest.fixture
@@ -37,38 +100,3 @@ def sample_gpx_file(temp_data_dir) -> Path:
     gpx_file = temp_data_dir / "test_track.gpx"
     gpx_file.write_text(gpx_content)
     return gpx_file
-
-
-@pytest.fixture
-def sample_track_status_csv(temp_data_dir) -> Path:
-    """Create a sample track status CSV file."""
-    csv_content = """track_id,status,last_updated
-0,To Explore,2025-01-01 12:00:00
-1,Explored!,2025-01-02 14:30:00
-"""
-    csv_file = temp_data_dir / "track_status.csv"
-    csv_file.write_text(csv_content)
-    return csv_file
-
-
-@pytest.fixture
-def sample_foraging_csv(temp_data_dir) -> Path:
-    """Create a sample foraging data CSV file."""
-    csv_content = """month,type,lat,lng,notes,date
-Jan,Mushroom,56.0,13.0,Test mushroom spot,2025-01-15
-Jul,Berries,56.1,13.1,Great blueberry patch,2025-07-20
-"""
-    csv_file = temp_data_dir / "foraging_data.csv"
-    csv_file.write_text(csv_content)
-    return csv_file
-
-
-@pytest.fixture
-def sample_foraging_types_json(temp_data_dir) -> Path:
-    """Create a sample foraging types JSON file."""
-    import json
-
-    types_data = {"Mushroom": {"icon": "🍄"}, "Berries": {"icon": "🫐"}, "Other": {"icon": "❓"}}
-    json_file = temp_data_dir / "foraging_types.json"
-    json_file.write_text(json.dumps(types_data))
-    return json_file

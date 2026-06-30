@@ -1,19 +1,15 @@
 """Tests for track management functions."""
 
-import pandas as pd
 import pytest
 
+from api.models.trail import Coordinate, TrailBounds, TrailResponse
 from app.functions.tracks import (
     TrackInfo,
     calculate_track_distance,
-    filter_tracks,
     filter_trails,
     get_distance_range,
-    load_track_statuses,
-    save_track_statuses,
     simplify_track_coordinates,
 )
-from app.functions.trail_models import Trail, TrailBounds, TrailCenter
 
 
 @pytest.fixture
@@ -49,80 +45,6 @@ def sample_tracks() -> list[TrackInfo]:
             "distance_km": 2.0,
         },
     ]
-
-
-class TestFilterTracks:
-    """Tests for track filtering functionality."""
-
-    def test_filter_by_search_query(self, sample_tracks) -> None:
-        """Filter tracks by name search."""
-        result = filter_tracks(sample_tracks, search_query="söderåsen")
-
-        assert len(result) == 2
-        assert all("söderåsen" in t["name"].lower() for t in result)
-
-    def test_filter_by_search_query_case_insensitive(self, sample_tracks) -> None:
-        """Search should be case-insensitive."""
-        result = filter_tracks(sample_tracks, search_query="KULLABERG")
-
-        assert len(result) == 1
-        assert result[0]["name"] == "Kullaberg Coastal Path"
-
-    def test_filter_by_min_distance(self, sample_tracks) -> None:
-        """Filter tracks by minimum distance."""
-        result = filter_tracks(sample_tracks, min_distance_km=6.0)
-
-        assert len(result) == 2
-        assert all(t["distance_km"] >= 6.0 for t in result)
-
-    def test_filter_by_max_distance(self, sample_tracks) -> None:
-        """Filter tracks by maximum distance."""
-        result = filter_tracks(sample_tracks, max_distance_km=6.0)
-
-        assert len(result) == 2
-        assert all(t["distance_km"] <= 6.0 for t in result)
-
-    def test_filter_by_distance_range(self, sample_tracks) -> None:
-        """Filter tracks by distance range."""
-        result = filter_tracks(sample_tracks, min_distance_km=4.0, max_distance_km=10.0)
-
-        assert len(result) == 2
-        assert all(4.0 <= t["distance_km"] <= 10.0 for t in result)
-
-    def test_filter_explored_only(self, sample_tracks) -> None:
-        """Filter to show only explored tracks."""
-        result = filter_tracks(sample_tracks, show_explored_only=True)
-
-        assert len(result) == 2
-        assert all(t["status"] == "Explored!" for t in result)
-
-    def test_filter_unexplored_only(self, sample_tracks) -> None:
-        """Filter to show only unexplored tracks."""
-        result = filter_tracks(sample_tracks, show_unexplored_only=True)
-
-        assert len(result) == 2
-        assert all(t["status"] == "To Explore" for t in result)
-
-    def test_filter_combined_criteria(self, sample_tracks) -> None:
-        """Filter using multiple criteria."""
-        result = filter_tracks(sample_tracks, search_query="trail", min_distance_km=3.0, show_unexplored_only=True)
-
-        assert len(result) == 2
-        assert all("trail" in t["name"].lower() for t in result)
-        assert all(t["distance_km"] >= 3.0 for t in result)
-        assert all(t["status"] == "To Explore" for t in result)
-
-    def test_filter_no_matches(self, sample_tracks) -> None:
-        """Filter with criteria that match no tracks."""
-        result = filter_tracks(sample_tracks, search_query="nonexistent")
-
-        assert len(result) == 0
-
-    def test_filter_empty_search(self, sample_tracks) -> None:
-        """Empty search query should return all tracks."""
-        result = filter_tracks(sample_tracks, search_query="")
-
-        assert len(result) == len(sample_tracks)
 
 
 class TestGetDistanceRange:
@@ -193,39 +115,6 @@ class TestCalculateTrackDistance:
         assert result["point_count"] == 1
 
 
-def test_load_track_statuses_nonexistent_file() -> None:
-    """Test loading track statuses from a non-existent file."""
-    result = load_track_statuses("/path/that/does/not/exist.csv")
-    assert result == {}
-
-
-def test_load_track_statuses_valid_file(sample_track_status_csv) -> None:
-    """Test loading track statuses from a valid CSV file."""
-    result = load_track_statuses(str(sample_track_status_csv))
-
-    assert len(result) == 2
-    assert result[0] == "To Explore"
-    assert result[1] == "Explored!"
-
-
-def test_save_track_statuses(temp_data_dir) -> None:
-    """Test saving track statuses to CSV."""
-    track_status = {0: "To Explore", 1: "Explored!", 2: "To Explore"}
-
-    csv_file = temp_data_dir / "test_status.csv"
-    result = save_track_statuses(track_status, str(csv_file))
-
-    assert result is True
-    assert csv_file.exists()
-
-    # Verify the content
-    saved_data = pd.read_csv(csv_file)
-    assert len(saved_data) == 3
-    assert list(saved_data.columns) == ["track_id", "status", "last_updated"]
-    assert saved_data.iloc[0]["track_id"] == 0
-    assert saved_data.iloc[0]["status"] == "To Explore"
-
-
 def test_simplify_track_coordinates_basic() -> None:
     """Test coordinate simplification with RDP algorithm."""
     coordinates = [(56.0, 13.0), (56.01, 13.01), (56.02, 13.02), (56.03, 13.03), (56.1, 13.1)]
@@ -253,58 +142,77 @@ def test_simplify_track_coordinates_single_point() -> None:
     assert result == coordinates
 
 
+def test_simplify_track_coordinates_3d() -> None:
+    """Test 3D coordinate simplification preserves elevation."""
+    coordinates = [
+        (56.0, 13.0, 100.0),
+        (56.01, 13.01, 120.0),
+        (56.02, 13.02, 140.0),
+        (56.03, 13.03, 130.0),
+        (56.1, 13.1, 200.0),
+    ]
+
+    result = simplify_track_coordinates(coordinates, tolerance=0.001)
+
+    assert len(result) <= len(coordinates)
+    # First and last points preserved with elevation
+    assert len(result[0]) == 3
+    assert result[0] == (56.0, 13.0, 100.0)
+    assert result[-1] == (56.1, 13.1, 200.0)
+
+
 # Tests for filter_trails (Trail objects from Firestore)
 
 
 @pytest.fixture
-def sample_trail_objects() -> list[Trail]:
+def sample_trail_objects() -> list[TrailResponse]:
     """Sample Trail objects for filtering tests."""
     return [
-        Trail(
+        TrailResponse(
             trail_id="trail-1",
             name="Söderåsen Trail North",
             difficulty="medium",
             length_km=5.0,
             status="To Explore",
-            coordinates_map=[(56.0, 13.0), (56.1, 13.1)],
+            coordinates_map=[Coordinate(lat=56.0, lng=13.0), Coordinate(lat=56.1, lng=13.1)],
             bounds=TrailBounds(north=56.1, south=56.0, east=13.1, west=13.0),
-            center=TrailCenter(lat=56.05, lng=13.05),
+            center=Coordinate(lat=56.05, lng=13.05),
             source="other_trails",
             last_updated="2024-01-01T00:00:00Z",
         ),
-        Trail(
+        TrailResponse(
             trail_id="trail-2",
             name="Kullaberg Coastal Path",
             difficulty="hard",
             length_km=12.5,
             status="Explored!",
-            coordinates_map=[(56.2, 12.4), (56.3, 12.5)],
+            coordinates_map=[Coordinate(lat=56.2, lng=12.4), Coordinate(lat=56.3, lng=12.5)],
             bounds=TrailBounds(north=56.3, south=56.2, east=12.5, west=12.4),
-            center=TrailCenter(lat=56.25, lng=12.45),
+            center=Coordinate(lat=56.25, lng=12.45),
             source="other_trails",
             last_updated="2024-01-01T00:00:00Z",
         ),
-        Trail(
+        TrailResponse(
             trail_id="trail-3",
             name="Skåneleden Stage 1",
             difficulty="easy",
             length_km=20.0,
             status="To Explore",
-            coordinates_map=[(55.9, 13.0), (56.0, 13.0)],
+            coordinates_map=[Coordinate(lat=55.9, lng=13.0), Coordinate(lat=56.0, lng=13.0)],
             bounds=TrailBounds(north=56.0, south=55.9, east=13.0, west=13.0),
-            center=TrailCenter(lat=55.95, lng=13.0),
+            center=Coordinate(lat=55.95, lng=13.0),
             source="planned_hikes",  # This is the Skåneleden source
             last_updated="2024-01-01T00:00:00Z",
         ),
-        Trail(
+        TrailResponse(
             trail_id="trail-4",
             name="Short Beach Walk",
             difficulty="easy",
             length_km=2.0,
             status="Explored!",
-            coordinates_map=[(55.5, 12.9), (55.6, 12.9)],
+            coordinates_map=[Coordinate(lat=55.5, lng=12.9), Coordinate(lat=55.6, lng=12.9)],
             bounds=TrailBounds(north=55.6, south=55.5, east=12.9, west=12.9),
-            center=TrailCenter(lat=55.55, lng=12.9),
+            center=Coordinate(lat=55.55, lng=12.9),
             source="world_wide_hikes",
             last_updated="2024-01-01T00:00:00Z",
         ),

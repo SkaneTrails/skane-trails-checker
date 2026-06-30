@@ -19,8 +19,16 @@ output "app_user_role_name" {
 }
 
 output "iam_bindings_complete" {
-  description = "Marker output to ensure IAM bindings are complete before dependent resources"
-  value       = google_project_iam_binding.user_access
+  description = "Marker output to ensure all IAM bindings (users + Terraform SA) are complete before dependent resources"
+  value = {
+    user_access        = google_project_iam_binding.user_access
+    terraform_ci       = google_project_iam_member.github_actions_terraform_ci
+    terraform_cd       = google_project_iam_member.github_actions_terraform_cd
+    terraform_sa       = google_project_iam_member.github_actions_terraform_sa_admin
+    terraform_secrets  = google_project_iam_member.github_actions_terraform_secrets
+    terraform_firebase = google_project_iam_member.github_actions_terraform_firebase
+    terraform_wif      = google_project_iam_member.github_actions_terraform_wif
+  }
 }
 
 output "github_actions_firebase_service_account" {

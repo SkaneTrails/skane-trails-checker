@@ -165,6 +165,15 @@ def write_env_file(env_vars: dict[str, str], env: str) -> None:
     # Always include ENV variable to track current environment
     env_vars["ENV"] = env
 
+    # Local dev defaults — not secrets, just config for running locally
+    if env == "dev":
+        local_defaults = {
+            "SKIP_AUTH": "true",
+            "ALLOWED_ORIGINS": "http://localhost:8081,http://localhost:8085,http://localhost:19006,http://localhost:3000",
+        }
+        for key, value in local_defaults.items():
+            env_vars.setdefault(key, value)
+
     # Sort for consistent output
     sorted_vars = sorted(env_vars.items())
 
@@ -293,8 +302,8 @@ Examples:
     # Success message
     print(f"\n{Colors.GREEN}{Colors.BOLD}🎉 Setup complete!{Colors.RESET}")
     print("\n📋 Next steps:")
-    print("   1. Start the app: uv run streamlit run app/_Home_.py")
-    print("   2. Verify connection: App should connect to Firestore")
+    print("   1. Start the API: uv run uvicorn api.main:app --reload --port 8000")
+    print("   2. Verify connection: Visit http://localhost:8000/health")
     print("\n💡 Useful commands:")
     print("   Check .env:  uv run python dev-tools/setup_env.py --check")
     print("   Refresh:     uv run python dev-tools/setup_env.py --force")

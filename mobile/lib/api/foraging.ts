@@ -1,4 +1,4 @@
-import type { ForagingSpot, ForagingSpotCreate, ForagingType } from '@/lib/types';
+import type { ForagingSpot, ForagingSpotCreate, ForagingSpotUpdate, ForagingType, ForagingTypeUpdate } from '@/lib/types';
 import { apiRequest } from './client';
 
 export const foragingApi = {
@@ -14,7 +14,7 @@ export const foragingApi = {
     });
   },
 
-  updateSpot(id: string, data: Partial<ForagingSpotCreate>): Promise<void> {
+  updateSpot(id: string, data: ForagingSpotUpdate): Promise<void> {
     return apiRequest<void>(`/api/v1/foraging/spots/${id}`, {
       method: 'PATCH',
       body: JSON.stringify(data),
@@ -34,6 +34,13 @@ export const foragingApi = {
   createType(data: { name: string; icon: string; color?: string }): Promise<ForagingType> {
     return apiRequest<ForagingType>('/api/v1/foraging/types', {
       method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+
+  updateType(name: string, data: ForagingTypeUpdate): Promise<ForagingType> {
+    return apiRequest<ForagingType>(`/api/v1/foraging/types/${name}`, {
+      method: 'PATCH',
       body: JSON.stringify(data),
     });
   },
