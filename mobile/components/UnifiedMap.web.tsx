@@ -35,6 +35,7 @@ interface UnifiedMapProps {
   onTrailSelect?: (trail: Trail) => void;
   onSpotSelect?: (spot: ForagingSpot) => void;
   onPlaceSelect?: (place: Place) => void;
+  onImagePinSelect?: (trailId: string) => void;
   onMapClick?: (lat: number, lng: number) => void;
   onLongPress?: (lat: number, lng: number) => void;
   onBoundsChange?: (bounds: { north: number; south: number; east: number; west: number }) => void;
@@ -74,6 +75,7 @@ export function UnifiedMap({
   onTrailSelect,
   onSpotSelect,
   onPlaceSelect,
+  onImagePinSelect,
   onMapClick,
   onLongPress,
 }: UnifiedMapProps) {
@@ -94,8 +96,8 @@ export function UnifiedMap({
   const imagePinsDataRef = useRef({ imagePins, layers, trails, colors });
   imagePinsDataRef.current = { imagePins, layers, trails, colors };
 
-  const callbackRefs = useRef({ onTrailSelect, onSpotSelect, onPlaceSelect, onMapClick, onLongPress });
-  callbackRefs.current = { onTrailSelect, onSpotSelect, onPlaceSelect, onMapClick, onLongPress };
+  const callbackRefs = useRef({ onTrailSelect, onSpotSelect, onPlaceSelect, onImagePinSelect, onMapClick, onLongPress });
+  callbackRefs.current = { onTrailSelect, onSpotSelect, onPlaceSelect, onImagePinSelect, onMapClick, onLongPress };
 
   const selectedTrailIdRef = useRef(selectedTrailId);
   selectedTrailIdRef.current = selectedTrailId;
@@ -307,7 +309,7 @@ export function UnifiedMap({
     if (!group) return;
     group.clearLayers();
 
-    const { imagePins: pins, layers: l, trails: t, colors: c } = imagePinsDataRef.current;
+    const { imagePins: pins, layers: l, colors: c } = imagePinsDataRef.current;
     if (!l.images || zoom < IMAGE_PINS_MIN_ZOOM) return;
     if (!pins || pins.length === 0) return;
 
@@ -332,8 +334,7 @@ export function UnifiedMap({
       const marker = L.marker([pin.lat, pin.lng], { icon }).addTo(group);
       marker.on('click', (e) => {
         L.DomEvent.stopPropagation(e);
-        const trail = t.find((tr) => tr.trail_id === pin.trail_id);
-        if (trail) callbackRefs.current.onTrailSelect?.(trail);
+        callbackRefs.current.onImagePinSelect?.(pin.trail_id);
       });
     }
   }
@@ -345,7 +346,7 @@ export function UnifiedMap({
     import('leaflet').then((L) => {
       renderImagePins(L, map.getZoom());
     });
-  }, [imagePins, layers.images, mapReady, trails]);
+  }, [imagePins, layers.images, mapReady]);
 
   return <div ref={mapRef} style={{ width: '100%', height: '100%' }} />;
 }

@@ -213,6 +213,8 @@ const sv: Translations = {
     deleteConfirm: 'Radera detta foto?',
     photos: 'Foton',
     info: 'Info',
+    closeViewer: 'Stäng bildvisare',
+    viewImage: 'Visa bild',
   },
 
   months: {

@@ -7,6 +7,7 @@ import { FloatingCardOverlay } from '@/components/FloatingCardOverlay';
 import { ForagingDrawer } from '@/components/ForagingDrawer';
 import { ForagingSpotCard } from '@/components/ForagingSpotCard';
 import { HamburgerMenu } from '@/components/HamburgerMenu';
+import { ImageLightbox } from '@/components/ImageLightbox';
 import { LayerToggle, type MapLayer } from '@/components/LayerToggle';
 import { OfflineBanner } from '@/components/OfflineBanner';
 import { OverlayAlignmentMode } from '@/components/OverlayAlignmentMode';
@@ -26,6 +27,7 @@ import {
   useImagePins,
   useMapTrails,
   usePlaces,
+  useTrailImages,
   useUpdateForagingSpot,
   useUpdateTrail,
 } from '@/lib/hooks';
@@ -78,6 +80,18 @@ export default function MapScreen() {
   });
 
   const { data: imagePins } = useImagePins({ enabled: mapLayers.images });
+
+  // Image lightbox — opened by tapping a photo bubble on the map
+  const [lightboxTrailId, setLightboxTrailId] = useState<string | null>(null);
+  const { data: lightboxImagesData } = useTrailImages(lightboxTrailId ?? '');
+  const lightboxImages = useMemo(
+    () =>
+      (lightboxImagesData?.images ?? []).map((img) => ({
+        uri: `data:image/jpeg;base64,${img.image_data}`,
+        caption: img.caption,
+      })),
+    [lightboxImagesData],
+  );
 
   const [showLayers, setShowLayers] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
@@ -149,6 +163,9 @@ export default function MapScreen() {
     setSelected({ type: 'place', data: place });
   }, []);
 
+  const handleImagePinSelect = useCallback((trailId: string) => {
+    setLightboxTrailId(trailId);
+  }, []);
   const handleTrailUpdate = useCallback(
     (trailId: string, data: Parameters<typeof updateTrail.mutate>[0]['data'], onSuccess: () => void) => {
       updateTrail.mutate({ id: trailId, data }, { onSuccess });
@@ -395,12 +412,20 @@ export default function MapScreen() {
         onTrailSelect={handleTrailSelect}
         onSpotSelect={handleSpotSelect}
         onPlaceSelect={handlePlaceSelect}
+        onImagePinSelect={handleImagePinSelect}
         onMapClick={handleMapClick}
         onLongPress={handleLongPress}
         onBoundsChange={setMapBounds}
       />
 
       <OfflineBanner />
+
+      {/* Fullscreen image viewer (opened by tapping a map photo bubble) */}
+      <ImageLightbox
+        images={lightboxImages}
+        visible={lightboxTrailId !== null && lightboxImages.length > 0}
+        onClose={() => setLightboxTrailId(null)}
+      />
 
       {/* Layer toggle button (top-left) */}
       <View style={styles.layerButton}>

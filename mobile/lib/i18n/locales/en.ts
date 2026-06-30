@@ -213,6 +213,8 @@ const en = {
     deleteConfirm: 'Delete this photo?',
     photos: 'Photos',
     info: 'Info',
+    closeViewer: 'Close image viewer',
+    viewImage: 'View image',
   },
 
   months: {
