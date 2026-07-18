@@ -28,7 +28,7 @@ jobs:
         run: uv sync
 
       - name: Setup Node.js
-        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.5.0
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           # Pinned exact: Node 24.17.0 has an http.Agent keep-alive regression
           # (nodejs/node#63989). Fixed in 24.18.0. See fix/node-24-keepalive-firebase-deploy.
@@ -92,7 +92,7 @@ jobs:
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
 
       - name: Setup Node.js
-        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.5.0
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           # Pinned exact: Node 24.17.0 has an http.Agent keep-alive regression
           # (nodejs/node#63989). Fixed in 24.18.0. See fix/node-24-keepalive-firebase-deploy.
