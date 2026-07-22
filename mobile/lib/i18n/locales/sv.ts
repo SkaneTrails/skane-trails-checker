@@ -19,6 +19,8 @@ const sv: Translations = {
     all: 'Alla',
     close: 'Stäng',
     offline: 'Du är offline — visar cachad data',
+    serverUnavailable: 'Servern otillgänglig',
+    serverUnavailableDetail: 'Servern är tillfälligt otillgänglig. Försök igen senare.',
   },
 
   tabs: {

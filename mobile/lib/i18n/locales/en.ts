@@ -19,6 +19,8 @@ const en = {
     all: 'All',
     close: 'Close',
     offline: 'You are offline — showing cached data',
+    serverUnavailable: 'Server Unavailable',
+    serverUnavailableDetail: 'The server is temporarily unavailable. Please try again later.',
   },
 
   tabs: {
