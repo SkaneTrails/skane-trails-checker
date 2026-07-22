@@ -39,30 +39,30 @@ class TestForagingSpotResponse:
 
 class TestForagingSpotCreate:
     def test_valid_spot_create(self):
-        spot = ForagingSpotCreate(type="Mushrooms", lat=56.0, lng=13.5, month="Sep")
+        spot = ForagingSpotCreate(type="Mushrooms", lat=56.0, lng=13.5, months=["Sep"])
         assert spot.type == "Mushrooms"
 
     def test_invalid_month_rejected(self):
-        with pytest.raises(ValidationError, match="String should"):
-            ForagingSpotCreate(type="Mushrooms", lat=56.0, lng=13.5, month="September")
+        with pytest.raises(ValidationError, match="Invalid month"):
+            ForagingSpotCreate(type="Mushrooms", lat=56.0, lng=13.5, months=["September"])
 
     def test_invalid_lat_rejected(self):
         with pytest.raises(ValidationError, match="greater than or equal to -90"):
-            ForagingSpotCreate(type="Mushrooms", lat=-91.0, lng=13.5, month="Sep")
+            ForagingSpotCreate(type="Mushrooms", lat=-91.0, lng=13.5, months=["Sep"])
 
     def test_invalid_lng_rejected(self):
         with pytest.raises(ValidationError, match="less than or equal to 180"):
-            ForagingSpotCreate(type="Mushrooms", lat=56.0, lng=181.0, month="Sep")
+            ForagingSpotCreate(type="Mushrooms", lat=56.0, lng=181.0, months=["Sep"])
 
     def test_empty_type_rejected(self):
         with pytest.raises(ValidationError, match="String should have at least 1 character"):
-            ForagingSpotCreate(type="", lat=56.0, lng=13.5, month="Sep")
+            ForagingSpotCreate(type="", lat=56.0, lng=13.5, months=["Sep"])
 
     def test_all_months_accepted(self):
         months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
         for month in months:
-            spot = ForagingSpotCreate(type="Test", lat=0.0, lng=0.0, month=month)
-            assert spot.month == month
+            spot = ForagingSpotCreate(type="Test", lat=0.0, lng=0.0, months=[month])
+            assert month in spot.months
 
 
 class TestForagingSpotUpdate:
@@ -75,6 +75,14 @@ class TestForagingSpotUpdate:
         update = ForagingSpotUpdate()
         data = update.model_dump(exclude_none=True)
         assert data == {}
+
+    def test_months_validated_and_sorted(self):
+        update = ForagingSpotUpdate(months=["Oct", "Sep"])
+        assert update.months == ["Sep", "Oct"]
+
+    def test_months_invalid_rejected(self):
+        with pytest.raises(ValidationError, match="Invalid month"):
+            ForagingSpotUpdate(months=["September"])
 
 
 class TestForagingTypeResponse:

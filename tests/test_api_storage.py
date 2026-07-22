@@ -13,7 +13,7 @@ class TestDocToForagingSpot:
                 "lat": 56.0,
                 "lng": 13.5,
                 "notes": "Near the oak tree",
-                "month": "Sep",
+                "months": ["Sep"],
                 "date": "2026-09-15",
                 "created_at": "2026-09-15T10:00:00",
                 "last_updated": "2026-09-15T10:00:00",
@@ -24,7 +24,7 @@ class TestDocToForagingSpot:
         assert spot.lat == 56.0
         assert spot.lng == 13.5
         assert spot.notes == "Near the oak tree"
-        assert spot.month == "Sep"
+        assert spot.months == ["Sep"]
 
     def test_minimal_document(self):
         spot = _doc_to_foraging_spot("doc2", {})
