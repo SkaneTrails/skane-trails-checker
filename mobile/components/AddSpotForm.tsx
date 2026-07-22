@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ApiClientError } from '@/lib/api';
 import { foragingColor } from '@/lib/foraging-colors';
 import { useTranslation } from '@/lib/i18n';
 import { borderRadius, fontSize, fontWeight, spacing, useTheme } from '@/lib/theme';
@@ -43,6 +44,7 @@ interface AddSpotFormProps {
   onUseCurrentLocation: () => void;
   isSubmitting?: boolean;
   locationError?: boolean;
+  submitError?: Error | null;
 }
 
 export function AddSpotForm({
@@ -54,6 +56,7 @@ export function AddSpotForm({
   onUseCurrentLocation,
   isSubmitting = false,
   locationError = false,
+  submitError = null,
 }: AddSpotFormProps) {
   const { colors, shadows } = useTheme();
   const { t } = useTranslation();
@@ -287,6 +290,15 @@ export function AddSpotForm({
           multiline
           numberOfLines={3}
         />
+
+        {/* Submission error */}
+        {submitError && (
+          <Text style={[styles.errorText, { color: colors.error }]}>
+            {submitError instanceof ApiClientError && submitError.status === 403
+              ? t('addSpot.groupRequired')
+              : t('addSpot.submitFailed')}
+          </Text>
+        )}
 
         {/* Actions */}
         <View style={styles.actions}>

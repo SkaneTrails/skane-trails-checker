@@ -19,6 +19,8 @@ const en = {
     all: 'All',
     close: 'Close',
     offline: 'You are offline — showing cached data',
+    serverUnavailable: 'Server Unavailable',
+    serverUnavailableDetail: 'The server is temporarily unavailable. Please try again later.',
   },
 
   tabs: {
@@ -192,6 +194,8 @@ const en = {
     notes: 'Notes',
     notesPlaceholder: 'Any observations...',
     addSpot: 'Add Spot',
+    submitFailed: 'Could not save the spot. Please try again.',
+    groupRequired: 'You must be a member of a group to add foraging spots.',
   },
 
   trailCard: {

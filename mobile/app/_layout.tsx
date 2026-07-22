@@ -28,7 +28,8 @@ function useProtectedRoute() {
     } else if (user && onSignIn) {
       router.replace('/(tabs)');
     }
-  }, [user, loading, segments, router]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- router is unstable; user/loading/segments drive navigation
+  }, [user, loading, segments]);
 
   return { loading };
 }
