@@ -68,9 +68,7 @@ class TestCreateForagingSpot:
     @patch("api.routers.foraging.foraging_storage.save_foraging_spot")
     def test_create_spot(self, mock_save, mock_get, authenticated_client):
         mock_save.return_value = "new_doc_id"
-        mock_get.return_value = ForagingSpotResponse(
-            id="new_doc_id", type="Herbs", lat=56.2, lng=13.3, months=["Jun"]
-        )
+        mock_get.return_value = ForagingSpotResponse(id="new_doc_id", type="Herbs", lat=56.2, lng=13.3, months=["Jun"])
 
         response = authenticated_client.post(
             "/api/v1/foraging/spots", json={"type": "Herbs", "lat": 56.2, "lng": 13.3, "months": ["Jun"]}

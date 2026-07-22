@@ -157,4 +157,83 @@ describe('AddSpotForm', () => {
 
     expect(screen.getByText('common.saving')).toBeDefined();
   });
+
+  it('submits a custom type with newType payload', () => {
+    render(<AddSpotForm {...defaultProps} />);
+
+    fireEvent.click(screen.getByText('+ addSpot.customType'));
+
+    fireEvent.change(screen.getByPlaceholderText('addSpot.typeNamePlaceholder'), {
+      target: { value: 'Chestnuts' },
+    });
+    fireEvent.change(screen.getByPlaceholderText('🌿'), { target: { value: '🌰' } });
+
+    fireEvent.click(screen.getByText('months.sep'));
+
+    fireEvent.change(screen.getByPlaceholderText('55.95'), { target: { value: '55.95' } });
+    fireEvent.change(screen.getByPlaceholderText('13.40'), { target: { value: '13.40' } });
+
+    fireEvent.click(screen.getByText('addSpot.addSpot'));
+
+    expect(defaultProps.onSubmit).toHaveBeenCalledWith({
+      type: 'Chestnuts',
+      lat: 55.95,
+      lng: 13.4,
+      notes: '',
+      months: ['sep'],
+      newType: { name: 'Chestnuts', icon: '🌰' },
+    });
+  });
+
+  it('keeps submit disabled for a custom type without an icon', () => {
+    render(<AddSpotForm {...defaultProps} />);
+
+    fireEvent.click(screen.getByText('+ addSpot.customType'));
+    fireEvent.change(screen.getByPlaceholderText('addSpot.typeNamePlaceholder'), {
+      target: { value: 'Chestnuts' },
+    });
+    fireEvent.click(screen.getByText('months.sep'));
+    fireEvent.change(screen.getByPlaceholderText('55.95'), { target: { value: '55.95' } });
+    fireEvent.change(screen.getByPlaceholderText('13.40'), { target: { value: '13.40' } });
+
+    fireEvent.click(screen.getByText('addSpot.addSpot'));
+    expect(defaultProps.onSubmit).not.toHaveBeenCalled();
+  });
+
+  it('toggles a month off when pressed twice', () => {
+    render(<AddSpotForm {...defaultProps} />);
+
+    fireEvent.click(screen.getByText('Mushrooms'));
+    const sep = screen.getByText('months.sep');
+    fireEvent.click(sep); // select
+    fireEvent.click(sep); // deselect
+
+    fireEvent.change(screen.getByPlaceholderText('55.95'), { target: { value: '55.95' } });
+    fireEvent.change(screen.getByPlaceholderText('13.40'), { target: { value: '13.40' } });
+
+    // No months selected -> submit stays disabled
+    fireEvent.click(screen.getByText('addSpot.addSpot'));
+    expect(defaultProps.onSubmit).not.toHaveBeenCalled();
+  });
+
+  it('switches from a custom type back to a listed type', () => {
+    render(<AddSpotForm {...defaultProps} />);
+
+    fireEvent.click(screen.getByText('+ addSpot.customType'));
+    fireEvent.click(screen.getByText('Mushrooms'));
+    fireEvent.click(screen.getByText('months.sep'));
+
+    fireEvent.change(screen.getByPlaceholderText('55.95'), { target: { value: '55.95' } });
+    fireEvent.change(screen.getByPlaceholderText('13.40'), { target: { value: '13.40' } });
+
+    fireEvent.click(screen.getByText('addSpot.addSpot'));
+
+    expect(defaultProps.onSubmit).toHaveBeenCalledWith({
+      type: 'Mushrooms',
+      lat: 55.95,
+      lng: 13.4,
+      notes: '',
+      months: ['sep'],
+    });
+  });
 });

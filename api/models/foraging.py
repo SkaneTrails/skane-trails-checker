@@ -33,12 +33,12 @@ class ForagingSpotCreate(BaseModel):
     date: str = Field(default="", max_length=50)
 
     @classmethod
-    def _validate_months(cls, v: list[str]) -> list[str]:  # noqa: N805
+    def _validate_months(cls, v: list[str]) -> list[str]:
         for m in v:
             if m not in VALID_MONTHS:
                 msg = f"Invalid month: {m}. Must be one of {sorted(VALID_MONTHS)}"
                 raise ValueError(msg)
-        return sorted(set(v), key=lambda x: MONTH_ORDER.index(x))
+        return sorted(set(v), key=MONTH_ORDER.index)
 
     def model_post_init(self, _context: object) -> None:
         """Validate and deduplicate months after init."""
@@ -62,7 +62,7 @@ class ForagingSpotUpdate(BaseModel):
                 if m not in VALID_MONTHS:
                     msg = f"Invalid month: {m}. Must be one of {sorted(VALID_MONTHS)}"
                     raise ValueError(msg)
-            object.__setattr__(self, "months", sorted(set(self.months), key=lambda x: MONTH_ORDER.index(x)))
+            object.__setattr__(self, "months", sorted(set(self.months), key=MONTH_ORDER.index))
 
 
 class ForagingTypeResponse(BaseModel):
