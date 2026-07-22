@@ -22,7 +22,7 @@ describe('useSettings — place category filtering', () => {
     vi.clearAllMocks();
   });
 
-  it('defaults to parking, water, and toilets', async () => {
+  it('defaults to parking, water, toilets, and windshelters', async () => {
     mockAsyncStorage.getItem.mockResolvedValue(null);
     const wrapper = createWrapper();
 
@@ -33,6 +33,7 @@ describe('useSettings — place category filtering', () => {
     expect(result.current.enabledPlaceCategories).toContain('parkering');
     expect(result.current.enabledPlaceCategories).toContain('vatten');
     expect(result.current.enabledPlaceCategories).toContain('toalett');
+    expect(result.current.enabledPlaceCategories).toContain('lagerplats-med-vindskydd');
   });
 
   it('loads persisted categories from AsyncStorage', async () => {

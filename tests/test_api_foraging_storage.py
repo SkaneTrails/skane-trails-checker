@@ -86,8 +86,8 @@ class TestGetForagingSpots:
 
     def test_returns_all_spots(self, mock_collection) -> None:
         mock_collection.stream.return_value = [
-            _make_doc("s1", {"type": "Mushroom", "lat": 56.0, "lng": 13.0, "month": "Sep"}),
-            _make_doc("s2", {"type": "Berry", "lat": 56.1, "lng": 13.1, "month": "Jul"}),
+            _make_doc("s1", {"type": "Mushroom", "lat": 56.0, "lng": 13.0, "months": ["Sep"]}),
+            _make_doc("s2", {"type": "Berry", "lat": 56.1, "lng": 13.1, "months": ["Jul", "Aug"]}),
         ]
 
         result = get_foraging_spots()
@@ -96,19 +96,21 @@ class TestGetForagingSpots:
         assert all(isinstance(s, ForagingSpotResponse) for s in result)
         assert result[0].id == "s1"
         assert result[0].type == "Mushroom"
+        assert result[0].months == ["Sep"]
         assert result[1].id == "s2"
+        assert result[1].months == ["Jul", "Aug"]
         mock_collection.stream.assert_called_once()
 
     def test_filters_by_month(self, mock_collection) -> None:
         mock_collection.where.return_value.stream.return_value = [
-            _make_doc("s1", {"type": "Mushroom", "lat": 56.0, "lng": 13.0, "month": "Sep"})
+            _make_doc("s1", {"type": "Mushroom", "lat": 56.0, "lng": 13.0, "months": ["Sep", "Oct"]})
         ]
 
         result = get_foraging_spots(month="Sep")
 
         assert len(result) == 1
-        assert result[0].month == "Sep"
-        mock_collection.where.assert_called_once_with("month", "==", "Sep")
+        assert result[0].months == ["Sep", "Oct"]
+        mock_collection.where.assert_called_once_with("months", "array_contains", "Sep")
 
     def test_empty_collection(self, mock_collection) -> None:
         mock_collection.stream.return_value = []
@@ -136,7 +138,17 @@ class TestGetForagingSpots:
         assert spot.lat == 0.0
         assert spot.lng == 0.0
         assert spot.notes == ""
-        assert spot.month == ""
+        assert spot.months == []
+
+    def test_backward_compat_legacy_month_field(self, mock_collection) -> None:
+        """Legacy docs with single `month` field are read as single-element `months` list."""
+        mock_collection.stream.return_value = [
+            _make_doc("s1", {"type": "Mushroom", "lat": 56.0, "lng": 13.0, "month": "Sep"})
+        ]
+
+        result = get_foraging_spots()
+
+        assert result[0].months == ["Sep"]
 
     def test_maps_created_by(self, mock_collection) -> None:
         mock_collection.stream.return_value = [
@@ -164,14 +176,14 @@ class TestGetForagingSpots:
         query = MagicMock()
         mock_collection.where.return_value = query
         query.where.return_value.stream.return_value = [
-            _make_doc("s1", {"type": "Berry", "lat": 56.0, "lng": 13.0, "month": "Jul", "group_id": "grp-1"})
+            _make_doc("s1", {"type": "Berry", "lat": 56.0, "lng": 13.0, "months": ["Jul"], "group_id": "grp-1"})
         ]
 
         result = get_foraging_spots(month="Jul", group_id="grp-1")
 
         assert len(result) == 1
         mock_collection.where.assert_called_once_with("group_id", "==", "grp-1")
-        query.where.assert_called_once_with("month", "==", "Jul")
+        query.where.assert_called_once_with("months", "array_contains", "Jul")
 
     def test_maps_group_id(self, mock_collection) -> None:
         """group_id field is mapped from Firestore documents."""
