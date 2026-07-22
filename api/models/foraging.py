@@ -6,6 +6,15 @@ MONTH_ORDER = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "O
 VALID_MONTHS = set(MONTH_ORDER)
 
 
+def _validate_and_sort_months(months: list[str]) -> list[str]:
+    """Validate month names, deduplicate, and sort into calendar order."""
+    for m in months:
+        if m not in VALID_MONTHS:
+            msg = f"Invalid month: {m}. Must be one of {sorted(VALID_MONTHS)}"
+            raise ValueError(msg)
+    return sorted(set(months), key=MONTH_ORDER.index)
+
+
 class ForagingSpotResponse(BaseModel):
     """Foraging spot data returned by the API."""
 
@@ -32,17 +41,9 @@ class ForagingSpotCreate(BaseModel):
     months: list[str] = Field(min_length=1, max_length=12)
     date: str = Field(default="", max_length=50)
 
-    @classmethod
-    def _validate_months(cls, v: list[str]) -> list[str]:
-        for m in v:
-            if m not in VALID_MONTHS:
-                msg = f"Invalid month: {m}. Must be one of {sorted(VALID_MONTHS)}"
-                raise ValueError(msg)
-        return sorted(set(v), key=MONTH_ORDER.index)
-
     def model_post_init(self, _context: object) -> None:
         """Validate and deduplicate months after init."""
-        object.__setattr__(self, "months", self._validate_months(self.months))
+        object.__setattr__(self, "months", _validate_and_sort_months(self.months))
 
 
 class ForagingSpotUpdate(BaseModel):
@@ -58,11 +59,7 @@ class ForagingSpotUpdate(BaseModel):
     def model_post_init(self, _context: object) -> None:
         """Validate and deduplicate months after init."""
         if self.months is not None:
-            for m in self.months:
-                if m not in VALID_MONTHS:
-                    msg = f"Invalid month: {m}. Must be one of {sorted(VALID_MONTHS)}"
-                    raise ValueError(msg)
-            object.__setattr__(self, "months", sorted(set(self.months), key=MONTH_ORDER.index))
+            object.__setattr__(self, "months", _validate_and_sort_months(self.months))
 
 
 class ForagingTypeResponse(BaseModel):

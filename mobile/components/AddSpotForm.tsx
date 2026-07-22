@@ -25,6 +25,8 @@ const MONTH_KEYS = [
   'dec',
 ] as const;
 
+type MonthKey = (typeof MONTH_KEYS)[number];
+
 interface AddSpotFormProps {
   types: ForagingType[];
   initialLat?: number;
@@ -98,12 +100,17 @@ export function AddSpotForm({
 
   const handleSubmit = () => {
     if (!coordinatesAreValid) return;
+    // Backend validates months as title-case abbreviations (Jan, Feb, ...),
+    // so convert the lowercase chip keys before submitting.
+    const months = [...selectedMonths]
+      .sort((a, b) => MONTH_KEYS.indexOf(a as MonthKey) - MONTH_KEYS.indexOf(b as MonthKey))
+      .map((m) => m.charAt(0).toUpperCase() + m.slice(1));
     onSubmit({
       type: effectiveType,
       lat: parsedLat,
       lng: parsedLng,
       notes,
-      months: selectedMonths,
+      months,
       ...(isCustomType && { newType: { name: customTypeName.trim(), icon: customTypeIcon.trim() } }),
     });
   };

@@ -71,7 +71,7 @@ const sv: Translations = {
     couldNotLoad: 'Kunde inte ladda plockplatser',
     editSpot: 'Redigera',
     notesLabel: 'Anteckningar',
-    monthLabel: 'Månad',
+    monthsLabel: 'Månader',
     typeLabel: 'Typ',
     loadingSpots: 'Laddar platser...',
     noSpotsFound: 'Inga platser hittades',

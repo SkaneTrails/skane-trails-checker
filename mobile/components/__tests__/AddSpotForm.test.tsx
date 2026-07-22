@@ -122,7 +122,7 @@ describe('AddSpotForm', () => {
       lat: 55.95,
       lng: 13.4,
       notes: '',
-      months: ['sep', 'oct'],
+      months: ['Sep', 'Oct'],
     });
   });
 
@@ -180,7 +180,7 @@ describe('AddSpotForm', () => {
       lat: 55.95,
       lng: 13.4,
       notes: '',
-      months: ['sep'],
+      months: ['Sep'],
       newType: { name: 'Chestnuts', icon: '🌰' },
     });
   });
@@ -233,7 +233,7 @@ describe('AddSpotForm', () => {
       lat: 55.95,
       lng: 13.4,
       notes: '',
-      months: ['sep'],
+      months: ['Sep'],
     });
   });
 });

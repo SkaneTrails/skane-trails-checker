@@ -19,6 +19,8 @@ const MONTH_KEYS = [
   'jul', 'aug', 'sep', 'oct', 'nov', 'dec',
 ] as const;
 
+type MonthKey = (typeof MONTH_KEYS)[number];
+
 interface ForagingSpotCardProps {
   spot: ForagingSpot;
   onClose: () => void;
@@ -46,8 +48,11 @@ export const ForagingSpotCard = ({ spot, onClose, onUpdate, isUpdating }: Foragi
     if (!onUpdate) return;
     const updates: ForagingSpotUpdate = {};
     if (editType !== spot.type) updates.type = editType;
-    // Convert lowercase keys back to title-case for API (jan→Jan)
-    const newMonths = editMonths.map((m) => m.charAt(0).toUpperCase() + m.slice(1));
+    // Sort into calendar order and convert lowercase keys back to title-case for
+    // the API (jan→Jan) so ordering differences don't trigger spurious updates.
+    const newMonths = [...editMonths]
+      .sort((a, b) => MONTH_KEYS.indexOf(a as MonthKey) - MONTH_KEYS.indexOf(b as MonthKey))
+      .map((m) => m.charAt(0).toUpperCase() + m.slice(1));
     if (JSON.stringify(newMonths) !== JSON.stringify(spot.months)) updates.months = newMonths;
     if (editNotes !== spot.notes) updates.notes = editNotes;
     if (Object.keys(updates).length === 0) {
@@ -74,7 +79,7 @@ export const ForagingSpotCard = ({ spot, onClose, onUpdate, isUpdating }: Foragi
 
         <View style={styles.fieldRow}>
           <Text style={[styles.fieldLabel, { color: colors.text.secondary }]}>
-            {t('foraging.monthLabel')}
+            {t('foraging.monthsLabel')}
           </Text>
           <View style={styles.chipRow}>
             {MONTH_KEYS.map((key) => {

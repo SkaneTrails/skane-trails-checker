@@ -43,9 +43,9 @@ function SpotItem({ spot, typeColor }: { spot: ForagingSpot; typeColor: string }
           <Text style={[styles.spotName, { color: colors.text.primary }]}>{spot.type}</Text>
         </View>
         <View style={styles.monthTagsRow}>
-          {spot.months.map((m) => (
+          {spot.months.map((m, i) => (
             <Text
-              key={m}
+              key={`${m}-${i}`}
               style={[
                 styles.monthTag,
                 { backgroundColor: colors.tag.foragingBg, color: colors.tag.foragingText },

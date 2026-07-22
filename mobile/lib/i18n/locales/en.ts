@@ -71,7 +71,7 @@ const en = {
     couldNotLoad: 'Could not load foraging spots',
     editSpot: 'Edit',
     notesLabel: 'Notes',
-    monthLabel: 'Month',
+    monthsLabel: 'Months',
     typeLabel: 'Type',
     loadingSpots: 'Loading spots...',
     noSpotsFound: 'No spots found',
