@@ -10,8 +10,14 @@ import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useTranslation } from '@/lib/i18n';
 import { borderRadius, fontSize, fontWeight, spacing, useTheme } from '@/lib/theme';
 import type { ForagingSpot, ForagingSpotUpdate } from '@/lib/types';
+import { Chip } from './Chip';
 import { MapInfoCard } from './MapInfoCard';
 import { TabIcon } from './TabIcon';
+
+const MONTH_KEYS = [
+  'jan', 'feb', 'mar', 'apr', 'may', 'jun',
+  'jul', 'aug', 'sep', 'oct', 'nov', 'dec',
+] as const;
 
 interface ForagingSpotCardProps {
   spot: ForagingSpot;
@@ -25,14 +31,24 @@ export const ForagingSpotCard = ({ spot, onClose, onUpdate, isUpdating }: Foragi
   const { t } = useTranslation();
   const [editing, setEditing] = useState(false);
   const [editType, setEditType] = useState(spot.type);
-  const [editMonth, setEditMonth] = useState(spot.month);
+  const [editMonths, setEditMonths] = useState<string[]>(
+    spot.months.map((m) => m.toLowerCase()),
+  );
   const [editNotes, setEditNotes] = useState(spot.notes);
+
+  const handleToggleMonth = (key: string) => {
+    setEditMonths((prev) =>
+      prev.includes(key) ? prev.filter((m) => m !== key) : [...prev, key],
+    );
+  };
 
   const handleSave = () => {
     if (!onUpdate) return;
     const updates: ForagingSpotUpdate = {};
     if (editType !== spot.type) updates.type = editType;
-    if (editMonth !== spot.month) updates.month = editMonth;
+    // Convert lowercase keys back to title-case for API (jan→Jan)
+    const newMonths = editMonths.map((m) => m.charAt(0).toUpperCase() + m.slice(1));
+    if (JSON.stringify(newMonths) !== JSON.stringify(spot.months)) updates.months = newMonths;
     if (editNotes !== spot.notes) updates.notes = editNotes;
     if (Object.keys(updates).length === 0) {
       setEditing(false);
@@ -60,13 +76,19 @@ export const ForagingSpotCard = ({ spot, onClose, onUpdate, isUpdating }: Foragi
           <Text style={[styles.fieldLabel, { color: colors.text.secondary }]}>
             {t('foraging.monthLabel')}
           </Text>
-          <TextInput
-            style={[styles.input, { borderColor: colors.border, color: colors.text.primary, backgroundColor: colors.surface }]}
-            value={editMonth}
-            onChangeText={setEditMonth}
-            placeholder="Jan, Feb, ..."
-            placeholderTextColor={colors.text.muted}
-          />
+          <View style={styles.chipRow}>
+            {MONTH_KEYS.map((key) => {
+              const label = t(`months.${key}`);
+              return (
+                <Chip
+                  key={key}
+                  label={label}
+                  selected={editMonths.includes(key)}
+                  onPress={() => handleToggleMonth(key)}
+                />
+              );
+            })}
+          </View>
         </View>
 
         <View style={styles.fieldRow}>
@@ -109,7 +131,7 @@ export const ForagingSpotCard = ({ spot, onClose, onUpdate, isUpdating }: Foragi
   return (
     <MapInfoCard title={spot.type} onClose={onClose}>
       <Text style={[styles.metaText, { color: colors.text.secondary }]}>
-        {spot.month}
+        {spot.months.join(', ')}
       </Text>
       {spot.notes ? (
         <Text style={[styles.notesText, { color: colors.text.primary }]}>
@@ -154,6 +176,11 @@ const styles = StyleSheet.create({
   },
   fieldRow: {
     marginBottom: spacing.sm,
+  },
+  chipRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.xs,
   },
   fieldLabel: {
     fontSize: fontSize.xs,

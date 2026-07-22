@@ -9,6 +9,7 @@ vi.mock('@/lib/theme', () => ({
       border: '#ccc',
       text: { primary: '#000', secondary: '#666', muted: '#999', inverse: '#fff' },
       primary: '#2E7D32',
+      chip: { bg: '#eee', text: '#333', activeBg: '#1a5e2a', activeText: '#fff' },
       glass: {
         background: 'rgba(255,255,255,0.8)',
         backgroundDark: 'rgba(0,0,0,0.6)',
@@ -26,7 +27,7 @@ vi.mock('@/lib/theme', () => ({
   }),
   borderRadius: { sm: 4, md: 8, lg: 12, xl: 16, full: 9999 },
   fontSize: { xs: 10, sm: 12, md: 14, lg: 16, xl: 20, xxl: 24 },
-  fontWeight: { semibold: '600', bold: '700' },
+  fontWeight: { normal: '400', semibold: '600', bold: '700' },
   spacing: { xs: 4, sm: 8, md: 12, lg: 16, xl: 20 },
 }));
 
@@ -36,7 +37,7 @@ const baseSpot: ForagingSpot = {
   lat: 56.1234,
   lng: 13.5678,
   notes: 'Near the old oak tree',
-  month: 'Aug',
+  months: ['Aug'],
 };
 
 describe('ForagingSpotCard', () => {
@@ -46,7 +47,7 @@ describe('ForagingSpotCard', () => {
     expect(screen.getByText('Chanterelle')).toBeDefined();
   });
 
-  it('renders month and notes', () => {
+  it('renders months and notes', () => {
     render(<ForagingSpotCard spot={baseSpot} onClose={vi.fn()} />);
 
     expect(screen.getByText('Aug')).toBeDefined();
@@ -93,18 +94,20 @@ describe('ForagingSpotCard', () => {
     expect(onUpdate).toHaveBeenCalledWith('spot-1', { type: 'Porcini' }, expect.any(Function));
   });
 
-  it('calls onUpdate with changed month and notes', () => {
+  it('calls onUpdate with changed months and notes', () => {
     const onUpdate = vi.fn();
     render(<ForagingSpotCard spot={baseSpot} onClose={vi.fn()} onUpdate={onUpdate} />);
 
     fireEvent.click(screen.getByLabelText('foraging.editSpot'));
-    const monthInput = screen.getByDisplayValue('Aug');
-    fireEvent.change(monthInput, { target: { value: 'Sep' } });
+    // Deselect Aug (already selected), select Sep and Oct via chips
+    fireEvent.click(screen.getByText('months.aug'));
+    fireEvent.click(screen.getByText('months.sep'));
+    fireEvent.click(screen.getByText('months.oct'));
     const notesInput = screen.getByDisplayValue('Near the old oak tree');
     fireEvent.change(notesInput, { target: { value: 'Under the birch' } });
     fireEvent.click(screen.getByText('common.save'));
 
-    expect(onUpdate).toHaveBeenCalledWith('spot-1', { month: 'Sep', notes: 'Under the birch' }, expect.any(Function));
+    expect(onUpdate).toHaveBeenCalledWith('spot-1', { months: ['Sep', 'Oct'], notes: 'Under the birch' }, expect.any(Function));
   });
 
   it('shows saving state when isUpdating is true', () => {

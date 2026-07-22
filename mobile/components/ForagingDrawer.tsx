@@ -42,14 +42,19 @@ function SpotItem({ spot, typeColor }: { spot: ForagingSpot; typeColor: string }
           <View style={[styles.typeIndicator, { backgroundColor: typeColor }]} />
           <Text style={[styles.spotName, { color: colors.text.primary }]}>{spot.type}</Text>
         </View>
-        <Text
-          style={[
-            styles.monthTag,
-            { backgroundColor: colors.tag.foragingBg, color: colors.tag.foragingText },
-          ]}
-        >
-          {spot.month}
-        </Text>
+        <View style={styles.monthTagsRow}>
+          {spot.months.map((m) => (
+            <Text
+              key={m}
+              style={[
+                styles.monthTag,
+                { backgroundColor: colors.tag.foragingBg, color: colors.tag.foragingText },
+              ]}
+            >
+              {m}
+            </Text>
+          ))}
+        </View>
       </View>
       {spot.notes ? (
         <Text style={[styles.spotNotes, { color: colors.text.secondary }]} numberOfLines={2}>
@@ -175,6 +180,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.sm,
+  },
+  monthTagsRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.xs,
   },
   typeIndicator: {
     width: 10,

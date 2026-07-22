@@ -178,7 +178,11 @@ const en = {
   addSpot: {
     title: 'Add Foraging Spot',
     type: 'Type',
-    month: 'Month',
+    customType: 'Custom',
+    typeName: 'Name',
+    typeNamePlaceholder: 'e.g. Wild Garlic',
+    typeIcon: 'Icon',
+    months: 'Months',
     location: 'Location',
     useCurrentLocation: 'Use Current Location',
     locationFailed: 'Could not get location. Check permissions and try again.',

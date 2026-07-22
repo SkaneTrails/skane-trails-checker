@@ -35,7 +35,7 @@ describe('foragingApi', () => {
         lat: 56.0,
         lng: 13.5,
         notes: 'Big patch',
-        month: 'Sep',
+        months: ['Sep', 'Oct'],
       };
       mockApiRequest.mockResolvedValue({ id: 'new', ...spotData });
       await foragingApi.createSpot(spotData);

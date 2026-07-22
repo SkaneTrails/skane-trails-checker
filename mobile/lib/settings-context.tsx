@@ -50,7 +50,7 @@ export const ELEVATION_GRADIENTS: { code: ElevationGradient; labelKey: string }[
 ];
 
 /** Categories shown by default on map and places tab (hiking essentials). */
-export const DEFAULT_PLACE_CATEGORIES = ['parkering', 'vatten', 'toalett'];
+export const DEFAULT_PLACE_CATEGORIES = ['parkering', 'vatten', 'toalett', 'lagerplats-med-vindskydd'];
 
 interface Settings {
   language: AppLanguage;

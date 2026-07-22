@@ -85,7 +85,7 @@ Updated automatically on trail save/delete. Used by clients to detect changes ef
 | `lat`          | `float` | ✅       | Latitude (-90 to 90)                                 |
 | `lng`          | `float` | ✅       | Longitude (-180 to 180)                              |
 | `notes`        | `str`   | ❌       | User notes about the spot                            |
-| `month`        | `str`   | ✅       | Short month name: `Jan`, `Feb`, ..., `Dec`           |
+| `months`       | `list[str]` | ✅   | Short month names: `Jan`, `Feb`, ..., `Dec`          |
 | `date`         | `str`   | ❌       | Specific date                                        |
 | `created_at`   | `str`   | ✅       | ISO timestamp                                        |
 | `last_updated` | `str`   | ✅       | ISO timestamp                                        |
@@ -124,7 +124,7 @@ Updated automatically on trail save/delete. Used by clients to detect changes ef
 | Mistake                                    | Correct                                     |
 | ------------------------------------------ | ------------------------------------------- |
 | Storing coordinates as `[lat, lng]` arrays | Use `{lat, lng}` objects                    |
-| Using full month names (`"January"`)       | Use 3-letter abbreviations (`"Jan"`)        |
+| Using full month names (`"January"`)       | Use 3-letter abbreviations (`"Jan"`) in `months` array |
 | Storing status as boolean                  | Use string: `"To Explore"` or `"Explored!"` |
 | Hardcoding database name in code           | Read from `FIRESTORE_DATABASE_ID` env var   |
 | Missing `last_updated` on mutations        | Always set on create and update             |

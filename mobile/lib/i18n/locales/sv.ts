@@ -178,7 +178,11 @@ const sv: Translations = {
   addSpot: {
     title: 'Lägg till plockplats',
     type: 'Typ',
-    month: 'Månad',
+    customType: 'Anpassad',
+    typeName: 'Namn',
+    typeNamePlaceholder: 't.ex. Ramslök',
+    typeIcon: 'Ikon',
+    months: 'Månader',
     location: 'Plats',
     useCurrentLocation: 'Använd nuvarande plats',
     locationFailed: 'Kunde inte hämta plats. Kontrollera behörigheter och försök igen.',

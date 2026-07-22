@@ -107,6 +107,7 @@ describe('AddSpotForm', () => {
 
     fireEvent.click(screen.getByText('Mushrooms'));
     fireEvent.click(screen.getByText('months.sep'));
+    fireEvent.click(screen.getByText('months.oct'));
 
     const latInput = screen.getByPlaceholderText('55.95');
     fireEvent.change(latInput, { target: { value: '55.95' } });
@@ -121,7 +122,7 @@ describe('AddSpotForm', () => {
       lat: 55.95,
       lng: 13.4,
       notes: '',
-      month: 'Sep',
+      months: ['sep', 'oct'],
     });
   });
 

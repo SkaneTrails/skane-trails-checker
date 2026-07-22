@@ -1,6 +1,7 @@
 export {
   foragingKeys,
   useCreateForagingSpot,
+  useCreateForagingType,
   useDeleteForagingSpot,
   useForagingSpots,
   useForagingTypes,
