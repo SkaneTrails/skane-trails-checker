@@ -39,9 +39,14 @@ export const ForagingSpotCard = ({ spot, onClose, onUpdate, isUpdating }: Foragi
   const [editNotes, setEditNotes] = useState(spot.notes);
 
   const handleToggleMonth = (key: string) => {
-    setEditMonths((prev) =>
-      prev.includes(key) ? prev.filter((m) => m !== key) : [...prev, key],
-    );
+    setEditMonths((prev) => {
+      if (prev.includes(key)) {
+        // Prevent deselecting the last remaining month (backend requires ≥1).
+        if (prev.length <= 1) return prev;
+        return prev.filter((m) => m !== key);
+      }
+      return [...prev, key];
+    });
   };
 
   const handleSave = () => {

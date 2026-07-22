@@ -99,15 +99,28 @@ describe('ForagingSpotCard', () => {
     render(<ForagingSpotCard spot={baseSpot} onClose={vi.fn()} onUpdate={onUpdate} />);
 
     fireEvent.click(screen.getByLabelText('foraging.editSpot'));
-    // Deselect Aug (already selected), select Sep and Oct via chips
-    fireEvent.click(screen.getByText('months.aug'));
+    // Select Sep first so Aug is no longer the last month, then deselect Aug
     fireEvent.click(screen.getByText('months.sep'));
     fireEvent.click(screen.getByText('months.oct'));
+    fireEvent.click(screen.getByText('months.aug'));
     const notesInput = screen.getByDisplayValue('Near the old oak tree');
     fireEvent.change(notesInput, { target: { value: 'Under the birch' } });
     fireEvent.click(screen.getByText('common.save'));
 
     expect(onUpdate).toHaveBeenCalledWith('spot-1', { months: ['Sep', 'Oct'], notes: 'Under the birch' }, expect.any(Function));
+  });
+
+  it('prevents deselecting the last remaining month', () => {
+    const onUpdate = vi.fn();
+    render(<ForagingSpotCard spot={baseSpot} onClose={vi.fn()} onUpdate={onUpdate} />);
+
+    fireEvent.click(screen.getByLabelText('foraging.editSpot'));
+    // Try to deselect Aug — the only selected month
+    fireEvent.click(screen.getByText('months.aug'));
+    fireEvent.click(screen.getByText('common.save'));
+
+    // Aug should still be selected, no change → onUpdate not called
+    expect(onUpdate).not.toHaveBeenCalled();
   });
 
   it('shows saving state when isUpdating is true', () => {
