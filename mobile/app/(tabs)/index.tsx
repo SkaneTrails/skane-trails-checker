@@ -362,6 +362,8 @@ export default function MapScreen() {
       setShowOverlayManager(false);
       setLongPressCoords({ lat, lng });
       setSpotLocationError(false);
+      createSpot.reset();
+      createType.reset();
       setShowAddSpot(true);
     },
     [editingOverlayId],
@@ -543,6 +545,7 @@ export default function MapScreen() {
             onUseCurrentLocation={handleUseCurrentLocationForSpot}
             isSubmitting={createSpot.isPending}
             locationError={spotLocationError}
+            submitError={createSpot.error || createType.error}
           />
         )}
       </FloatingCardOverlay>
@@ -606,6 +609,8 @@ export default function MapScreen() {
         isOpen={showForagingDrawer}
         onClose={() => setShowForagingDrawer(false)}
         onAddSpot={() => {
+          createSpot.reset();
+          createType.reset();
           setShowAddSpot(true);
         }}
       />

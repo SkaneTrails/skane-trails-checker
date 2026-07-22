@@ -194,6 +194,8 @@ const sv: Translations = {
     notes: 'Anteckningar',
     notesPlaceholder: 'Eventuella observationer...',
     addSpot: 'Lägg till',
+    submitFailed: 'Kunde inte spara platsen. Försök igen.',
+    groupRequired: 'Du måste vara medlem i en grupp för att lägga till plockplatser.',
   },
 
   trailCard: {

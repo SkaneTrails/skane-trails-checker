@@ -1,4 +1,5 @@
 import { fireEvent, render, screen } from '@testing-library/react';
+import { ApiClientError } from '@/lib/api';
 import { AddSpotForm } from '../AddSpotForm';
 
 vi.mock('@/lib/theme', () => ({
@@ -235,5 +236,26 @@ describe('AddSpotForm', () => {
       notes: '',
       months: ['Sep'],
     });
+  });
+
+  it('shows group-required error for 403 submitError', () => {
+    const error = new ApiClientError(403, 'Forbidden');
+    render(<AddSpotForm {...defaultProps} submitError={error} />);
+
+    expect(screen.getByText('addSpot.groupRequired')).toBeDefined();
+  });
+
+  it('shows generic error for non-403 submitError', () => {
+    const error = new Error('Network failure');
+    render(<AddSpotForm {...defaultProps} submitError={error} />);
+
+    expect(screen.getByText('addSpot.submitFailed')).toBeDefined();
+  });
+
+  it('shows no error when submitError is null', () => {
+    render(<AddSpotForm {...defaultProps} submitError={null} />);
+
+    expect(screen.queryByText('addSpot.groupRequired')).toBeNull();
+    expect(screen.queryByText('addSpot.submitFailed')).toBeNull();
   });
 });

@@ -194,6 +194,8 @@ const en = {
     notes: 'Notes',
     notesPlaceholder: 'Any observations...',
     addSpot: 'Add Spot',
+    submitFailed: 'Could not save the spot. Please try again.',
+    groupRequired: 'You must be a member of a group to add foraging spots.',
   },
 
   trailCard: {
