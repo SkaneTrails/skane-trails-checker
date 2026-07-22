@@ -366,7 +366,7 @@ export default function MapScreen() {
       createType.reset();
       setShowAddSpot(true);
     },
-    [editingOverlayId],
+    [editingOverlayId, createSpot, createType],
   );
 
   const handleAddSpot = useCallback(

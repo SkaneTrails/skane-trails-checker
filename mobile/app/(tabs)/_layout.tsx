@@ -10,7 +10,7 @@ import { fontSize, spacing, useTheme } from '@/lib/theme';
 export default function TabLayout() {
   const { colors } = useTheme();
   const { user, loading } = useAuth();
-  const { data: currentUser, isLoading: userLoading, error } = useCurrentUser({
+  const { data: currentUser, isLoading: userLoading, error, refetch } = useCurrentUser({
     enabled: !loading && !!user,
   });
 
@@ -38,7 +38,7 @@ export default function TabLayout() {
   }
 
   if (error) {
-    return <ApiErrorFallback error={error} onRetry={() => window.location.reload()} />;
+    return <ApiErrorFallback error={error} onRetry={() => refetch()} />;
   }
 
   // Single-screen layout: only the map (index.tsx) lives here.
@@ -50,6 +50,7 @@ function ApiErrorFallback({ error, onRetry }: { error: Error; onRetry: () => voi
   const { colors } = useTheme();
   const { t } = useTranslation();
   const status = error instanceof ApiClientError ? error.status : undefined;
+  const isUnavailable = status === 503 || !(error instanceof ApiClientError);
 
   return (
     <View
@@ -63,10 +64,10 @@ function ApiErrorFallback({ error, onRetry }: { error: Error; onRetry: () => voi
       }}
     >
       <Text style={{ fontSize: fontSize.lg, color: colors.text.primary, textAlign: 'center' }}>
-        {status === 503 ? t('common.serverUnavailable') : t('common.error')}
+        {isUnavailable ? t('common.serverUnavailable') : t('common.error')}
       </Text>
       <Text style={{ fontSize: fontSize.sm, color: colors.text.muted, textAlign: 'center' }}>
-        {status === 503
+        {isUnavailable
           ? t('common.serverUnavailableDetail')
           : error.message}
       </Text>
