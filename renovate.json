@@ -14,8 +14,8 @@
   "dependencyDashboard": true,
   "dependencyDashboardTitle": "🤖 Renovate Dependency Dashboard",
   "minimumReleaseAge": "3 days",
-  "prHourlyLimit": 6,
-  "prConcurrentLimit": 10,
+  "prHourlyLimit": 2,
+  "prConcurrentLimit": 5,
   "packageRules": [
     {
       "description": "Auto-merge minor, patch, pin, and digest updates",
@@ -155,14 +155,27 @@
       ],
       "rangeStrategy": "bump",
       "description": "Group pyproject.toml requires-python and .python-version updates together"
+    },
+    {
+      "description": "Expo 56 supports React Native 0.85.x",
+      "matchPackageNames": [
+        "react-native"
+      ],
+      "matchFileNames": [
+        "mobile/**"
+      ],
+      "allowedVersions": "<0.86.0"
+    },
+    {
+      "description": "pnpm 11 requires an explicit build-policy migration",
+      "matchPackageNames": [
+        "pnpm"
+      ],
+      "allowedVersions": "<11.0.0"
     }
   ],
   "lockFileMaintenance": {
-    "enabled": true,
-    "automerge": true,
-    "schedule": [
-      "before 4am on monday"
-    ]
+    "enabled": false
   },
   "pre-commit": {
     "enabled": true
