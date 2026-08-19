@@ -123,8 +123,8 @@ importers:
         specifier: ^2.4.3
         version: 2.5.8
       '@react-native/babel-plugin-codegen':
-        specifier: 0.86.0
-        version: 0.86.0(@babel/core@7.29.7)
+        specifier: 0.87.0
+        version: 0.87.0(@babel/core@7.29.7)
       '@testing-library/dom':
         specifier: ^10.4.1
         version: 10.4.1
@@ -192,10 +192,6 @@ packages:
 
   '@babel/core@7.29.7':
     resolution: {integrity: sha512-RgHBCvtjbOK2gXSNBNIkNoEc9qoVEtau3hj8gEqKQuL3HZAibKarWFEI3Lfm6EYKkLalOh8eSrj9b+ch9H/VBA==}
-    engines: {node: '>=6.9.0'}
-
-  '@babel/generator@7.29.7':
-    resolution: {integrity: sha512-DkXD5OJQaAQIdZ1bt3UZdEnHAn9Imd3IVBdX03UFe+ony9Ojw5pzr9YVKGDY1jt+Gcn/FnGkNf8r+Vj5NOJWtQ==}
     engines: {node: '>=6.9.0'}
 
   '@babel/generator@7.29.8':
@@ -566,10 +562,6 @@ packages:
 
   '@babel/template@7.29.7':
     resolution: {integrity: sha512-puq+Gf35oI24FeN11LkoUQFqv9uwNeWpxXZi/Ji3rRIoKAzKnxRaZ+Gkj0vKS9ZCiTESfng1N9LyOyXvo+m+Gg==}
-    engines: {node: '>=6.9.0'}
-
-  '@babel/traverse@7.29.7':
-    resolution: {integrity: sha512-EhlfNQtZ+NK22w5BM61ciuiq1m58ed33Wr1Xan//ZRTy6hgjnwyCffRYwzsGXdASJSUJ1guZILsErh1eQcl+zw==}
     engines: {node: '>=6.9.0'}
 
   '@babel/traverse@7.29.8':
@@ -1628,9 +1620,9 @@ packages:
     resolution: {integrity: sha512-Wc94zGfeFG8Njf9SHMPfYZP04kjigkOps6F1TYTvd7ZVXuGxqseCDgxc50LWcOhOCLypI9n3oVVqz81C3p44ZA==}
     engines: {node: ^20.19.4 || ^22.13.0 || ^24.3.0 || >= 25.0.0}
 
-  '@react-native/babel-plugin-codegen@0.86.0':
-    resolution: {integrity: sha512-qdsABWNW7uTll90l4Vh03gjeyu3WVDi2CyiiyvYGMRDcoYbjbQi6df3BMAm9lQI2yslZ1T14LlDDAsgTwNxplA==}
-    engines: {node: ^20.19.4 || ^22.13.0 || ^24.3.0 || >= 25.0.0}
+  '@react-native/babel-plugin-codegen@0.87.0':
+    resolution: {integrity: sha512-q0CCSAYgomb2G1fkmJ5ughwvVLqjHcdJ4w3Ffxw4YsdBenWYZsnMARyr/ghvcvfV33/YsZQhdMZ3XnpG6oth/Q==}
+    engines: {node: ^22.13.0 || ^24.3.0 || >= 26.0.0}
 
   '@react-native/babel-preset@0.85.3':
     resolution: {integrity: sha512-fD7fxEhkJB/aF57tWoXjaAWpklfrExYZS3k6aXPP3BQ77DZY7gvf/b7dbirwjID6NVnP1JDRJyTuPBGr0K/vlw==}
@@ -1644,9 +1636,9 @@ packages:
     peerDependencies:
       '@babel/core': '*'
 
-  '@react-native/codegen@0.86.0':
-    resolution: {integrity: sha512-uTs9DBo3+/lUqinsGZK0FKJRBVClrwMXoZToaDxE1Q2SL2e55vs2GwyZfIKzPl5uJnbu4PfFMIp0/mLXLWUMuA==}
-    engines: {node: ^20.19.4 || ^22.13.0 || ^24.3.0 || >= 25.0.0}
+  '@react-native/codegen@0.87.0':
+    resolution: {integrity: sha512-odcBGR0A9Ee83A/XvzOp9juGRkSQOQcI4ZYs+3H20MySMxvZJ34/2nVHoxdmj0YY0Mn6gF8BjLzYkL0axbHuCA==}
+    engines: {node: ^22.13.0 || ^24.3.0 || >= 26.0.0}
     peerDependencies:
       '@babel/core': '*'
 
@@ -3000,8 +2992,8 @@ packages:
   hermes-estree@0.35.0:
     resolution: {integrity: sha512-xVx5Opwy8Oo1I5yGpVRhCvWL/iV3M+ylksSKVNlxxD90cpDpR/AR1jLYqK8HWihm065a6UI3HeyAmYzwS8NOOg==}
 
-  hermes-estree@0.36.0:
-    resolution: {integrity: sha512-A1+8zn5oss2CFP7pKsOaxorQG6FNIz1WU1VDqruLPPZl3LVgeE2C5xfFg8Ow6/Ow4mSslLLtYP1J3n38eKyW9w==}
+  hermes-estree@0.36.1:
+    resolution: {integrity: sha512-guv1nQ6IJ7S83NRFPWc3SA7IBZrdNC9kapwOq6uXvF4wP+sDCgjzQbKPCoyYmoyZRzztF/n/c36l/rccCZSiCw==}
 
   hermes-parser@0.33.3:
     resolution: {integrity: sha512-Yg3HgaG4CqgyowtYjX/FsnPAuZdHOqSMtnbpylbptsQ9nwwSKsy6uRWcGO5RK0EqiX12q8HvDWKgeAVajRO5DA==}
@@ -3009,8 +3001,8 @@ packages:
   hermes-parser@0.35.0:
     resolution: {integrity: sha512-9JLjeHxBx8T4CAsydZR49PNZUaix+WpQJwu9p2010lu+7Kwl6D/7wYFFJxoz+aXkaaClp9Zfg6W6/zVlSJORaA==}
 
-  hermes-parser@0.36.0:
-    resolution: {integrity: sha512-GdpwMmH5x6IpC1cijvcvYnlPB60Mh6kTSF/NFdYV/j56gYdi+0RIakYs+eqOV+bbO0SW7mgVVGSsTJxyPQfo3w==}
+  hermes-parser@0.36.1:
+    resolution: {integrity: sha512-GApNk4zLHi2UWoWZZkx7LNCOSzLSc5lB55pZ/PhK7ycFeg7u5LcF88p/WbpIi1XUDtE0MpHE3uRR3u3KB7TjSQ==}
 
   hosted-git-info@7.0.2:
     resolution: {integrity: sha512-puUZAUKT5m8Zzvs72XWy3HtvVbTWljRE66cP60bxJzAqf2DgICo7lYTY2IHUmLnNpjYvw5bvmoHvPc0QO2a62w==}
@@ -4508,14 +4500,6 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  '@babel/generator@7.29.7':
-    dependencies:
-      '@babel/parser': 7.29.7
-      '@babel/types': 7.29.7
-      '@jridgewell/gen-mapping': 0.3.13
-      '@jridgewell/trace-mapping': 0.3.31
-      jsesc: 3.1.0
-
   '@babel/generator@7.29.8':
     dependencies:
       '@babel/parser': 7.29.8
@@ -4956,20 +4940,8 @@ snapshots:
   '@babel/template@7.29.7':
     dependencies:
       '@babel/code-frame': 7.29.7
-      '@babel/parser': 7.29.7
-      '@babel/types': 7.29.7
-
-  '@babel/traverse@7.29.7':
-    dependencies:
-      '@babel/code-frame': 7.29.7
-      '@babel/generator': 7.29.7
-      '@babel/helper-globals': 7.29.7
-      '@babel/parser': 7.29.7
-      '@babel/template': 7.29.7
-      '@babel/types': 7.29.7
-      debug: 4.4.3
-    transitivePeerDependencies:
-      - supports-color
+      '@babel/parser': 7.29.8
+      '@babel/types': 7.29.8
 
   '@babel/traverse@7.29.8':
     dependencies:
@@ -6191,10 +6163,10 @@ snapshots:
       - '@babel/core'
       - supports-color
 
-  '@react-native/babel-plugin-codegen@0.86.0(@babel/core@7.29.7)':
+  '@react-native/babel-plugin-codegen@0.87.0(@babel/core@7.29.7)':
     dependencies:
-      '@babel/traverse': 7.29.7
-      '@react-native/codegen': 0.86.0(@babel/core@7.29.7)
+      '@babel/traverse': 7.29.8
+      '@react-native/codegen': 0.87.0(@babel/core@7.29.7)
     transitivePeerDependencies:
       - '@babel/core'
       - supports-color
@@ -6240,18 +6212,18 @@ snapshots:
   '@react-native/codegen@0.85.3(@babel/core@7.29.7)':
     dependencies:
       '@babel/core': 7.29.7
-      '@babel/parser': 7.29.7
+      '@babel/parser': 7.29.8
       hermes-parser: 0.33.3
       invariant: 2.2.4
       nullthrows: 1.1.1
       tinyglobby: 0.2.17
       yargs: 17.7.3
 
-  '@react-native/codegen@0.86.0(@babel/core@7.29.7)':
+  '@react-native/codegen@0.87.0(@babel/core@7.29.7)':
     dependencies:
       '@babel/core': 7.29.7
-      '@babel/parser': 7.29.7
-      hermes-parser: 0.36.0
+      '@babel/parser': 7.29.8
+      hermes-parser: 0.36.1
       invariant: 2.2.4
       nullthrows: 1.1.1
       tinyglobby: 0.2.17
@@ -6323,9 +6295,7 @@ snapshots:
       metro-runtime: 0.84.4
     transitivePeerDependencies:
       - '@babel/core'
-      - bufferutil
       - supports-color
-      - utf-8-validate
 
   '@react-native/normalize-colors@0.74.89': {}
 
@@ -7641,7 +7611,7 @@ snapshots:
 
   hermes-estree@0.35.0: {}
 
-  hermes-estree@0.36.0: {}
+  hermes-estree@0.36.1: {}
 
   hermes-parser@0.33.3:
     dependencies:
@@ -7651,9 +7621,9 @@ snapshots:
     dependencies:
       hermes-estree: 0.35.0
 
-  hermes-parser@0.36.0:
+  hermes-parser@0.36.1:
     dependencies:
-      hermes-estree: 0.36.0
+      hermes-estree: 0.36.1
 
   hosted-git-info@7.0.2:
     dependencies:
@@ -8023,7 +7993,7 @@ snapshots:
 
   metro-source-map@0.84.4:
     dependencies:
-      '@babel/traverse': 7.29.7
+      '@babel/traverse': 7.29.8
       '@babel/types': 7.29.7
       flow-enums-runtime: 0.0.6
       invariant: 2.2.4
