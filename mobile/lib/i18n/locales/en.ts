@@ -19,6 +19,8 @@ const en = {
     all: 'All',
     close: 'Close',
     offline: 'You are offline — showing cached data',
+    serverUnavailable: 'Server Unavailable',
+    serverUnavailableDetail: 'The server is temporarily unavailable. Please try again later.',
   },
 
   tabs: {
@@ -71,7 +73,7 @@ const en = {
     couldNotLoad: 'Could not load foraging spots',
     editSpot: 'Edit',
     notesLabel: 'Notes',
-    monthLabel: 'Month',
+    monthsLabel: 'Months',
     typeLabel: 'Type',
     loadingSpots: 'Loading spots...',
     noSpotsFound: 'No spots found',
@@ -178,7 +180,11 @@ const en = {
   addSpot: {
     title: 'Add Foraging Spot',
     type: 'Type',
-    month: 'Month',
+    customType: 'Custom',
+    typeName: 'Name',
+    typeNamePlaceholder: 'e.g. Wild Garlic',
+    typeIcon: 'Icon',
+    months: 'Months',
     location: 'Location',
     useCurrentLocation: 'Use Current Location',
     locationFailed: 'Could not get location. Check permissions and try again.',
@@ -188,6 +194,8 @@ const en = {
     notes: 'Notes',
     notesPlaceholder: 'Any observations...',
     addSpot: 'Add Spot',
+    submitFailed: 'Could not save the spot. Please try again.',
+    groupRequired: 'You must be a member of a group to add foraging spots.',
   },
 
   trailCard: {

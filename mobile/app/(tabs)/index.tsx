@@ -21,6 +21,7 @@ import { TrailListDrawer } from '@/components/TrailListDrawer';
 import { type MapLayers, UnifiedMap } from '@/components/UnifiedMap';
 import {
   useCreateForagingSpot,
+  useCreateForagingType,
   useDeleteTrail,
   useForagingSpots,
   useForagingTypes,
@@ -112,6 +113,7 @@ export default function MapScreen() {
   const [longPressCoords, setLongPressCoords] = useState<{ lat: number; lng: number } | null>(null);
   const [spotLocationError, setSpotLocationError] = useState(false);
   const createSpot = useCreateForagingSpot();
+  const createType = useCreateForagingType();
 
   // Overlay management state
   const { overlays, addOverlay, updateOverlay, deleteOverlay } = useMapOverlays();
@@ -338,22 +340,33 @@ export default function MapScreen() {
       setShowOverlayManager(false);
       setLongPressCoords({ lat, lng });
       setSpotLocationError(false);
+      createSpot.reset();
+      createType.reset();
       setShowAddSpot(true);
     },
-    [editingOverlayId],
+    [editingOverlayId, createSpot, createType],
   );
 
   const handleAddSpot = useCallback(
-    (data: ForagingSpotCreate) => {
-      createSpot.mutate(data, {
-        onSuccess: () => {
-          setShowAddSpot(false);
-          setLongPressCoords(null);
-          setSpotLocationError(false);
-        },
-      });
+    (data: ForagingSpotCreate & { newType?: { name: string; icon: string } }) => {
+      const { newType, ...spotData } = data;
+      const createTheSpot = () => {
+        createSpot.mutate(spotData, {
+          onSuccess: () => {
+            setShowAddSpot(false);
+            setLongPressCoords(null);
+            setSpotLocationError(false);
+          },
+        });
+      };
+      // Create the custom type first so it exists before the spot references it.
+      if (newType) {
+        createType.mutate(newType, { onSuccess: createTheSpot });
+      } else {
+        createTheSpot();
+      }
     },
-    [createSpot],
+    [createSpot, createType],
   );
 
   const handleCancelAddSpot = useCallback(() => {
@@ -509,6 +522,7 @@ export default function MapScreen() {
             onUseCurrentLocation={handleUseCurrentLocationForSpot}
             isSubmitting={createSpot.isPending}
             locationError={spotLocationError}
+            submitError={createSpot.error || createType.error}
           />
         )}
       </FloatingCardOverlay>
@@ -556,6 +570,8 @@ export default function MapScreen() {
         isOpen={showForagingDrawer}
         onClose={() => setShowForagingDrawer(false)}
         onAddSpot={() => {
+          createSpot.reset();
+          createType.reset();
           setShowAddSpot(true);
         }}
       />

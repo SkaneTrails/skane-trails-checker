@@ -44,7 +44,10 @@ def list_foraging_spots(
     user: Annotated[AuthenticatedUser, Depends(require_auth)],
     month: Annotated[str | None, Query(pattern=r"^(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)$")] = None,
 ) -> list[ForagingSpotResponse]:
-    """List foraging spots for the user's group, optionally filtered by month."""
+    """List foraging spots for the user's group, optionally filtered by month.
+
+    When month is provided, returns spots that include that month in their months list.
+    """
     group_id = None if user.role == "superuser" else require_group(user)
     return foraging_storage.get_foraging_spots(month=month, group_id=group_id)
 

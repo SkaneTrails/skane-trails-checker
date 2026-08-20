@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ApiClientError } from '@/lib/api';
 import { foragingColor } from '@/lib/foraging-colors';
 import { useTranslation } from '@/lib/i18n';
 import { borderRadius, fontSize, fontWeight, spacing, useTheme } from '@/lib/theme';
@@ -25,6 +26,8 @@ const MONTH_KEYS = [
   'dec',
 ] as const;
 
+type MonthKey = (typeof MONTH_KEYS)[number];
+
 interface AddSpotFormProps {
   types: ForagingType[];
   initialLat?: number;
@@ -34,12 +37,14 @@ interface AddSpotFormProps {
     lat: number;
     lng: number;
     notes: string;
-    month: string;
+    months: string[];
+    newType?: { name: string; icon: string };
   }) => void;
   onCancel: () => void;
   onUseCurrentLocation: () => void;
   isSubmitting?: boolean;
   locationError?: boolean;
+  submitError?: Error | null;
 }
 
 export function AddSpotForm({
@@ -51,14 +56,18 @@ export function AddSpotForm({
   onUseCurrentLocation,
   isSubmitting = false,
   locationError = false,
+  submitError = null,
 }: AddSpotFormProps) {
   const { colors, shadows } = useTheme();
   const { t } = useTranslation();
   const [selectedType, setSelectedType] = useState('');
+  const [isCustomType, setIsCustomType] = useState(false);
+  const [customTypeName, setCustomTypeName] = useState('');
+  const [customTypeIcon, setCustomTypeIcon] = useState('');
   const [lat, setLat] = useState(initialLat?.toString() ?? '');
   const [lng, setLng] = useState(initialLng?.toString() ?? '');
   const [notes, setNotes] = useState('');
-  const [selectedMonth, setSelectedMonth] = useState('');
+  const [selectedMonths, setSelectedMonths] = useState<string[]>([]);
 
   // Sync when coordinates are set externally (map click or geolocation)
   useEffect(() => {
@@ -78,14 +87,35 @@ export function AddSpotForm({
     parsedLng >= -180 &&
     parsedLng <= 180;
 
+  const effectiveType = isCustomType ? customTypeName.trim() : selectedType;
   const canSubmit =
-    selectedType !== '' && selectedMonth !== '' && coordinatesAreValid && !isSubmitting;
+    effectiveType !== '' &&
+    selectedMonths.length > 0 &&
+    coordinatesAreValid &&
+    !isSubmitting &&
+    (!isCustomType || customTypeIcon.trim() !== '');
+
+  const handleToggleMonth = (key: string) => {
+    setSelectedMonths((prev) =>
+      prev.includes(key) ? prev.filter((m) => m !== key) : [...prev, key],
+    );
+  };
 
   const handleSubmit = () => {
     if (!coordinatesAreValid) return;
-    // API expects capitalized month (Jan, Feb, ...) — keys are lowercase
-    const apiMonth = selectedMonth.charAt(0).toUpperCase() + selectedMonth.slice(1);
-    onSubmit({ type: selectedType, lat: parsedLat, lng: parsedLng, notes, month: apiMonth });
+    // Backend validates months as title-case abbreviations (Jan, Feb, ...),
+    // so convert the lowercase chip keys before submitting.
+    const months = [...selectedMonths]
+      .sort((a, b) => MONTH_KEYS.indexOf(a as MonthKey) - MONTH_KEYS.indexOf(b as MonthKey))
+      .map((m) => m.charAt(0).toUpperCase() + m.slice(1));
+    onSubmit({
+      type: effectiveType,
+      lat: parsedLat,
+      lng: parsedLng,
+      notes,
+      months,
+      ...(isCustomType && { newType: { name: customTypeName.trim(), icon: customTypeIcon.trim() } }),
+    });
   };
 
   return (
@@ -115,7 +145,7 @@ export function AddSpotForm({
         <Text style={[styles.label, { color: colors.text.secondary }]}>{t('addSpot.type')} *</Text>
         <View style={styles.chipRow}>
           {types.map((typeItem) => {
-            const isSelected = selectedType === typeItem.name;
+            const isSelected = !isCustomType && selectedType === typeItem.name;
             const dotColor = foragingColor(typeItem.color);
             return (
               <Pressable
@@ -128,7 +158,10 @@ export function AddSpotForm({
                   },
                   isSelected && styles.typeChipSelected,
                 ]}
-                onPress={() => setSelectedType(typeItem.name)}
+                onPress={() => {
+                  setSelectedType(typeItem.name);
+                  setIsCustomType(false);
+                }}
               >
                 <View style={[styles.typeDot, { backgroundColor: dotColor }]} />
                 <Text
@@ -145,10 +178,59 @@ export function AddSpotForm({
               </Pressable>
             );
           })}
+          <Pressable
+            style={[
+              styles.typeChip,
+              {
+                backgroundColor: isCustomType ? colors.chip.activeBg : colors.chip.bg,
+                borderColor: isCustomType ? colors.chip.activeBg : colors.glass.borderSubtle,
+              },
+              isCustomType && styles.typeChipSelected,
+            ]}
+            onPress={() => {
+              setIsCustomType(true);
+              setSelectedType('');
+            }}
+          >
+            <Text
+              style={[
+                styles.typeChipText,
+                {
+                  color: isCustomType ? colors.chip.activeText : colors.chip.text,
+                  fontWeight: isCustomType ? fontWeight.semibold : fontWeight.normal,
+                },
+              ]}
+            >
+              + {t('addSpot.customType')}
+            </Text>
+          </Pressable>
         </View>
 
-        {/* Month selector */}
-        <Text style={[styles.label, { color: colors.text.secondary }]}>{t('addSpot.month')} *</Text>
+        {isCustomType && (
+          <View style={styles.customTypeRow}>
+            <View style={styles.customTypeNameField}>
+              <FormField
+                label={t('addSpot.typeName')}
+                value={customTypeName}
+                onChangeText={setCustomTypeName}
+                placeholder={t('addSpot.typeNamePlaceholder')}
+              />
+            </View>
+            <View style={styles.customTypeIconField}>
+              <FormField
+                label={t('addSpot.typeIcon')}
+                value={customTypeIcon}
+                onChangeText={setCustomTypeIcon}
+                placeholder="🌿"
+              />
+            </View>
+          </View>
+        )}
+
+        {/* Month selector (multi-select) */}
+        <Text style={[styles.label, { color: colors.text.secondary }]}>
+          {t('addSpot.months')} *
+        </Text>
         <View style={styles.chipRow}>
           {MONTH_KEYS.map((key) => {
             const label = t(`months.${key}`);
@@ -156,8 +238,8 @@ export function AddSpotForm({
               <Chip
                 key={key}
                 label={label}
-                selected={selectedMonth === key}
-                onPress={() => setSelectedMonth(key)}
+                selected={selectedMonths.includes(key)}
+                onPress={() => handleToggleMonth(key)}
               />
             );
           })}
@@ -208,6 +290,15 @@ export function AddSpotForm({
           multiline
           numberOfLines={3}
         />
+
+        {/* Submission error */}
+        {submitError && (
+          <Text style={[styles.errorText, { color: colors.error }]}>
+            {submitError instanceof ApiClientError && submitError.status === 403
+              ? t('addSpot.groupRequired')
+              : t('addSpot.submitFailed')}
+          </Text>
+        )}
 
         {/* Actions */}
         <View style={styles.actions}>
@@ -299,6 +390,17 @@ const styles = StyleSheet.create({
     gap: spacing.md,
   },
   coordField: {
+    flex: 1,
+  },
+  customTypeRow: {
+    flexDirection: 'row',
+    gap: spacing.md,
+    marginBottom: spacing.sm,
+  },
+  customTypeNameField: {
+    flex: 2,
+  },
+  customTypeIconField: {
     flex: 1,
   },
   actions: {

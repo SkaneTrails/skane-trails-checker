@@ -12,7 +12,7 @@ SAMPLE_SPOT = ForagingSpotResponse(
     lat=56.0,
     lng=13.5,
     notes="Near oak tree",
-    month="Sep",
+    months=["Sep"],
     date="2026-09-15",
     created_at="2026-09-15T10:00:00",
     last_updated="2026-09-15T10:00:00",
@@ -20,7 +20,7 @@ SAMPLE_SPOT = ForagingSpotResponse(
 )
 
 SAMPLE_SPOT_2 = ForagingSpotResponse(
-    id="spot2", type="Blueberries", lat=56.1, lng=13.2, month="Jul", group_id=TEST_GROUP_ID
+    id="spot2", type="Blueberries", lat=56.1, lng=13.2, months=["Jul"], group_id=TEST_GROUP_ID
 )
 
 SAMPLE_TYPE = ForagingTypeResponse(name="Mushrooms", icon="🍄", color="#8B4513")
@@ -68,10 +68,10 @@ class TestCreateForagingSpot:
     @patch("api.routers.foraging.foraging_storage.save_foraging_spot")
     def test_create_spot(self, mock_save, mock_get, authenticated_client):
         mock_save.return_value = "new_doc_id"
-        mock_get.return_value = ForagingSpotResponse(id="new_doc_id", type="Herbs", lat=56.2, lng=13.3, month="Jun")
+        mock_get.return_value = ForagingSpotResponse(id="new_doc_id", type="Herbs", lat=56.2, lng=13.3, months=["Jun"])
 
         response = authenticated_client.post(
-            "/api/v1/foraging/spots", json={"type": "Herbs", "lat": 56.2, "lng": 13.3, "month": "Jun"}
+            "/api/v1/foraging/spots", json={"type": "Herbs", "lat": 56.2, "lng": 13.3, "months": ["Jun"]}
         )
         assert response.status_code == 201
         data = response.json()
@@ -83,11 +83,11 @@ class TestCreateForagingSpot:
     def test_create_spot_sets_created_by(self, mock_save, mock_get, authenticated_client):
         mock_save.return_value = "new_doc_id"
         mock_get.return_value = ForagingSpotResponse(
-            id="new_doc_id", type="Herbs", lat=56.2, lng=13.3, month="Jun", created_by="test-user"
+            id="new_doc_id", type="Herbs", lat=56.2, lng=13.3, months=["Jun"], created_by="test-user"
         )
 
         authenticated_client.post(
-            "/api/v1/foraging/spots", json={"type": "Herbs", "lat": 56.2, "lng": 13.3, "month": "Jun"}
+            "/api/v1/foraging/spots", json={"type": "Herbs", "lat": 56.2, "lng": 13.3, "months": ["Jun"]}
         )
         saved_data = mock_save.call_args[0][0]
         assert saved_data["created_by"] == "test-user"
@@ -95,13 +95,13 @@ class TestCreateForagingSpot:
     def test_create_spot_forbidden_member(self, member_client):
         """Members cannot create spots."""
         response = member_client.post(
-            "/api/v1/foraging/spots", json={"type": "Herbs", "lat": 56.2, "lng": 13.3, "month": "Jun"}
+            "/api/v1/foraging/spots", json={"type": "Herbs", "lat": 56.2, "lng": 13.3, "months": ["Jun"]}
         )
         assert response.status_code == 403
 
     def test_create_spot_invalid_data(self, authenticated_client):
         response = authenticated_client.post(
-            "/api/v1/foraging/spots", json={"type": "", "lat": 56.0, "lng": 13.0, "month": "Jan"}
+            "/api/v1/foraging/spots", json={"type": "", "lat": 56.0, "lng": 13.0, "months": ["Jan"]}
         )
         assert response.status_code == 422
 

@@ -70,3 +70,15 @@ export function useUpdateForagingType() {
     },
   });
 }
+
+export function useCreateForagingType() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (data: { name: string; icon: string; color?: string }) =>
+      foragingApi.createType(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: foragingKeys.types });
+    },
+  });
+}

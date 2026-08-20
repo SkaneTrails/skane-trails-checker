@@ -25,7 +25,7 @@ const sampleSpot = {
   lat: 56.0,
   lng: 13.5,
   notes: 'Nice patch',
-  month: 'Sep',
+  months: ['Sep'],
 };
 
 describe('useForagingSpots', () => {

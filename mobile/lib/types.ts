@@ -98,7 +98,7 @@ export interface ForagingSpot {
   lat: number;
   lng: number;
   notes: string;
-  month: string;
+  months: string[];
   date?: string;
   created_at?: string;
   last_updated?: string;
@@ -110,7 +110,7 @@ export interface ForagingSpotCreate {
   lat: number;
   lng: number;
   notes: string;
-  month: string;
+  months: string[];
 }
 
 // Foraging type definition
@@ -126,7 +126,7 @@ export interface ForagingSpotUpdate {
   lat?: number;
   lng?: number;
   notes?: string;
-  month?: string;
+  months?: string[];
   date?: string;
 }
 

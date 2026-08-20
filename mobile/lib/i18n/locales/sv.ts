@@ -19,6 +19,8 @@ const sv: Translations = {
     all: 'Alla',
     close: 'Stäng',
     offline: 'Du är offline — visar cachad data',
+    serverUnavailable: 'Servern otillgänglig',
+    serverUnavailableDetail: 'Servern är tillfälligt otillgänglig. Försök igen senare.',
   },
 
   tabs: {
@@ -71,7 +73,7 @@ const sv: Translations = {
     couldNotLoad: 'Kunde inte ladda plockplatser',
     editSpot: 'Redigera',
     notesLabel: 'Anteckningar',
-    monthLabel: 'Månad',
+    monthsLabel: 'Månader',
     typeLabel: 'Typ',
     loadingSpots: 'Laddar platser...',
     noSpotsFound: 'Inga platser hittades',
@@ -179,7 +181,11 @@ const sv: Translations = {
   addSpot: {
     title: 'Lägg till plockplats',
     type: 'Typ',
-    month: 'Månad',
+    customType: 'Anpassad',
+    typeName: 'Namn',
+    typeNamePlaceholder: 't.ex. Ramslök',
+    typeIcon: 'Ikon',
+    months: 'Månader',
     location: 'Plats',
     useCurrentLocation: 'Använd nuvarande plats',
     locationFailed: 'Kunde inte hämta plats. Kontrollera behörigheter och försök igen.',
@@ -189,6 +195,8 @@ const sv: Translations = {
     notes: 'Anteckningar',
     notesPlaceholder: 'Eventuella observationer...',
     addSpot: 'Lägg till',
+    submitFailed: 'Kunde inte spara platsen. Försök igen.',
+    groupRequired: 'Du måste vara medlem i en grupp för att lägga till plockplatser.',
   },
 
   trailCard: {

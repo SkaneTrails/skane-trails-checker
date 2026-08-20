@@ -1,4 +1,5 @@
 import { fireEvent, render, screen } from '@testing-library/react';
+import { ApiClientError } from '@/lib/api';
 import { AddSpotForm } from '../AddSpotForm';
 
 vi.mock('@/lib/theme', () => ({
@@ -107,6 +108,7 @@ describe('AddSpotForm', () => {
 
     fireEvent.click(screen.getByText('Mushrooms'));
     fireEvent.click(screen.getByText('months.sep'));
+    fireEvent.click(screen.getByText('months.oct'));
 
     const latInput = screen.getByPlaceholderText('55.95');
     fireEvent.change(latInput, { target: { value: '55.95' } });
@@ -121,7 +123,7 @@ describe('AddSpotForm', () => {
       lat: 55.95,
       lng: 13.4,
       notes: '',
-      month: 'Sep',
+      months: ['Sep', 'Oct'],
     });
   });
 
@@ -155,5 +157,105 @@ describe('AddSpotForm', () => {
     render(<AddSpotForm {...defaultProps} isSubmitting />);
 
     expect(screen.getByText('common.saving')).toBeDefined();
+  });
+
+  it('submits a custom type with newType payload', () => {
+    render(<AddSpotForm {...defaultProps} />);
+
+    fireEvent.click(screen.getByText('+ addSpot.customType'));
+
+    fireEvent.change(screen.getByPlaceholderText('addSpot.typeNamePlaceholder'), {
+      target: { value: 'Chestnuts' },
+    });
+    fireEvent.change(screen.getByPlaceholderText('🌿'), { target: { value: '🌰' } });
+
+    fireEvent.click(screen.getByText('months.sep'));
+
+    fireEvent.change(screen.getByPlaceholderText('55.95'), { target: { value: '55.95' } });
+    fireEvent.change(screen.getByPlaceholderText('13.40'), { target: { value: '13.40' } });
+
+    fireEvent.click(screen.getByText('addSpot.addSpot'));
+
+    expect(defaultProps.onSubmit).toHaveBeenCalledWith({
+      type: 'Chestnuts',
+      lat: 55.95,
+      lng: 13.4,
+      notes: '',
+      months: ['Sep'],
+      newType: { name: 'Chestnuts', icon: '🌰' },
+    });
+  });
+
+  it('keeps submit disabled for a custom type without an icon', () => {
+    render(<AddSpotForm {...defaultProps} />);
+
+    fireEvent.click(screen.getByText('+ addSpot.customType'));
+    fireEvent.change(screen.getByPlaceholderText('addSpot.typeNamePlaceholder'), {
+      target: { value: 'Chestnuts' },
+    });
+    fireEvent.click(screen.getByText('months.sep'));
+    fireEvent.change(screen.getByPlaceholderText('55.95'), { target: { value: '55.95' } });
+    fireEvent.change(screen.getByPlaceholderText('13.40'), { target: { value: '13.40' } });
+
+    fireEvent.click(screen.getByText('addSpot.addSpot'));
+    expect(defaultProps.onSubmit).not.toHaveBeenCalled();
+  });
+
+  it('toggles a month off when pressed twice', () => {
+    render(<AddSpotForm {...defaultProps} />);
+
+    fireEvent.click(screen.getByText('Mushrooms'));
+    const sep = screen.getByText('months.sep');
+    fireEvent.click(sep); // select
+    fireEvent.click(sep); // deselect
+
+    fireEvent.change(screen.getByPlaceholderText('55.95'), { target: { value: '55.95' } });
+    fireEvent.change(screen.getByPlaceholderText('13.40'), { target: { value: '13.40' } });
+
+    // No months selected -> submit stays disabled
+    fireEvent.click(screen.getByText('addSpot.addSpot'));
+    expect(defaultProps.onSubmit).not.toHaveBeenCalled();
+  });
+
+  it('switches from a custom type back to a listed type', () => {
+    render(<AddSpotForm {...defaultProps} />);
+
+    fireEvent.click(screen.getByText('+ addSpot.customType'));
+    fireEvent.click(screen.getByText('Mushrooms'));
+    fireEvent.click(screen.getByText('months.sep'));
+
+    fireEvent.change(screen.getByPlaceholderText('55.95'), { target: { value: '55.95' } });
+    fireEvent.change(screen.getByPlaceholderText('13.40'), { target: { value: '13.40' } });
+
+    fireEvent.click(screen.getByText('addSpot.addSpot'));
+
+    expect(defaultProps.onSubmit).toHaveBeenCalledWith({
+      type: 'Mushrooms',
+      lat: 55.95,
+      lng: 13.4,
+      notes: '',
+      months: ['Sep'],
+    });
+  });
+
+  it('shows group-required error for 403 submitError', () => {
+    const error = new ApiClientError(403, 'Forbidden');
+    render(<AddSpotForm {...defaultProps} submitError={error} />);
+
+    expect(screen.getByText('addSpot.groupRequired')).toBeDefined();
+  });
+
+  it('shows generic error for non-403 submitError', () => {
+    const error = new Error('Network failure');
+    render(<AddSpotForm {...defaultProps} submitError={error} />);
+
+    expect(screen.getByText('addSpot.submitFailed')).toBeDefined();
+  });
+
+  it('shows no error when submitError is null', () => {
+    render(<AddSpotForm {...defaultProps} submitError={null} />);
+
+    expect(screen.queryByText('addSpot.groupRequired')).toBeNull();
+    expect(screen.queryByText('addSpot.submitFailed')).toBeNull();
   });
 });

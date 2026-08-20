@@ -11,14 +11,21 @@ logger = logging.getLogger(__name__)
 
 
 def _doc_to_foraging_spot(doc_id: str, data: dict) -> ForagingSpotResponse:
-    """Convert a Firestore document dict to a ForagingSpotResponse model."""
+    """Convert a Firestore document dict to a ForagingSpotResponse model.
+
+    Backward compat: reads legacy ``month`` field as single-element ``months`` list.
+    """
+    months = data.get("months", [])
+    if not months:
+        legacy_month = data.get("month", "")
+        months = [legacy_month] if legacy_month else []
     return ForagingSpotResponse(
         id=doc_id,
         type=data.get("type", ""),
         lat=data.get("lat", 0.0),
         lng=data.get("lng", 0.0),
         notes=data.get("notes", ""),
-        month=data.get("month", ""),
+        months=months,
         date=data.get("date", ""),
         created_at=data.get("created_at", ""),
         last_updated=data.get("last_updated", ""),
@@ -50,7 +57,7 @@ def get_foraging_spots(month: str | None = None, group_id: str | None = None) ->
     query = collection.where("group_id", "==", group_id) if group_id is not None else collection
 
     if month:
-        query = query.where("month", "==", month)
+        query = query.where("months", "array_contains", month)
 
     docs = query.stream()
 
