@@ -7,13 +7,14 @@
 
 import { useCallback, useState } from 'react';
 import { Alert, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useTranslation } from '@/lib/i18n';
 import type { MapOverlay } from '@/lib/map-overlays';
 import {
   captureImageFromCamera,
   deleteOverlayImage,
+  OverlayImageTooLargeError,
   pickImageFromGallery,
 } from '@/lib/overlay-image-picker';
-import { useTranslation } from '@/lib/i18n';
 import { borderRadius, fontSize, fontWeight, spacing, useTheme } from '@/lib/theme';
 import { cssShadow, glassSheet } from '@/lib/theme/styles';
 import { Button } from './Button';
@@ -40,21 +41,48 @@ export function OverlayManager({
   const { t } = useTranslation();
   const [isAdding, setIsAdding] = useState(false);
 
+  const notifyError = useCallback(
+    (message: string) => {
+      if (Platform.OS === 'web') {
+        window.alert(message);
+      } else {
+        Alert.alert(t('common.error'), message);
+      }
+    },
+    [t],
+  );
+
   const handlePickGallery = useCallback(async () => {
-    const uri = await pickImageFromGallery();
-    if (uri) {
-      const name = `Overlay ${overlays.length + 1}`;
-      await onAddOverlay(uri, name);
+    try {
+      const uri = await pickImageFromGallery();
+      if (uri) {
+        const name = `Overlay ${overlays.length + 1}`;
+        await onAddOverlay(uri, name);
+      }
+    } catch (error) {
+      if (error instanceof OverlayImageTooLargeError) {
+        notifyError(t('overlays.imageTooLarge'));
+      } else {
+        throw error;
+      }
     }
-  }, [overlays.length, onAddOverlay]);
+  }, [overlays.length, onAddOverlay, notifyError, t]);
 
   const handleTakePhoto = useCallback(async () => {
-    const uri = await captureImageFromCamera();
-    if (uri) {
-      const name = `Overlay ${overlays.length + 1}`;
-      await onAddOverlay(uri, name);
+    try {
+      const uri = await captureImageFromCamera();
+      if (uri) {
+        const name = `Overlay ${overlays.length + 1}`;
+        await onAddOverlay(uri, name);
+      }
+    } catch (error) {
+      if (error instanceof OverlayImageTooLargeError) {
+        notifyError(t('overlays.imageTooLarge'));
+      } else {
+        throw error;
+      }
     }
-  }, [overlays.length, onAddOverlay]);
+  }, [overlays.length, onAddOverlay, notifyError, t]);
 
   const handleDelete = useCallback(
     (overlay: MapOverlay) => {
@@ -74,7 +102,7 @@ export function OverlayManager({
         ]);
       }
     },
-    [onDeleteOverlay, t]
+    [onDeleteOverlay, t],
   );
 
   return (
@@ -113,7 +141,10 @@ export function OverlayManager({
           overlays.map((overlay) => (
             <View
               key={overlay.id}
-              style={[styles.overlayRow, { borderColor: colors.border, backgroundColor: colors.surface }]}
+              style={[
+                styles.overlayRow,
+                { borderColor: colors.border, backgroundColor: colors.surface },
+              ]}
             >
               <View style={styles.overlayInfo}>
                 <Text style={[styles.overlayName, { color: colors.text.primary }]}>
@@ -129,7 +160,11 @@ export function OverlayManager({
                   hitSlop={8}
                   style={styles.actionButton}
                   accessibilityRole="button"
-                  accessibilityLabel={overlay.visible ? t('overlays.toggleVisibility') : t('overlays.toggleVisibility')}
+                  accessibilityLabel={
+                    overlay.visible
+                      ? t('overlays.toggleVisibility')
+                      : t('overlays.toggleVisibility')
+                  }
                 >
                   {Platform.OS === 'web' ? (
                     <TabIcon
@@ -138,7 +173,12 @@ export function OverlayManager({
                       size={20}
                     />
                   ) : (
-                    <Text style={[styles.overlayMeta, { color: overlay.visible ? colors.primary : colors.text.muted }]}>
+                    <Text
+                      style={[
+                        styles.overlayMeta,
+                        { color: overlay.visible ? colors.primary : colors.text.muted },
+                      ]}
+                    >
                       {overlay.visible ? '👁' : '🙈'}
                     </Text>
                   )}

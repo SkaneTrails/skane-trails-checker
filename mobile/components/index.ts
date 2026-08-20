@@ -13,7 +13,7 @@ export { GoogleLogo } from './GoogleLogo';
 export type { MapLayer } from './LayerToggle';
 export { LayerToggle } from './LayerToggle';
 export { MapInfoCard } from './MapInfoCard';
-export { OverlayAlignmentMode } from './OverlayAlignmentMode';
+export { OverlayEditPanel } from './OverlayEditPanel';
 export { OverlayManager } from './OverlayManager';
 export { PlacesDrawer } from './PlacesDrawer';
 export { ScreenLayout } from './ScreenLayout';

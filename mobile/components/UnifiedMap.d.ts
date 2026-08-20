@@ -20,10 +20,12 @@ interface UnifiedMapProps {
   recordingPoints?: TrackingPoint[];
   imagePins?: ImagePin[];
   imageOverlays?: MapOverlay[];
+  editingOverlayId?: string | null;
   onTrailSelect?: (trail: Trail) => void;
   onSpotSelect?: (spot: ForagingSpot) => void;
   onPlaceSelect?: (place: Place) => void;
   onImagePinSelect?: (trailId: string) => void;
+  onOverlayCornersChange?: (id: string, corners: MapOverlay['corners']) => void;
   onMapClick?: (lat: number, lng: number) => void;
   onLongPress?: (lat: number, lng: number) => void;
   onBoundsChange?: (bounds: { north: number; south: number; east: number; west: number }) => void;

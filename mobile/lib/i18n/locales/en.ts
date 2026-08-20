@@ -284,6 +284,7 @@ const en = {
     edit: 'Edit',
     toggleVisibility: 'Toggle Visibility',
     opacity: 'Opacity',
+    dragHandles: 'Drag the corners to fit the map; use the top handle to rotate',
     selectCorner: 'Select a corner, then tap the map to place it',
     tapToPlace: 'Tap map to place {{corner}}',
     rotate: 'Rotate',
@@ -295,6 +296,7 @@ const en = {
     },
     done: 'Done',
     reset: 'Reset',
+    imageTooLarge: 'Image is too large (max 0.5 MB). Please choose a smaller image.',
   },
 
   noAccess: {

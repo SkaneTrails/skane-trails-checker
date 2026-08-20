@@ -7,13 +7,15 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { foragingColorMap } from '@/lib/foraging-colors';
+import { matrix3dForQuad, type Point } from '@/lib/homography';
 import { injectLeafletCSS } from '@/lib/inject-css';
+import type { GeoCoord, MapOverlay } from '@/lib/map-overlays';
 import { placeCategoryColor } from '@/lib/place-colors';
-import { FALLBACK_PATH, ICON_PATHS } from './PlaceCategoryIcon';
 import { animation, iconSize, useTheme } from '@/lib/theme';
 import type { ColorTokens } from '@/lib/theme/colors';
-import type { ForagingSpot, ForagingType, ImagePin, Place, Trail } from '@/lib/types';
 import type { TrackingPoint } from '@/lib/track-to-trail';
+import type { ForagingSpot, ForagingType, ImagePin, Place, Trail } from '@/lib/types';
+import { FALLBACK_PATH, ICON_PATHS } from './PlaceCategoryIcon';
 
 export interface MapLayers {
   trails: boolean;
@@ -32,10 +34,16 @@ interface UnifiedMapProps {
   focusBounds?: { north: number; south: number; east: number; west: number } | null;
   recordingPoints?: TrackingPoint[];
   imagePins?: ImagePin[];
+  /** Georeferenced image overlays to render on the map */
+  imageOverlays?: MapOverlay[];
+  /** ID of the overlay currently being edited (shows draggable handles) */
+  editingOverlayId?: string | null;
   onTrailSelect?: (trail: Trail) => void;
   onSpotSelect?: (spot: ForagingSpot) => void;
   onPlaceSelect?: (place: Place) => void;
   onImagePinSelect?: (trailId: string) => void;
+  /** Called when the user finishes dragging an overlay corner/rotation handle */
+  onOverlayCornersChange?: (id: string, corners: MapOverlay['corners']) => void;
   onMapClick?: (lat: number, lng: number) => void;
   onLongPress?: (lat: number, lng: number) => void;
   onBoundsChange?: (bounds: { north: number; south: number; east: number; west: number }) => void;
@@ -72,12 +80,16 @@ export function UnifiedMap({
   selectedTrailId,
   focusBounds,
   imagePins,
+  imageOverlays,
+  editingOverlayId,
   onTrailSelect,
   onSpotSelect,
   onPlaceSelect,
   onImagePinSelect,
+  onOverlayCornersChange,
   onMapClick,
   onLongPress,
+  onBoundsChange,
 }: UnifiedMapProps) {
   const { colors } = useTheme();
   const mapRef = useRef<HTMLDivElement>(null);
@@ -96,8 +108,45 @@ export function UnifiedMap({
   const imagePinsDataRef = useRef({ imagePins, layers, trails, colors });
   imagePinsDataRef.current = { imagePins, layers, trails, colors };
 
-  const callbackRefs = useRef({ onTrailSelect, onSpotSelect, onPlaceSelect, onImagePinSelect, onMapClick, onLongPress });
-  callbackRefs.current = { onTrailSelect, onSpotSelect, onPlaceSelect, onImagePinSelect, onMapClick, onLongPress };
+  const callbackRefs = useRef({
+    onTrailSelect,
+    onSpotSelect,
+    onPlaceSelect,
+    onImagePinSelect,
+    onMapClick,
+    onLongPress,
+    onBoundsChange,
+  });
+  callbackRefs.current = {
+    onTrailSelect,
+    onSpotSelect,
+    onPlaceSelect,
+    onImagePinSelect,
+    onMapClick,
+    onLongPress,
+    onBoundsChange,
+  };
+
+  // Overlay rendering + editing state (kept in refs to avoid stale closures in
+  // imperative Leaflet event handlers).
+  const overlaysDataRef = useRef({ imageOverlays, editingOverlayId });
+  overlaysDataRef.current = { imageOverlays, editingOverlayId };
+  const onOverlayCornersChangeRef = useRef(onOverlayCornersChange);
+  onOverlayCornersChangeRef.current = onOverlayCornersChange;
+  /** DOM <img> elements rendered into the overlay pane, keyed by overlay id. */
+  const overlayElsRef = useRef<Map<string, HTMLImageElement>>(new Map());
+  /** Screen-space root <div> hosting the editing overlay image + handles. */
+  const editLayerRef = useRef<HTMLDivElement | null>(null);
+  /** The editing overlay <img> rendered in screen space (fixed while map moves). */
+  const editImgRef = useRef<HTMLImageElement | null>(null);
+  /** Live editing corners in container-pixel space (source of truth while editing). */
+  const editPixelCornersRef = useRef<[Point, Point, Point, Point] | null>(null);
+  /** Geo corners last seeded into pixel space (to detect external resets). */
+  const editSeededFromRef = useRef<MapOverlay['corners'] | null>(null);
+  /** The overlay id the screen-space edit layer is currently set up for. */
+  const editingIdRef = useRef<string | null>(null);
+  /** Handle <div>s in fixed order: 4 corners, 4 edges, 1 rotation. */
+  const editHandleElsRef = useRef<HTMLElement[]>([]);
 
   const selectedTrailIdRef = useRef(selectedTrailId);
   selectedTrailIdRef.current = selectedTrailId;
@@ -170,6 +219,24 @@ export function UnifiedMap({
         renderImagePins(L, map.getZoom());
       });
 
+      // Keep overlay images warped to their geo corners as the map moves/zooms.
+      map.on('move zoom viewreset zoomend moveend', () => {
+        repositionOverlayImages(map);
+      });
+
+      // Report the current view bounds so callers can place overlays/etc. in view.
+      const emitBounds = () => {
+        const b = map.getBounds();
+        callbackRefs.current.onBoundsChange?.({
+          north: b.getNorth(),
+          south: b.getSouth(),
+          east: b.getEast(),
+          west: b.getWest(),
+        });
+      };
+      map.on('moveend zoomend', emitBounds);
+      emitBounds();
+
       setMapReady(true);
     }
 
@@ -190,7 +257,10 @@ export function UnifiedMap({
     if (!focusBounds || !mapReady || !mapInstanceRef.current) return;
     const { north, south, east, west } = focusBounds;
     mapInstanceRef.current.fitBounds(
-      [[south, west], [north, east]],
+      [
+        [south, west],
+        [north, east],
+      ],
       { padding: [40, 40], maxZoom: 14 },
     );
   }, [focusBounds, mapReady]);
@@ -347,6 +417,410 @@ export function UnifiedMap({
       renderImagePins(L, map.getZoom());
     });
   }, [imagePins, layers.images, mapReady]);
+
+  // ---- Image overlays (warped images + draggable editing handles) ----
+
+  /** Warp an <img> so its natural rect maps to the four destination pixel points. */
+  function warpImage(img: HTMLImageElement, dst: [Point, Point, Point, Point]) {
+    const srcW = img.naturalWidth || 256;
+    const srcH = img.naturalHeight || 256;
+    img.style.width = `${srcW}px`;
+    img.style.height = `${srcH}px`;
+    img.style.transform = matrix3dForQuad(srcW, srcH, dst);
+  }
+
+  /** Warp a geo-pinned overlay <img> so its source rect maps to the geo corners. */
+  function warpOverlayImage(map: L.Map, img: HTMLImageElement, corners: MapOverlay['corners']) {
+    const dst = corners.map((c) => {
+      const pt = map.latLngToLayerPoint([c[0], c[1]]);
+      return { x: pt.x, y: pt.y } as Point;
+    }) as [Point, Point, Point, Point];
+    warpImage(img, dst);
+  }
+
+  /** Reposition every geo-pinned overlay image (skipping the one being edited). */
+  function repositionOverlayImages(map: L.Map) {
+    const { imageOverlays: ovs, editingOverlayId: editId } = overlaysDataRef.current;
+    for (const overlay of ovs ?? []) {
+      if (overlay.id === editId) continue; // editing overlay lives in screen space
+      const img = overlayElsRef.current.get(overlay.id);
+      if (img) warpOverlayImage(map, img, overlay.corners);
+    }
+  }
+
+  /** Create/update geo-pinned overlay <img> elements (hiding the one being edited). */
+  function renderOverlays(map: L.Map) {
+    const { imageOverlays: ovs, editingOverlayId: editId } = overlaysDataRef.current;
+    const pane = map.getPanes().overlayPane;
+    const seen = new Set<string>();
+
+    for (const overlay of ovs ?? []) {
+      seen.add(overlay.id);
+      let img = overlayElsRef.current.get(overlay.id);
+      if (!img) {
+        img = document.createElement('img');
+        img.style.position = 'absolute';
+        img.style.top = '0';
+        img.style.left = '0';
+        img.style.transformOrigin = '0 0';
+        img.style.pointerEvents = 'none';
+        img.style.willChange = 'transform';
+        img.draggable = false;
+        img.src = overlay.imageUri;
+        img.onload = () => repositionOverlayImages(map);
+        pane.appendChild(img);
+        overlayElsRef.current.set(overlay.id, img);
+      } else if (img.src !== overlay.imageUri) {
+        img.src = overlay.imageUri;
+      }
+      // Hide the geo-pinned copy while this overlay is being edited in screen space.
+      if (overlay.id === editId) {
+        img.style.display = 'none';
+      } else {
+        img.style.display = '';
+        img.style.opacity = String(overlay.opacity);
+        warpOverlayImage(map, img, overlay.corners);
+      }
+    }
+
+    // Remove images for overlays that no longer exist.
+    for (const [id, img] of overlayElsRef.current) {
+      if (!seen.has(id)) {
+        img.remove();
+        overlayElsRef.current.delete(id);
+      }
+    }
+  }
+
+  // ---- Screen-fixed overlay editing ----
+  //
+  // While an overlay is being edited it is detached from the map's geo space and
+  // pinned to the screen (container pixels) so the user can pan/zoom the map
+  // underneath it. The pixel corners are the source of truth during editing and
+  // are converted back to geo only when editing ends.
+
+  /** Convert geo corners to container-pixel points. */
+  function pixelCornersFromGeo(
+    map: L.Map,
+    corners: MapOverlay['corners'],
+  ): [Point, Point, Point, Point] {
+    return corners.map((c) => {
+      const pt = map.latLngToContainerPoint([c[0], c[1]]);
+      return { x: pt.x, y: pt.y } as Point;
+    }) as [Point, Point, Point, Point];
+  }
+
+  /** Convert container-pixel editing corners back to geo for persistence. */
+  function geoCornersFromPixel(
+    map: L.Map,
+    px: [Point, Point, Point, Point],
+  ): MapOverlay['corners'] {
+    return px.map((p) => {
+      const ll = map.containerPointToLatLng([p.x, p.y]);
+      return [ll.lat, ll.lng] as GeoCoord;
+    }) as MapOverlay['corners'];
+  }
+
+  /** Derived handle anchor points (edge midpoints + rotation handle) from corners. */
+  function editHandlePoints(px: [Point, Point, Point, Point]) {
+    const mid = (a: Point, b: Point): Point => ({ x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 });
+    const center: Point = { x: (px[0].x + px[2].x) / 2, y: (px[0].y + px[2].y) / 2 };
+    const edges: [Point, Point, Point, Point] = [
+      mid(px[0], px[1]), // top
+      mid(px[1], px[2]), // right
+      mid(px[2], px[3]), // bottom
+      mid(px[3], px[0]), // left
+    ];
+    const rotate: Point = {
+      x: center.x + (edges[0].x - center.x) * 1.4,
+      y: center.y + (edges[0].y - center.y) * 1.4,
+    };
+    return { center, edges, rotate };
+  }
+
+  /** Re-warp the screen-space editing image to its current pixel corners. */
+  function warpEditImage() {
+    const img = editImgRef.current;
+    const px = editPixelCornersRef.current;
+    if (img && px) warpImage(img, px);
+  }
+
+  /** Move existing handle <div>s to match the current pixel corners (no rebuild). */
+  function positionEditHandles() {
+    const px = editPixelCornersRef.current;
+    const els = editHandleElsRef.current;
+    if (!px || els.length !== 9) return;
+    const { edges, rotate } = editHandlePoints(px);
+    const place = (el: HTMLElement, x: number, y: number) => {
+      const w = el.offsetWidth || Number.parseFloat(el.style.width) || 0;
+      const h = el.offsetHeight || Number.parseFloat(el.style.height) || 0;
+      el.style.left = `${x - w / 2}px`;
+      el.style.top = `${y - h / 2}px`;
+    };
+    px.forEach((c, i) => {
+      place(els[i], c.x, c.y);
+    });
+    edges.forEach((m, i) => {
+      place(els[4 + i], m.x, m.y);
+    });
+    place(els[8], rotate.x, rotate.y);
+  }
+
+  /** Drag handler for corner/edge handles: pointer delta → new pixel corners. */
+  function attachDrag(
+    map: L.Map,
+    el: HTMLElement,
+    compute: (
+      dx: number,
+      dy: number,
+      start: [Point, Point, Point, Point],
+    ) => [Point, Point, Point, Point],
+  ) {
+    el.addEventListener('pointerdown', (ev: PointerEvent) => {
+      ev.preventDefault();
+      ev.stopPropagation();
+      const current = editPixelCornersRef.current;
+      if (!current) return;
+      const start = current.map((p) => ({ ...p })) as [Point, Point, Point, Point];
+      const startX = ev.clientX;
+      const startY = ev.clientY;
+      map.dragging.disable();
+      el.setPointerCapture(ev.pointerId);
+
+      const onMove = (e: PointerEvent) => {
+        editPixelCornersRef.current = compute(e.clientX - startX, e.clientY - startY, start);
+        warpEditImage();
+        positionEditHandles();
+      };
+      const onUp = (e: PointerEvent) => {
+        map.dragging.enable();
+        try {
+          el.releasePointerCapture(e.pointerId);
+        } catch {
+          /* pointer already released */
+        }
+        el.removeEventListener('pointermove', onMove);
+        el.removeEventListener('pointerup', onUp);
+        el.removeEventListener('pointercancel', onUp);
+      };
+      el.addEventListener('pointermove', onMove);
+      el.addEventListener('pointerup', onUp);
+      el.addEventListener('pointercancel', onUp);
+    });
+  }
+
+  /** Rotate the pixel corners around a center by an angle (radians). */
+  function rotatePixelCorners(
+    corners: [Point, Point, Point, Point],
+    center: Point,
+    angle: number,
+  ): [Point, Point, Point, Point] {
+    const cos = Math.cos(angle);
+    const sin = Math.sin(angle);
+    return corners.map((p) => {
+      const dx = p.x - center.x;
+      const dy = p.y - center.y;
+      return { x: center.x + dx * cos - dy * sin, y: center.y + dx * sin + dy * cos } as Point;
+    }) as [Point, Point, Point, Point];
+  }
+
+  /** Drag handler for the rotation handle: pointer angle → rotated pixel corners. */
+  function attachRotateDrag(map: L.Map, el: HTMLElement) {
+    el.addEventListener('pointerdown', (ev: PointerEvent) => {
+      ev.preventDefault();
+      ev.stopPropagation();
+      const current = editPixelCornersRef.current;
+      if (!current) return;
+      const start = current.map((p) => ({ ...p })) as [Point, Point, Point, Point];
+      const center: Point = { x: (start[0].x + start[2].x) / 2, y: (start[0].y + start[2].y) / 2 };
+      const rect = map.getContainer().getBoundingClientRect();
+      const angleAt = (clientX: number, clientY: number) =>
+        Math.atan2(clientY - rect.top - center.y, clientX - rect.left - center.x);
+      const baseAngle = angleAt(ev.clientX, ev.clientY);
+      map.dragging.disable();
+      el.setPointerCapture(ev.pointerId);
+
+      const onMove = (e: PointerEvent) => {
+        const delta = angleAt(e.clientX, e.clientY) - baseAngle;
+        editPixelCornersRef.current = rotatePixelCorners(start, center, delta);
+        warpEditImage();
+        positionEditHandles();
+      };
+      const onUp = (e: PointerEvent) => {
+        map.dragging.enable();
+        try {
+          el.releasePointerCapture(e.pointerId);
+        } catch {
+          /* pointer already released */
+        }
+        el.removeEventListener('pointermove', onMove);
+        el.removeEventListener('pointerup', onUp);
+        el.removeEventListener('pointercancel', onUp);
+      };
+      el.addEventListener('pointermove', onMove);
+      el.addEventListener('pointerup', onUp);
+      el.addEventListener('pointercancel', onUp);
+    });
+  }
+
+  /** Create the screen-space edit layer (root + image) if it does not yet exist. */
+  function ensureEditLayer(map: L.Map, overlay: MapOverlay) {
+    if (editLayerRef.current) return;
+    const root = document.createElement('div');
+    root.style.position = 'absolute';
+    root.style.inset = '0';
+    root.style.pointerEvents = 'none';
+    root.style.overflow = 'hidden';
+    root.style.zIndex = '450';
+
+    const img = document.createElement('img');
+    img.style.position = 'absolute';
+    img.style.top = '0';
+    img.style.left = '0';
+    img.style.transformOrigin = '0 0';
+    img.style.pointerEvents = 'none';
+    img.style.willChange = 'transform';
+    img.draggable = false;
+    img.src = overlay.imageUri;
+    img.style.opacity = String(overlay.opacity);
+    img.onload = () => warpEditImage();
+    root.appendChild(img);
+
+    map.getContainer().appendChild(root);
+    editLayerRef.current = root;
+    editImgRef.current = img;
+  }
+
+  /** Remove the screen-space edit layer and clear all editing refs. */
+  function teardownEditLayer() {
+    editLayerRef.current?.remove();
+    editLayerRef.current = null;
+    editImgRef.current = null;
+    editPixelCornersRef.current = null;
+    editSeededFromRef.current = null;
+    editHandleElsRef.current = [];
+  }
+
+  /** Persist the current pixel corners as geo when editing ends (if still present). */
+  function commitEdit(map: L.Map, id: string) {
+    const px = editPixelCornersRef.current;
+    if (!px) return;
+    const stillExists = (overlaysDataRef.current.imageOverlays ?? []).some((o) => o.id === id);
+    if (!stillExists) return;
+    onOverlayCornersChangeRef.current?.(id, geoCornersFromPixel(map, px));
+  }
+
+  /** (Re)build the corner + edge + rotation handle <div>s for the edit layer. */
+  function buildEditHandles(map: L.Map) {
+    const root = editLayerRef.current;
+    const px = editPixelCornersRef.current;
+    if (!root || !px) return;
+    for (const el of editHandleElsRef.current) el.remove();
+    editHandleElsRef.current = [];
+
+    const primary = colorsRef.current.primary;
+    const { edges, rotate } = editHandlePoints(px);
+
+    const makeHandle = (x: number, y: number, size: number, cursor: string): HTMLDivElement => {
+      const el = document.createElement('div');
+      el.style.position = 'absolute';
+      el.style.width = `${size}px`;
+      el.style.height = `${size}px`;
+      el.style.left = `${x - size / 2}px`;
+      el.style.top = `${y - size / 2}px`;
+      el.style.pointerEvents = 'auto';
+      el.style.touchAction = 'none';
+      el.style.boxSizing = 'border-box';
+      el.style.boxShadow = '0 1px 4px rgba(0,0,0,0.45)';
+      el.style.cursor = cursor;
+      root.appendChild(el);
+      editHandleElsRef.current.push(el);
+      return el;
+    };
+
+    // Corner handles — move a single corner.
+    px.forEach((c, index) => {
+      const el = makeHandle(c.x, c.y, 20, 'move');
+      el.style.borderRadius = '50%';
+      el.style.background = '#fff';
+      el.style.border = `3px solid ${primary}`;
+      attachDrag(map, el, (dx, dy, start) => {
+        const next = start.map((p) => ({ ...p })) as [Point, Point, Point, Point];
+        next[index] = { x: start[index].x + dx, y: start[index].y + dy };
+        return next;
+      });
+    });
+
+    // Edge (mid-side) handles — move the whole side.
+    edges.forEach((m, index) => {
+      const a = index;
+      const b = (index + 1) % 4;
+      const el = makeHandle(m.x, m.y, 16, index % 2 === 0 ? 'ns-resize' : 'ew-resize');
+      el.style.borderRadius = '4px';
+      el.style.background = primary;
+      el.style.border = '2px solid #fff';
+      attachDrag(map, el, (dx, dy, start) => {
+        const next = start.map((p) => ({ ...p })) as [Point, Point, Point, Point];
+        next[a] = { x: start[a].x + dx, y: start[a].y + dy };
+        next[b] = { x: start[b].x + dx, y: start[b].y + dy };
+        return next;
+      });
+    });
+
+    // Rotation handle.
+    const rot = makeHandle(rotate.x, rotate.y, 22, 'grab');
+    rot.style.borderRadius = '50%';
+    rot.style.background = primary;
+    rot.style.border = '3px solid #fff';
+    rot.style.color = '#fff';
+    rot.style.display = 'flex';
+    rot.style.alignItems = 'center';
+    rot.style.justifyContent = 'center';
+    rot.style.fontSize = '13px';
+    rot.textContent = '⟳';
+    attachRotateDrag(map, rot);
+  }
+
+  /** Set up / refresh / tear down the screen-fixed edit layer for the current state. */
+  function renderEditOverlay(map: L.Map) {
+    const { imageOverlays: ovs, editingOverlayId: editId } = overlaysDataRef.current;
+    const prevId = editingIdRef.current;
+
+    // Commit + tear down when leaving (or switching away from) an overlay.
+    if (prevId && prevId !== editId) {
+      commitEdit(map, prevId);
+      teardownEditLayer();
+    }
+
+    const overlay = editId ? (ovs ?? []).find((o) => o.id === editId) : null;
+    if (!editId || !overlay) {
+      editingIdRef.current = null;
+      return;
+    }
+
+    ensureEditLayer(map, overlay);
+
+    // (Re)seed pixel corners on entry or after an external reset of the corners.
+    if (prevId !== editId || editSeededFromRef.current !== overlay.corners) {
+      editPixelCornersRef.current = pixelCornersFromGeo(map, overlay.corners);
+      editSeededFromRef.current = overlay.corners;
+    }
+    editingIdRef.current = editId;
+
+    if (editImgRef.current) {
+      if (editImgRef.current.src !== overlay.imageUri) editImgRef.current.src = overlay.imageUri;
+      editImgRef.current.style.opacity = String(overlay.opacity);
+    }
+    warpEditImage();
+    buildEditHandles(map);
+  }
+
+  useEffect(() => {
+    const map = mapInstanceRef.current;
+    if (!map || !mapReady) return;
+    renderOverlays(map);
+    renderEditOverlay(map);
+  }, [imageOverlays, editingOverlayId, mapReady]);
 
   return <div ref={mapRef} style={{ width: '100%', height: '100%' }} />;
 }

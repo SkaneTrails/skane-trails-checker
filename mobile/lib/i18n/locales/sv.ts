@@ -117,7 +117,8 @@ const sv: Translations = {
 
   permissions: {
     locationRequired: 'Platsbehörighet krävs',
-    openSettings: 'Platsåtkomst har nekats. Aktivera det i Inställningar för att spela in vandringar.',
+    openSettings:
+      'Platsåtkomst har nekats. Aktivera det i Inställningar för att spela in vandringar.',
     settings: 'Inställningar',
     backgroundRequired: 'Bakgrundsplats krävs',
     backgroundExplanation:
@@ -284,6 +285,7 @@ const sv: Translations = {
     edit: 'Redigera',
     toggleVisibility: 'Växla synlighet',
     opacity: 'Genomskinlighet',
+    dragHandles: 'Dra i hörnen för att passa kartan; använd det övre handtaget för att rotera',
     selectCorner: 'Välj ett hörn och tryck på kartan för att placera det',
     tapToPlace: 'Tryck på kartan för att placera {{corner}}',
     rotate: 'Rotera',
@@ -295,6 +297,7 @@ const sv: Translations = {
     },
     done: 'Klar',
     reset: 'Återställ',
+    imageTooLarge: 'Bilden är för stor (max 0,5 MB). Välj en mindre bild.',
   },
 
   noAccess: {
