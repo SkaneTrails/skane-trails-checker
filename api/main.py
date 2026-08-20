@@ -54,9 +54,9 @@ async def invalid_document_id_handler(request: Request, exc: InvalidDocumentIdEr
 
 
 @app.exception_handler(Exception)
-async def global_exception_handler(request: Request, exc: Exception) -> JSONResponse:  # noqa: ARG001
+async def global_exception_handler(request: Request, exc: Exception) -> JSONResponse:
     """Catch unhandled exceptions and return a generic error response."""
-    logger.exception("Unhandled error on %s %s", request.method, request.url.path)
+    logger.error("Unhandled error on %s %s", request.method, request.url.path, exc_info=exc)
     return JSONResponse(status_code=500, content={"detail": "Internal server error"})
 
 
