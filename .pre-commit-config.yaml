@@ -76,7 +76,6 @@ repos:
       - id: mdformat
         additional_dependencies:
           - mdformat-gfm # GitHub Flavored Markdown
-          - mdformat-tables
   - repo: https://github.com/pre-commit/mirrors-prettier
     rev: "v4.0.0-alpha.8"
     hooks:
