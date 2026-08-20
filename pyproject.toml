@@ -71,6 +71,7 @@ lint.ignore = [
   "ANN401",  # Any type (acceptable for dynamic types like UploadedFile)
   "BLE001",  # Blind exception (acceptable with logger.warning for user-facing messages)
   "COM812",  # Trailing comma conflicts with formatter
+  "CPY001",  # Missing copyright notice
   "D",       # Docstring rules (too verbose for now)
   "DTZ007",  # Datetime without timezone (not critical for this use case)
   "E501",    # Line too long (handled by formatter)
@@ -162,13 +163,13 @@ ini_options.log_cli_format = "%(asctime)s - %(name)s - %(levelname)s - %(message
 ini_options.cache_dir = ".cache/.pytest_cache"
 
 [tool.coverage]
-run.branch = true
-run.omit = [ "app/functions/bootstrap_trails.py", "dev-tools/*" ]
 run.source = [ "api/", "app/" ]
+run.omit = [ "app/functions/bootstrap_trails.py", "dev-tools/*" ]
+run.branch = true
+report.fail_under = 99
+report.precision = 2
 report.exclude_lines = [
   "if __name__ == .__main__.:",
   "pragma: no cover",
 ]
-report.fail_under = 99
-report.precision = 2
 report.skip_empty = true
