@@ -123,8 +123,8 @@ importers:
         specifier: ^2.4.3
         version: 2.5.10
       '@react-native/babel-plugin-codegen':
-        specifier: 0.87.0
-        version: 0.87.0(@babel/core@7.29.7)
+        specifier: 0.87.1
+        version: 0.87.1(@babel/core@7.29.7)
       '@testing-library/dom':
         specifier: ^10.4.1
         version: 10.4.1
@@ -1616,8 +1616,8 @@ packages:
     resolution: {integrity: sha512-O6Xza4JBGPIU8J7YbKTyBoYL4thpy8jMW/oaLDWdAyOwYHKIjK47pAL5HUEbOe2bWz2PEKjbYRF2ApkJv1ottQ==}
     engines: {node: ^20.19.4 || ^22.13.0 || ^24.3.0 || >= 25.0.0}
 
-  '@react-native/babel-plugin-codegen@0.87.0':
-    resolution: {integrity: sha512-q0CCSAYgomb2G1fkmJ5ughwvVLqjHcdJ4w3Ffxw4YsdBenWYZsnMARyr/ghvcvfV33/YsZQhdMZ3XnpG6oth/Q==}
+  '@react-native/babel-plugin-codegen@0.87.1':
+    resolution: {integrity: sha512-DfnyLAHG7jH4pqeID7ib6AeD6gG8T+KvM3c/w/yEa5ONkfRcHvTC8JMIRdhUqs4ruA+8xbYcNVQzewYRCPm1Xw==}
     engines: {node: ^22.13.0 || ^24.3.0 || >= 26.0.0}
 
   '@react-native/babel-preset@0.85.3':
@@ -1638,8 +1638,8 @@ packages:
     peerDependencies:
       '@babel/core': '*'
 
-  '@react-native/codegen@0.87.0':
-    resolution: {integrity: sha512-odcBGR0A9Ee83A/XvzOp9juGRkSQOQcI4ZYs+3H20MySMxvZJ34/2nVHoxdmj0YY0Mn6gF8BjLzYkL0axbHuCA==}
+  '@react-native/codegen@0.87.1':
+    resolution: {integrity: sha512-qbaqEdlUfj2vRgvWTpMoNgHnEqAhAYJLUrpGkb0WC9n0kdtqUvgigpz4bDktZwolM9BemXwgGFgyiAnbs3t0xw==}
     engines: {node: ^22.13.0 || ^24.3.0 || >= 26.0.0}
     peerDependencies:
       '@babel/core': '*'
@@ -6226,10 +6226,10 @@ snapshots:
       - '@babel/core'
       - supports-color
 
-  '@react-native/babel-plugin-codegen@0.87.0(@babel/core@7.29.7)':
+  '@react-native/babel-plugin-codegen@0.87.1(@babel/core@7.29.7)':
     dependencies:
       '@babel/traverse': 7.29.8
-      '@react-native/codegen': 0.87.0(@babel/core@7.29.7)
+      '@react-native/codegen': 0.87.1(@babel/core@7.29.7)
     transitivePeerDependencies:
       - '@babel/core'
       - supports-color
@@ -6292,7 +6292,7 @@ snapshots:
       tinyglobby: 0.2.17
       yargs: 17.7.3
 
-  '@react-native/codegen@0.87.0(@babel/core@7.29.7)':
+  '@react-native/codegen@0.87.1(@babel/core@7.29.7)':
     dependencies:
       '@babel/core': 7.29.7
       '@babel/parser': 7.29.8
