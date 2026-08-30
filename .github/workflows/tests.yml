@@ -32,7 +32,7 @@ jobs:
         with:
           # Pinned exact: Node 24.17.0 has an http.Agent keep-alive regression
           # (nodejs/node#63989). Fixed in 24.18.0. See fix/node-24-keepalive-firebase-deploy.
-          node-version: "24.19.0"
+          node-version: "24.20.0"
 
       - name: Install pnpm
         run: npm install -g pnpm@10
@@ -96,7 +96,7 @@ jobs:
         with:
           # Pinned exact: Node 24.17.0 has an http.Agent keep-alive regression
           # (nodejs/node#63989). Fixed in 24.18.0. See fix/node-24-keepalive-firebase-deploy.
-          node-version: "24.19.0"
+          node-version: "24.20.0"
 
       - name: Install pnpm
         run: npm install -g pnpm@10
