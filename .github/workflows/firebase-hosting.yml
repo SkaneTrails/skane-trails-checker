@@ -41,7 +41,7 @@ jobs:
           # (nodejs/node#63989) that makes google-auth-library throw "Premature close"
           # on googleapis.com token exchange, breaking WIF/ADC deploys.
           # Fixed in 24.18.0. Relax once a newer safe 24.x is runner-cached.
-          node-version: "24.19.0"
+          node-version: "24.20.0"
 
       - name: Install pnpm
         run: npm install -g pnpm@10
