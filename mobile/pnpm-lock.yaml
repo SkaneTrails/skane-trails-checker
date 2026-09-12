@@ -33,7 +33,7 @@ importers:
         version: 16.1.5(expo@57.0.21)(react-native@0.85.3(@babel/core@7.29.7)(@react-native/metro-config@0.85.3(@babel/core@7.29.7))(@types/react@19.2.18)(react@19.2.8))(react@19.2.8)
       '@react-three/fiber':
         specifier: ^9.6.1
-        version: 9.7.0(2fcb878b5c9d1be87f19a2a685591cd9)
+        version: 9.7.0(f5b21f18f558b1eded39e36b20219931)
       '@tanstack/react-query':
         specifier: ^5.90.21
         version: 5.102.8(react@19.2.8)
@@ -116,8 +116,8 @@ importers:
         specifier: ^0.21.0
         version: 0.21.2(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
       three:
-        specifier: ^0.185.0
-        version: 0.185.1
+        specifier: ^0.186.0
+        version: 0.186.0
     devDependencies:
       '@biomejs/biome':
         specifier: ^2.4.3
@@ -4189,8 +4189,8 @@ packages:
     engines: {node: '>=10'}
     hasBin: true
 
-  three@0.185.1:
-    resolution: {integrity: sha512-5aojFCXKwnjBRZvUnt3WFfEcvUJgkN5LlijRFN95hMy8WVkG4I0QNcJE+OuWvuJ0bOdStrbfXn0pkd6/QyiAlg==}
+  three@0.186.0:
+    resolution: {integrity: sha512-cr/fIM2ddMSVbYVgkfD4jLJv7Fh/8ZTjvo+7gQeSVGUZHxpx9FDwoL5iC7hUz/LiRA8wMbqfnb90xKfm1/HHkQ==}
 
   throat@5.0.0:
     resolution: {integrity: sha512-fcwX4mndzpLQKBS1DVYhGAcYaYt7vsHNIvQV+WXMvnow5cgjPphq5CaayLaGsjRdSCKZFNGt7/GYAuXaNOiYCA==}
@@ -6492,7 +6492,7 @@ snapshots:
     optionalDependencies:
       '@types/react': 19.2.18
 
-  '@react-three/fiber@9.7.0(2fcb878b5c9d1be87f19a2a685591cd9)':
+  '@react-three/fiber@9.7.0(f5b21f18f558b1eded39e36b20219931)':
     dependencies:
       '@babel/runtime': 7.29.7
       '@types/webxr': 0.5.24
@@ -6503,7 +6503,7 @@ snapshots:
       react-use-measure: 2.1.7(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
       scheduler: 0.27.0
       suspend-react: 0.1.3(react@19.2.8)
-      three: 0.185.1
+      three: 0.186.0
       use-sync-external-store: 1.6.0(react@19.2.8)
       zustand: 5.0.15(@types/react@19.2.18)(react@19.2.8)(use-sync-external-store@1.6.0(react@19.2.8))
     optionalDependencies:
@@ -9302,7 +9302,7 @@ snapshots:
       commander: 2.20.3
       source-map-support: 0.5.21
 
-  three@0.185.1: {}
+  three@0.186.0: {}
 
   throat@5.0.0: {}
 
