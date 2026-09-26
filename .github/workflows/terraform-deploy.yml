@@ -91,7 +91,7 @@ jobs:
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@b9cd54a3c349d3f38e8881555d616ced269862dd # v3.1.2
         with:
-          terraform_version: "v1.16.3"
+          terraform_version: "v1.16.4"
 
       - name: Terraform init
         working-directory: ${{ env.TF_DIR }}
