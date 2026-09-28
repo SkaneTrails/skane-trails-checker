@@ -33,7 +33,7 @@ importers:
         version: 16.1.5(expo@57.0.25)(react-native@0.85.3(@babel/core@7.29.7)(@react-native/metro-config@0.85.3(@babel/core@7.29.7))(@types/react@19.3.0)(react@19.3.0))(react@19.3.0)
       '@react-three/fiber':
         specifier: ^9.6.1
-        version: 9.8.0(5a8aa0558ae3364947b4dfbc210af0fd)
+        version: 9.8.1(5a8aa0558ae3364947b4dfbc210af0fd)
       '@tanstack/react-query':
         specifier: ^5.90.21
         version: 5.103.2(react@19.3.0)
@@ -1726,8 +1726,8 @@ packages:
       '@types/react':
         optional: true
 
-  '@react-three/fiber@9.8.0':
-    resolution: {integrity: sha512-We1NYDnG9/AN8VToe75S9B5WlDsSCE43t948niieOqQ1x4U/PIazRgZh09Qo+x8q5OTAS83xI0eFhzVcgc3mVg==}
+  '@react-three/fiber@9.8.1':
+    resolution: {integrity: sha512-GbNP4r6F/gpclFKkLGHzXcuwFWAzLyKsmrQGcDuwK3wQnwLH6F1TfGtEYjHy8OQoGsajwT19B9jtVLLjjfH09w==}
     peerDependencies:
       expo: '>=43.0'
       expo-asset: '>=8.4'
@@ -6504,7 +6504,7 @@ snapshots:
     optionalDependencies:
       '@types/react': 19.3.0
 
-  '@react-three/fiber@9.8.0(5a8aa0558ae3364947b4dfbc210af0fd)':
+  '@react-three/fiber@9.8.1(5a8aa0558ae3364947b4dfbc210af0fd)':
     dependencies:
       '@babel/runtime': 7.29.7
       '@types/webxr': 0.5.24
