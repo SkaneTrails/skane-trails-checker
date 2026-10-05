@@ -74,10 +74,18 @@ export default function MapScreen() {
   const { data: currentUser } = useCurrentUser();
   const isSuperuser = currentUser?.role === 'superuser';
 
-  const { data: trails, isFetching: trailsFetching } = useMapTrails();
-  const { data: spots } = useForagingSpots();
-  const { data: types } = useForagingTypes();
-  const { data: places } = usePlaces();
+  // Layer state comes first so hidden layers (and the not-yet-loaded state) never fetch.
+  const { layers: mapLayers, toggleLayer } = useMapLayers();
+  const [showAddSpot, setShowAddSpot] = useState(false);
+
+  // A trail deep link needs its trail even when the trails layer is hidden.
+  const { data: trails, isFetching: trailsFetching } = useMapTrails({
+    enabled: mapLayers.trails || !!trailId,
+  });
+  const { data: spots } = useForagingSpots(undefined, { enabled: mapLayers.foraging });
+  // The add-spot form needs the types even when the foraging layer is hidden.
+  const { data: types } = useForagingTypes({ enabled: mapLayers.foraging || showAddSpot });
+  const { data: places } = usePlaces(undefined, { enabled: mapLayers.places });
   const { points: recordingPoints } = useTracking();
   const updateTrail = useUpdateTrail();
   const deleteTrail = useDeleteTrail();
@@ -90,8 +98,6 @@ export default function MapScreen() {
       ),
     [places, enabledPlaceCategories],
   );
-
-  const { layers: mapLayers, toggleLayer } = useMapLayers();
 
   const { data: imagePins } = useImagePins({ enabled: mapLayers.images });
 
@@ -117,7 +123,6 @@ export default function MapScreen() {
   const [showPlacesDrawer, setShowPlacesDrawer] = useState(false);
 
   // Long-press add foraging spot state
-  const [showAddSpot, setShowAddSpot] = useState(false);
   const [longPressCoords, setLongPressCoords] = useState<{ lat: number; lng: number } | null>(null);
   const [spotLocationError, setSpotLocationError] = useState(false);
   const createSpot = useCreateForagingSpot();

@@ -75,7 +75,7 @@ export const TrailListDrawer = ({
   onUpload,
 }: TrailListDrawerProps) => {
   const { colors } = useTheme();
-  const { t } = useTranslation();
+  const { t, language } = useTranslation();
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<string | undefined>();
   const [sortMode, setSortMode] = useState<TrailSortMode>('date');
@@ -101,8 +101,9 @@ export const TrailListDrawer = ({
           status: statusFilter as Trail['status'] | undefined,
         }),
         sortMode,
+        language,
       ),
-    [allTrails, search, statusFilter, sortMode],
+    [allTrails, search, statusFilter, sortMode, language],
   );
 
   const trailCount = trails.length;

@@ -714,6 +714,38 @@ describe('sortTrails', () => {
     expect(sortTrails([pB, pA, upload]).map((t) => t.trail_id)).toEqual(['u', 'pa', 'pb']);
   });
 
+  it('uses created_at when activity_date is present but unparseable', () => {
+    const fallback = makeTrail({
+      trail_id: 'f',
+      name: 'F',
+      source: 'other_trails',
+      activity_date: 'last summer',
+      created_at: '2025-06-01T00:00:00Z',
+    });
+    const older = makeTrail({
+      trail_id: 'o',
+      name: 'O',
+      source: 'other_trails',
+      activity_date: '2024-01-01',
+    });
+
+    expect(sortTrails([older, fallback]).map((t) => t.trail_id)).toEqual(['f', 'o']);
+  });
+
+  it('sorts Å, Ä and Ö after Z with the Swedish locale only', () => {
+    const names = ['Östra', 'Zeta', 'Åre', 'Alpha', 'Ängelholm'];
+    const trails = names.map((name) => makeTrail({ trail_id: name, name, source: 'other_trails' }));
+
+    expect(sortTrails(trails, 'name', 'sv').map((t) => t.name)).toEqual([
+      'Alpha',
+      'Zeta',
+      'Åre',
+      'Ängelholm',
+      'Östra',
+    ]);
+    expect(sortTrails(trails, 'name').map((t) => t.name)[2]).not.toBe('Zeta');
+  });
+
   it('does not mutate the original array', () => {
     const trails = [
       makeTrail({ trail_id: 'p1', name: 'Planned', source: 'planned_hikes' }),

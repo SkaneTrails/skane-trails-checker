@@ -48,6 +48,15 @@ describe('usePlaces', () => {
       expect(mockPlacesApi.getPlaces).toHaveBeenCalledWith('swimming');
     });
   });
+
+  it('does not fetch while disabled', async () => {
+    const wrapper = createQueryWrapper();
+
+    const { result } = renderHook(() => usePlaces(undefined, { enabled: false }), { wrapper });
+
+    expect(result.current.fetchStatus).toBe('idle');
+    expect(mockPlacesApi.getPlaces).not.toHaveBeenCalled();
+  });
 });
 
 describe('usePlaceCategories', () => {

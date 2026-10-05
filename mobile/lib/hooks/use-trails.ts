@@ -20,8 +20,12 @@ export type TrailSortMode = 'date' | 'name';
 /** Hike date for sorting; planned hikes have no hike date and count as undated. */
 function trailTimestamp(trail: Trail): number {
   if (trail.source === 'planned_hikes') return Number.NEGATIVE_INFINITY;
-  const ms = Date.parse(trail.activity_date ?? trail.created_at ?? '');
-  return Number.isNaN(ms) ? Number.NEGATIVE_INFINITY : ms;
+  // activity_date is free text, so an unparseable one must not hide a valid created_at.
+  for (const raw of [trail.activity_date, trail.created_at]) {
+    const ms = raw ? Date.parse(raw) : Number.NaN;
+    if (!Number.isNaN(ms)) return ms;
+  }
+  return Number.NEGATIVE_INFINITY;
 }
 
 /**
@@ -29,7 +33,11 @@ function trailTimestamp(trail: Trail): number {
  * Within each group: most recent first (undated last) or alphabetical by name.
  * Name is always the tie-breaker.
  */
-export function sortTrails(trails: Trail[], mode: TrailSortMode = 'date'): Trail[] {
+export function sortTrails(
+  trails: Trail[],
+  mode: TrailSortMode = 'date',
+  locale = 'en-US',
+): Trail[] {
   return [...trails].sort((a, b) => {
     const aPlanned = a.source === 'planned_hikes' ? 1 : 0;
     const bPlanned = b.source === 'planned_hikes' ? 1 : 0;
@@ -39,9 +47,9 @@ export function sortTrails(trails: Trail[], mode: TrailSortMode = 'date'): Trail
       const bTime = trailTimestamp(b);
       if (aTime !== bTime) return aTime > bTime ? -1 : 1;
     }
-    const aName = a.name.toLocaleLowerCase('en-US');
-    const bName = b.name.toLocaleLowerCase('en-US');
-    return aName.localeCompare(bName, 'en-US');
+    const aName = a.name.toLocaleLowerCase(locale);
+    const bName = b.name.toLocaleLowerCase(locale);
+    return aName.localeCompare(bName, locale);
   });
 }
 

@@ -7,11 +7,12 @@ export const placeKeys = {
   categories: ['places', 'categories'] as const,
 };
 
-export function usePlaces(category?: string) {
+export function usePlaces(category?: string, options?: { enabled?: boolean }) {
   return useQuery({
     queryKey: placeKeys.list(category),
     queryFn: () => placesApi.getPlaces(category),
     staleTime: 30 * 60 * 1000, // 30 min — places rarely change
+    enabled: options?.enabled,
   });
 }
 
