@@ -74,4 +74,13 @@ describe('usePlaceCategories', () => {
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
     expect(result.current.data).toEqual(categories);
   });
+
+  it('does not fetch while disabled', () => {
+    const wrapper = createQueryWrapper();
+
+    const { result } = renderHook(() => usePlaceCategories({ enabled: false }), { wrapper });
+
+    expect(result.current.fetchStatus).toBe('idle');
+    expect(mockPlacesApi.getCategories).not.toHaveBeenCalled();
+  });
 });

@@ -16,10 +16,11 @@ export function usePlaces(category?: string, options?: { enabled?: boolean }) {
   });
 }
 
-export function usePlaceCategories() {
+export function usePlaceCategories(options?: { enabled?: boolean }) {
   return useQuery({
     queryKey: placeKeys.categories,
     queryFn: () => placesApi.getCategories(),
     staleTime: 30 * 60 * 1000, // 30 min — categories rarely change
+    enabled: options?.enabled,
   });
 }

@@ -68,7 +68,7 @@ export const PlacesDrawer = ({ isOpen, onClose }: PlacesDrawerProps) => {
   const { t } = useTranslation();
   const { enabledPlaceCategories, togglePlaceCategory, setEnabledPlaceCategories } = useSettings();
   const { data: places, isLoading, error } = usePlaces(undefined, { enabled: isOpen });
-  const { data: categories } = usePlaceCategories();
+  const { data: categories } = usePlaceCategories({ enabled: isOpen });
 
   const categoryEntries = categories ? Object.entries(categories) : [];
   const allEnabled =
