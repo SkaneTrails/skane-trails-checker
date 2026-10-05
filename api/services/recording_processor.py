@@ -10,12 +10,40 @@ from app.functions.trail_converter import detect_source
 _MIN_HORIZ_DIST_M = 1.0
 _MS_PER_MINUTE = 60_000
 
+# GPS outlier rejection: drop a point only when it jumps a large distance from the
+# last accepted point in an implausibly short time (i.e. faster than any hiker/runner).
+_MAX_PLAUSIBLE_SPEED_MS = 10.0  # ~36 km/h
+_MIN_OUTLIER_DIST_M = 50.0
+
 
 def _haversine_km(lat1: float, lng1: float, lat2: float, lng2: float) -> float:
     """Approximate distance in km between two coordinates."""
     lat_diff = (lat2 - lat1) * 111.0
     lng_diff = (lng2 - lng1) * 111.0 * math.cos(math.radians(lat1))
     return (lat_diff**2 + lng_diff**2) ** 0.5
+
+
+def _filter_speed_outliers(coordinates: list[RecordingCoordinate]) -> list[RecordingCoordinate]:
+    """Drop GPS points that imply an impossibly fast jump from the last good point.
+
+    Compares each point against the last *accepted* point (not the raw previous one)
+    so a single bad fix can't drag the whole track. Only large jumps (> _MIN_OUTLIER_DIST_M)
+    at an implausible speed are removed; close-range jitter is kept. If filtering would
+    leave fewer than two points, the original list is returned unchanged.
+    """
+    if len(coordinates) < 3:  # noqa: PLR2004
+        return coordinates
+
+    accepted = [coordinates[0]]
+    for point in coordinates[1:]:
+        prev = accepted[-1]
+        dist_m = _haversine_km(prev.lat, prev.lng, point.lat, point.lng) * 1000.0
+        dt_s = (point.timestamp - prev.timestamp) / 1000.0
+        if dist_m > _MIN_OUTLIER_DIST_M and (dt_s <= 0 or dist_m / dt_s > _MAX_PLAUSIBLE_SPEED_MS):
+            continue
+        accepted.append(point)
+
+    return accepted if len(accepted) >= 2 else coordinates  # noqa: PLR2004
 
 
 def _compute_elevation_metrics(
@@ -75,6 +103,7 @@ def process_recording(
     Source is auto-detected from coordinates.
     Returns a (TrailResponse, TrailDetailsResponse) tuple ready for storage.
     """
+    coordinates = _filter_speed_outliers(coordinates)
     all_coords = [(c.lat, c.lng) for c in coordinates]
     source = detect_source(all_coords)
     lats = [c.lat for c in coordinates]
