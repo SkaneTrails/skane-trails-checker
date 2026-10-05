@@ -296,8 +296,22 @@ The import pipeline preserves elevation data, extracts duration from timestamps,
 ### Maintenance
 
 - **`backfill_trail_metadata.py`**: Update existing trails with missing metadata
+
 - **`check_foraging.py`**: Verify foraging data integrity
+
 - **`check_rounding.py`**: Check coordinate precision
+
+- **`clean_trail_outliers.py`**: Remove GPS spike outliers from stored trails and recompute derived fields (`coordinates_map`, `bounds`, `center`, `length_km`, elevation metrics). Geometry-only heuristic for trails recorded before the live speed filter. **Dry-run by default**; review the reported dropped indices, then re-run with `--apply` to persist.
+
+  ```bash
+  # Review (dry-run): select by id, name substring, or all recorded trails
+  uv run python dev-tools/clean_trail_outliers.py --trail-id <id>
+  uv run python dev-tools/clean_trail_outliers.py --name "Hemmestorp"
+  uv run python dev-tools/clean_trail_outliers.py --all-recorded
+
+  # Persist changes for one trail
+  uv run python dev-tools/clean_trail_outliers.py --trail-id <id> --apply
+  ```
 
 ## Files
 

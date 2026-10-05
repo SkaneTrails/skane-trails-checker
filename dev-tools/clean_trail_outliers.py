@@ -43,9 +43,12 @@ def _dist_m(a: Coordinate, b: Coordinate) -> float:
 def clean_outliers(coords: list[Coordinate], abs_min_m: float, factor: float) -> tuple[list[Coordinate], list[int]]:
     """Return (cleaned_coords, dropped_indices) using a geometry-only heuristic.
 
-    A point is dropped when its distance from the last accepted point exceeds
-    both ``abs_min_m`` and ``factor`` times the median consecutive step. Falls
-    back to the original list if cleaning would leave fewer than two points.
+    A point is dropped only when it is an *isolated* jump-and-return spike: its
+    distance from the last accepted point exceeds both ``abs_min_m`` and
+    ``factor`` times the median consecutive step, **and** the following point
+    returns within that threshold of the anchor. A sustained far segment (e.g. a
+    recording resumed after a gap) is kept as a new anchor instead of deleted.
+    Falls back to the original list if cleaning would leave fewer than two points.
     """
     if len(coords) < _MIN_POINTS:
         return coords, []
@@ -57,9 +60,15 @@ def clean_outliers(coords: list[Coordinate], abs_min_m: float, factor: float) ->
     accepted: list[Coordinate] = [coords[0]]
     dropped: list[int] = []
     for i in range(1, len(coords)):
-        if _dist_m(accepted[-1], coords[i]) > threshold:
-            dropped.append(i)
-            continue
+        anchor = accepted[-1]
+        if _dist_m(anchor, coords[i]) > threshold:
+            # Only treat a far point as an isolated spike when the track returns
+            # near the anchor at the next point. A sustained far segment (e.g. a
+            # resumed recording after a gap) is kept as a new anchor instead.
+            nxt = coords[i + 1] if i + 1 < len(coords) else None
+            if nxt is not None and _dist_m(anchor, nxt) <= threshold:
+                dropped.append(i)
+                continue
         accepted.append(coords[i])
 
     if len(accepted) < 2:  # noqa: PLR2004
@@ -99,6 +108,12 @@ def _recompute(trail: TrailResponse, details: TrailDetailsResponse, cleaned: lis
             )
     else:
         trail.coordinates_map = [Coordinate(lat=la, lng=ln) for la, ln in simplified]
+        # No complete elevation series: drop metrics that would otherwise be stale.
+        trail.elevation_gain = None
+        trail.elevation_loss = None
+        trail.avg_inclination_deg = None
+        trail.max_inclination_deg = None
+        details.elevation_profile = None
 
     details.coordinates_full = cleaned
 
