@@ -29,6 +29,30 @@ export class OverlayImageTooLargeError extends Error {
   }
 }
 
+/** Thrown on web when an image within the size cap cannot be shrunk to the browser storage budget. */
+export class OverlayImageNotShrinkableError extends Error {
+  constructor(sizeBytes: number) {
+    super(`Overlay image of ${sizeBytes} bytes cannot be shrunk to ${WEB_STORED_MAX_BYTES} bytes`);
+    this.name = 'OverlayImageNotShrinkableError';
+  }
+}
+
+/** Thrown on web when the browser fails to decode or re-encode the image. */
+export class OverlayImageProcessingError extends Error {
+  constructor(cause: unknown) {
+    super('Overlay image could not be processed', { cause });
+    this.name = 'OverlayImageProcessingError';
+  }
+}
+
+/** Translation key for the overlay image errors thrown here, or null for any other error. */
+export function overlayImageErrorKey(error: unknown): string | null {
+  if (error instanceof OverlayImageTooLargeError) return 'overlays.imageTooLarge';
+  if (error instanceof OverlayImageNotShrinkableError) return 'overlays.imageNotShrinkable';
+  if (error instanceof OverlayImageProcessingError) return 'overlays.imageProcessingFailed';
+  return null;
+}
+
 /**
  * Get the overlays directory, creating it if needed.
  */
@@ -73,7 +97,8 @@ async function blobToDataUrl(blob: Blob): Promise<string> {
  * comfortably in localStorage.
  *
  * Throws {@link OverlayImageTooLargeError} if the image exceeds
- * {@link MAX_OVERLAY_IMAGE_BYTES} (or cannot be shrunk to fit on web).
+ * {@link MAX_OVERLAY_IMAGE_BYTES}. On web it can also throw
+ * {@link OverlayImageNotShrinkableError} or {@link OverlayImageProcessingError}.
  */
 async function copyImageToStorage(sourceUri: string): Promise<string> {
   if (Platform.OS === 'web') {
@@ -81,8 +106,13 @@ async function copyImageToStorage(sourceUri: string): Promise<string> {
     if (blob.size > MAX_OVERLAY_IMAGE_BYTES) throw new OverlayImageTooLargeError(blob.size);
     if (blob.size <= WEB_STORED_MAX_BYTES) return blobToDataUrl(blob);
 
-    const shrunk = await encodeWithinBudget((step) => encodeJpeg(blob, step), WEB_STORED_MAX_BYTES);
-    if (!shrunk) throw new OverlayImageTooLargeError(blob.size);
+    let shrunk: Blob | null;
+    try {
+      shrunk = await encodeWithinBudget((step) => encodeJpeg(blob, step), WEB_STORED_MAX_BYTES);
+    } catch (error) {
+      throw new OverlayImageProcessingError(error);
+    }
+    if (!shrunk) throw new OverlayImageNotShrinkableError(blob.size);
     return blobToDataUrl(shrunk);
   }
 

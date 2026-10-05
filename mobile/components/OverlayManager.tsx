@@ -12,7 +12,7 @@ import type { MapOverlay } from '@/lib/map-overlays';
 import { confirmDeleteOverlay } from '@/lib/overlay-delete';
 import {
   captureImageFromCamera,
-  OverlayImageTooLargeError,
+  overlayImageErrorKey,
   pickImageFromGallery,
 } from '@/lib/overlay-image-picker';
 import { borderRadius, fontSize, fontWeight, spacing, useTheme } from '@/lib/theme';
@@ -52,6 +52,15 @@ export function OverlayManager({
     [t],
   );
 
+  const reportPickError = useCallback(
+    (error: unknown) => {
+      const key = overlayImageErrorKey(error);
+      if (!key) throw error;
+      notifyError(t(key));
+    },
+    [notifyError, t],
+  );
+
   const handlePickGallery = useCallback(async () => {
     try {
       const uri = await pickImageFromGallery();
@@ -60,13 +69,9 @@ export function OverlayManager({
         await onAddOverlay(uri, name);
       }
     } catch (error) {
-      if (error instanceof OverlayImageTooLargeError) {
-        notifyError(t('overlays.imageTooLarge'));
-      } else {
-        throw error;
-      }
+      reportPickError(error);
     }
-  }, [overlays.length, onAddOverlay, notifyError, t]);
+  }, [overlays.length, onAddOverlay, reportPickError]);
 
   const handleTakePhoto = useCallback(async () => {
     try {
@@ -76,13 +81,9 @@ export function OverlayManager({
         await onAddOverlay(uri, name);
       }
     } catch (error) {
-      if (error instanceof OverlayImageTooLargeError) {
-        notifyError(t('overlays.imageTooLarge'));
-      } else {
-        throw error;
-      }
+      reportPickError(error);
     }
-  }, [overlays.length, onAddOverlay, notifyError, t]);
+  }, [overlays.length, onAddOverlay, reportPickError]);
 
   const handleDelete = useCallback(
     (overlay: MapOverlay) =>

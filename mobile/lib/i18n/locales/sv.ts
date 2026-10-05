@@ -308,6 +308,9 @@ const sv: Translations = {
     done: 'Klar',
     reset: 'Återställ',
     imageTooLarge: 'Bilden är för stor (max 10 MB). Välj en mindre bild.',
+    imageNotShrinkable:
+      'Bilden kan inte minskas tillräckligt för att sparas i webbläsaren. Välj en mindre bild.',
+    imageProcessingFailed: 'Bilden kunde inte bearbetas. Försök med en annan bild.',
   },
 
   noAccess: {
