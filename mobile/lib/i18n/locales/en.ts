@@ -306,7 +306,11 @@ const en = {
     },
     done: 'Done',
     reset: 'Reset',
-    imageTooLarge: 'Image is too large (max 0.5 MB). Please choose a smaller image.',
+    imageTooLarge: 'Image is too large (max 10 MB). Please choose a smaller image.',
+    imageNotShrinkable:
+      'This image cannot be reduced enough to be saved in the browser. Please choose a smaller image.',
+    imageProcessingFailed: 'The image could not be processed. Please try a different image.',
+    limitReached: 'The browser can only store {{max}} overlays. Delete one to add another.',
   },
 
   noAccess: {

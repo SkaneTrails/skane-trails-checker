@@ -8,11 +8,11 @@
 import { useCallback, useState } from 'react';
 import { Alert, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useTranslation } from '@/lib/i18n';
-import type { MapOverlay } from '@/lib/map-overlays';
+import { canAddOverlay, MAX_WEB_OVERLAYS, type MapOverlay } from '@/lib/map-overlays';
 import { confirmDeleteOverlay } from '@/lib/overlay-delete';
 import {
   captureImageFromCamera,
-  OverlayImageTooLargeError,
+  overlayImageErrorKey,
   pickImageFromGallery,
 } from '@/lib/overlay-image-picker';
 import { borderRadius, fontSize, fontWeight, spacing, useTheme } from '@/lib/theme';
@@ -52,6 +52,23 @@ export function OverlayManager({
     [t],
   );
 
+  const handleStartAdd = useCallback(() => {
+    if (!canAddOverlay(overlays.length, Platform.OS)) {
+      notifyError(t('overlays.limitReached', { max: MAX_WEB_OVERLAYS }));
+      return;
+    }
+    setIsAdding(true);
+  }, [overlays.length, notifyError, t]);
+
+  const reportPickError = useCallback(
+    (error: unknown) => {
+      const key = overlayImageErrorKey(error);
+      if (!key) throw error;
+      notifyError(t(key));
+    },
+    [notifyError, t],
+  );
+
   const handlePickGallery = useCallback(async () => {
     try {
       const uri = await pickImageFromGallery();
@@ -60,13 +77,9 @@ export function OverlayManager({
         await onAddOverlay(uri, name);
       }
     } catch (error) {
-      if (error instanceof OverlayImageTooLargeError) {
-        notifyError(t('overlays.imageTooLarge'));
-      } else {
-        throw error;
-      }
+      reportPickError(error);
     }
-  }, [overlays.length, onAddOverlay, notifyError, t]);
+  }, [overlays.length, onAddOverlay, reportPickError]);
 
   const handleTakePhoto = useCallback(async () => {
     try {
@@ -76,13 +89,9 @@ export function OverlayManager({
         await onAddOverlay(uri, name);
       }
     } catch (error) {
-      if (error instanceof OverlayImageTooLargeError) {
-        notifyError(t('overlays.imageTooLarge'));
-      } else {
-        throw error;
-      }
+      reportPickError(error);
     }
-  }, [overlays.length, onAddOverlay, notifyError, t]);
+  }, [overlays.length, onAddOverlay, reportPickError]);
 
   const handleDelete = useCallback(
     (overlay: MapOverlay) =>
@@ -229,11 +238,7 @@ export function OverlayManager({
           <Button title={t('overlays.cancel')} variant="glass" onPress={() => setIsAdding(false)} />
         </View>
       ) : (
-        <Button
-          title={t('overlays.addOverlay')}
-          variant="primary"
-          onPress={() => setIsAdding(true)}
-        />
+        <Button title={t('overlays.addOverlay')} variant="primary" onPress={handleStartAdd} />
       )}
     </View>
   );

@@ -4,10 +4,12 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   calculateCornersForImage,
   calculateInitialCorners,
+  canAddOverlay,
   type GeoCoord,
   getOverlayCenter,
   getOverlayRotation,
   isPointInCorners,
+  MAX_WEB_OVERLAYS,
   type MapOverlay,
   rotateCorners,
   useMapOverlays,
@@ -219,6 +221,20 @@ describe('useMapOverlays', () => {
     expect(result.current.overlays).toHaveLength(2);
     expect(result.current.visibleOverlays).toHaveLength(1);
     expect(result.current.visibleOverlays[0].name).toBe('Visible');
+  });
+});
+
+describe('canAddOverlay', () => {
+  it('allows adding on web until the limit is reached', () => {
+    expect(canAddOverlay(0, 'web')).toBe(true);
+    expect(canAddOverlay(MAX_WEB_OVERLAYS - 1, 'web')).toBe(true);
+    expect(canAddOverlay(MAX_WEB_OVERLAYS, 'web')).toBe(false);
+    expect(canAddOverlay(MAX_WEB_OVERLAYS + 1, 'web')).toBe(false);
+  });
+
+  it('never limits native, where images are files', () => {
+    expect(canAddOverlay(MAX_WEB_OVERLAYS, 'android')).toBe(true);
+    expect(canAddOverlay(50, 'ios')).toBe(true);
   });
 });
 

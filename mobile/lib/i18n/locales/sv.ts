@@ -307,7 +307,11 @@ const sv: Translations = {
     },
     done: 'Klar',
     reset: 'Återställ',
-    imageTooLarge: 'Bilden är för stor (max 0,5 MB). Välj en mindre bild.',
+    imageTooLarge: 'Bilden är för stor (max 10 MB). Välj en mindre bild.',
+    imageNotShrinkable:
+      'Bilden kan inte minskas tillräckligt för att sparas i webbläsaren. Välj en mindre bild.',
+    imageProcessingFailed: 'Bilden kunde inte bearbetas. Försök med en annan bild.',
+    limitReached: 'Webbläsaren kan bara lagra {{max}} överlägg. Radera ett för att lägga till ett nytt.',
   },
 
   noAccess: {

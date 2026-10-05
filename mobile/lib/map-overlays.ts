@@ -49,6 +49,17 @@ export interface MapOverlayUpdate {
 
 const STORAGE_KEY = '@skane_trails_map_overlays';
 
+/**
+ * Web stores every overlay image as a data URL inside one localStorage value (a few MB in
+ * total), so only a handful fit. Native keeps images as files and has no such limit.
+ */
+export const MAX_WEB_OVERLAYS = 3;
+
+/** Whether another overlay may be added on the given platform (`Platform.OS`). */
+export function canAddOverlay(currentCount: number, platformOS: string): boolean {
+  return platformOS !== 'web' || currentCount < MAX_WEB_OVERLAYS;
+}
+
 /** Generate a unique ID for new overlays */
 function generateId(): string {
   return `overlay_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;

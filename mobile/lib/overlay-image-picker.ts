@@ -8,12 +8,16 @@
 import { Directory, File, Paths } from 'expo-file-system';
 import * as ImagePicker from 'expo-image-picker';
 import { Platform } from 'react-native';
+import { encodeJpeg, encodeWithinBudget } from '@/lib/overlay-image-compress';
 
 /** Directory where overlay images are stored */
 const OVERLAYS_DIR_NAME = 'map-overlays';
 
-/** Maximum allowed size of an overlay image, in bytes (0.5 MB). */
-export const MAX_OVERLAY_IMAGE_BYTES = 0.5 * 1024 * 1024;
+/** Maximum size of a picked overlay image, in bytes (10 MB). */
+export const MAX_OVERLAY_IMAGE_BYTES = 10 * 1024 * 1024;
+
+/** Web keeps the image inside localStorage (a few MB in total), so it is shrunk to fit this many bytes (0.75 MB). */
+const WEB_STORED_MAX_BYTES = 0.75 * 1024 * 1024;
 
 /** Thrown when a selected overlay image exceeds {@link MAX_OVERLAY_IMAGE_BYTES}. */
 export class OverlayImageTooLargeError extends Error {
@@ -23,6 +27,30 @@ export class OverlayImageTooLargeError extends Error {
     this.name = 'OverlayImageTooLargeError';
     this.sizeBytes = sizeBytes;
   }
+}
+
+/** Thrown on web when an image within the size cap cannot be shrunk to the browser storage budget. */
+export class OverlayImageNotShrinkableError extends Error {
+  constructor(sizeBytes: number) {
+    super(`Overlay image of ${sizeBytes} bytes cannot be shrunk to ${WEB_STORED_MAX_BYTES} bytes`);
+    this.name = 'OverlayImageNotShrinkableError';
+  }
+}
+
+/** Thrown on web when the browser fails to decode or re-encode the image. */
+export class OverlayImageProcessingError extends Error {
+  constructor(cause: unknown) {
+    super('Overlay image could not be processed', { cause });
+    this.name = 'OverlayImageProcessingError';
+  }
+}
+
+/** Translation key for the overlay image errors thrown here, or null for any other error. */
+export function overlayImageErrorKey(error: unknown): string | null {
+  if (error instanceof OverlayImageTooLargeError) return 'overlays.imageTooLarge';
+  if (error instanceof OverlayImageNotShrinkableError) return 'overlays.imageNotShrinkable';
+  if (error instanceof OverlayImageProcessingError) return 'overlays.imageProcessingFailed';
+  return null;
 }
 
 /**
@@ -60,34 +88,32 @@ async function blobToDataUrl(blob: Blob): Promise<string> {
   });
 }
 
-/** Number of bytes encoded by a base64 `data:` URL. */
-function dataUrlByteLength(dataUrl: string): number {
-  const base64 = dataUrl.slice(dataUrl.indexOf(',') + 1);
-  const padding = base64.endsWith('==') ? 2 : base64.endsWith('=') ? 1 : 0;
-  return Math.floor((base64.length * 3) / 4) - padding;
-}
-
 /**
  * Copy an image to the app's local storage and return the new URI.
  *
  * On web, expo-file-system is not supported. The picker returns a transient
  * `blob:` object URL that does not survive a reload, so we convert it to a
- * persistable `data:` URL before storing.
+ * persistable `data:` URL before storing, downscaling photos that would not fit
+ * comfortably in localStorage.
  *
  * Throws {@link OverlayImageTooLargeError} if the image exceeds
- * {@link MAX_OVERLAY_IMAGE_BYTES}.
+ * {@link MAX_OVERLAY_IMAGE_BYTES}. On web it can also throw
+ * {@link OverlayImageNotShrinkableError} or {@link OverlayImageProcessingError}.
  */
 async function copyImageToStorage(sourceUri: string): Promise<string> {
   if (Platform.OS === 'web') {
-    if (sourceUri.startsWith('data:')) {
-      const size = dataUrlByteLength(sourceUri);
-      if (size > MAX_OVERLAY_IMAGE_BYTES) throw new OverlayImageTooLargeError(size);
-      return sourceUri;
-    }
-    const response = await fetch(sourceUri);
-    const blob = await response.blob();
+    const blob = await (await fetch(sourceUri)).blob();
     if (blob.size > MAX_OVERLAY_IMAGE_BYTES) throw new OverlayImageTooLargeError(blob.size);
-    return blobToDataUrl(blob);
+    if (blob.size <= WEB_STORED_MAX_BYTES) return blobToDataUrl(blob);
+
+    let shrunk: Blob | null;
+    try {
+      shrunk = await encodeWithinBudget((step) => encodeJpeg(blob, step), WEB_STORED_MAX_BYTES);
+    } catch (error) {
+      throw new OverlayImageProcessingError(error);
+    }
+    if (!shrunk) throw new OverlayImageNotShrinkableError(blob.size);
+    return blobToDataUrl(shrunk);
   }
 
   const overlaysDir = getOverlaysDir();
