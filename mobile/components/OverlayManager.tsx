@@ -9,9 +9,9 @@ import { useCallback, useState } from 'react';
 import { Alert, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useTranslation } from '@/lib/i18n';
 import type { MapOverlay } from '@/lib/map-overlays';
+import { confirmDeleteOverlay } from '@/lib/overlay-delete';
 import {
   captureImageFromCamera,
-  deleteOverlayImage,
   OverlayImageTooLargeError,
   pickImageFromGallery,
 } from '@/lib/overlay-image-picker';
@@ -85,23 +85,16 @@ export function OverlayManager({
   }, [overlays.length, onAddOverlay, notifyError, t]);
 
   const handleDelete = useCallback(
-    (overlay: MapOverlay) => {
-      const doDelete = async () => {
-        await deleteOverlayImage(overlay.imageUri);
-        await onDeleteOverlay(overlay.id);
-      };
-
-      if (Platform.OS === 'web') {
-        if (window.confirm(t('overlays.deleteConfirm'))) {
-          void doDelete();
-        }
-      } else {
-        Alert.alert(t('overlays.delete'), t('overlays.deleteConfirm'), [
-          { text: t('overlays.cancel'), style: 'cancel' },
-          { text: t('overlays.delete'), style: 'destructive', onPress: () => void doDelete() },
-        ]);
-      }
-    },
+    (overlay: MapOverlay) =>
+      confirmDeleteOverlay(
+        overlay,
+        {
+          title: t('overlays.delete'),
+          message: t('overlays.deleteConfirm'),
+          cancel: t('overlays.cancel'),
+        },
+        onDeleteOverlay,
+      ),
     [onDeleteOverlay, t],
   );
 

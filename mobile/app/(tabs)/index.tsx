@@ -41,6 +41,7 @@ import {
   type MapOverlay,
   useMapOverlays,
 } from '@/lib/map-overlays';
+import { confirmDeleteOverlay } from '@/lib/overlay-delete';
 import { useSettings } from '@/lib/settings-context';
 import { spacing, useTheme } from '@/lib/theme';
 import { glassPill } from '@/lib/theme/styles';
@@ -291,10 +292,20 @@ export default function MapScreen() {
   }, [editingOverlay, editingOverlayId, updateOverlay, mapBounds]);
 
   const handleDeleteEditingOverlay = useCallback(() => {
-    if (!editingOverlayId) return;
-    void deleteOverlay(editingOverlayId);
-    setEditingOverlayId(null);
-  }, [editingOverlayId, deleteOverlay]);
+    if (!editingOverlay) return;
+    confirmDeleteOverlay(
+      editingOverlay,
+      {
+        title: t('overlays.delete'),
+        message: t('overlays.deleteConfirm'),
+        cancel: t('overlays.cancel'),
+      },
+      async (id) => {
+        setEditingOverlayId(null);
+        await deleteOverlay(id);
+      },
+    );
+  }, [editingOverlay, deleteOverlay, t]);
 
   const handleDoneEditing = useCallback(() => {
     setEditingOverlayId(null);
@@ -309,12 +320,36 @@ export default function MapScreen() {
         return;
       }
       if (editingOverlayId) return;
+      // Only start editing from a clean map, not while any panel, menu or drawer is open.
+      if (
+        showLayers ||
+        showMenu ||
+        showAddSpot ||
+        showTrailDrawer ||
+        showForagingDrawer ||
+        showPlacesDrawer ||
+        lightboxTrailId
+      ) {
+        return;
+      }
       const hit = [...visibleOverlays]
         .reverse()
         .find((o) => isPointInCorners([lat, lng], o.corners));
       if (hit) setEditingOverlayId(hit.id);
     },
-    [selected, showOverlayManager, editingOverlayId, visibleOverlays],
+    [
+      selected,
+      showOverlayManager,
+      editingOverlayId,
+      showLayers,
+      showMenu,
+      showAddSpot,
+      showTrailDrawer,
+      showForagingDrawer,
+      showPlacesDrawer,
+      lightboxTrailId,
+      visibleOverlays,
+    ],
   );
 
   // Long-press on map → open add foraging spot form with pre-filled coordinates

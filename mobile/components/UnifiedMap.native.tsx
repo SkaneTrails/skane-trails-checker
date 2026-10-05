@@ -156,6 +156,12 @@ export function UnifiedMap({
     ? trails.filter((t) => t.status !== 'Explored!' && t.coordinates_map?.length)
     : [];
 
+  // Handle drags are converted with an axis-aligned view box, which only holds north-up and flat.
+  const isEditingOverlay = editingOverlayId != null;
+  useEffect(() => {
+    if (isEditingOverlay) void cameraRef.current?.setStop({ bearing: 0, pitch: 0, duration: 300 });
+  }, [isEditingOverlay]);
+
   // Focus map on bounds when requested (e.g. from trail list navigation)
   useEffect(() => {
     if (!focusBounds || !cameraRef.current) return;
@@ -237,6 +243,8 @@ export function UnifiedMap({
         // @ts-expect-error — logoEnabled exists at runtime but not in MapLibre RN type defs
         logoEnabled={false}
         attributionPosition={{ bottom: 8, right: 8 }}
+        touchRotate={!isEditingOverlay}
+        touchPitch={!isEditingOverlay}
         onPress={(e) => {
           const { lngLat } = e.nativeEvent;
           onMapClick?.(lngLat[1], lngLat[0]);
