@@ -342,6 +342,8 @@ class TestGetImagePins:
         assert data["pins"][0] == {"trail_id": "t1", "lat": 55.5, "lng": 13.2, "thumbnail": "thumb"}
         # Should only pass explored trail IDs
         mock_get_pins.assert_called_once_with(["t1"])
+        # Must use the summary projection so coordinates_map is never read/deserialized
+        assert mock_get_all.call_args.kwargs.get("summary") is True
 
     @patch("api.routers.trails.trail_storage.get_image_pins")
     @patch("api.routers.trails.trail_storage.get_all_trails")

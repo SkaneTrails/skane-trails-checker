@@ -2,13 +2,15 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { act, renderHook, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
+  calculateCornersForImage,
   calculateInitialCorners,
+  type GeoCoord,
   getOverlayCenter,
   getOverlayRotation,
+  isPointInCorners,
+  type MapOverlay,
   rotateCorners,
   useMapOverlays,
-  type GeoCoord,
-  type MapOverlay,
 } from '../map-overlays';
 
 const mockAsyncStorage = vi.mocked(AsyncStorage);
@@ -34,7 +36,12 @@ describe('useMapOverlays', () => {
         id: 'overlay_1',
         name: 'Test Overlay',
         imageUri: 'file://test.jpg',
-        corners: [[56.0, 13.0], [56.0, 13.1], [55.9, 13.1], [55.9, 13.0]],
+        corners: [
+          [56.0, 13.0],
+          [56.0, 13.1],
+          [55.9, 13.1],
+          [55.9, 13.0],
+        ],
         opacity: 0.7,
         visible: true,
         createdAt: '2026-01-01T00:00:00Z',
@@ -60,7 +67,12 @@ describe('useMapOverlays', () => {
       newOverlay = await result.current.addOverlay({
         name: 'New Overlay',
         imageUri: 'file://new.jpg',
-        corners: [[56.0, 13.0], [56.0, 13.1], [55.9, 13.1], [55.9, 13.0]],
+        corners: [
+          [56.0, 13.0],
+          [56.0, 13.1],
+          [55.9, 13.1],
+          [55.9, 13.0],
+        ],
       });
     });
 
@@ -78,7 +90,12 @@ describe('useMapOverlays', () => {
         id: 'overlay_1',
         name: 'Original Name',
         imageUri: 'file://test.jpg',
-        corners: [[56.0, 13.0], [56.0, 13.1], [55.9, 13.1], [55.9, 13.0]],
+        corners: [
+          [56.0, 13.0],
+          [56.0, 13.1],
+          [55.9, 13.1],
+          [55.9, 13.0],
+        ],
         opacity: 0.7,
         visible: true,
         createdAt: '2026-01-01T00:00:00Z',
@@ -107,7 +124,12 @@ describe('useMapOverlays', () => {
         id: 'overlay_1',
         name: 'To Delete',
         imageUri: 'file://test.jpg',
-        corners: [[56.0, 13.0], [56.0, 13.1], [55.9, 13.1], [55.9, 13.0]],
+        corners: [
+          [56.0, 13.0],
+          [56.0, 13.1],
+          [55.9, 13.1],
+          [55.9, 13.0],
+        ],
         opacity: 0.7,
         visible: true,
         createdAt: '2026-01-01T00:00:00Z',
@@ -132,7 +154,12 @@ describe('useMapOverlays', () => {
         id: 'overlay_1',
         name: 'Test',
         imageUri: 'file://test.jpg',
-        corners: [[56.0, 13.0], [56.0, 13.1], [55.9, 13.1], [55.9, 13.0]],
+        corners: [
+          [56.0, 13.0],
+          [56.0, 13.1],
+          [55.9, 13.1],
+          [55.9, 13.0],
+        ],
         opacity: 0.7,
         visible: true,
         createdAt: '2026-01-01T00:00:00Z',
@@ -159,7 +186,12 @@ describe('useMapOverlays', () => {
         id: 'overlay_1',
         name: 'Visible',
         imageUri: 'file://a.jpg',
-        corners: [[56.0, 13.0], [56.0, 13.1], [55.9, 13.1], [55.9, 13.0]],
+        corners: [
+          [56.0, 13.0],
+          [56.0, 13.1],
+          [55.9, 13.1],
+          [55.9, 13.0],
+        ],
         opacity: 0.7,
         visible: true,
         createdAt: '2026-01-01T00:00:00Z',
@@ -168,7 +200,12 @@ describe('useMapOverlays', () => {
         id: 'overlay_2',
         name: 'Hidden',
         imageUri: 'file://b.jpg',
-        corners: [[56.0, 13.0], [56.0, 13.1], [55.9, 13.1], [55.9, 13.0]],
+        corners: [
+          [56.0, 13.0],
+          [56.0, 13.1],
+          [55.9, 13.1],
+          [55.9, 13.0],
+        ],
         opacity: 0.7,
         visible: false,
         createdAt: '2026-01-01T00:00:00Z',
@@ -182,6 +219,44 @@ describe('useMapOverlays', () => {
     expect(result.current.overlays).toHaveLength(2);
     expect(result.current.visibleOverlays).toHaveLength(1);
     expect(result.current.visibleOverlays[0].name).toBe('Visible');
+  });
+});
+
+describe('isPointInCorners', () => {
+  const corners: [GeoCoord, GeoCoord, GeoCoord, GeoCoord] = [
+    [56.1, 13.0],
+    [56.1, 13.4],
+    [55.9, 13.3],
+    [55.9, 13.0],
+  ];
+
+  it('detects points inside a skewed quad', () => {
+    expect(isPointInCorners([56.0, 13.1], corners)).toBe(true);
+  });
+
+  it('rejects points outside, including inside the bounding box but past a skewed edge', () => {
+    expect(isPointInCorners([57.0, 13.1], corners)).toBe(false);
+    expect(isPointInCorners([55.92, 13.38], corners)).toBe(false);
+  });
+});
+
+describe('calculateCornersForImage', () => {
+  const bounds = { north: 56.2, south: 55.8, east: 13.8, west: 13.0 };
+
+  it('keeps the picture proportions on screen and centers it in the view', () => {
+    const [tl, tr, br, bl] = calculateCornersForImage(2000, 1000, bounds);
+    const cosLat = Math.cos((56 * Math.PI) / 180);
+    // Screen width/height ratio: lng degrees scale by cos(lat) relative to lat degrees.
+    const ratio = ((tr[1] - tl[1]) * cosLat) / (tl[0] - bl[0]);
+    expect(ratio).toBeCloseTo(2, 2);
+    expect((tl[0] + br[0]) / 2).toBeCloseTo(56.0);
+    expect((tl[1] + br[1]) / 2).toBeCloseTo(13.4);
+  });
+
+  it('falls back to a default view without bounds', () => {
+    const [tl, , br] = calculateCornersForImage(1000, 1000, null);
+    expect((tl[0] + br[0]) / 2).toBeCloseTo(55.95);
+    expect(tl[0]).toBeGreaterThan(br[0]);
   });
 });
 

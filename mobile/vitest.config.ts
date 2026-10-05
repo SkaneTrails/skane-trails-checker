@@ -90,7 +90,7 @@ export default defineConfig({
         'components/ForagingDrawer.tsx',
         'components/PlacesDrawer.tsx',
         // Overlay components — depend on expo-file-system, expo-image-picker, MapLibre
-        'components/OverlayAlignmentMode.tsx',
+        'components/OverlayEditPanel.tsx',
         'components/OverlayManager.tsx',
         // Overlay image picker — depends on expo-file-system, expo-image-picker (native APIs)
         'lib/overlay-image-picker.ts',

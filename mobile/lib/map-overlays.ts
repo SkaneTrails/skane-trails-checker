@@ -127,9 +127,7 @@ export function useMapOverlays() {
   const updateOverlay = useCallback(
     async (id: string, update: MapOverlayUpdate): Promise<void> => {
       setOverlays((prev) => {
-        const next = prev.map((o) =>
-          o.id === id ? { ...o, ...update } : o,
-        );
+        const next = prev.map((o) => (o.id === id ? { ...o, ...update } : o));
         void persist(next);
         return next;
       });
@@ -153,9 +151,7 @@ export function useMapOverlays() {
   const toggleVisibility = useCallback(
     async (id: string): Promise<void> => {
       setOverlays((prev) => {
-        const next = prev.map((o) =>
-          o.id === id ? { ...o, visible: !o.visible } : o,
-        );
+        const next = prev.map((o) => (o.id === id ? { ...o, visible: !o.visible } : o));
         void persist(next);
         return next;
       });
@@ -200,6 +196,31 @@ export function calculateInitialCorners(
 }
 
 /**
+ * Corners for an image shown at its own proportions, centered in the given view
+ * at ~50% of the view height. Falls back to a default Skåne view without bounds.
+ */
+export function calculateCornersForImage(
+  imageWidth: number,
+  imageHeight: number,
+  bounds: { north: number; south: number; east: number; west: number } | null,
+): [GeoCoord, GeoCoord, GeoCoord, GeoCoord] {
+  const aspect = imageWidth > 0 && imageHeight > 0 ? imageWidth / imageHeight : 4 / 3;
+  const centerLat = bounds ? (bounds.north + bounds.south) / 2 : 55.95;
+  const centerLng = bounds ? (bounds.east + bounds.west) / 2 : 13.4;
+  const heightLat = bounds ? (bounds.north - bounds.south) * 0.5 : 0.04;
+  // Longitude degrees shrink with latitude, so widen to keep the picture's proportions on screen.
+  const cosLat = Math.cos((centerLat * Math.PI) / 180) || 1;
+  const widthLng = (heightLat * aspect) / cosLat;
+
+  return [
+    [centerLat + heightLat / 2, centerLng - widthLng / 2],
+    [centerLat + heightLat / 2, centerLng + widthLng / 2],
+    [centerLat - heightLat / 2, centerLng + widthLng / 2],
+    [centerLat - heightLat / 2, centerLng - widthLng / 2],
+  ];
+}
+
+/**
  * Rotate corners around the center by a given angle in radians.
  */
 export function rotateCorners(
@@ -225,9 +246,7 @@ export function rotateCorners(
 /**
  * Calculate the center point of the overlay from its corners.
  */
-export function getOverlayCenter(
-  corners: [GeoCoord, GeoCoord, GeoCoord, GeoCoord],
-): GeoCoord {
+export function getOverlayCenter(corners: [GeoCoord, GeoCoord, GeoCoord, GeoCoord]): GeoCoord {
   const lat = (corners[0][0] + corners[1][0] + corners[2][0] + corners[3][0]) / 4;
   const lng = (corners[0][1] + corners[1][1] + corners[2][1] + corners[3][1]) / 4;
   return [lat, lng];
@@ -237,11 +256,24 @@ export function getOverlayCenter(
  * Calculate the current rotation angle of the overlay in radians.
  * Based on the angle from top-left to top-right corner.
  */
-export function getOverlayRotation(
-  corners: [GeoCoord, GeoCoord, GeoCoord, GeoCoord],
-): number {
+export function getOverlayRotation(corners: [GeoCoord, GeoCoord, GeoCoord, GeoCoord]): number {
   const [topLeft, topRight] = corners;
   const dLat = topRight[0] - topLeft[0];
   const dLng = topRight[1] - topLeft[1];
   return Math.atan2(dLat, dLng);
+}
+
+/** Whether a [lat, lng] point lies inside the overlay's (possibly skewed) quad. */
+export function isPointInCorners(
+  point: GeoCoord,
+  corners: [GeoCoord, GeoCoord, GeoCoord, GeoCoord],
+): boolean {
+  const [py, px] = point;
+  let inside = false;
+  for (let i = 0, j = corners.length - 1; i < corners.length; j = i++) {
+    const [yi, xi] = corners[i];
+    const [yj, xj] = corners[j];
+    if (yi > py !== yj > py && px < ((xj - xi) * (py - yi)) / (yj - yi) + xi) inside = !inside;
+  }
+  return inside;
 }

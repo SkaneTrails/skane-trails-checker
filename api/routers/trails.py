@@ -110,7 +110,9 @@ def get_image_pins(user: Annotated[AuthenticatedUser, Depends(require_auth)]) ->
     Returns thumbnail + GPS coords for all primary images the user can see.
     Single request replaces N individual trail image fetches.
     """
-    all_trails = trail_storage.get_all_trails(group_id=user.group_id if user.role != "superuser" else None)
+    all_trails = trail_storage.get_all_trails(
+        group_id=user.group_id if user.role != "superuser" else None, summary=True
+    )
     explored_ids = [t.trail_id for t in all_trails if t.status == "Explored!"]
     pins = trail_storage.get_image_pins(explored_ids)
     return ImagePinsResponse(pins=pins)
