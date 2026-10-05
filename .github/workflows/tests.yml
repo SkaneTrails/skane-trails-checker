@@ -16,7 +16,7 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Install uv
-        uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
+        uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
         with:
           enable-cache: true
           cache-dependency-glob: "uv.lock"
@@ -32,7 +32,7 @@ jobs:
         with:
           # Pinned exact: Node 24.17.0 has an http.Agent keep-alive regression
           # (nodejs/node#63989). Fixed in 24.18.0. See fix/node-24-keepalive-firebase-deploy.
-          node-version: "24.19.0"
+          node-version: "24.21.0"
 
       - name: Install pnpm
         run: npm install -g pnpm@10
@@ -70,7 +70,7 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Install uv
-        uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
+        uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
         with:
           enable-cache: true
           cache-dependency-glob: "uv.lock"
@@ -96,7 +96,7 @@ jobs:
         with:
           # Pinned exact: Node 24.17.0 has an http.Agent keep-alive regression
           # (nodejs/node#63989). Fixed in 24.18.0. See fix/node-24-keepalive-firebase-deploy.
-          node-version: "24.19.0"
+          node-version: "24.21.0"
 
       - name: Install pnpm
         run: npm install -g pnpm@10
