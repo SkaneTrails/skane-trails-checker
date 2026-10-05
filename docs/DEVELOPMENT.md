@@ -524,6 +524,34 @@ uv sync --upgrade-package package-name
 - **security-checks.yml** - License scanning, Trivy vulnerability scanning
 - **renovate.yml** - Automated dependency updates
 - **auto-label-pr.yml** - Auto-label PRs based on changes
+- **android-release.yml** - Build the Android app bundle on EAS and submit it to Google Play internal testing
+
+### Android release pipeline
+
+`android-release.yml` builds a signed Android App Bundle with **EAS Build** (Expo
+cloud, 15 free Android builds/month) and submits it to the Google Play **internal
+testing** track (invited testers only). EAS stores the signing keystore in the
+cloud, so no keystore is kept in the repo.
+
+**Triggers:** pushing a version tag (`v*`, e.g. `git tag v1.0.1 && git push origin v1.0.1`)
+or a manual run from the Actions tab. The Android `versionCode` is auto-incremented
+by EAS (`appVersionSource: "remote"` + `autoIncrement: true` in `mobile/eas.json`).
+
+**One-time setup:**
+
+1. **Expo project** - from `mobile/`, run `eas login` then `eas init`. Commit the
+   resulting `owner` and `extra.eas.projectId` added to `mobile/app.json`.
+1. **Expo token** - create an access token at expo.dev (Account > Access tokens)
+   and add it as the `EXPO_TOKEN` repository secret.
+1. **Google Play app** - in the Play Console, create the app and set up the
+   **Internal testing** track with your testers' emails. The first release of a
+   brand-new app may need one manual upload before the API will accept builds.
+1. **Play service account** - create a Google Cloud service account, grant it the
+   Play Developer API + release permissions in the Play Console, download the JSON
+   key, and add its full contents as the `PLAY_SERVICE_ACCOUNT_JSON` repository secret.
+
+To widen the beta later, change `submit.production.android.track` in
+`mobile/eas.json` from `internal` to a closed-testing track (e.g. `alpha`).
 
 ### Security Scanning
 

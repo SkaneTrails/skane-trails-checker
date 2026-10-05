@@ -18,7 +18,6 @@
     },
     "android": {
       "package": "com.skanetrails.checker",
-      "versionCode": 1,
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#1a5e2a"
