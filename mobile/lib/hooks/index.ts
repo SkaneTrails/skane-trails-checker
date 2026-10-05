@@ -23,6 +23,9 @@ export {
 export { useNetworkStatus } from './use-network-status';
 export { placeKeys, usePlaceCategories, usePlaces } from './use-places';
 export {
+  filterTrails,
+  sortTrails,
+  type TrailSortMode,
   trailKeys,
   useDeleteTrail,
   useDeleteTrailImage,
@@ -36,5 +39,4 @@ export {
   useUpdateTrail,
   useUploadGpx,
   useUploadTrailImage,
-  filterTrails,
 } from './use-trails';

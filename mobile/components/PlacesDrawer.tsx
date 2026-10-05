@@ -6,13 +6,7 @@
  */
 
 import { useMemo } from 'react';
-import {
-  FlatList,
-  Pressable,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native';
+import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Chip } from '@/components/Chip';
 import { ContentCard } from '@/components/ContentCard';
 import { DrawerOverlay } from '@/components/DrawerOverlay';
@@ -73,11 +67,13 @@ export const PlacesDrawer = ({ isOpen, onClose }: PlacesDrawerProps) => {
   const { colors, shadows } = useTheme();
   const { t } = useTranslation();
   const { enabledPlaceCategories, togglePlaceCategory, setEnabledPlaceCategories } = useSettings();
-  const { data: places, isLoading, error } = usePlaces();
-  const { data: categories } = usePlaceCategories();
+  const { data: places, isLoading, error } = usePlaces(undefined, { enabled: isOpen });
+  const { data: categories } = usePlaceCategories({ enabled: isOpen });
 
   const categoryEntries = categories ? Object.entries(categories) : [];
-  const allEnabled = categoryEntries.length > 0 && categoryEntries.every(([slug]) => enabledPlaceCategories.includes(slug));
+  const allEnabled =
+    categoryEntries.length > 0 &&
+    categoryEntries.every(([slug]) => enabledPlaceCategories.includes(slug));
 
   const filteredPlaces = useMemo(
     () =>
@@ -105,11 +101,7 @@ export const PlacesDrawer = ({ isOpen, onClose }: PlacesDrawerProps) => {
       {/* Category filter */}
       {categoryEntries.length > 0 && (
         <View style={styles.filterBar}>
-          <Chip
-            label={t('common.all')}
-            selected={allEnabled}
-            onPress={handleToggleAll}
-          />
+          <Chip label={t('common.all')} selected={allEnabled} onPress={handleToggleAll} />
           {categoryEntries.map(([slug, cat]) => {
             const isSelected = enabledPlaceCategories.includes(slug);
             return (

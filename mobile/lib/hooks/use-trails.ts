@@ -15,18 +15,41 @@ export interface ClientTrailFilters {
   max_distance_km?: number;
 }
 
+export type TrailSortMode = 'date' | 'name';
+
+/** Hike date for sorting; planned hikes have no hike date and count as undated. */
+function trailTimestamp(trail: Trail): number {
+  if (trail.source === 'planned_hikes') return Number.NEGATIVE_INFINITY;
+  // activity_date is free text, so an unparseable one must not hide a valid created_at.
+  for (const raw of [trail.activity_date, trail.created_at]) {
+    const ms = raw ? Date.parse(raw) : Number.NaN;
+    if (!Number.isNaN(ms)) return ms;
+  }
+  return Number.NEGATIVE_INFINITY;
+}
+
 /**
  * Sort trails so uploaded trails appear before planned ones.
- * Within each group, sort alphabetically by name.
+ * Within each group: most recent first (undated last) or alphabetical by name.
+ * Name is always the tie-breaker.
  */
-export function sortTrails(trails: Trail[]): Trail[] {
+export function sortTrails(
+  trails: Trail[],
+  mode: TrailSortMode = 'date',
+  locale = 'en-US',
+): Trail[] {
   return [...trails].sort((a, b) => {
     const aPlanned = a.source === 'planned_hikes' ? 1 : 0;
     const bPlanned = b.source === 'planned_hikes' ? 1 : 0;
     if (aPlanned !== bPlanned) return aPlanned - bPlanned;
-    const aName = a.name.toLocaleLowerCase('en-US');
-    const bName = b.name.toLocaleLowerCase('en-US');
-    return aName.localeCompare(bName, 'en-US');
+    if (mode === 'date') {
+      const aTime = trailTimestamp(a);
+      const bTime = trailTimestamp(b);
+      if (aTime !== bTime) return aTime > bTime ? -1 : 1;
+    }
+    const aName = a.name.toLocaleLowerCase(locale);
+    const bName = b.name.toLocaleLowerCase(locale);
+    return aName.localeCompare(bName, locale);
   });
 }
 
@@ -56,7 +79,7 @@ export function useTrails() {
   const query = useQuery({
     queryKey,
     queryFn: () => trailsApi.getTrailSummaries({}),
-    select: sortTrails,
+    select: (trails) => sortTrails(trails),
     enabled: syncDone,
   });
 
@@ -208,10 +231,7 @@ export async function pollForChanges(
     const cached = await trailCache.get();
 
     // No changes
-    if (
-      syncMeta.last_modified === cached.lastSyncTime &&
-      syncMeta.count === cached.trails.length
-    ) {
+    if (syncMeta.last_modified === cached.lastSyncTime && syncMeta.count === cached.trails.length) {
       return;
     }
 
@@ -332,7 +352,10 @@ export function useUploadGpx() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: ({ file, ...options }: { file: File } & Parameters<typeof trailsApi.uploadGpx>[1]) =>
+    mutationFn: ({
+      file,
+      ...options
+    }: { file: File } & Parameters<typeof trailsApi.uploadGpx>[1]) =>
       trailsApi.uploadGpx(file, options),
     onSuccess: (newTrails) => {
       // Merge new trails into React Query cache directly — no refetch.
@@ -414,10 +437,7 @@ export function useUploadTrailImage() {
       caption?: string;
     }) => trailsApi.uploadTrailImage(trailId, file, role, caption),
     onSuccess: (result) => {
-      queryClient.setQueryData<TrailImagesResponse>(
-        trailKeys.images(result.trail_id),
-        result,
-      );
+      queryClient.setQueryData<TrailImagesResponse>(trailKeys.images(result.trail_id), result);
       queryClient.invalidateQueries({ queryKey: trailKeys.imagePins() });
     },
   });
@@ -430,16 +450,13 @@ export function useDeleteTrailImage() {
     mutationFn: ({ trailId, imageIndex }: { trailId: string; imageIndex: number }) =>
       trailsApi.deleteTrailImage(trailId, imageIndex),
     onSuccess: (_data, { trailId, imageIndex }) => {
-      queryClient.setQueryData<TrailImagesResponse>(
-        trailKeys.images(trailId),
-        (old) => {
-          if (!old) return old;
-          return {
-            ...old,
-            images: old.images.filter((_, i) => i !== imageIndex),
-          };
-        },
-      );
+      queryClient.setQueryData<TrailImagesResponse>(trailKeys.images(trailId), (old) => {
+        if (!old) return old;
+        return {
+          ...old,
+          images: old.images.filter((_, i) => i !== imageIndex),
+        };
+      });
       queryClient.invalidateQueries({ queryKey: trailKeys.imagePins() });
     },
   });
