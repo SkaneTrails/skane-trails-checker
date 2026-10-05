@@ -24,6 +24,11 @@ const TRACKING_TASK = 'background-location-tracking';
 const STORAGE_KEY = '@skane_trails_tracking_buffer';
 const FLUSH_INTERVAL_MS = 30_000;
 
+// Reject low-confidence fixes (e.g. cold-GPS warm-up drift). `coords.accuracy`
+// is the 68% confidence radius in metres; a fix worse than this is not useful
+// for trail tracking. A null/undefined radius means "unknown" and is kept.
+const MAX_ACCURACY_RADIUS_M = 10;
+
 /**
  * GPS configuration per mode.
  * - balanced: 10s/10m intervals, Balanced accuracy, pauses when stationary
@@ -88,6 +93,8 @@ if (!TaskManager.isTaskDefined(TRACKING_TASK)) {
     if (!locations) return;
     const state = getState();
     for (const loc of locations) {
+      const accuracy = loc.coords.accuracy;
+      if (accuracy != null && accuracy > MAX_ACCURACY_RADIUS_M) continue;
       const point: TrackingPoint = {
         lat: loc.coords.latitude,
         lng: loc.coords.longitude,

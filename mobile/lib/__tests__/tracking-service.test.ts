@@ -115,6 +115,57 @@ describe('tracking-service', () => {
     });
   });
 
+  it('rejects fixes with accuracy worse than 10 m', async () => {
+    const onPoint = vi.fn();
+    await TrackingService.startTracking(onPoint);
+
+    const taskCb = taskCallbacks.get('background-location-tracking')!;
+    taskCb({
+      data: {
+        locations: [
+          { coords: { latitude: 55.6, longitude: 13.0, altitude: 100, accuracy: 35 }, timestamp: 1000 },
+        ],
+      },
+      error: null,
+    });
+
+    expect(onPoint).not.toHaveBeenCalled();
+  });
+
+  it('keeps fixes with accuracy within 10 m', async () => {
+    const onPoint = vi.fn();
+    await TrackingService.startTracking(onPoint);
+
+    const taskCb = taskCallbacks.get('background-location-tracking')!;
+    taskCb({
+      data: {
+        locations: [
+          { coords: { latitude: 55.6, longitude: 13.0, altitude: 100, accuracy: 8 }, timestamp: 1000 },
+        ],
+      },
+      error: null,
+    });
+
+    expect(onPoint).toHaveBeenCalledWith({ lat: 55.6, lng: 13.0, altitude: 100, timestamp: 1000 });
+  });
+
+  it('keeps fixes with unknown (null) accuracy', async () => {
+    const onPoint = vi.fn();
+    await TrackingService.startTracking(onPoint);
+
+    const taskCb = taskCallbacks.get('background-location-tracking')!;
+    taskCb({
+      data: {
+        locations: [
+          { coords: { latitude: 55.6, longitude: 13.0, altitude: 100, accuracy: null }, timestamp: 1000 },
+        ],
+      },
+      error: null,
+    });
+
+    expect(onPoint).toHaveBeenCalledWith({ lat: 55.6, lng: 13.0, altitude: 100, timestamp: 1000 });
+  });
+
   it('task callback ignores errors', async () => {
     const onPoint = vi.fn();
     await TrackingService.startTracking(onPoint);
