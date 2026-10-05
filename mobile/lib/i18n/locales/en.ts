@@ -306,7 +306,7 @@ const en = {
     },
     done: 'Done',
     reset: 'Reset',
-    imageTooLarge: 'Image is too large (max 0.5 MB). Please choose a smaller image.',
+    imageTooLarge: 'Image is too large (max 10 MB). Please choose a smaller image.',
   },
 
   noAccess: {

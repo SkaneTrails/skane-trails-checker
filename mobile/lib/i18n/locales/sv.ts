@@ -307,7 +307,7 @@ const sv: Translations = {
     },
     done: 'Klar',
     reset: 'Återställ',
-    imageTooLarge: 'Bilden är för stor (max 0,5 MB). Välj en mindre bild.',
+    imageTooLarge: 'Bilden är för stor (max 10 MB). Välj en mindre bild.',
   },
 
   noAccess: {
