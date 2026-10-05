@@ -33,6 +33,7 @@ load_env_if_needed()
 
 DEFAULT_ABS_MIN_M = 80.0
 DEFAULT_FACTOR = 6.0
+DEFAULT_MAX_EXCURSION = 15
 _MIN_POINTS = 3
 
 
@@ -40,14 +41,18 @@ def _dist_m(a: Coordinate, b: Coordinate) -> float:
     return _haversine_km(a.lat, a.lng, b.lat, b.lng) * 1000.0
 
 
-def clean_outliers(coords: list[Coordinate], abs_min_m: float, factor: float) -> tuple[list[Coordinate], list[int]]:
+def clean_outliers(
+    coords: list[Coordinate], abs_min_m: float, factor: float, max_excursion: int = DEFAULT_MAX_EXCURSION
+) -> tuple[list[Coordinate], list[int]]:
     """Return (cleaned_coords, dropped_indices) using a geometry-only heuristic.
 
-    A point is dropped only when it is an *isolated* jump-and-return spike: its
-    distance from the last accepted point exceeds both ``abs_min_m`` and
-    ``factor`` times the median consecutive step, **and** the following point
-    returns within that threshold of the anchor. A sustained far segment (e.g. a
-    recording resumed after a gap) is kept as a new anchor instead of deleted.
+    A run of points is dropped only when it is a bounded jump-and-return
+    excursion: each point sits farther from the last accepted point than both
+    ``abs_min_m`` and ``factor`` times the median consecutive step, and the track
+    returns within that threshold of the same anchor within ``max_excursion``
+    points. This catches multi-point GPS warm-up drift (a cluster that jumps out
+    and snaps back) while keeping a sustained far segment (e.g. a recording
+    resumed after a gap), which never returns to the old anchor, as a new anchor.
     Falls back to the original list if cleaning would leave fewer than two points.
     """
     if len(coords) < _MIN_POINTS:
@@ -59,17 +64,22 @@ def clean_outliers(coords: list[Coordinate], abs_min_m: float, factor: float) ->
 
     accepted: list[Coordinate] = [coords[0]]
     dropped: list[int] = []
-    for i in range(1, len(coords)):
+    i = 1
+    n = len(coords)
+    while i < n:
         anchor = accepted[-1]
         if _dist_m(anchor, coords[i]) > threshold:
-            # Only treat a far point as an isolated spike when the track returns
-            # near the anchor at the next point. A sustained far segment (e.g. a
-            # resumed recording after a gap) is kept as a new anchor instead.
-            nxt = coords[i + 1] if i + 1 < len(coords) else None
-            if nxt is not None and _dist_m(anchor, nxt) <= threshold:
-                dropped.append(i)
+            # Scan forward for a return to the anchor within the excursion window.
+            j = i
+            while j < n and j - i < max_excursion and _dist_m(anchor, coords[j]) > threshold:
+                j += 1
+            if j < n and j - i < max_excursion and _dist_m(anchor, coords[j]) <= threshold:
+                dropped.extend(range(i, j))  # excursion returns at j: drop i..j-1
+                i = j
                 continue
+            # No return within the window: treat as a real segment, keep as anchor.
         accepted.append(coords[i])
+        i += 1
 
     if len(accepted) < 2:  # noqa: PLR2004
         return coords, []
@@ -142,6 +152,12 @@ def main() -> None:
     group.add_argument("--all-recorded", action="store_true", help="Clean every user-recorded trail.")
     parser.add_argument("--abs-min", type=float, default=DEFAULT_ABS_MIN_M, help="Minimum jump (m) to consider.")
     parser.add_argument("--factor", type=float, default=DEFAULT_FACTOR, help="Multiple of median step to flag.")
+    parser.add_argument(
+        "--max-excursion",
+        type=int,
+        default=DEFAULT_MAX_EXCURSION,
+        help="Max points a jump-and-return excursion may span before it is kept as a real segment.",
+    )
     parser.add_argument("--apply", action="store_true", help="Persist changes (otherwise dry-run).")
     args = parser.parse_args()
 
@@ -157,7 +173,7 @@ def main() -> None:
             print(f"- {trail.name} ({trail.trail_id}): no coordinates, skipped")
             continue
         before = details.coordinates_full
-        cleaned, dropped = clean_outliers(before, args.abs_min, args.factor)
+        cleaned, dropped = clean_outliers(before, args.abs_min, args.factor, args.max_excursion)
         print(f"- {trail.name} ({trail.trail_id}): {len(before)} -> {len(cleaned)} points, dropped {len(dropped)}")
         if not dropped:
             continue
