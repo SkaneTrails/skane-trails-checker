@@ -8,7 +8,7 @@
 import { useCallback, useState } from 'react';
 import { Alert, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useTranslation } from '@/lib/i18n';
-import type { MapOverlay } from '@/lib/map-overlays';
+import { canAddOverlay, MAX_WEB_OVERLAYS, type MapOverlay } from '@/lib/map-overlays';
 import { confirmDeleteOverlay } from '@/lib/overlay-delete';
 import {
   captureImageFromCamera,
@@ -51,6 +51,14 @@ export function OverlayManager({
     },
     [t],
   );
+
+  const handleStartAdd = useCallback(() => {
+    if (!canAddOverlay(overlays.length, Platform.OS)) {
+      notifyError(t('overlays.limitReached', { max: MAX_WEB_OVERLAYS }));
+      return;
+    }
+    setIsAdding(true);
+  }, [overlays.length, notifyError, t]);
 
   const reportPickError = useCallback(
     (error: unknown) => {
@@ -230,11 +238,7 @@ export function OverlayManager({
           <Button title={t('overlays.cancel')} variant="glass" onPress={() => setIsAdding(false)} />
         </View>
       ) : (
-        <Button
-          title={t('overlays.addOverlay')}
-          variant="primary"
-          onPress={() => setIsAdding(true)}
-        />
+        <Button title={t('overlays.addOverlay')} variant="primary" onPress={handleStartAdd} />
       )}
     </View>
   );

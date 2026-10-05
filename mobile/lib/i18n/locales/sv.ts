@@ -311,6 +311,7 @@ const sv: Translations = {
     imageNotShrinkable:
       'Bilden kan inte minskas tillräckligt för att sparas i webbläsaren. Välj en mindre bild.',
     imageProcessingFailed: 'Bilden kunde inte bearbetas. Försök med en annan bild.',
+    limitReached: 'Webbläsaren kan bara lagra {{max}} överlägg. Radera ett för att lägga till ett nytt.',
   },
 
   noAccess: {

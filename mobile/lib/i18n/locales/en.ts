@@ -310,6 +310,7 @@ const en = {
     imageNotShrinkable:
       'This image cannot be reduced enough to be saved in the browser. Please choose a smaller image.',
     imageProcessingFailed: 'The image could not be processed. Please try a different image.',
+    limitReached: 'The browser can only store {{max}} overlays. Delete one to add another.',
   },
 
   noAccess: {
