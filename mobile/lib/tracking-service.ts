@@ -134,7 +134,7 @@ function stopFlushTimer() {
  * Start background location tracking.
  * Requires foreground + background permissions to be granted first.
  */
-export async function startTracking(onPoint: PointListener, gpsMode: GpsMode = 'balanced'): Promise<void> {
+export async function startTracking(onPoint: PointListener, gpsMode: GpsMode = 'high_precision'): Promise<void> {
   const state = getState();
   state.memoryBuffer = [];
   state.pointListener = onPoint;
@@ -164,7 +164,7 @@ export async function startTracking(onPoint: PointListener, gpsMode: GpsMode = '
  * Resume tracking after a pause — restarts GPS without clearing the buffer.
  * Preserves crash-recovery data accumulated before the pause.
  */
-export async function resumeTracking(onPoint: PointListener, gpsMode: GpsMode = 'balanced'): Promise<void> {
+export async function resumeTracking(onPoint: PointListener, gpsMode: GpsMode = 'high_precision'): Promise<void> {
   const state = getState();
   state.pointListener = onPoint;
 

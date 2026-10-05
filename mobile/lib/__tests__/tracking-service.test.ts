@@ -54,17 +54,17 @@ describe('tracking-service', () => {
     expect(TaskManager.defineTask).not.toHaveBeenCalled();
   });
 
-  it('startTracking starts location updates with balanced mode by default', async () => {
+  it('startTracking starts location updates with high precision mode by default', async () => {
     const onPoint = vi.fn();
     await TrackingService.startTracking(onPoint);
 
     expect(Location.startLocationUpdatesAsync).toHaveBeenCalledWith(
       'background-location-tracking',
       expect.objectContaining({
-        accuracy: Location.Accuracy.Balanced,
-        timeInterval: 10_000,
-        distanceInterval: 10,
-        pausesUpdatesAutomatically: true,
+        accuracy: Location.Accuracy.High,
+        timeInterval: 3_000,
+        distanceInterval: 5,
+        pausesUpdatesAutomatically: false,
       })
     );
   });
@@ -353,7 +353,7 @@ describe('tracking-service', () => {
 
     expect(Location.startLocationUpdatesAsync).toHaveBeenCalledWith(
       'background-location-tracking',
-      expect.objectContaining({ accuracy: Location.Accuracy.Balanced }),
+      expect.objectContaining({ accuracy: Location.Accuracy.High }),
     );
 
     // Simulate another point after resume
