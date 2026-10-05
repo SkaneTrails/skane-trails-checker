@@ -49,6 +49,13 @@
     ],
     "experiments": {
       "typedRoutes": true
-    }
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "ea78cd4f-3d67-4fbb-946d-b8867e0e0973"
+      }
+    },
+    "owner": "skane-trails"
   }
 }
