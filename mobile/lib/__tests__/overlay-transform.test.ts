@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   edgeMidpoints,
+  isConvexQuad,
   moveCorner,
   type Quad,
   quadCenter,
@@ -31,6 +32,42 @@ describe('moveCorner', () => {
   it('does not mutate the input', () => {
     moveCorner(rect, 0, 10, 10);
     expect(rect[0]).toEqual({ x: 100, y: 100 });
+  });
+
+  it('stops at the boundary when dragged through the opposite corner', () => {
+    const q = moveCorner(rect, 2, -500, -500);
+    expect(isConvexQuad(q)).toBe(true);
+    expect(q[2].x).toBeGreaterThan(rect[0].x);
+    expect(q[2].y).toBeGreaterThan(rect[0].y);
+  });
+
+  it('stops at the boundary when dragged across a neighbouring edge', () => {
+    const q = moveCorner(rect, 2, 0, -500);
+    expect(isConvexQuad(q)).toBe(true);
+    expect(q[2].y).toBeGreaterThan(q[1].y);
+  });
+
+  it('moves freely while the quad stays convex', () => {
+    expect(isConvexQuad(moveCorner(rect, 3, -200, 150))).toBe(true);
+  });
+
+  it('leaves an already-invalid quad free to move', () => {
+    const bowtie: Quad = [rect[0], rect[1], rect[3], rect[2]];
+    expect(moveCorner(bowtie, 0, 5, 5)[0]).toEqual({ x: 105, y: 105 });
+  });
+});
+
+describe('isConvexQuad', () => {
+  it('accepts a clockwise rectangle and a skewed convex quad', () => {
+    expect(isConvexQuad(rect)).toBe(true);
+    expect(isConvexQuad(moveCorner(rect, 2, 60, 40))).toBe(true);
+  });
+
+  it('rejects bowties, concave quads, counter-clockwise winding and collapsed quads', () => {
+    expect(isConvexQuad([rect[0], rect[1], rect[3], rect[2]])).toBe(false);
+    expect(isConvexQuad([rect[0], rect[1], { x: 150, y: 150 }, rect[3]])).toBe(false);
+    expect(isConvexQuad([rect[0], rect[3], rect[2], rect[1]])).toBe(false);
+    expect(isConvexQuad([rect[0], rect[1], { x: 300, y: 100 }, { x: 100, y: 100 }])).toBe(false);
   });
 });
 

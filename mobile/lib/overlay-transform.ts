@@ -12,11 +12,48 @@ export type Quad = [Point, Point, Point, Point];
 
 const DEFAULT_MIN_SIZE = 10;
 
+/** Smallest turn (px²) each corner must keep, so the quad never flattens to a line. */
+const MIN_CORNER_CROSS = 1;
+
+/** True for a non-degenerate convex quad wound clockwise on screen (tl, tr, br, bl). */
+export function isConvexQuad(q: Quad): boolean {
+  for (let i = 0; i < 4; i++) {
+    const a = q[i];
+    const b = q[(i + 1) % 4];
+    const c = q[(i + 2) % 4];
+    if ((b.x - a.x) * (c.y - b.y) - (b.y - a.y) * (c.x - b.x) <= MIN_CORNER_CROSS) return false;
+  }
+  return true;
+}
+
+/**
+ * Apply `build(t)` for the largest t in [0, 1] that keeps the quad convex, so a drag stops at the
+ * boundary instead of folding the image (a concave quad has no valid homography).
+ */
+function limitToConvex(start: Quad, build: (t: number) => Quad): Quad {
+  const full = build(1);
+  // Already-invalid quads (e.g. saved before this check) are left free to move.
+  if (isConvexQuad(full) || !isConvexQuad(start)) return full;
+  let lo = 0;
+  let hi = 1;
+  for (let i = 0; i < 20; i++) {
+    const mid = (lo + hi) / 2;
+    if (isConvexQuad(build(mid))) lo = mid;
+    else hi = mid;
+  }
+  return build(lo);
+}
+
 /** Drag a single corner; the other three stay put. */
 export function moveCorner(start: Quad, cornerIndex: number, dx: number, dy: number): Quad {
-  const next = start.map((p) => ({ ...p })) as Quad;
-  next[cornerIndex] = { x: start[cornerIndex].x + dx, y: start[cornerIndex].y + dy };
-  return next;
+  return limitToConvex(start, (t) => {
+    const next = start.map((p) => ({ ...p })) as Quad;
+    next[cornerIndex] = {
+      x: start[cornerIndex].x + dx * t,
+      y: start[cornerIndex].y + dy * t,
+    };
+    return next;
+  });
 }
 
 /** Midpoints of the top, right, bottom and left sides. */
@@ -46,13 +83,14 @@ export function resizeFromEdge(
 
   // Never shrink past minSize or flip the side over the opposite one.
   const amount = Math.max(dx * axis.x + dy * axis.y, minSize - len);
-  const shift = { x: axis.x * amount, y: axis.y * amount };
 
-  const next = start.map((p) => ({ ...p })) as Quad;
-  for (const i of [edgeIndex, (edgeIndex + 1) % 4]) {
-    next[i] = { x: start[i].x + shift.x, y: start[i].y + shift.y };
-  }
-  return next;
+  return limitToConvex(start, (t) => {
+    const next = start.map((p) => ({ ...p })) as Quad;
+    for (const i of [edgeIndex, (edgeIndex + 1) % 4]) {
+      next[i] = { x: start[i].x + axis.x * amount * t, y: start[i].y + axis.y * amount * t };
+    }
+    return next;
+  });
 }
 
 export function quadCenter(q: Quad): Point {
