@@ -10,6 +10,14 @@ import { foragingColorMap } from '@/lib/foraging-colors';
 import { matrix3dForQuad, type Point } from '@/lib/homography';
 import { injectLeafletCSS } from '@/lib/inject-css';
 import type { GeoCoord, MapOverlay } from '@/lib/map-overlays';
+import {
+  edgeMidpoints,
+  moveCorner,
+  quadCenter,
+  resizeFromEdge,
+  rotateQuad,
+  rotationHandlePoint,
+} from '@/lib/overlay-transform';
 import { placeCategoryColor } from '@/lib/place-colors';
 import { animation, iconSize, useTheme } from '@/lib/theme';
 import type { ColorTokens } from '@/lib/theme/colors';
@@ -521,21 +529,15 @@ export function UnifiedMap({
     }) as MapOverlay['corners'];
   }
 
+  /** Distance (px) of the rotation handle beyond the top edge. */
+  const ROTATE_HANDLE_OFFSET = 32;
+
   /** Derived handle anchor points (edge midpoints + rotation handle) from corners. */
   function editHandlePoints(px: [Point, Point, Point, Point]) {
-    const mid = (a: Point, b: Point): Point => ({ x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 });
-    const center: Point = { x: (px[0].x + px[2].x) / 2, y: (px[0].y + px[2].y) / 2 };
-    const edges: [Point, Point, Point, Point] = [
-      mid(px[0], px[1]), // top
-      mid(px[1], px[2]), // right
-      mid(px[2], px[3]), // bottom
-      mid(px[3], px[0]), // left
-    ];
-    const rotate: Point = {
-      x: center.x + (edges[0].x - center.x) * 1.4,
-      y: center.y + (edges[0].y - center.y) * 1.4,
+    return {
+      edges: edgeMidpoints(px),
+      rotate: rotationHandlePoint(px, ROTATE_HANDLE_OFFSET),
     };
-    return { center, edges, rotate };
   }
 
   /** Re-warp the screen-space editing image to its current pixel corners. */
@@ -609,21 +611,6 @@ export function UnifiedMap({
     });
   }
 
-  /** Rotate the pixel corners around a center by an angle (radians). */
-  function rotatePixelCorners(
-    corners: [Point, Point, Point, Point],
-    center: Point,
-    angle: number,
-  ): [Point, Point, Point, Point] {
-    const cos = Math.cos(angle);
-    const sin = Math.sin(angle);
-    return corners.map((p) => {
-      const dx = p.x - center.x;
-      const dy = p.y - center.y;
-      return { x: center.x + dx * cos - dy * sin, y: center.y + dx * sin + dy * cos } as Point;
-    }) as [Point, Point, Point, Point];
-  }
-
   /** Drag handler for the rotation handle: pointer angle → rotated pixel corners. */
   function attachRotateDrag(map: L.Map, el: HTMLElement) {
     el.addEventListener('pointerdown', (ev: PointerEvent) => {
@@ -632,7 +619,7 @@ export function UnifiedMap({
       const current = editPixelCornersRef.current;
       if (!current) return;
       const start = current.map((p) => ({ ...p })) as [Point, Point, Point, Point];
-      const center: Point = { x: (start[0].x + start[2].x) / 2, y: (start[0].y + start[2].y) / 2 };
+      const center = quadCenter(start);
       const rect = map.getContainer().getBoundingClientRect();
       const angleAt = (clientX: number, clientY: number) =>
         Math.atan2(clientY - rect.top - center.y, clientX - rect.left - center.x);
@@ -642,7 +629,7 @@ export function UnifiedMap({
 
       const onMove = (e: PointerEvent) => {
         const delta = angleAt(e.clientX, e.clientY) - baseAngle;
-        editPixelCornersRef.current = rotatePixelCorners(start, center, delta);
+        editPixelCornersRef.current = rotateQuad(start, delta);
         warpEditImage();
         positionEditHandles();
       };
@@ -738,33 +725,22 @@ export function UnifiedMap({
       return el;
     };
 
-    // Corner handles — move a single corner.
+    // Corner handles — move only that corner (free skew).
     px.forEach((c, index) => {
       const el = makeHandle(c.x, c.y, 20, 'move');
       el.style.borderRadius = '50%';
       el.style.background = '#fff';
       el.style.border = `3px solid ${primary}`;
-      attachDrag(map, el, (dx, dy, start) => {
-        const next = start.map((p) => ({ ...p })) as [Point, Point, Point, Point];
-        next[index] = { x: start[index].x + dx, y: start[index].y + dy };
-        return next;
-      });
+      attachDrag(map, el, (dx, dy, start) => moveCorner(start, index, dx, dy));
     });
 
-    // Edge (mid-side) handles — move the whole side.
+    // Edge (mid-side) handles — resize only along that side's axis.
     edges.forEach((m, index) => {
-      const a = index;
-      const b = (index + 1) % 4;
       const el = makeHandle(m.x, m.y, 16, index % 2 === 0 ? 'ns-resize' : 'ew-resize');
       el.style.borderRadius = '4px';
       el.style.background = primary;
       el.style.border = '2px solid #fff';
-      attachDrag(map, el, (dx, dy, start) => {
-        const next = start.map((p) => ({ ...p })) as [Point, Point, Point, Point];
-        next[a] = { x: start[a].x + dx, y: start[a].y + dy };
-        next[b] = { x: start[b].x + dx, y: start[b].y + dy };
-        return next;
-      });
+      attachDrag(map, el, (dx, dy, start) => resizeFromEdge(start, index, dx, dy));
     });
 
     // Rotation handle.

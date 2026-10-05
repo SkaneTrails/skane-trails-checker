@@ -19,7 +19,17 @@ import {
 import { useEffect, useRef, useState } from 'react';
 import { type LayoutChangeEvent, PanResponder, StyleSheet, View } from 'react-native';
 import { foragingColorMap } from '@/lib/foraging-colors';
-import { type GeoCoord, type MapOverlay, rotateCorners } from '@/lib/map-overlays';
+import type { Point } from '@/lib/homography';
+import type { GeoCoord, MapOverlay } from '@/lib/map-overlays';
+import {
+  edgeMidpoints,
+  moveCorner,
+  type Quad,
+  quadCenter,
+  resizeFromEdge,
+  rotateQuad,
+  rotationHandlePoint,
+} from '@/lib/overlay-transform';
 import { useTheme } from '@/lib/theme';
 import type { TrackingPoint } from '@/lib/track-to-trail';
 import type { ForagingSpot, ForagingType, ImagePin, Place, Trail } from '@/lib/types';
@@ -511,13 +521,8 @@ const CORNER_KEYS = ['tl', 'tr', 'br', 'bl'] as const;
 /** Stable keys for the four overlay edge (mid-side) handles. */
 const EDGE_KEYS = ['top', 'right', 'bottom', 'left'] as const;
 
-/** Corner index pairs forming each edge: top, right, bottom, left. */
-const EDGE_PAIRS = [
-  [0, 1],
-  [1, 2],
-  [2, 3],
-  [3, 0],
-] as const;
+/** Distance (px) of the rotation handle beyond the top edge. */
+const ROTATE_HANDLE_OFFSET = 36;
 
 /**
  * Draggable corner + rotation handles for an overlay being edited.
@@ -546,91 +551,63 @@ function OverlayEditHandles({
   const lngPerPx = (bounds.east - bounds.west) / size.width;
   const latPerPx = (bounds.north - bounds.south) / size.height;
 
-  // Corner handles — each drag translates a single corner.
-  const cornerResponders = overlay.corners.map((startCorner, index) =>
+  // Edit in a local pixel space (y down) around the committed center so resize/rotate
+  // behave like they do on screen, then convert back to geo.
+  const refLat = (overlay.corners[0][0] + overlay.corners[2][0]) / 2;
+  const refLng = (overlay.corners[0][1] + overlay.corners[2][1]) / 2;
+  const toPx = (c: GeoCoord): Point => ({
+    x: (c[1] - refLng) / lngPerPx,
+    y: -(c[0] - refLat) / latPerPx,
+  });
+  const toGeo = (p: Point): GeoCoord => [refLat - p.y * latPerPx, refLng + p.x * lngPerPx];
+  const quadToGeo = (q: Quad) => q.map(toGeo) as MapOverlay['corners'];
+  const startQuad = overlay.corners.map(toPx) as Quad;
+
+  // Corner handles — move only that corner (free skew).
+  const cornerResponders = overlay.corners.map((_corner, index) =>
     PanResponder.create({
       onStartShouldSetPanResponder: () => true,
       onMoveShouldSetPanResponder: () => true,
       onPanResponderMove: (_evt, gesture) => {
-        const dLng = gesture.dx * lngPerPx;
-        const dLat = -gesture.dy * latPerPx;
-        const next = liveRef.current.map((c) => [...c]) as MapOverlay['corners'];
-        next[index] = [startCorner[0] + dLat, startCorner[1] + dLng];
-        setLiveCorners(next);
+        setLiveCorners(quadToGeo(moveCorner(startQuad, index, gesture.dx, gesture.dy)));
       },
       onPanResponderRelease: () => onChange(overlay.id, liveRef.current),
     }),
   );
 
-  // Edge (mid-side) handles — each drag translates the whole side (two corners).
-  const edgeResponders = EDGE_PAIRS.map(([a, b]) => {
-    const startA = overlay.corners[a];
-    const startB = overlay.corners[b];
-    return PanResponder.create({
+  // Edge (mid-side) handles — resize only along that side's axis.
+  const edgeResponders = EDGE_KEYS.map((_key, index) =>
+    PanResponder.create({
       onStartShouldSetPanResponder: () => true,
       onMoveShouldSetPanResponder: () => true,
       onPanResponderMove: (_evt, gesture) => {
-        const dLng = gesture.dx * lngPerPx;
-        const dLat = -gesture.dy * latPerPx;
-        const next = liveRef.current.map((c) => [...c]) as MapOverlay['corners'];
-        next[a] = [startA[0] + dLat, startA[1] + dLng];
-        next[b] = [startB[0] + dLat, startB[1] + dLng];
-        setLiveCorners(next);
+        setLiveCorners(quadToGeo(resizeFromEdge(startQuad, index, gesture.dx, gesture.dy)));
       },
       onPanResponderRelease: () => onChange(overlay.id, liveRef.current),
-    });
-  });
+    }),
+  );
 
-  // Rotation handle geometry derived from the original corners.
-  const center: GeoCoord = [
-    (overlay.corners[0][0] + overlay.corners[2][0]) / 2,
-    (overlay.corners[0][1] + overlay.corners[2][1]) / 2,
-  ];
-  const topMid: GeoCoord = [
-    (overlay.corners[0][0] + overlay.corners[1][0]) / 2,
-    (overlay.corners[0][1] + overlay.corners[1][1]) / 2,
-  ];
-  const handleStart: GeoCoord = [
-    center[0] + (topMid[0] - center[0]) * 1.4,
-    center[1] + (topMid[1] - center[1]) * 1.4,
-  ];
-  const angleTo = (lat: number, lng: number) => Math.atan2(lng - center[1], lat - center[0]);
-  const baseAngle = angleTo(handleStart[0], handleStart[1]);
+  // Rotation handle — rotates in the screen plane around the center.
+  const startCenter = quadCenter(startQuad);
+  const handleStart = rotationHandlePoint(startQuad, ROTATE_HANDLE_OFFSET);
+  const baseAngle = Math.atan2(handleStart.y - startCenter.y, handleStart.x - startCenter.x);
 
   const rotateResponder = PanResponder.create({
     onStartShouldSetPanResponder: () => true,
     onMoveShouldSetPanResponder: () => true,
     onPanResponderMove: (_evt, gesture) => {
-      const curLat = handleStart[0] - gesture.dy * latPerPx;
-      const curLng = handleStart[1] + gesture.dx * lngPerPx;
-      const delta = angleTo(curLat, curLng) - baseAngle;
-      setLiveCorners(rotateCorners(overlay.corners, delta));
+      const curX = handleStart.x + gesture.dx;
+      const curY = handleStart.y + gesture.dy;
+      const delta = Math.atan2(curY - startCenter.y, curX - startCenter.x) - baseAngle;
+      setLiveCorners(quadToGeo(rotateQuad(startQuad, delta)));
     },
     onPanResponderRelease: () => onChange(overlay.id, liveRef.current),
   });
 
-  // Live rotation handle position tracks the current corners.
-  const liveCenter: GeoCoord = [
-    (liveCorners[0][0] + liveCorners[2][0]) / 2,
-    (liveCorners[0][1] + liveCorners[2][1]) / 2,
-  ];
-  const liveTopMid: GeoCoord = [
-    (liveCorners[0][0] + liveCorners[1][0]) / 2,
-    (liveCorners[0][1] + liveCorners[1][1]) / 2,
-  ];
-  const liveRotateHandle: GeoCoord = [
-    liveCenter[0] + (liveTopMid[0] - liveCenter[0]) * 1.4,
-    liveCenter[1] + (liveTopMid[1] - liveCenter[1]) * 1.4,
-  ];
-
-  // Live edge-handle positions track the midpoint of each side.
-  const edgeMidpoints = EDGE_PAIRS.map(
-    ([a, b]) =>
-      [
-        (liveCorners[a][0] + liveCorners[b][0]) / 2,
-        (liveCorners[a][1] + liveCorners[b][1]) / 2,
-      ] as GeoCoord,
-  );
+  // Live handle positions track the current corners.
+  const liveQuad = liveCorners.map(toPx) as Quad;
+  const liveRotateHandle = toGeo(rotationHandlePoint(liveQuad, ROTATE_HANDLE_OFFSET));
+  const edgeMidpointsGeo = edgeMidpoints(liveQuad).map(toGeo);
 
   return (
     <>
@@ -645,7 +622,7 @@ function OverlayEditHandles({
           />
         </Marker>
       ))}
-      {edgeMidpoints.map((m, index) => (
+      {edgeMidpointsGeo.map((m, index) => (
         <Marker key={`overlay-edge-${overlay.id}-${EDGE_KEYS[index]}`} lngLat={[m[1], m[0]]}>
           <View
             style={[styles.edgeHandle, { backgroundColor: primaryColor }]}

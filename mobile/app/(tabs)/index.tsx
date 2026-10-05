@@ -36,8 +36,8 @@ import { useCurrentUser } from '@/lib/hooks/use-hike-groups';
 import { useTranslation } from '@/lib/i18n';
 import { getCurrentPosition } from '@/lib/location';
 import {
-  calculateInitialCorners,
-  type GeoCoord,
+  calculateCornersForImage,
+  isPointInCorners,
   type MapOverlay,
   useMapOverlays,
 } from '@/lib/map-overlays';
@@ -46,6 +46,17 @@ import { spacing, useTheme } from '@/lib/theme';
 import { glassPill } from '@/lib/theme/styles';
 import { useTracking } from '@/lib/tracking-context';
 import type { ForagingSpot, ForagingSpotCreate, Place, Trail } from '@/lib/types';
+
+/** Natural pixel size of an image, or 4:3 if it cannot be read. */
+function getImageSize(uri: string): Promise<{ width: number; height: number }> {
+  return new Promise((resolve) => {
+    Image.getSize(
+      uri,
+      (width, height) => resolve({ width, height }),
+      () => resolve({ width: 4, height: 3 }),
+    );
+  });
+}
 
 type SelectedItem =
   | { type: 'trail'; data: Trail }
@@ -226,35 +237,8 @@ export default function MapScreen() {
   // Overlay handlers
   const handleAddOverlay = useCallback(
     async (imageUri: string, name: string) => {
-      // Get image dimensions to preserve aspect ratio for the initial placement
-      const imgSize = await new Promise<{ width: number; height: number }>((resolve) => {
-        Image.getSize(
-          imageUri,
-          (w, h) => resolve({ width: w, height: h }),
-          () => resolve({ width: 4, height: 3 }),
-        );
-      });
-
-      let corners: [GeoCoord, GeoCoord, GeoCoord, GeoCoord];
-      if (mapBounds) {
-        const { north, south, east, west } = mapBounds;
-        const centerLat = (north + south) / 2;
-        const centerLng = (east + west) / 2;
-        const aspect = imgSize.width / imgSize.height;
-        // Place the overlay at ~50% of the current view height, aspect-correct.
-        const heightLat = (north - south) * 0.5;
-        const cosLat = Math.cos((centerLat * Math.PI) / 180) || 1;
-        const widthLng = (heightLat * aspect) / cosLat;
-
-        corners = [
-          [centerLat + heightLat / 2, centerLng - widthLng / 2], // Top-left
-          [centerLat + heightLat / 2, centerLng + widthLng / 2], // Top-right
-          [centerLat - heightLat / 2, centerLng + widthLng / 2], // Bottom-right
-          [centerLat - heightLat / 2, centerLng - widthLng / 2], // Bottom-left
-        ];
-      } else {
-        corners = calculateInitialCorners(55.95, 13.4, 0.05, 0.04);
-      }
+      const imgSize = await getImageSize(imageUri);
+      const corners = calculateCornersForImage(imgSize.width, imgSize.height, mapBounds);
       const overlay = await addOverlay({ name, imageUri, corners });
       setShowOverlayManager(false);
       // Enter edit mode so the user can drag the corners into place
@@ -273,10 +257,15 @@ export default function MapScreen() {
     [overlays, updateOverlay],
   );
 
-  const handleEditOverlay = useCallback((id: string) => {
-    setEditingOverlayId(id);
-    setShowOverlayManager(false);
-  }, []);
+  const handleEditOverlay = useCallback(
+    (id: string) => {
+      const overlay = overlays.find((o) => o.id === id);
+      if (overlay && !overlay.visible) void updateOverlay(id, { visible: true });
+      setEditingOverlayId(id);
+      setShowOverlayManager(false);
+    },
+    [overlays, updateOverlay],
+  );
 
   const handleOverlayCornersChange = useCallback(
     (id: string, corners: MapOverlay['corners']) => {
@@ -294,22 +283,10 @@ export default function MapScreen() {
     [editingOverlayId, updateOverlay],
   );
 
-  const handleResetOverlay = useCallback(() => {
+  const handleResetOverlay = useCallback(async () => {
     if (!editingOverlay || !editingOverlayId) return;
-    let corners: [GeoCoord, GeoCoord, GeoCoord, GeoCoord];
-    if (mapBounds) {
-      const { north, south, east, west } = mapBounds;
-      const latPad = (north - south) * 0.1;
-      const lngPad = (east - west) * 0.1;
-      corners = [
-        [north - latPad, west + lngPad],
-        [north - latPad, east - lngPad],
-        [south + latPad, east - lngPad],
-        [south + latPad, west + lngPad],
-      ];
-    } else {
-      corners = calculateInitialCorners(55.95, 13.4, 0.05, 0.04);
-    }
+    const imgSize = await getImageSize(editingOverlay.imageUri);
+    const corners = calculateCornersForImage(imgSize.width, imgSize.height, mapBounds);
     void updateOverlay(editingOverlayId, { corners, opacity: 0.7 });
   }, [editingOverlay, editingOverlayId, updateOverlay, mapBounds]);
 
@@ -323,13 +300,21 @@ export default function MapScreen() {
     setEditingOverlayId(null);
   }, []);
 
-  // Handle map click — dismiss any open card/panel
+  // Handle map click — dismiss any open card/panel, otherwise tapping an overlay edits it
   const handleMapClick = useCallback(
-    (_lat: number, _lng: number) => {
-      if (selected) setSelected(null);
-      if (showOverlayManager) setShowOverlayManager(false);
+    (lat: number, lng: number) => {
+      if (selected || showOverlayManager) {
+        if (selected) setSelected(null);
+        if (showOverlayManager) setShowOverlayManager(false);
+        return;
+      }
+      if (editingOverlayId) return;
+      const hit = [...visibleOverlays]
+        .reverse()
+        .find((o) => isPointInCorners([lat, lng], o.corners));
+      if (hit) setEditingOverlayId(hit.id);
     },
-    [selected, showOverlayManager],
+    [selected, showOverlayManager, editingOverlayId, visibleOverlays],
   );
 
   // Long-press on map → open add foraging spot form with pre-filled coordinates
