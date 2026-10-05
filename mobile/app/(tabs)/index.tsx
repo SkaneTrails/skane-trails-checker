@@ -18,7 +18,7 @@ import { TrackingControls } from '@/components/TrackingControls';
 import { TrackingOverlay } from '@/components/TrackingOverlay';
 import { TrailCard } from '@/components/TrailCard';
 import { TrailListDrawer } from '@/components/TrailListDrawer';
-import { type MapLayers, UnifiedMap } from '@/components/UnifiedMap';
+import { UnifiedMap } from '@/components/UnifiedMap';
 import {
   useCreateForagingSpot,
   useCreateForagingType,
@@ -35,6 +35,7 @@ import {
 import { useCurrentUser } from '@/lib/hooks/use-hike-groups';
 import { useTranslation } from '@/lib/i18n';
 import { getCurrentPosition } from '@/lib/location';
+import { type MapLayers, useMapLayers } from '@/lib/map-layers';
 import {
   calculateCornersForImage,
   isPointInCorners,
@@ -90,12 +91,7 @@ export default function MapScreen() {
     [places, enabledPlaceCategories],
   );
 
-  const [mapLayers, setMapLayers] = useState<MapLayers>({
-    trails: true,
-    foraging: true,
-    places: true,
-    images: true,
-  });
+  const { layers: mapLayers, toggleLayer } = useMapLayers();
 
   const { data: imagePins } = useImagePins({ enabled: mapLayers.images });
 
@@ -198,9 +194,10 @@ export default function MapScreen() {
     },
   ];
 
-  const handleToggleLayer = useCallback((layerId: string) => {
-    setMapLayers((prev: MapLayers) => ({ ...prev, [layerId]: !prev[layerId as keyof MapLayers] }));
-  }, []);
+  const handleToggleLayer = useCallback(
+    (layerId: string) => toggleLayer(layerId as keyof MapLayers),
+    [toggleLayer],
+  );
 
   const handleTrailSelect = useCallback((trail: Trail) => {
     setSelected({ type: 'trail', data: trail });

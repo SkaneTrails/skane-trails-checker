@@ -46,6 +46,8 @@ const sv: Translations = {
     exploredCount: '{{explored}} / {{total}} utforskade',
     uploadGpx: 'Ladda upp GPX',
     searchPlaceholder: 'Sök leder...',
+    sortNewest: 'Senaste först',
+    sortName: 'Namn A–Ö',
     loadingTrails: 'Laddar leder...',
     noTrailsFound: 'Inga leder hittades',
     failedToLoad: 'Kunde inte ladda leder',

@@ -20,7 +20,7 @@ import { ContentCard } from '@/components/ContentCard';
 import { DrawerOverlay } from '@/components/DrawerOverlay';
 import { EmptyState } from '@/components/EmptyState';
 import { StatusBadge } from '@/components/StatusBadge';
-import { filterTrails, useTrails } from '@/lib/hooks';
+import { filterTrails, sortTrails, type TrailSortMode, useTrails } from '@/lib/hooks';
 import { useTranslation } from '@/lib/i18n';
 import { borderRadius, fontSize, fontWeight, letterSpacing, spacing, useTheme } from '@/lib/theme';
 import { glassPill } from '@/lib/theme/styles';
@@ -68,11 +68,22 @@ function TrailItem({ trail, onPress }: { trail: Trail; onPress: (trail: Trail) =
   );
 }
 
-export const TrailListDrawer = ({ isOpen, onClose, onTrailSelect, onUpload }: TrailListDrawerProps) => {
+export const TrailListDrawer = ({
+  isOpen,
+  onClose,
+  onTrailSelect,
+  onUpload,
+}: TrailListDrawerProps) => {
   const { colors } = useTheme();
   const { t } = useTranslation();
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<string | undefined>();
+  const [sortMode, setSortMode] = useState<TrailSortMode>('date');
+
+  const sortOptions: { label: string; value: TrailSortMode }[] = [
+    { label: t('trails.sortNewest'), value: 'date' },
+    { label: t('trails.sortName'), value: 'name' },
+  ];
 
   const statusOptions = [
     { label: t('common.all'), value: undefined },
@@ -83,8 +94,15 @@ export const TrailListDrawer = ({ isOpen, onClose, onTrailSelect, onUpload }: Tr
   const { data: allTrails, isLoading, isFetching, isError, refetch } = useTrails();
 
   const trails = useMemo(
-    () => filterTrails(allTrails ?? [], { search: search.trim() || undefined, status: statusFilter as Trail['status'] | undefined }),
-    [allTrails, search, statusFilter],
+    () =>
+      sortTrails(
+        filterTrails(allTrails ?? [], {
+          search: search.trim() || undefined,
+          status: statusFilter as Trail['status'] | undefined,
+        }),
+        sortMode,
+      ),
+    [allTrails, search, statusFilter, sortMode],
   );
 
   const trailCount = trails.length;
@@ -136,6 +154,16 @@ export const TrailListDrawer = ({ isOpen, onClose, onTrailSelect, onUpload }: Tr
               label={opt.label}
               selected={statusFilter === opt.value}
               onPress={() => setStatusFilter(opt.value)}
+            />
+          ))}
+        </View>
+        <View style={styles.chipRow}>
+          {sortOptions.map((opt) => (
+            <Chip
+              key={opt.value}
+              label={opt.label}
+              selected={sortMode === opt.value}
+              onPress={() => setSortMode(opt.value)}
             />
           ))}
         </View>

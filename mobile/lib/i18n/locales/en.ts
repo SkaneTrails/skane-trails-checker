@@ -46,6 +46,8 @@ const en = {
     exploredCount: '{{explored}} / {{total}} explored',
     uploadGpx: 'Upload GPX',
     searchPlaceholder: 'Search trails...',
+    sortNewest: 'Newest first',
+    sortName: 'Name A–Z',
     loadingTrails: 'Loading trails...',
     noTrailsFound: 'No trails found',
     failedToLoad: 'Failed to load trails',

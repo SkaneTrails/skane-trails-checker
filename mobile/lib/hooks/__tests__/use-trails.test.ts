@@ -1,17 +1,18 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { renderHook, waitFor } from '@testing-library/react';
-import { createElement } from 'react';
 import type { ReactNode } from 'react';
+import { createElement } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { createQueryWrapper } from '@/test/helpers';
 import {
-  SYNC_POLL_INTERVAL,
   filterTrails,
   pollForChanges,
+  SYNC_POLL_INTERVAL,
   sortTrails,
   useDeleteTrail,
-  useMapTrails,
+  useDeleteTrailImage,
   useImagePins,
+  useMapTrails,
   useSaveRecording,
   useTrail,
   useTrailDetails,
@@ -20,7 +21,6 @@ import {
   useUpdateTrail,
   useUploadGpx,
   useUploadTrailImage,
-  useDeleteTrailImage,
 } from '../use-trails';
 
 vi.mock('@/lib/api', () => ({
@@ -506,10 +506,7 @@ describe('useUpdateTrail', () => {
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
     expect(mockTrailsApi.updateTrail).toHaveBeenCalledWith('abc123', { status: 'Explored!' });
     await waitFor(() => {
-      expect(mockTrailCache.set).toHaveBeenCalledWith(
-        [updatedTrail],
-        '2025-06-01T00:00:00Z',
-      );
+      expect(mockTrailCache.set).toHaveBeenCalledWith([updatedTrail], '2025-06-01T00:00:00Z');
     });
     // Verify the setQueryData callbacks updated both caches
     expect(queryClient.getQueryData(['trails', 'list'])).toEqual([updatedTrail]);
@@ -615,7 +612,9 @@ describe('useUploadGpx', () => {
 });
 
 describe('sortTrails', () => {
-  const makeTrail = (overrides: Partial<typeof sampleTrail>) => ({
+  const makeTrail = (
+    overrides: Partial<typeof sampleTrail> & { activity_date?: string; created_at?: string },
+  ) => ({
     ...sampleTrail,
     ...overrides,
   });
@@ -629,15 +628,90 @@ describe('sortTrails', () => {
     expect(result.map((t) => t.trail_id)).toEqual(['u1', 'p1']);
   });
 
-  it('sorts alphabetically within each group', () => {
+  it('sorts alphabetically within each group in name mode', () => {
     const plannedB = makeTrail({ trail_id: 'p2', name: 'Zeta', source: 'planned_hikes' });
     const plannedA = makeTrail({ trail_id: 'p1', name: 'Alpha', source: 'planned_hikes' });
     const uploadedB = makeTrail({ trail_id: 'u2', name: 'Omega', source: 'other_trails' });
     const uploadedA = makeTrail({ trail_id: 'u1', name: 'Beta', source: 'world_wide_hikes' });
 
-    const result = sortTrails([plannedB, uploadedB, plannedA, uploadedA]);
+    const result = sortTrails([plannedB, uploadedB, plannedA, uploadedA], 'name');
 
     expect(result.map((t) => t.trail_id)).toEqual(['u1', 'u2', 'p1', 'p2']);
+  });
+
+  it('defaults to most recent hike first', () => {
+    const old = makeTrail({
+      trail_id: 'old',
+      name: 'A',
+      source: 'other_trails',
+      activity_date: '2024-05-01',
+    });
+    const recent = makeTrail({
+      trail_id: 'new',
+      name: 'B',
+      source: 'other_trails',
+      activity_date: '2025-08-01',
+    });
+    const mid = makeTrail({
+      trail_id: 'mid',
+      name: 'C',
+      source: 'other_trails',
+      activity_date: '2025-01-01',
+    });
+
+    expect(sortTrails([old, recent, mid]).map((t) => t.trail_id)).toEqual(['new', 'mid', 'old']);
+  });
+
+  it('falls back to created_at and puts undated trails after dated ones, by name', () => {
+    const dated = makeTrail({
+      trail_id: 'd',
+      name: 'Z',
+      source: 'other_trails',
+      activity_date: '2024-01-01',
+    });
+    const created = makeTrail({
+      trail_id: 'c',
+      name: 'Y',
+      source: 'other_trails',
+      created_at: '2025-01-01T00:00:00Z',
+    });
+    const undatedB = makeTrail({ trail_id: 'ub', name: 'B', source: 'other_trails' });
+    const undatedA = makeTrail({
+      trail_id: 'ua',
+      name: 'A',
+      source: 'other_trails',
+      activity_date: 'not a date',
+    });
+
+    expect(sortTrails([undatedB, dated, undatedA, created]).map((t) => t.trail_id)).toEqual([
+      'c',
+      'd',
+      'ua',
+      'ub',
+    ]);
+  });
+
+  it('keeps planned hikes last and alphabetical in date mode', () => {
+    const upload = makeTrail({
+      trail_id: 'u',
+      name: 'Up',
+      source: 'other_trails',
+      activity_date: '2020-01-01',
+    });
+    const pB = makeTrail({
+      trail_id: 'pb',
+      name: 'B',
+      source: 'planned_hikes',
+      created_at: '2026-01-01T00:00:00Z',
+    });
+    const pA = makeTrail({
+      trail_id: 'pa',
+      name: 'A',
+      source: 'planned_hikes',
+      created_at: '2020-01-01T00:00:00Z',
+    });
+
+    expect(sortTrails([pB, pA, upload]).map((t) => t.trail_id)).toEqual(['u', 'pa', 'pb']);
   });
 
   it('does not mutate the original array', () => {
@@ -658,10 +732,11 @@ describe('sortTrails', () => {
 });
 
 describe('filterTrails', () => {
-  const makeTrail = (overrides: Record<string, unknown>) => ({
-    ...sampleTrail,
-    ...overrides,
-  }) as typeof sampleTrail;
+  const makeTrail = (overrides: Record<string, unknown>) =>
+    ({
+      ...sampleTrail,
+      ...overrides,
+    }) as typeof sampleTrail;
 
   const trails = [
     makeTrail({ trail_id: '1', name: 'Hovdala Castle Loop', status: 'Explored!', length_km: 8.2 }),
@@ -733,9 +808,17 @@ describe('useSaveRecording', () => {
   });
 
   it('calls saveRecording API and invalidates queries', async () => {
-    const savedTrail = { ...sampleTrail, trail_id: 'rec1', name: 'Morning Walk', source: 'other_trails' };
+    const savedTrail = {
+      ...sampleTrail,
+      trail_id: 'rec1',
+      name: 'Morning Walk',
+      source: 'other_trails',
+    };
     mockTrailsApi.saveRecording.mockResolvedValue(savedTrail);
-    mockTrailCache.get.mockResolvedValue({ trails: [sampleTrail], lastSyncTime: '2025-06-01T00:00:00Z' });
+    mockTrailCache.get.mockResolvedValue({
+      trails: [sampleTrail],
+      lastSyncTime: '2025-06-01T00:00:00Z',
+    });
 
     // Pre-seed both caches so setQueryData callbacks execute
     const queryClient = new QueryClient({
@@ -765,7 +848,10 @@ describe('useSaveRecording', () => {
 
 describe('useTrailImages', () => {
   it('fetches images for a trail', async () => {
-    const images = { trail_id: 'abc', images: [{ image_data: 'b64', role: 'primary', lat: 55.0, lng: 13.0, caption: null }] };
+    const images = {
+      trail_id: 'abc',
+      images: [{ image_data: 'b64', role: 'primary', lat: 55.0, lng: 13.0, caption: null }],
+    };
     mockTrailsApi.getTrailImages.mockResolvedValue(images);
 
     const { result } = renderHook(() => useTrailImages('abc'), { wrapper: createQueryWrapper() });
@@ -777,7 +863,10 @@ describe('useTrailImages', () => {
 
 describe('useUploadTrailImage', () => {
   it('uploads an image and updates cache', async () => {
-    const response = { trail_id: 'abc', images: [{ image_data: 'b64', role: 'primary', lat: null, lng: null, caption: null }] };
+    const response = {
+      trail_id: 'abc',
+      images: [{ image_data: 'b64', role: 'primary', lat: null, lng: null, caption: null }],
+    };
     mockTrailsApi.uploadTrailImage.mockResolvedValue(response);
 
     const { result } = renderHook(() => useUploadTrailImage(), { wrapper: createQueryWrapper() });
@@ -789,7 +878,10 @@ describe('useUploadTrailImage', () => {
   });
 
   it('invalidates imagePins cache after upload', async () => {
-    const response = { trail_id: 'abc', images: [{ image_data: 'b64', role: 'primary', lat: 55.5, lng: 13.2, caption: null }] };
+    const response = {
+      trail_id: 'abc',
+      images: [{ image_data: 'b64', role: 'primary', lat: 55.5, lng: 13.2, caption: null }],
+    };
     mockTrailsApi.uploadTrailImage.mockResolvedValue(response);
     mockTrailsApi.getImagePins.mockResolvedValue({
       pins: [{ trail_id: 'abc', lat: 55.5, lng: 13.2, thumbnail: 'thumb' }],
@@ -886,7 +978,9 @@ describe('useDeleteTrailImage', () => {
 
 describe('useImagePins', () => {
   it('returns undefined when disabled', () => {
-    const { result } = renderHook(() => useImagePins({ enabled: false }), { wrapper: createQueryWrapper() });
+    const { result } = renderHook(() => useImagePins({ enabled: false }), {
+      wrapper: createQueryWrapper(),
+    });
     expect(result.current.data).toBeUndefined();
   });
 
@@ -895,9 +989,16 @@ describe('useImagePins', () => {
       pins: [{ trail_id: 't1', lat: 55.5, lng: 13.2, thumbnail: 'thumb' }],
     });
 
-    const { result } = renderHook(() => useImagePins({ enabled: true }), { wrapper: createQueryWrapper() });
+    const { result } = renderHook(() => useImagePins({ enabled: true }), {
+      wrapper: createQueryWrapper(),
+    });
 
     await waitFor(() => expect(result.current.data?.length).toBe(1));
-    expect(result.current.data![0]).toEqual({ trail_id: 't1', lat: 55.5, lng: 13.2, thumbnail: 'thumb' });
+    expect(result.current.data![0]).toEqual({
+      trail_id: 't1',
+      lat: 55.5,
+      lng: 13.2,
+      thumbnail: 'thumb',
+    });
   });
 });
