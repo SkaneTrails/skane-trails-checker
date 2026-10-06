@@ -178,6 +178,23 @@ class TestFilterSpeedOutliers:
         assert all(c.lat != 55.700 for c in result)
         assert result[0].lat == 55.600
 
+    def test_keeps_valid_first_point_before_interior_spike(self):
+        # The first point is valid; the spike is at index 1. Anchoring at element 0 must
+        # keep the valid start and skip only the interior outlier — not drop the prefix.
+        base = 1700000000000
+        coords = self._coords(
+            [
+                (55.600, 13.000, base),  # valid start
+                (55.700, 13.000, base + 1000),  # interior outlier
+                (55.6002, 13.000, base + 2000),
+                (55.6004, 13.000, base + 3000),
+            ]
+        )
+        result = _filter_speed_outliers(coords)
+        assert len(result) == 3
+        assert result[0].lat == 55.600
+        assert all(c.lat != 55.700 for c in result)
+
     def test_process_recording_excludes_outlier_from_bounds(self):
         base = 1700000000000
         coords = self._coords(

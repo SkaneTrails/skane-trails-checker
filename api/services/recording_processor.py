@@ -32,32 +32,41 @@ def _plausible_step(prev: RecordingCoordinate, point: RecordingCoordinate) -> bo
     return dt_s > 0 and dist_m / dt_s <= _MAX_PLAUSIBLE_SPEED_MS
 
 
+def _accept_from(coordinates: list[RecordingCoordinate], start: int) -> list[RecordingCoordinate]:
+    """Keep points reachable at a plausible speed from the last accepted one, anchored at ``start``."""
+    accepted = [coordinates[start]]
+    for point in coordinates[start + 1 :]:
+        if _plausible_step(accepted[-1], point):
+            accepted.append(point)
+    return accepted
+
+
 def _filter_speed_outliers(coordinates: list[RecordingCoordinate]) -> list[RecordingCoordinate]:
     """Drop GPS points that imply an impossibly fast jump from the last good point.
 
     Compares each point against the last *accepted* point (not the raw previous one)
     so a single bad fix can't drag the whole track. Only large jumps (> _MIN_OUTLIER_DIST_M)
-    at an implausible speed are removed; close-range jitter is kept. The starting
-    anchor is chosen by lookahead — the first point corroborated by its neighbour —
-    so a bad initial fix (GPS warm-up) can't anchor the whole track and then be
-    restored by the fallback. If filtering would leave fewer than two points, the
-    original list is returned unchanged.
+    at an implausible speed are removed; close-range jitter is kept.
+
+    Anchoring starts at the first point: an interior spike is simply skipped while the
+    valid prefix is retained. Only when the first point is itself the bad fix — so
+    anchoring there rejects the whole track and leaves fewer than two points — do we
+    re-anchor on the first point corroborated by its neighbour, dropping the warm-up
+    prefix. If no anchor yields two points, the original list is returned unchanged.
     """
     if len(coordinates) < 3:  # noqa: PLR2004
         return coordinates
 
-    start = 0
-    for i in range(len(coordinates) - 1):
-        if _plausible_step(coordinates[i], coordinates[i + 1]):
-            start = i
-            break
+    accepted = _accept_from(coordinates, 0)
+    if len(accepted) >= 2:  # noqa: PLR2004
+        return accepted
 
-    accepted = [coordinates[start]]
-    for point in coordinates[start + 1 :]:
-        if _plausible_step(accepted[-1], point):
-            accepted.append(point)
+    # Element 0 was itself the bad fix: re-anchor on the first corroborated pair.
+    for start in range(1, len(coordinates) - 1):
+        if _plausible_step(coordinates[start], coordinates[start + 1]):
+            return _accept_from(coordinates, start)
 
-    return accepted if len(accepted) >= 2 else coordinates  # noqa: PLR2004
+    return coordinates
 
 
 def _compute_elevation_metrics(

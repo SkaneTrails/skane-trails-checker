@@ -169,12 +169,12 @@ def main() -> None:
     args = parser.parse_args()
 
     # `created_by` marks ownership, not recording provenance: GPX uploads set it too
-    # (api/routers/trails.py). Until a persisted recording-origin marker exists, refuse
-    # bulk --apply so we can't silently rewrite every user-uploaded GPX. Dry-run review
-    # over --all-recorded is still allowed; apply one trail at a time with --trail-id.
-    if args.all_recorded and args.apply:
-        print("Bulk --apply with --all-recorded is disabled (created_by matches GPX uploads too).")
-        print("Review with a dry-run, then apply per trail via --trail-id.")
+    # (api/routers/trails.py). A --name match can likewise span uploaded GPX trails.
+    # Until a persisted recording-origin marker exists, only allow --apply for a single
+    # explicit --trail-id; --name / --all-recorded stay dry-run-only for safe review.
+    if args.apply and not args.trail_id:
+        print("--apply requires an explicit --trail-id (--name / --all-recorded are dry-run-only).")
+        print("Review in bulk with a dry-run, then apply per trail via --trail-id.")
         return
 
     targets = _resolve_targets(args)
