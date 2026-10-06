@@ -23,25 +23,39 @@ def _haversine_km(lat1: float, lng1: float, lat2: float, lng2: float) -> float:
     return (lat_diff**2 + lng_diff**2) ** 0.5
 
 
+def _plausible_step(prev: RecordingCoordinate, point: RecordingCoordinate) -> bool:
+    """True if moving prev->point is within plausible hiker/runner speed."""
+    dist_m = _haversine_km(prev.lat, prev.lng, point.lat, point.lng) * 1000.0
+    if dist_m <= _MIN_OUTLIER_DIST_M:
+        return True
+    dt_s = (point.timestamp - prev.timestamp) / 1000.0
+    return dt_s > 0 and dist_m / dt_s <= _MAX_PLAUSIBLE_SPEED_MS
+
+
 def _filter_speed_outliers(coordinates: list[RecordingCoordinate]) -> list[RecordingCoordinate]:
     """Drop GPS points that imply an impossibly fast jump from the last good point.
 
     Compares each point against the last *accepted* point (not the raw previous one)
     so a single bad fix can't drag the whole track. Only large jumps (> _MIN_OUTLIER_DIST_M)
-    at an implausible speed are removed; close-range jitter is kept. If filtering would
-    leave fewer than two points, the original list is returned unchanged.
+    at an implausible speed are removed; close-range jitter is kept. The starting
+    anchor is chosen by lookahead — the first point corroborated by its neighbour —
+    so a bad initial fix (GPS warm-up) can't anchor the whole track and then be
+    restored by the fallback. If filtering would leave fewer than two points, the
+    original list is returned unchanged.
     """
     if len(coordinates) < 3:  # noqa: PLR2004
         return coordinates
 
-    accepted = [coordinates[0]]
-    for point in coordinates[1:]:
-        prev = accepted[-1]
-        dist_m = _haversine_km(prev.lat, prev.lng, point.lat, point.lng) * 1000.0
-        dt_s = (point.timestamp - prev.timestamp) / 1000.0
-        if dist_m > _MIN_OUTLIER_DIST_M and (dt_s <= 0 or dist_m / dt_s > _MAX_PLAUSIBLE_SPEED_MS):
-            continue
-        accepted.append(point)
+    start = 0
+    for i in range(len(coordinates) - 1):
+        if _plausible_step(coordinates[i], coordinates[i + 1]):
+            start = i
+            break
+
+    accepted = [coordinates[start]]
+    for point in coordinates[start + 1 :]:
+        if _plausible_step(accepted[-1], point):
+            accepted.append(point)
 
     return accepted if len(accepted) >= 2 else coordinates  # noqa: PLR2004
 
@@ -111,11 +125,12 @@ def process_recording(
 
     # Check for elevation data
     has_elevation = all(c.altitude is not None for c in coordinates)
-    elevations = [c.altitude for c in coordinates] if has_elevation else []
+    elevations: list[float] = [c.altitude for c in coordinates if c.altitude is not None] if has_elevation else []
 
     # Build 3D coords for simplification when elevation available
+    coords_3d: list[tuple[float, ...]]
     if has_elevation:
-        coords_3d: list[tuple[float, ...]] = [(c.lat, c.lng, c.altitude) for c in coordinates]  # type: ignore[misc]
+        coords_3d = [(c.lat, c.lng, elev) for c, elev in zip(coordinates, elevations, strict=True)]
     else:
         coords_3d = [(c.lat, c.lng) for c in coordinates]
 
@@ -138,7 +153,7 @@ def process_recording(
     if has_elevation and len(elevations) > 1:
         elevation_gain, elevation_loss, avg_inclination_deg, max_inclination_deg = _compute_elevation_metrics(
             all_coords, elevations
-        )  # type: ignore[arg-type]
+        )
 
     # Duration from timestamps
     duration_minutes = None
@@ -162,7 +177,7 @@ def process_recording(
     if has_elevation:
         coordinates_map = [Coordinate(lat=lat, lng=lng, elevation=elev) for lat, lng, elev in simplified]
         coordinates_full = [Coordinate(lat=c.lat, lng=c.lng, elevation=c.altitude) for c in coordinates]
-        elevation_profile = elevations  # type: ignore[assignment]
+        elevation_profile = elevations
     else:
         coordinates_map = [Coordinate(lat=lat, lng=lng) for lat, lng in simplified]
         coordinates_full = [Coordinate(lat=c.lat, lng=c.lng) for c in coordinates]

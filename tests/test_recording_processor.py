@@ -160,6 +160,24 @@ class TestFilterSpeedOutliers:
         coords = self._coords([(55.600, 13.000, base), (55.700, 13.000, base + 1000), (55.800, 13.000, base + 2000)])
         assert _filter_speed_outliers(coords) == coords
 
+    def test_drops_bad_initial_fix(self):
+        # First point is a GPS warm-up spike; the track then settles into a stable
+        # cluster. The anchor must be chosen by lookahead, not element 0, so the
+        # spike is dropped instead of poisoning (and surviving via) the fallback.
+        base = 1700000000000
+        coords = self._coords(
+            [
+                (55.700, 13.000, base),  # warm-up outlier
+                (55.600, 13.000, base + 3000),  # real start
+                (55.6002, 13.000, base + 6000),  # ~22 m in 3 s
+                (55.6004, 13.000, base + 9000),
+            ]
+        )
+        result = _filter_speed_outliers(coords)
+        assert len(result) == 3
+        assert all(c.lat != 55.700 for c in result)
+        assert result[0].lat == 55.600
+
     def test_process_recording_excludes_outlier_from_bounds(self):
         base = 1700000000000
         coords = self._coords(

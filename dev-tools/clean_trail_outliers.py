@@ -13,7 +13,7 @@ metrics) are recomputed from the cleaned track.
 Dry-run by default. Pass --apply to write changes to Firestore.
 
 Examples:
-    uv run python dev-tools/clean_trail_outliers.py --name "Sodergard"
+    uv run python dev-tools/clean_trail_outliers.py --name "Södergård"
     uv run python dev-tools/clean_trail_outliers.py --trail-id 4f7711232059 --apply
     uv run python dev-tools/clean_trail_outliers.py --all-recorded
 """
@@ -26,7 +26,14 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from api.models.trail import Coordinate, TrailBounds, TrailDetailsResponse, TrailResponse
 from api.services.recording_processor import _compute_elevation_metrics, _haversine_km, _simplify_coordinates
-from api.storage.trail_storage import get_all_trails, get_trail, get_trail_details, save_trail, save_trail_details
+from api.storage.trail_storage import (
+    get_all_trails,
+    get_trail,
+    get_trail_details,
+    save_trail,
+    save_trail_details,
+    update_sync_metadata,
+)
 from app.functions.env_loader import load_env_if_needed
 
 load_env_if_needed()
@@ -73,7 +80,7 @@ def clean_outliers(
             j = i
             while j < n and j - i < max_excursion and _dist_m(anchor, coords[j]) > threshold:
                 j += 1
-            if j < n and j - i < max_excursion and _dist_m(anchor, coords[j]) <= threshold:
+            if j < n and j - i <= max_excursion and _dist_m(anchor, coords[j]) <= threshold:
                 dropped.extend(range(i, j))  # excursion returns at j: drop i..j-1
                 i = j
                 continue
@@ -161,12 +168,22 @@ def main() -> None:
     parser.add_argument("--apply", action="store_true", help="Persist changes (otherwise dry-run).")
     args = parser.parse_args()
 
+    # `created_by` marks ownership, not recording provenance: GPX uploads set it too
+    # (api/routers/trails.py). Until a persisted recording-origin marker exists, refuse
+    # bulk --apply so we can't silently rewrite every user-uploaded GPX. Dry-run review
+    # over --all-recorded is still allowed; apply one trail at a time with --trail-id.
+    if args.all_recorded and args.apply:
+        print("Bulk --apply with --all-recorded is disabled (created_by matches GPX uploads too).")
+        print("Review with a dry-run, then apply per trail via --trail-id.")
+        return
+
     targets = _resolve_targets(args)
     if not targets:
         print("No matching trails.")
         return
 
     print(f"{'APPLYING' if args.apply else 'DRY-RUN'} over {len(targets)} trail(s)\n")
+    saved_any = False
     for trail in targets:
         details = get_trail_details(trail.trail_id)
         if not details or not details.coordinates_full:
@@ -181,8 +198,12 @@ def main() -> None:
         if args.apply:
             _recompute(trail, details, cleaned)
             save_trail_details(details)
-            save_trail(trail)
+            save_trail(trail, update_sync=False)
+            saved_any = True
             print("    saved.")
+
+    if saved_any:
+        update_sync_metadata()  # single metadata write after the batch
 
     if not args.apply:
         print("\nDry-run only. Re-run with --apply to persist.")

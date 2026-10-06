@@ -301,12 +301,12 @@ The import pipeline preserves elevation data, extracts duration from timestamps,
 
 - **`check_rounding.py`**: Check coordinate precision
 
-- **`clean_trail_outliers.py`**: Remove GPS spike outliers from stored trails and recompute derived fields (`coordinates_map`, `bounds`, `center`, `length_km`, elevation metrics). Geometry-only heuristic for trails recorded before the live speed filter. **Dry-run by default**; review the reported dropped indices, then re-run with `--apply` to persist.
+- **`clean_trail_outliers.py`**: Remove GPS spike outliers from stored trails and recompute derived fields (`coordinates_map`, `bounds`, `center`, `length_km`, elevation metrics). Geometry-only heuristic for trails recorded before the live speed filter. **Dry-run by default**; review the reported dropped indices, then re-run with `--apply` to persist. `--all-recorded` is **dry-run only** (bulk `--apply` is refused because `created_by` also matches user-uploaded GPX); apply one trail at a time with `--trail-id`.
 
   ```bash
-  # Review (dry-run): select by id, name substring, or all recorded trails
+  # Review (dry-run): select by id, name substring (diacritics-sensitive), or all recorded trails
   uv run python dev-tools/clean_trail_outliers.py --trail-id <id>
-  uv run python dev-tools/clean_trail_outliers.py --name "Hemmestorp"
+  uv run python dev-tools/clean_trail_outliers.py --name "Södergård"
   uv run python dev-tools/clean_trail_outliers.py --all-recorded
 
   # Persist changes for one trail
