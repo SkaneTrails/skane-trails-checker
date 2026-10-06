@@ -10,12 +10,63 @@ from app.functions.trail_converter import detect_source
 _MIN_HORIZ_DIST_M = 1.0
 _MS_PER_MINUTE = 60_000
 
+# GPS outlier rejection: drop a point only when it jumps a large distance from the
+# last accepted point in an implausibly short time (i.e. faster than any hiker/runner).
+_MAX_PLAUSIBLE_SPEED_MS = 10.0  # ~36 km/h
+_MIN_OUTLIER_DIST_M = 50.0
+
 
 def _haversine_km(lat1: float, lng1: float, lat2: float, lng2: float) -> float:
     """Approximate distance in km between two coordinates."""
     lat_diff = (lat2 - lat1) * 111.0
     lng_diff = (lng2 - lng1) * 111.0 * math.cos(math.radians(lat1))
     return (lat_diff**2 + lng_diff**2) ** 0.5
+
+
+def _plausible_step(prev: RecordingCoordinate, point: RecordingCoordinate) -> bool:
+    """True if moving prev->point is within plausible hiker/runner speed."""
+    dist_m = _haversine_km(prev.lat, prev.lng, point.lat, point.lng) * 1000.0
+    if dist_m <= _MIN_OUTLIER_DIST_M:
+        return True
+    dt_s = (point.timestamp - prev.timestamp) / 1000.0
+    return dt_s > 0 and dist_m / dt_s <= _MAX_PLAUSIBLE_SPEED_MS
+
+
+def _accept_from(coordinates: list[RecordingCoordinate], start: int) -> list[RecordingCoordinate]:
+    """Keep points reachable at a plausible speed from the last accepted one, anchored at ``start``."""
+    accepted = [coordinates[start]]
+    for point in coordinates[start + 1 :]:
+        if _plausible_step(accepted[-1], point):
+            accepted.append(point)
+    return accepted
+
+
+def _filter_speed_outliers(coordinates: list[RecordingCoordinate]) -> list[RecordingCoordinate]:
+    """Drop GPS points that imply an impossibly fast jump from the last good point.
+
+    Compares each point against the last *accepted* point (not the raw previous one)
+    so a single bad fix can't drag the whole track. Only large jumps (> _MIN_OUTLIER_DIST_M)
+    at an implausible speed are removed; close-range jitter is kept.
+
+    Anchoring starts at the first point: an interior spike is simply skipped while the
+    valid prefix is retained. Only when the first point is itself the bad fix — so
+    anchoring there rejects the whole track and leaves fewer than two points — do we
+    re-anchor on the first point corroborated by its neighbour, dropping the warm-up
+    prefix. If no anchor yields two points, the original list is returned unchanged.
+    """
+    if len(coordinates) < 3:  # noqa: PLR2004
+        return coordinates
+
+    accepted = _accept_from(coordinates, 0)
+    if len(accepted) >= 2:  # noqa: PLR2004
+        return accepted
+
+    # Element 0 was itself the bad fix: re-anchor on the first corroborated pair.
+    for start in range(1, len(coordinates) - 1):
+        if _plausible_step(coordinates[start], coordinates[start + 1]):
+            return _accept_from(coordinates, start)
+
+    return coordinates
 
 
 def _compute_elevation_metrics(
@@ -75,6 +126,7 @@ def process_recording(
     Source is auto-detected from coordinates.
     Returns a (TrailResponse, TrailDetailsResponse) tuple ready for storage.
     """
+    coordinates = _filter_speed_outliers(coordinates)
     all_coords = [(c.lat, c.lng) for c in coordinates]
     source = detect_source(all_coords)
     lats = [c.lat for c in coordinates]
@@ -82,11 +134,12 @@ def process_recording(
 
     # Check for elevation data
     has_elevation = all(c.altitude is not None for c in coordinates)
-    elevations = [c.altitude for c in coordinates] if has_elevation else []
+    elevations: list[float] = [c.altitude for c in coordinates if c.altitude is not None] if has_elevation else []
 
     # Build 3D coords for simplification when elevation available
+    coords_3d: list[tuple[float, ...]]
     if has_elevation:
-        coords_3d: list[tuple[float, ...]] = [(c.lat, c.lng, c.altitude) for c in coordinates]  # type: ignore[misc]
+        coords_3d = [(c.lat, c.lng, elev) for c, elev in zip(coordinates, elevations, strict=True)]
     else:
         coords_3d = [(c.lat, c.lng) for c in coordinates]
 
@@ -109,7 +162,7 @@ def process_recording(
     if has_elevation and len(elevations) > 1:
         elevation_gain, elevation_loss, avg_inclination_deg, max_inclination_deg = _compute_elevation_metrics(
             all_coords, elevations
-        )  # type: ignore[arg-type]
+        )
 
     # Duration from timestamps
     duration_minutes = None
@@ -133,7 +186,7 @@ def process_recording(
     if has_elevation:
         coordinates_map = [Coordinate(lat=lat, lng=lng, elevation=elev) for lat, lng, elev in simplified]
         coordinates_full = [Coordinate(lat=c.lat, lng=c.lng, elevation=c.altitude) for c in coordinates]
-        elevation_profile = elevations  # type: ignore[assignment]
+        elevation_profile = elevations
     else:
         coordinates_map = [Coordinate(lat=lat, lng=lng) for lat, lng in simplified]
         coordinates_full = [Coordinate(lat=c.lat, lng=c.lng) for c in coordinates]
