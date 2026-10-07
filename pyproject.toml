@@ -98,8 +98,9 @@ lint.isort.combine-as-imports = true
 lint.isort.split-on-trailing-comma = false
 
 [tool.deptry]
-# Exclude Cloud Function code (has its own requirements.txt) and venv
-exclude = [ ".venv", "htmlcov", "infra/modules/backup/function", "venv" ]
+# Exclude Cloud Function code (has its own requirements.txt), venv, and the Expo app
+# (mobile/node_modules ships third-party .py tooling that is not part of this project)
+exclude = [ ".venv", "htmlcov", "infra/modules/backup/function", "mobile", "venv" ]
 ignore_notebooks = true
 # These are local packages within app/ and dev-tools/
 per_rule_ignores.DEP001 = [
