@@ -1,0 +1,40 @@
+# EAS Build uploads the git root, but only mobile/ is needed to build the app.
+# When present, .easignore is used instead of .gitignore, so local artefacts
+# and secrets are listed here explicitly.
+
+# Backend, infra and tooling (not needed for the Android build)
+/.venv
+/api
+/app
+/dev-tools
+/docs
+/infra
+/tests
+/tmp
+/htmlcov
+/.cache
+/.pytest_cache
+/.ruff_cache
+/node_modules
+__pycache__
+.coverage
+
+# Mobile local artefacts and generated native projects (EAS runs prebuild itself)
+/mobile/node_modules
+/mobile/android
+/mobile/ios
+/mobile/.expo
+/mobile/dist
+/mobile/web-build
+/mobile/coverage
+
+# Local secrets, never upload
+.env
+.env.*
+*.env
+play-service-account.json
+*.jks
+*.p8
+*.p12
+*.key
+*.pem
