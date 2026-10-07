@@ -182,9 +182,20 @@
       ],
       "matchPackageNames": [
         "expo",
-        "/^expo-/"
+        "/^expo-/",
+        "/^@expo\\//"
       ],
       "allowedVersions": "<58.0.0"
+    },
+    {
+      "description": "Expo SDK 57 accepts @expo/vector-icons ^15.0.2 (own version line, not the SDK major); block only the major that leaves that range. Must stay after the Expo cap above so it overrides it",
+      "matchFileNames": [
+        "mobile/**"
+      ],
+      "matchPackageNames": [
+        "@expo/vector-icons"
+      ],
+      "allowedVersions": "<16.0.0"
     },
     {
       "description": "pnpm 11 requires an explicit build-policy migration",
