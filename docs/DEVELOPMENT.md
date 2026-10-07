@@ -284,7 +284,7 @@ Background location requires a two-step permission flow: foreground first, then 
 
 | Problem                              | Solution                                                                                    |
 | ------------------------------------ | ------------------------------------------------------------------------------------------- |
-| `INSTALL_FAILED_UPDATE_INCOMPATIBLE` | Uninstall the existing app: `adb uninstall com.skanetrails.checker`                         |
+| `INSTALL_FAILED_UPDATE_INCOMPATIBLE` | Uninstall the existing app: `adb uninstall com.skanetrails.hikes`                           |
 | Build fails with SDK errors          | Open `mobile/android/` in Android Studio and let it sync Gradle                             |
 | Build fails with Kotlin errors       | Ensure Gradle wrapper version is 8.x (not 9.x) in `gradle-wrapper.properties`               |
 | `JAVA_HOME` not set                  | Set to Android Studio JBR: `$env:JAVA_HOME = "C:\Program Files\Android\Android Studio\jbr"` |
