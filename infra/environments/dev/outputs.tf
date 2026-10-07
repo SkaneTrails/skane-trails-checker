@@ -45,3 +45,8 @@ output "github_actions_terraform_sa" {
   description = "Service account email for GitHub Actions Terraform deployment"
   value       = module.iam.github_actions_terraform_email
 }
+
+output "play_publisher_sa" {
+  description = "Service account email for publishing to Google Play (create its key, then invite it in Play Console)"
+  value       = module.iam.play_publisher_email
+}

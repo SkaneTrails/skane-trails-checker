@@ -174,6 +174,27 @@ resource "google_project_iam_member" "github_actions_terraform_wif" {
 }
 
 # -----------------------------------------------------------------------------
+# Google Play Publisher Service Account
+# -----------------------------------------------------------------------------
+
+# Service account that EAS Submit authenticates as when publishing app bundles to
+# Google Play. It deliberately has NO GCP IAM roles: its permissions are granted in
+# Play Console (Users and permissions > invite this account's email).
+# Free tier: service accounts cost nothing.
+#
+# The JSON key is NOT managed here. EAS only supports key-file auth, and a
+# Terraform-managed key would put the private key in state. Create it once by hand
+# and store it as the PLAY_SERVICE_ACCOUNT_JSON GitHub secret (docs/DEVELOPMENT.md).
+resource "google_service_account" "play_publisher" {
+  project      = var.project
+  account_id   = var.play_publisher_account_id
+  display_name = "ST Google Play Publisher"
+  description  = "Used by EAS Submit (GitHub Actions) to publish Android app bundles to Google Play"
+
+  depends_on = [var.iam_api_service]
+}
+
+# -----------------------------------------------------------------------------
 # Local Development Service Account
 # -----------------------------------------------------------------------------
 
