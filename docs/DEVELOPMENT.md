@@ -604,6 +604,12 @@ the active gcloud configuration. `<PROJECT_ID>` is the `project` value in
    Play Console go to **Internal testing > Create new release**, accept Play App
    Signing, upload the file and roll it out.
 
+   The certificate that signs this first bundle becomes the app's **upload key** in Google
+   Play, and every later bundle must be signed with the same key. EAS keeps one keystore
+   per application identifier, so if you ever change `expo.android.package` after a first
+   upload, EAS generates a new keystore and Play rejects the result (see Troubleshooting).
+   Get the right package name before the first upload.
+
 1. **Service account key and Play permission** - create a key for the Play publisher
    service account and store it as the `PLAY_SERVICE_ACCOUNT_JSON` repository secret,
    then delete the local copy. Terraform deliberately does not manage this key, because
@@ -648,14 +654,35 @@ To widen the beta later, change `submit.production.android.track` in
 
 **Troubleshooting:**
 
-| Symptom                                                                         | Cause and fix                                                                                                                                                                                  |
-| ------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Play rejects the bundle: package name must be `...`                             | `expo.android.package` differs from the Play app. Change `mobile/app.json`; the Play side cannot be changed. Rebuild.                                                                          |
-| EAS runs `npm ci` and fails with `ERESOLVE`                                     | A stray `mobile/package-lock.json` was uploaded, so EAS chose npm. `.easignore` replaces `.gitignore` for EAS uploads, so every ignore must be repeated there. Delete the stray file.          |
-| EAS upload is about 1 GB                                                        | `.easignore` is missing or incomplete (the whole git root is archived: `.venv`, `mobile/node_modules`, `mobile/android`).                                                                      |
-| Native compile error in `expo-modules-core` (for example `tryGetMutableBuffer`) | Dependencies drifted from the Expo SDK. Run `pnpm dlx expo-doctor`, then `pnpm exec expo install --fix`. Remove any stray `mobile/package-lock.json` first, otherwise `expo install` uses npm. |
-| Google sign-in fails on tester devices                                          | The Android OAuth client is missing or has the wrong package or SHA-1 (step 9).                                                                                                                |
-| Build has no API URL or Firebase config                                         | The EAS `production` environment variables are missing (step 3).                                                                                                                               |
+| Symptom                                                                          | Cause and fix                                                                                                                                                                                                    |
+| -------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Play rejects the bundle: package name must be `...`                              | `expo.android.package` differs from the Play app. Change `mobile/app.json`; the Play side cannot be changed. Rebuild.                                                                                            |
+| Play rejects the bundle: signed with the wrong key (shows two SHA1 fingerprints) | The bundle's certificate differs from the upload key Play registered, usually because EAS generated a new keystore for a changed package name. Reuse the old keystore: see "Reusing an existing keystore" below. |
+| EAS runs `npm ci` and fails with `ERESOLVE`                                      | A stray `mobile/package-lock.json` was uploaded, so EAS chose npm. `.easignore` replaces `.gitignore` for EAS uploads, so every ignore must be repeated there. Delete the stray file.                            |
+| EAS upload is about 1 GB                                                         | `.easignore` is missing or incomplete (the whole git root is archived: `.venv`, `mobile/node_modules`, `mobile/android`).                                                                                        |
+| Native compile error in `expo-modules-core` (for example `tryGetMutableBuffer`)  | Dependencies drifted from the Expo SDK. Run `pnpm dlx expo-doctor`, then `pnpm exec expo install --fix`. Remove any stray `mobile/package-lock.json` first, otherwise `expo install` uses npm.                   |
+| Google sign-in fails on tester devices                                           | The Android OAuth client is missing or has the wrong package or SHA-1 (step 9).                                                                                                                                  |
+| Build has no API URL or Firebase config                                          | The EAS `production` environment variables are missing (step 3).                                                                                                                                                 |
+
+**Reusing an existing keystore** (move the keystore that Play already knows to the
+current package name). You need the old package name and the SHA1 Play expects; check
+which EAS build produced it with
+`keytool -printcert -jarfile <old-bundle>.aab`. From `mobile/`, run interactively:
+
+1. Temporarily set `expo.android.package` in `mobile/app.json` to the **old** package
+   name (do not commit this).
+1. `pnpm dlx eas-cli credentials --platform android`, choose the `production` profile,
+   then **credentials.json: Upload/Download credentials between EAS servers and your
+   local json**, then **Download credentials from EAS to credentials.json**. Confirm the
+   fingerprint matches the one Play expects.
+1. Set `expo.android.package` back to the current package name.
+1. Run the same command again and choose **Upload credentials from credentials.json to
+   EAS**. The current package now signs with the old keystore.
+1. Delete the downloaded `mobile/credentials.json` and `mobile/credentials/` (they hold
+   the keystore and its passwords; both are ignored by git and `.easignore`, but do not
+   leave them around) and rebuild. Alternatively, ask Google to reset the upload key in
+   Play Console (Test and release > App integrity > Play app signing) and register the
+   new certificate; this can take a couple of days.
 
 **Upgrading the Expo SDK:** the packages Expo pins (`react`, `react-native`, `typescript`,
 `@react-native-async-storage/async-storage` and others) are excluded from Renovate in

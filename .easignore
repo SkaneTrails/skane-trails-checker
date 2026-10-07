@@ -50,6 +50,8 @@ yarn-error.*
 .env.*
 *.env
 play-service-account.json
+credentials.json
+/mobile/credentials
 *.jks
 *.p8
 *.p12
