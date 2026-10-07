@@ -1,6 +1,6 @@
 # EAS Build uploads the git root, but only mobile/ is needed to build the app.
-# When present, .easignore is used instead of .gitignore, so local artefacts
-# and secrets are listed here explicitly.
+# When present, .easignore is used INSTEAD of .gitignore, so everything that
+# .gitignore / mobile/.gitignore would exclude must be repeated here.
 
 # Backend, infra and tooling (not needed for the Android build)
 /.venv
@@ -18,15 +18,32 @@
 /node_modules
 __pycache__
 .coverage
+.copilot-*.md
+
+# Mobile dependencies and lockfiles of other package managers.
+# A stray package-lock.json makes EAS run `npm ci` instead of pnpm.
+/mobile/node_modules
+/mobile/package-lock.json
+/mobile/yarn.lock
+/mobile/bun.lock
+/mobile/bun.lockb
 
 # Mobile local artefacts and generated native projects (EAS runs prebuild itself)
-/mobile/node_modules
 /mobile/android
 /mobile/ios
 /mobile/.expo
+/mobile/.kotlin
 /mobile/dist
 /mobile/web-build
 /mobile/coverage
+/mobile/expo-env.d.ts
+*.tsbuildinfo
+.metro-health-check*
+npm-debug.*
+yarn-debug.*
+yarn-error.*
+*.orig.*
+.DS_Store
 
 # Local secrets, never upload
 .env
@@ -38,3 +55,4 @@ play-service-account.json
 *.p12
 *.key
 *.pem
+*.mobileprovision
