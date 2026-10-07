@@ -5,6 +5,7 @@ import pytest
 from api.models.trail import RecordingCoordinate
 from api.services.recording_processor import (
     _compute_elevation_metrics,
+    _filter_speed_outliers,
     _haversine_km,
     _simplify_coordinates,
     process_recording,
@@ -98,6 +99,115 @@ class TestSimplifyCoordinates:
         coords = [(55.0, 13.0, 100.0), (55.001, 13.0, 110.0), (55.1, 13.0, 200.0)]
         result = _simplify_coordinates(coords)
         assert all(len(c) == 3 for c in result)
+
+
+class TestFilterSpeedOutliers:
+    def _coords(self, points: list[tuple[float, float, int]]) -> list[RecordingCoordinate]:
+        return [RecordingCoordinate(lat=lat, lng=lng, altitude=None, timestamp=ts) for lat, lng, ts in points]
+
+    def test_fewer_than_three_points_unchanged(self):
+        base = 1700000000000
+        coords = self._coords([(55.600, 13.000, base), (60.000, 20.000, base + 1000)])
+        assert _filter_speed_outliers(coords) == coords
+
+    def test_drops_fast_far_jump(self):
+        # Middle point jumps ~0.9 km in 1 s (~900 m/s) then returns — a clear GPS outlier.
+        base = 1700000000000
+        coords = self._coords(
+            [
+                (55.600, 13.000, base),
+                (55.608, 13.000, base + 1000),  # outlier
+                (55.601, 13.000, base + 30_000),
+            ]
+        )
+        result = _filter_speed_outliers(coords)
+        assert len(result) == 2
+        assert (result[0].lat, result[1].lat) == (55.600, 55.601)
+
+    def test_keeps_close_range_jitter(self):
+        # ~10 m jump in 1 s is under the distance floor — kept despite high instantaneous speed.
+        base = 1700000000000
+        coords = self._coords(
+            [(55.600, 13.000, base), (55.60009, 13.000, base + 1000), (55.601, 13.000, base + 30_000)]
+        )
+        assert len(_filter_speed_outliers(coords)) == 3
+
+    def test_keeps_far_jump_over_long_time(self):
+        # ~900 m but across 10 min (~1.5 m/s) — a real gap after lost signal, not an outlier.
+        base = 1700000000000
+        coords = self._coords(
+            [(55.600, 13.000, base), (55.608, 13.000, base + 600_000), (55.616, 13.000, base + 1_200_000)]
+        )
+        assert len(_filter_speed_outliers(coords)) == 3
+
+    def test_drops_zero_dt_far_jump(self):
+        # Two far-apart points sharing a timestamp imply infinite speed — drop the second.
+        base = 1700000000000
+        coords = self._coords(
+            [
+                (55.600, 13.000, base),
+                (55.610, 13.000, base),  # same timestamp, ~1.1 km away
+                (55.601, 13.000, base + 30_000),
+            ]
+        )
+        result = _filter_speed_outliers(coords)
+        assert len(result) == 2
+        assert (result[0].lat, result[1].lat) == (55.600, 55.601)
+
+    def test_returns_original_when_all_points_filtered(self):
+        # Every point after the first is a far+fast jump from it — fall back to the raw list.
+        base = 1700000000000
+        coords = self._coords([(55.600, 13.000, base), (55.700, 13.000, base + 1000), (55.800, 13.000, base + 2000)])
+        assert _filter_speed_outliers(coords) == coords
+
+    def test_drops_bad_initial_fix(self):
+        # First point is a GPS warm-up spike; the track then settles into a stable
+        # cluster. The anchor must be chosen by lookahead, not element 0, so the
+        # spike is dropped instead of poisoning (and surviving via) the fallback.
+        base = 1700000000000
+        coords = self._coords(
+            [
+                (55.700, 13.000, base),  # warm-up outlier
+                (55.600, 13.000, base + 3000),  # real start
+                (55.6002, 13.000, base + 6000),  # ~22 m in 3 s
+                (55.6004, 13.000, base + 9000),
+            ]
+        )
+        result = _filter_speed_outliers(coords)
+        assert len(result) == 3
+        assert all(c.lat != 55.700 for c in result)
+        assert result[0].lat == 55.600
+
+    def test_keeps_valid_first_point_before_interior_spike(self):
+        # The first point is valid; the spike is at index 1. Anchoring at element 0 must
+        # keep the valid start and skip only the interior outlier — not drop the prefix.
+        base = 1700000000000
+        coords = self._coords(
+            [
+                (55.600, 13.000, base),  # valid start
+                (55.700, 13.000, base + 1000),  # interior outlier
+                (55.6002, 13.000, base + 2000),
+                (55.6004, 13.000, base + 3000),
+            ]
+        )
+        result = _filter_speed_outliers(coords)
+        assert len(result) == 3
+        assert result[0].lat == 55.600
+        assert all(c.lat != 55.700 for c in result)
+
+    def test_process_recording_excludes_outlier_from_bounds(self):
+        base = 1700000000000
+        coords = self._coords(
+            [
+                (55.600, 13.000, base),
+                (55.700, 13.000, base + 1000),  # far + fast outlier
+                (55.601, 13.000, base + 30_000),
+                (55.602, 13.000, base + 60_000),
+            ]
+        )
+        trail, _ = process_recording("Jumpy Hike", coords, "user-1")
+        # The outlier at 55.700 must not stretch the northern bound.
+        assert trail.bounds.north < 55.65
 
 
 class TestProcessRecording:

@@ -157,14 +157,34 @@
       "description": "Group pyproject.toml requires-python and .python-version updates together"
     },
     {
-      "description": "Expo 56 supports React Native 0.85.x",
-      "matchPackageNames": [
-        "react-native"
-      ],
+      "description": "Expo SDK 57 pins exact versions of these; they must only change together via `expo install --fix` when the SDK is upgraded",
       "matchFileNames": [
         "mobile/**"
       ],
-      "allowedVersions": "<0.86.0"
+      "matchPackageNames": [
+        "react",
+        "react-dom",
+        "react-native",
+        "@react-native/babel-plugin-codegen",
+        "@react-native-async-storage/async-storage",
+        "react-native-safe-area-context",
+        "react-native-screens",
+        "react-native-svg",
+        "typescript",
+        "@types/react"
+      ],
+      "enabled": false
+    },
+    {
+      "description": "Expo packages track the SDK major (57); moving to 58 is an SDK upgrade, not a routine bump",
+      "matchFileNames": [
+        "mobile/**"
+      ],
+      "matchPackageNames": [
+        "expo",
+        "/^expo-/"
+      ],
+      "allowedVersions": "<58.0.0"
     },
     {
       "description": "pnpm 11 requires an explicit build-policy migration",
