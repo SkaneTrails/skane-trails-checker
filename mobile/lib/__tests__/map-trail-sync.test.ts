@@ -196,6 +196,28 @@ describe('syncMapTrails', () => {
     });
   });
 
+  it('stops showing the old scope\'s trails at once, even if the refetch then fails', async () => {
+    store.get.mockResolvedValue({
+      trails: [trail('old-group-trail')],
+      lastSyncTime: '2026-03-01T00:00:00Z',
+      scope: 'group:old',
+    });
+    getTrailChanges
+      .mockResolvedValueOnce({
+        trails: [],
+        deleted_ids: [],
+        server_time: '2026-03-02T00:00:00Z',
+        scope: 'group:new',
+      })
+      .mockRejectedValueOnce(new Error('offline'));
+    const onLocal = vi.fn();
+
+    await expect(syncMapTrails(onLocal)).rejects.toThrow('offline');
+
+    expect(onLocal).toHaveBeenNthCalledWith(1, [trail('old-group-trail')]);
+    expect(onLocal).toHaveBeenLastCalledWith([]);
+  });
+
   it('falls back to the local copy when the request fails', async () => {
     const local = [trail('a')];
     store.get.mockResolvedValue({ trails: local, lastSyncTime: '2026-03-01T00:00:00Z', scope: SCOPE });

@@ -31,6 +31,8 @@ export async function syncMapTrails(onLocal: (trails: Trail[]) => void): Promise
   }
 
   if (local.scope !== null && local.scope !== changes.scope) {
+    // Stop showing the old scope's trails now, even if the refetch below fails.
+    onLocal([]);
     await mapTrailStore.clear();
     local = { trails: [], lastSyncTime: null, scope: null };
     changes = await trailsApi.getTrailChanges();

@@ -11,6 +11,7 @@
  */
 import { Directory, File, Paths } from 'expo-file-system';
 import type { Trail } from '@/lib/types';
+import { createSerialQueue } from './serial-queue';
 
 export interface CachedMapTrails {
   trails: Trail[];
@@ -62,7 +63,7 @@ function eraseStore(): void {
   directory.delete();
 }
 
-export const mapTrailStore = {
+const unqueuedStore = {
   /**
    * Read the copy that belongs to `ownerUid`; another user's copy is erased and reads as empty.
    * Anything missing or unreadable also reads as empty, forcing a full sync.
@@ -138,4 +139,14 @@ export const mapTrailStore = {
       // Nothing to clear.
     }
   },
+};
+
+const serialize = createSerialQueue();
+
+/** The store's operations run one at a time: apply reads the index, changes it and writes it back. */
+export const mapTrailStore = {
+  get: (ownerUid: string) => serialize(() => unqueuedStore.get(ownerUid)),
+  apply: (...args: Parameters<typeof unqueuedStore.apply>) =>
+    serialize(() => unqueuedStore.apply(...args)),
+  clear: () => serialize(() => unqueuedStore.clear()),
 };

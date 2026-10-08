@@ -158,6 +158,17 @@ describe('mapTrailStore (native / files)', () => {
     expect(stored.trails.map((t) => t.trail_id)).toEqual(['a']);
   });
 
+  it('keeps every change when applies overlap, as the mutation hooks do not wait', async () => {
+    await Promise.all([
+      mapTrailStore.apply('u1', [trail('a')], [], SYNC),
+      mapTrailStore.apply('u1', [trail('b')], []),
+      mapTrailStore.apply('u1', [trail('c')], ['a']),
+    ]);
+
+    const stored = await mapTrailStore.get('u1');
+    expect(stored.trails.map((t) => t.trail_id).sort()).toEqual(['b', 'c']);
+  });
+
   it('escapes trail ids that are not safe file names', async () => {
     await mapTrailStore.apply('u1', [trail('a/b')], [], SYNC);
     expect(files.has('doc/map-trails/a%2Fb.json')).toBe(true);

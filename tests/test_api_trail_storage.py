@@ -775,7 +775,8 @@ class TestSaveTrail:
     """Tests for save_trail — saves a TrailResponse to Firestore."""
 
     @patch("api.storage.trail_storage._update_sync_metadata")
-    def test_saves_trail_with_timestamp(self, mock_sync, mock_collection) -> None:
+    def test_saves_trail_with_timestamp(self, mock_sync, transaction, mock_collection) -> None:
+        mock_collection.document.return_value.get.return_value = _make_doc(None, exists=False)
         trail = TrailResponse(
             trail_id="t1",
             name="Test Trail",
@@ -793,7 +794,7 @@ class TestSaveTrail:
             save_trail(trail)
 
         mock_collection.document.assert_called_once_with("t1")
-        saved_data = mock_collection.document.return_value.set.call_args[0][0]
+        saved_data = transaction.set.call_args[0][1]
         assert saved_data["trail_id"] == "t1"
         assert saved_data["name"] == "Test Trail"
         assert saved_data["last_updated"] == "2026-06-15T10:00:00Z"
@@ -804,7 +805,8 @@ class TestSaveTrail:
         mock_sync.assert_called_once()
 
     @patch("api.storage.trail_storage._update_sync_metadata")
-    def test_preserves_existing_created_at(self, mock_sync, mock_collection) -> None:
+    def test_preserves_existing_created_at(self, mock_sync, transaction, mock_collection) -> None:
+        mock_collection.document.return_value.get.return_value = _make_doc(None, exists=False)
         trail = TrailResponse(
             trail_id="t1",
             name="Test Trail",
@@ -822,13 +824,14 @@ class TestSaveTrail:
         with patch("api.storage.trail_storage._utc_now_z", return_value="2026-06-15T10:00:00Z"):
             save_trail(trail)
 
-        saved_data = mock_collection.document.return_value.set.call_args[0][0]
+        saved_data = transaction.set.call_args[0][1]
         assert saved_data["created_at"] == "2026-01-01T00:00:00Z"
         assert saved_data["last_updated"] == "2026-06-15T10:00:00Z"
         assert saved_data["modified_at"] == "2026-06-15T10:00:00Z"
 
     @patch("api.storage.trail_storage._update_sync_metadata")
-    def test_skips_sync_when_update_sync_false(self, mock_sync, mock_collection) -> None:
+    def test_skips_sync_when_update_sync_false(self, mock_sync, transaction, mock_collection) -> None:
+        mock_collection.document.return_value.get.return_value = _make_doc(None, exists=False)
         trail = TrailResponse(
             trail_id="t1",
             name="Bulk Trail",
@@ -845,8 +848,87 @@ class TestSaveTrail:
         with patch("api.storage.trail_storage._utc_now_z", return_value="2026-06-15T10:00:00Z"):
             save_trail(trail, update_sync=False)
 
-        mock_collection.document.return_value.set.assert_called_once()
+        transaction.set.assert_called_once()
         mock_sync.assert_not_called()
+
+
+class TestSaveTrailOverwrite:
+    """Re-uploading a GPX reuses its trail ID, so a save can shrink the audience of an existing trail."""
+
+    @staticmethod
+    def _trail(**overrides: object) -> TrailResponse:
+        fields = {
+            "trail_id": "t1",
+            "name": "Re-upload",
+            "difficulty": "easy",
+            "length_km": 5.0,
+            "status": "To Explore",
+            "coordinates_map": [],
+            "bounds": TrailBounds(north=0, south=0, east=0, west=0),
+            "center": Coordinate(lat=0, lng=0),
+            "source": "other_trails",
+            "last_updated": "old",
+            "group_id": "owner",
+            "is_public": False,
+        }
+        return TrailResponse(**{**fields, **overrides})
+
+    @patch("api.storage.trail_storage.add_tombstone")
+    @patch("api.storage.trail_storage._update_sync_metadata")
+    def test_overwriting_a_public_trail_with_a_private_one_tombstones_the_old_audience(
+        self, mock_sync, mock_add, transaction, mock_collection
+    ) -> None:
+        previous = {"trail_id": "t1", "group_id": "owner", "is_public": True}
+        trail_ref = mock_collection.document.return_value
+        trail_ref.get.return_value = _make_doc(previous)
+
+        with patch("api.storage.trail_storage._utc_now_z", return_value="2026-06-15T10:00:00Z"):
+            save_trail(self._trail(is_public=False))
+
+        trail_ref.get.assert_called_once_with(transaction=transaction)
+        transaction.set.assert_called_once()
+        mock_add.assert_called_once_with(transaction, "t1", previous, "2026-06-15T10:00:00Z")
+        mock_sync.assert_called_once()
+
+    @patch("api.storage.trail_storage.add_tombstone")
+    @patch("api.storage.trail_storage._update_sync_metadata")
+    def test_overwriting_with_a_different_group_tombstones_the_old_group(
+        self, mock_sync, mock_add, transaction, mock_collection
+    ) -> None:
+        previous = {"trail_id": "t1", "group_id": "old-group", "is_public": False}
+        mock_collection.document.return_value.get.return_value = _make_doc(previous)
+
+        save_trail(self._trail(group_id="new-group"))
+
+        mock_add.assert_called_once()
+        assert mock_add.call_args.args[2] == previous
+        mock_sync.assert_called_once()
+        transaction.set.assert_called_once()
+
+    @patch("api.storage.trail_storage.add_tombstone")
+    @patch("api.storage.trail_storage._update_sync_metadata")
+    def test_overwrite_that_keeps_or_widens_the_audience_needs_no_tombstone(
+        self, mock_sync, mock_add, transaction, mock_collection
+    ) -> None:
+        previous = {"trail_id": "t1", "group_id": "owner", "is_public": False}
+        mock_collection.document.return_value.get.return_value = _make_doc(previous)
+
+        save_trail(self._trail(is_public=True))
+
+        mock_add.assert_not_called()
+        transaction.set.assert_called_once()
+        mock_sync.assert_called_once()
+
+    @patch("api.storage.trail_storage.add_tombstone")
+    @patch("api.storage.trail_storage._update_sync_metadata")
+    def test_a_new_trail_needs_no_tombstone(self, mock_sync, mock_add, transaction, mock_collection) -> None:
+        mock_collection.document.return_value.get.return_value = _make_doc(None, exists=False)
+
+        save_trail(self._trail())
+
+        mock_add.assert_not_called()
+        transaction.set.assert_called_once()
+        mock_sync.assert_called_once()
 
 
 class TestSaveTrailDetails:

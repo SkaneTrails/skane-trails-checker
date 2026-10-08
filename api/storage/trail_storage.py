@@ -195,6 +195,11 @@ def _fetch_group_and_public_trails(
 def save_trail(trail: TrailResponse, *, update_sync: bool = True) -> None:
     """Save or update a trail in Firestore.
 
+    Trail IDs are stable (re-uploading a GPX reuses its ID), so a save can overwrite a trail that
+    other groups can see with one they cannot, such as a public trail re-uploaded as private. The
+    previous document is read in the same transaction and, if its audience shrinks, a tombstone is
+    written for it so those groups drop their copy.
+
     Args:
         trail: The trail to save.
         update_sync: Whether to update sync metadata. Set to False during
@@ -208,9 +213,25 @@ def save_trail(trail: TrailResponse, *, update_sync: bool = True) -> None:
     trail.modified_at = now
     if not trail.created_at:
         trail.created_at = now
-    get_collection("trails").document(trail.trail_id).set(trail.to_dict())
+    trail_ref = get_collection("trails").document(trail.trail_id)
+    data = trail.to_dict()
+    run_in_transaction(lambda transaction: _overwrite_trail(transaction, trail_ref, trail.trail_id, data, now))
     if update_sync:
         _update_sync_metadata()
+
+
+def _overwrite_trail(transaction: Any, trail_ref: Any, trail_id: str, data: dict, now: str) -> None:
+    snapshot = trail_ref.get(transaction=transaction)
+    previous = snapshot.to_dict() if snapshot.exists else None
+    transaction.set(trail_ref, data)
+    if previous and _audience_shrinks(previous, data):
+        add_tombstone(transaction, trail_id, previous, now)
+
+
+def _audience_shrinks(previous: dict, current: dict) -> bool:
+    """Whether someone who could see the previous trail may no longer see the current one."""
+    lost_public = bool(previous.get("is_public")) and not current.get("is_public")
+    return lost_public or previous.get("group_id") != current.get("group_id")
 
 
 def save_trail_details(details: TrailDetailsResponse) -> None:

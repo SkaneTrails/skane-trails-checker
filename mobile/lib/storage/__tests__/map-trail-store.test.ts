@@ -85,6 +85,17 @@ describe('mapTrailStore (web / IndexedDB)', () => {
     expect(stored.trails.map((t) => t.trail_id)).toEqual(['a']);
   });
 
+  it('keeps every change when applies overlap, as the mutation hooks do not wait', async () => {
+    await Promise.all([
+      mapTrailStore.apply('u1', [trail('a')], [], SYNC),
+      mapTrailStore.apply('u1', [trail('b')], []),
+      mapTrailStore.apply('u1', [trail('c')], ['a']),
+    ]);
+
+    const stored = await mapTrailStore.get('u1');
+    expect(stored.trails.map((t) => t.trail_id).sort()).toEqual(['b', 'c']);
+  });
+
   it('changes all stored keys in a single transaction, so a failure cannot leave trails and cursor apart', async () => {
     await mapTrailStore.apply('u1', [trail('a')], [], SYNC);
     const transaction = vi.spyOn(IDBDatabase.prototype, 'transaction');

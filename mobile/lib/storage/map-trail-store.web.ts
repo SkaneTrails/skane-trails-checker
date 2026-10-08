@@ -13,6 +13,7 @@
 import type { Trail } from '@/lib/types';
 import { getFromStore, openDb, STORE_NAME } from './trail-cache.web';
 import { mergeTrails } from './merge-trails';
+import { createSerialQueue } from './serial-queue';
 
 export interface CachedMapTrails {
   trails: Trail[];
@@ -68,7 +69,7 @@ const clearEntries = (): [string, unknown][] => [
   [SCOPE_KEY, ''],
 ];
 
-export const mapTrailStore = {
+const unqueuedStore = {
   /** Read the copy that belongs to `ownerUid`; another user's copy is erased and reads as empty. */
   async get(ownerUid: string): Promise<CachedMapTrails> {
     let db: IDBDatabase | undefined;
@@ -130,4 +131,17 @@ export const mapTrailStore = {
       db?.close();
     }
   },
+};
+
+const serialize = createSerialQueue();
+
+/**
+ * The store's operations run one at a time: apply reads the stored trails, merges and writes them
+ * back, so overlapping calls (the mutation hooks do not wait) would overwrite each other.
+ */
+export const mapTrailStore = {
+  get: (ownerUid: string) => serialize(() => unqueuedStore.get(ownerUid)),
+  apply: (...args: Parameters<typeof unqueuedStore.apply>) =>
+    serialize(() => unqueuedStore.apply(...args)),
+  clear: () => serialize(() => unqueuedStore.clear()),
 };
