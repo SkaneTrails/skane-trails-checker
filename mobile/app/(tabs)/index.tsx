@@ -1,6 +1,7 @@
+import { useQueryClient } from '@tanstack/react-query';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, Image, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, Alert, Image, Platform, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AddSpotForm } from '@/components/AddSpotForm';
 import { FloatingButton } from '@/components/FloatingButton';
@@ -35,6 +36,7 @@ import {
 } from '@/lib/hooks';
 import { useCurrentUser } from '@/lib/hooks/use-hike-groups';
 import { useTranslation } from '@/lib/i18n';
+import { forceReload } from '@/lib/force-reload';
 import { getCurrentPosition } from '@/lib/location';
 import { type MapLayers, useMapLayers } from '@/lib/map-layers';
 import {
@@ -73,6 +75,7 @@ export default function MapScreen() {
   const { top: safeTop } = useSafeAreaInsets();
   const { enabledPlaceCategories } = useSettings();
   const router = useRouter();
+  const queryClient = useQueryClient();
   const { trailId, editTrail } = useLocalSearchParams<{ trailId?: string; editTrail?: string }>();
   const { data: currentUser } = useCurrentUser();
   const isSuperuser = currentUser?.role === 'superuser';
@@ -201,6 +204,18 @@ export default function MapScreen() {
       enabled: mapLayers.images,
     },
   ];
+
+  const handleRefresh = useCallback(() => {
+    const reload = () => void forceReload(queryClient);
+    if (Platform.OS === 'web') {
+      if (window.confirm(t('map.refreshConfirm'))) reload();
+      return;
+    }
+    Alert.alert(t('map.refreshData'), t('map.refreshConfirm'), [
+      { text: t('common.cancel'), style: 'cancel' },
+      { text: t('map.refreshData'), onPress: reload },
+    ]);
+  }, [queryClient, t]);
 
   const handleToggleLayer = useCallback(
     (layerId: string) => toggleLayer(layerId as keyof MapLayers),
@@ -482,6 +497,10 @@ export default function MapScreen() {
           onAdmin={() => {
             setShowMenu(false);
             router.push('/admin');
+          }}
+          onRefresh={() => {
+            setShowMenu(false);
+            handleRefresh();
           }}
           showAdmin={isSuperuser}
         />

@@ -90,6 +90,9 @@ const en = {
     images: 'Images',
     menu: 'Menu',
     closeMenu: 'Close menu',
+    refreshData: 'Refresh all data',
+    refreshConfirm:
+      'Clear the data saved on this device and download everything again? This can take a while on a slow connection.',
   },
 
   tracking: {

@@ -90,6 +90,9 @@ const sv: Translations = {
     images: 'Bilder',
     menu: 'Meny',
     closeMenu: 'Stäng meny',
+    refreshData: 'Uppdatera all data',
+    refreshConfirm:
+      'Rensa data som sparats på den här enheten och ladda ner allt igen? Det kan ta en stund med långsam uppkoppling.',
   },
 
   tracking: {

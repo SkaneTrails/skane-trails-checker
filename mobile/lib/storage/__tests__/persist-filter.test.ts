@@ -30,6 +30,6 @@ describe('shouldPersistQuery', () => {
   it('does not persist queries that have not succeeded', () => {
     const client = new QueryClient();
     const query = client.getQueryCache().build(client, { queryKey: ['trails', 'list'] as const });
-    expect(shouldPersistQuery(query as Query)).toBe(false);
+    expect(shouldPersistQuery(query as unknown as Query)).toBe(false);
   });
 });

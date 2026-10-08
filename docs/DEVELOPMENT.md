@@ -370,6 +370,8 @@ The app keeps its own copy of every trail, including the map coordinates, and on
 1. Deletions travel as tombstones: `delete_trail` writes a `trail_tombstones` document, so a deletion is never missed even if another trail was added in the same window.
 1. If the request fails, the local copy is used.
 
+If the local copy is ever wrong, **Menu > Refresh all data** clears everything stored on the device and downloads it again.
+
 The React Query cache is saved to a single AsyncStorage entry, which Android caps at about 6 MB. The trail queries that are too big for it (map trails, full tracks, photos) are therefore not saved there (`mobile/lib/storage/persist-filter.ts`).
 
 ## Seeding Trail Data
