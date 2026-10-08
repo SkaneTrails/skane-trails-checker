@@ -325,17 +325,17 @@ All endpoints are prefixed with `/api/v1`.
 
 ### Trails
 
-| Method   | Path                   | Auth | Description                                      |
-| -------- | ---------------------- | ---- | ------------------------------------------------ |
-| `GET`    | `/trails/sync`         | No   | Sync metadata (count, last_modified)             |
-| `GET`    | `/sync/status`         | Yes  | One version per data type, for change polling    |
-| `GET`    | `/trails/changes`      | Yes  | Trails changed + IDs deleted since `?since=`     |
-| `GET`    | `/trails`              | No   | List trails (filter by source, status, distance) |
-| `GET`    | `/trails/{id}`         | No   | Get single trail                                 |
-| `GET`    | `/trails/{id}/details` | No   | Full trail data (all coordinates)                |
-| `PATCH`  | `/trails/{id}`         | Yes  | Update trail                                     |
-| `DELETE` | `/trails/{id}`         | Yes  | Delete trail                                     |
-| `POST`   | `/trails/upload`       | Yes  | Upload GPX file                                  |
+| Method   | Path                   | Auth | Description                                         |
+| -------- | ---------------------- | ---- | --------------------------------------------------- |
+| `GET`    | `/trails/sync`         | No   | Sync metadata (count, last_modified)                |
+| `GET`    | `/sync/status`         | Yes  | Version per data type + caller's scope, for polling |
+| `GET`    | `/trails/changes`      | Yes  | Trails changed + IDs deleted since `?since=`        |
+| `GET`    | `/trails`              | No   | List trails (filter by source, status, distance)    |
+| `GET`    | `/trails/{id}`         | No   | Get single trail                                    |
+| `GET`    | `/trails/{id}/details` | No   | Full trail data (all coordinates)                   |
+| `PATCH`  | `/trails/{id}`         | Yes  | Update trail                                        |
+| `DELETE` | `/trails/{id}`         | Yes  | Delete trail                                        |
+| `POST`   | `/trails/upload`       | Yes  | Upload GPX file                                     |
 
 ### Foraging
 
@@ -381,7 +381,10 @@ If the local copy is ever wrong, **Menu > Refresh all data** clears everything s
 - Queries have `staleTime: Infinity`; the poll and the app's own mutations are the only things that refresh them. Foraging spots, foraging types and places are refetched whole when their version changes.
 - Trails travel through the delta described above. The trail list is derived from the same local copy as the map.
 - Photos: each trail carries an `images_revision`. The app keeps a trail's photos on the device (`mobile/lib/storage/trail-image-store.*`) and downloads them again only when that revision changes. The `images` version drives the map's photo pins.
-- A different signed-in user clears the local data before the first poll result is applied.
+- A different signed-in user clears the local data at the next poll, before the server is asked, so being offline cannot leave the previous user's data behind. `/sync/status` also returns the caller's `scope` (`all`, `group:<id>` or `none`); if it differs from the one saved at the last sync (moved to another group, role changed), the local data is cleared too, because no data version reflects an access change.
+- The trail refresh is strict: if the delta request fails the version is not remembered (the usual trail sync would fall back to the local copy and look successful). It also refetches open trail detail screens.
+- Photo uploads and deletes commit the image document, the trail's `images_revision` and the `trails`/`images` versions in one Firestore batch; a new foraging spot is committed together with its `foraging_spots` version. `DELETE /trails/{id}/images/{index}` returns the remaining photos and their revision.
+- **Menu > Refresh all data** also removes the trail cache older app versions kept (`@trails`/`@lastSyncTime` on native, `trails`/`lastSyncTime` in IndexedDB).
 
 The React Query cache is saved to a single AsyncStorage entry, which Android caps at about 6 MB. The trail queries that are too big for it (map trails, full tracks, photos) are therefore not saved there (`mobile/lib/storage/persist-filter.ts`).
 

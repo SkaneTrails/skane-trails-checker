@@ -31,12 +31,17 @@ export function getFromStore<T>(db: IDBDatabase, key: string): Promise<T | undef
   });
 }
 
-/** Write several keys in one transaction: either all of them are stored or none. */
-export function putAll(db: IDBDatabase, entries: [string, unknown][]): Promise<void> {
+/** Write several keys, and delete others, in one transaction: either everything happens or nothing. */
+export function putAll(
+  db: IDBDatabase,
+  entries: [string, unknown][],
+  deleteKeys: string[] = [],
+): Promise<void> {
   return new Promise((resolve, reject) => {
     const tx = db.transaction(STORE_NAME, 'readwrite');
     const store = tx.objectStore(STORE_NAME);
     for (const [key, value] of entries) store.put(value, key);
+    for (const key of deleteKeys) store.delete(key);
     tx.oncomplete = () => resolve();
     tx.onerror = () => reject(tx.error);
     tx.onabort = () => reject(tx.error);

@@ -50,6 +50,7 @@ vi.mock('@react-native-async-storage/async-storage', () => ({
     getItem: vi.fn(() => Promise.resolve(null)),
     setItem: vi.fn(() => Promise.resolve()),
     removeItem: vi.fn(() => Promise.resolve()),
+    multiRemove: vi.fn(() => Promise.resolve()),
   },
 }));
 

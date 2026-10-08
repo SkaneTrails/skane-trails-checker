@@ -15,8 +15,13 @@ import type { Trail, TrailChanges } from '@/lib/types';
  * copy and its cursor no longer apply, so it is dropped and everything is fetched again.
  *
  * With a usable local copy, a failed request is not an error: the local trails are returned.
+ * With `strict`, it is: the failure is thrown, so a caller that must know the sync happened
+ * (the sync status poll) does not mistake the old local copy for a fresh one.
  */
-export async function syncMapTrails(onLocal: (trails: Trail[]) => void): Promise<Trail[]> {
+export async function syncMapTrails(
+  onLocal: (trails: Trail[]) => void,
+  options: { strict?: boolean } = {},
+): Promise<Trail[]> {
   const ownerUid = currentUserId();
   let local = await mapTrailStore.get(ownerUid);
   if (local.trails.length > 0) onLocal(local.trails);
@@ -25,7 +30,7 @@ export async function syncMapTrails(onLocal: (trails: Trail[]) => void): Promise
   try {
     changes = await trailsApi.getTrailChanges(local.lastSyncTime ?? undefined);
   } catch (error) {
-    if (local.trails.length === 0) throw error;
+    if (local.trails.length === 0 || options.strict) throw error;
     console.warn('Trail sync failed, using the local copy', error);
     return local.trails;
   }

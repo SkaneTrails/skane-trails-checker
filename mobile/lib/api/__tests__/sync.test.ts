@@ -17,6 +17,7 @@ describe('syncApi', () => {
       foraging_spots: 'v3',
       foraging_types: null,
       images: 'v5',
+      scope: 'group:g1',
     };
     vi.mocked(apiRequest).mockResolvedValue(status);
 

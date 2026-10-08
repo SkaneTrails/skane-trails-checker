@@ -4,7 +4,7 @@ import logging
 from datetime import UTC, datetime
 
 from api.models.foraging import ForagingSpotResponse, ForagingTypeResponse
-from api.storage.firestore_client import get_collection
+from api.storage.firestore_client import create_batch, get_collection
 from api.storage.sync_status import touch
 from api.storage.validation import validate_document_id
 
@@ -79,8 +79,11 @@ def save_foraging_spot(spot_data: dict) -> str:
     spot_data["last_updated"] = now
 
     doc_ref = collection.document()
-    doc_ref.set(spot_data)
-    touch("foraging_spots")
+    # One commit, so a failure cannot leave a stored spot that no client is told about (a retry would duplicate it).
+    batch = create_batch()
+    batch.set(doc_ref, spot_data)
+    touch("foraging_spots", batch=batch)
+    batch.commit()
     return doc_ref.id
 
 

@@ -32,6 +32,8 @@ const TRAILS_KEY = 'mapTrails';
 const SYNC_TIME_KEY = 'mapLastSyncTime';
 const OWNER_KEY = 'mapOwnerUid';
 const SCOPE_KEY = 'mapScope';
+// Trail list cache of app versions before the map copy; purged on clear for upgraded installs.
+const LEGACY_KEYS = ['trails', 'lastSyncTime'];
 
 const EMPTY: CachedMapTrails = { trails: [], lastSyncTime: null, scope: null };
 
@@ -112,7 +114,7 @@ const unqueuedStore = {
     let db: IDBDatabase | undefined;
     try {
       db = await openDb();
-      await putAll(db, clearEntries());
+      await putAll(db, clearEntries(), LEGACY_KEYS);
     } catch {
       // Nothing to clear.
     } finally {

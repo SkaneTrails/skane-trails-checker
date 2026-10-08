@@ -120,8 +120,9 @@ export const trailsApi = {
     );
   },
 
-  deleteTrailImage(trailId: string, imageIndex: number): Promise<void> {
-    return apiRequest<void>(`/api/v1/trails/${trailId}/images/${imageIndex}`, {
+  /** Deletes one photo and answers with the photos that are left and their new revision. */
+  deleteTrailImage(trailId: string, imageIndex: number): Promise<TrailImagesResponse> {
+    return apiRequest<TrailImagesResponse>(`/api/v1/trails/${trailId}/images/${imageIndex}`, {
       method: 'DELETE',
     });
   },

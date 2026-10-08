@@ -49,15 +49,40 @@ def mock_touch() -> Generator[MagicMock]:
         yield mock
 
 
+@pytest.fixture(autouse=True)
+def mock_batch() -> Generator[MagicMock]:
+    """Keep batched writes away from Firestore."""
+    with patch("api.storage.foraging_storage.create_batch") as mock_factory:
+        yield mock_factory.return_value
+
+
 class TestSyncStatusTouches:
     """Every write marks its data type changed, after the data is written; reads never do."""
 
-    def test_spot_writes_touch_foraging_spots(self, mock_collection, mock_touch) -> None:
-        save_foraging_spot({"type": "Blueberries", "lat": 56.0, "lng": 13.0})
+    def test_spot_updates_and_deletes_touch_foraging_spots(self, mock_collection, mock_touch) -> None:
         update_foraging_spot("s1", {"notes": "x"})
         delete_foraging_spot("s1")
 
-        assert [call.args for call in mock_touch.call_args_list] == [("foraging_spots",)] * 3
+        assert [call.args for call in mock_touch.call_args_list] == [("foraging_spots",)] * 2
+
+    def test_creating_a_spot_commits_it_and_its_marker_in_one_batch(
+        self, mock_collection, mock_touch, mock_batch
+    ) -> None:
+        save_foraging_spot({"type": "Blueberries", "lat": 56.0, "lng": 13.0})
+
+        mock_touch.assert_called_once_with("foraging_spots", batch=mock_batch)
+        mock_batch.commit.assert_called_once()
+        mock_collection.document.return_value.set.assert_not_called()
+
+    def test_a_failed_create_commit_stores_nothing_and_announces_nothing(
+        self, mock_collection, mock_touch, mock_batch
+    ) -> None:
+        mock_batch.commit.side_effect = RuntimeError("firestore unavailable")
+
+        with pytest.raises(RuntimeError, match="firestore unavailable"):
+            save_foraging_spot({"type": "Blueberries", "lat": 56.0, "lng": 13.0})
+
+        mock_collection.document.return_value.set.assert_not_called()
 
     def test_type_writes_touch_foraging_types(self, mock_collection, mock_touch) -> None:
         save_foraging_type("Blueberries", {"icon": "x"})
@@ -245,7 +270,7 @@ class TestSaveForagingSpot:
     """Tests for save_foraging_spot."""
 
     @patch("api.storage.foraging_storage.datetime")
-    def test_saves_and_returns_id(self, mock_dt, mock_collection) -> None:
+    def test_saves_and_returns_id(self, mock_dt, mock_collection, mock_batch) -> None:
         fixed = datetime(2026, 3, 1, 12, 0, 0, tzinfo=UTC)
         mock_dt.now.return_value = fixed
 
@@ -257,7 +282,8 @@ class TestSaveForagingSpot:
 
         assert result == "new-id"
         mock_collection.document.assert_called_once_with()
-        saved = mock_doc.set.call_args[0][0]
+        assert mock_batch.set.call_args[0][0] is mock_doc
+        saved = mock_batch.set.call_args[0][1]
         assert saved["created_at"] == fixed.isoformat()
         assert saved["last_updated"] == fixed.isoformat()
         assert saved["type"] == "Mushroom"

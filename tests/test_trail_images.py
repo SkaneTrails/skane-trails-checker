@@ -261,7 +261,7 @@ class TestUploadTrailImage:
 
 
 class TestDeleteTrailImage:
-    @patch("api.routers.trails.trail_storage.save_trail_images")
+    @patch("api.routers.trails.trail_storage.save_trail_images", return_value="rev-2")
     @patch("api.routers.trails.trail_storage.get_trail_images")
     @patch("api.routers.trails.trail_storage.get_trail")
     def test_delete_image(self, mock_get_trail, mock_get_images, mock_save, authenticated_client):
@@ -272,11 +272,15 @@ class TestDeleteTrailImage:
         )
 
         response = authenticated_client.delete("/api/v1/trails/abc123/images/0")
-        assert response.status_code == 204
+        assert response.status_code == 200
         # Should save with only the second image
         saved_images = mock_save.call_args[0][1]
         assert len(saved_images) == 1
         assert saved_images[0].role == "secondary"
+        # The remaining photos and their revision come back, so the client has one outcome to act on
+        body = response.json()
+        assert body["revision"] == "rev-2"
+        assert [img["role"] for img in body["images"]] == ["secondary"]
 
     @patch("api.routers.trails.trail_storage.get_trail_images")
     @patch("api.routers.trails.trail_storage.get_trail")

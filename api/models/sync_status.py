@@ -11,3 +11,10 @@ class SyncStatusResponse(BaseModel):
     foraging_spots: str | None = Field(default=None, description="Foraging spots")
     foraging_types: str | None = Field(default=None, description="Foraging types")
     images: str | None = Field(default=None, description="Trail photos and the map photo pins")
+    scope: str = Field(
+        default="none",
+        description=(
+            "What the caller may see: 'all' (superuser), 'group:<id>' or 'none'. A client whose saved "
+            "scope differs must discard its local copy."
+        ),
+    )

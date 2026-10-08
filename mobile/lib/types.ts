@@ -103,6 +103,9 @@ export interface ImagePinsResponse {
 export type SyncKind = 'trails' | 'places' | 'foraging_spots' | 'foraging_types' | 'images';
 export type SyncStatus = Record<SyncKind, string | null>;
 
+/** The status plus what the caller may see ('all', 'group:<id>' or 'none'); a change drops local data. */
+export type SyncStatusResponse = SyncStatus & { scope: string };
+
 // Foraging spot
 export interface ForagingSpot {
   id: string;

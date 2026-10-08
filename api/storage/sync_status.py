@@ -6,6 +6,7 @@ synced and refetch only the types whose version differs. Versions are compared f
 ordered, so clock differences and writes landing mid-sync cannot hide a change.
 """
 
+from typing import Any
 from uuid import uuid4
 
 from api.storage.firestore_client import get_collection
@@ -13,19 +14,27 @@ from api.storage.firestore_client import get_collection
 SYNC_KINDS = ("trails", "places", "foraging_spots", "foraging_types", "images")
 
 
-def touch(kind: str) -> None:
-    """Mark a data type as changed by giving it a new version.
+def touch(*kinds: str, batch: Any = None) -> None:
+    """Mark data types as changed by giving each a new version.
 
     Args:
-        kind: One of SYNC_KINDS.
+        *kinds: Members of SYNC_KINDS.
+        batch: A Firestore write batch to add the change to, so it commits atomically with the data
+            it announces. Without one the versions are written immediately.
 
     Raises:
-        ValueError: If kind is not a known data type.
+        ValueError: If a kind is not a known data type.
     """
-    if kind not in SYNC_KINDS:
-        msg = f"Unknown sync kind: {kind!r}"
-        raise ValueError(msg)
-    get_collection("_meta").document("sync_status").set({kind: uuid4().hex}, merge=True)
+    for kind in kinds:
+        if kind not in SYNC_KINDS:
+            msg = f"Unknown sync kind: {kind!r}"
+            raise ValueError(msg)
+    versions = {kind: uuid4().hex for kind in kinds}
+    status_ref = get_collection("_meta").document("sync_status")
+    if batch is None:
+        status_ref.set(versions, merge=True)
+    else:
+        batch.set(status_ref, versions, merge=True)
 
 
 def get_status() -> dict[str, str | None]:

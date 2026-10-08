@@ -6,6 +6,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 from fastapi.testclient import TestClient
 
+from api.auth import AuthenticatedUser, require_auth
 from api.main import app
 from api.storage.sync_status import SYNC_KINDS, get_status, touch
 
@@ -33,6 +34,23 @@ class TestTouch:
         args, kwargs = mock_collection.document.return_value.set.call_args
         assert list(args[0]) == ["places"]
         assert kwargs == {"merge": True}
+
+    def test_several_kinds_are_written_together(self, mock_collection) -> None:
+        touch("trails", "images")
+
+        mock_collection.document.return_value.set.assert_called_once()
+        assert set(mock_collection.document.return_value.set.call_args.args[0]) == {"trails", "images"}
+
+    def test_with_a_batch_the_versions_are_queued_not_written(self, mock_collection) -> None:
+        batch = MagicMock()
+
+        touch("trails", "images", batch=batch)
+
+        mock_collection.document.return_value.set.assert_not_called()
+        ref, versions = batch.set.call_args.args
+        assert ref is mock_collection.document.return_value
+        assert set(versions) == {"trails", "images"}
+        assert batch.set.call_args.kwargs == {"merge": True}
 
     def test_every_touch_gets_a_different_version(self, mock_collection) -> None:
         touch("trails")
@@ -84,7 +102,18 @@ class TestSyncStatusEndpoint:
         response = authenticated_client.get("/api/v1/sync/status")
 
         assert response.status_code == 200
-        assert response.json() == mock_status.return_value
+        assert response.json() == {**mock_status.return_value, "scope": "group:test-group"}
+
+    @patch("api.routers.sync.get_status", return_value=dict.fromkeys(SYNC_KINDS))
+    def test_a_superuser_has_scope_all(self, mock_status, superuser_client) -> None:
+        assert superuser_client.get("/api/v1/sync/status").json()["scope"] == "all"
+
+    @patch("api.routers.sync.get_status", return_value=dict.fromkeys(SYNC_KINDS))
+    def test_a_user_without_a_group_has_scope_none(self, mock_status, authenticated_client) -> None:
+        user = AuthenticatedUser(uid="u", email="u@example.com", name="U", role="member")
+        app.dependency_overrides[require_auth] = lambda: user
+
+        assert authenticated_client.get("/api/v1/sync/status").json()["scope"] == "none"
 
     def test_requires_authentication(self, unauthenticated_client) -> None:
         assert unauthenticated_client.get("/api/v1/sync/status").status_code == 401

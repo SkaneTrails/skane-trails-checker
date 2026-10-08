@@ -961,6 +961,30 @@ class TestSaveTrailOverwrite:
         transaction.set.assert_called_once()
         mock_sync.assert_called_once()
 
+    @patch("api.storage.trail_storage._update_sync_metadata")
+    def test_overwriting_keeps_the_revision_of_the_photos_that_survive(
+        self, mock_sync, transaction, mock_collection
+    ) -> None:
+        mock_collection.document.return_value.get.return_value = _make_doc(
+            {"trail_id": "t1", "group_id": "owner", "images_revision": "rev-9"}
+        )
+        trail = self._trail()
+
+        save_trail(trail)
+
+        assert transaction.set.call_args.args[1]["images_revision"] == "rev-9"
+        assert trail.images_revision == "rev-9"
+
+    @patch("api.storage.trail_storage._update_sync_metadata")
+    def test_a_trail_that_never_had_photos_has_no_revision(self, mock_sync, transaction, mock_collection) -> None:
+        mock_collection.document.return_value.get.return_value = _make_doc({"trail_id": "t1", "group_id": "owner"})
+        trail = self._trail()
+
+        save_trail(trail)
+
+        assert "images_revision" not in transaction.set.call_args.args[1]
+        assert trail.images_revision is None
+
 
 class TestSaveTrailDetails:
     """Tests for save_trail_details — saves TrailDetailsResponse to Firestore."""
@@ -1352,10 +1376,10 @@ class TestTrailImages:
         assert get_trail_images("t1").revision is None
 
     @patch("api.storage.trail_storage.touch")
-    @patch("api.storage.trail_storage._update_sync_metadata")
+    @patch("api.storage.trail_storage._write_legacy_trails_sync")
     @patch("api.storage.trail_storage.create_batch")
     def test_save_images_writes_images_and_trail_revision_in_one_batch(
-        self, mock_batch_factory, mock_sync, mock_touch, mock_collection
+        self, mock_batch_factory, mock_legacy, mock_touch, mock_collection
     ) -> None:
         images = [
             TrailImage(image_data="b64data", role="primary", lat=56.0, lng=13.0, caption="Peak"),
@@ -1379,34 +1403,59 @@ class TestTrailImages:
             "last_updated": "2026-06-15T10:00:00Z",
         }
         batch.commit.assert_called_once()
-        mock_sync.assert_called_once()
-        mock_touch.assert_called_once_with("images")
+        mock_legacy.assert_called_once()
+        mock_touch.assert_called_once_with("trails", "images", batch=batch)
 
     @patch("api.storage.trail_storage.touch")
-    @patch("api.storage.trail_storage._update_sync_metadata")
+    @patch("api.storage.trail_storage._write_legacy_trails_sync")
     @patch("api.storage.trail_storage.create_batch")
-    def test_every_save_gets_a_new_revision(self, mock_batch_factory, mock_sync, mock_touch, mock_collection) -> None:
+    def test_every_save_gets_a_new_revision(self, mock_batch_factory, mock_legacy, mock_touch, mock_collection) -> None:
         first = save_trail_images("t1", [])
         second = save_trail_images("t1", [])
 
         assert first != second
         assert mock_batch_factory.return_value.commit.call_count == 2
-        assert mock_sync.call_count == 2
+        assert mock_legacy.call_count == 2
         assert mock_touch.call_count == 2
 
     @patch("api.storage.trail_storage.touch")
-    @patch("api.storage.trail_storage._update_sync_metadata")
+    @patch("api.storage.trail_storage._write_legacy_trails_sync")
     @patch("api.storage.trail_storage.create_batch")
-    def test_failed_batch_leaves_the_sync_markers_alone(
-        self, mock_batch_factory, mock_sync, mock_touch, mock_collection
+    def test_markers_are_queued_in_the_batch_before_it_commits(
+        self, mock_batch_factory, mock_legacy, mock_touch, mock_collection
+    ) -> None:
+        order: list[str] = []
+        batch = mock_batch_factory.return_value
+        mock_touch.side_effect = lambda *_, **__: order.append("touch")
+        batch.commit.side_effect = lambda: order.append("commit")
+
+        save_trail_images("t1", [])
+
+        assert order == ["touch", "commit"]
+
+    @patch("api.storage.trail_storage.touch")
+    @patch("api.storage.trail_storage._write_legacy_trails_sync", side_effect=RuntimeError("count failed"))
+    @patch("api.storage.trail_storage.create_batch")
+    def test_a_failing_legacy_metadata_write_does_not_fail_the_save(
+        self, mock_batch_factory, mock_legacy, mock_touch, mock_collection
+    ) -> None:
+        revision = save_trail_images("t1", [])
+
+        assert revision
+        mock_batch_factory.return_value.commit.assert_called_once()
+
+    @patch("api.storage.trail_storage.touch")
+    @patch("api.storage.trail_storage._write_legacy_trails_sync")
+    @patch("api.storage.trail_storage.create_batch")
+    def test_failed_batch_leaves_the_legacy_metadata_alone(
+        self, mock_batch_factory, mock_legacy, mock_touch, mock_collection
     ) -> None:
         mock_batch_factory.return_value.commit.side_effect = RuntimeError("firestore unavailable")
 
         with pytest.raises(RuntimeError, match="firestore unavailable"):
             save_trail_images("t1", [])
 
-        mock_sync.assert_not_called()
-        mock_touch.assert_not_called()
+        mock_legacy.assert_not_called()
 
     @patch("api.storage.trail_storage.touch")
     def test_delete_images(self, mock_touch, mock_collection) -> None:

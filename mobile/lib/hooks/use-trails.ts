@@ -58,6 +58,7 @@ export const trailKeys = {
   all: ['trails'] as const,
   map: () => ['trails', 'map'] as const,
   detail: (id: string) => ['trails', 'detail', id] as const,
+  detailQueries: () => ['trails', 'detail'] as const,
   details: (id: string) => ['trails', 'details', id] as const,
   images: (id: string, revision?: string | null) =>
     revision === undefined
@@ -293,11 +294,8 @@ export function useDeleteTrailImage() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async ({ trailId, imageIndex }: { trailId: string; imageIndex: number }) => {
-      await trailsApi.deleteTrailImage(trailId, imageIndex);
-      // The delete answers with nothing; the remaining photos carry the new revision.
-      return trailsApi.getTrailImages(trailId);
-    },
+    mutationFn: ({ trailId, imageIndex }: { trailId: string; imageIndex: number }) =>
+      trailsApi.deleteTrailImage(trailId, imageIndex),
     onSuccess: (result) => recordImagesChange(queryClient, result),
   });
 }

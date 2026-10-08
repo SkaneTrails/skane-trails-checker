@@ -231,10 +231,11 @@ describe('trailsApi', () => {
   });
 
   describe('deleteTrailImage', () => {
-    it('deletes an image by index', async () => {
-      mockApiRequest.mockResolvedValue(undefined);
+    it('deletes an image by index and returns what is left', async () => {
+      const remaining = { trail_id: 'abc', images: [], revision: 'r2' };
+      mockApiRequest.mockResolvedValue(remaining);
 
-      await trailsApi.deleteTrailImage('abc', 1);
+      expect(await trailsApi.deleteTrailImage('abc', 1)).toEqual(remaining);
       expect(mockApiRequest).toHaveBeenCalledWith('/api/v1/trails/abc/images/1', {
         method: 'DELETE',
       });

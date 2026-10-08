@@ -227,6 +227,17 @@ describe('syncMapTrails', () => {
     expect(await syncMapTrails(vi.fn())).toBe(local);
   });
 
+  it('throws instead of falling back to the local copy when strict', async () => {
+    store.get.mockResolvedValue({
+      trails: [trail('a')],
+      lastSyncTime: '2026-03-01T00:00:00Z',
+      scope: SCOPE,
+    });
+    getTrailChanges.mockRejectedValue(new Error('offline'));
+
+    await expect(syncMapTrails(vi.fn(), { strict: true })).rejects.toThrow('offline');
+  });
+
   it('throws when the request fails and there is no local copy', async () => {
     store.get.mockResolvedValue({ trails: [], lastSyncTime: null, scope: null });
     getTrailChanges.mockRejectedValue(new Error('offline'));

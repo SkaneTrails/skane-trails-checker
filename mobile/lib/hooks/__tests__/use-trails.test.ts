@@ -707,8 +707,7 @@ describe('useDeleteTrailImage', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    mockTrailsApi.deleteTrailImage.mockResolvedValue(undefined);
-    mockTrailsApi.getTrailImages.mockResolvedValue(remaining);
+    mockTrailsApi.deleteTrailImage.mockResolvedValue(remaining);
   });
 
   it('deletes an image by index', async () => {

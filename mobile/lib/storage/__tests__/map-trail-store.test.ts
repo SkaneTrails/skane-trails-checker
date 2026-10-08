@@ -1,6 +1,7 @@
 import 'fake-indexeddb/auto';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Trail } from '@/lib/types';
+import { getFromStore, openDb, putAll } from '../idb';
 import { mapTrailStore } from '../map-trail-store';
 
 const trail = (id: string, name = id): Trail => ({
@@ -121,5 +122,19 @@ describe('mapTrailStore (web / IndexedDB)', () => {
     await mapTrailStore.apply('u1', [trail('a')], [], SYNC);
     await mapTrailStore.clear();
     expect(await mapTrailStore.get('u1')).toEqual({ trails: [], lastSyncTime: null, scope: null });
+  });
+
+  it('clear also purges the trail cache of older app versions', async () => {
+    const db = await openDb();
+    await putAll(db, [
+      ['trails', [trail('old')]],
+      ['lastSyncTime', '2025-01-01T00:00:00Z'],
+    ]);
+
+    await mapTrailStore.clear();
+
+    expect(await getFromStore(db, 'trails')).toBeUndefined();
+    expect(await getFromStore(db, 'lastSyncTime')).toBeUndefined();
+    db.close();
   });
 });
