@@ -17,10 +17,18 @@ import {
   UserLocation,
 } from '@maplibre/maplibre-react-native';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Image, type LayoutChangeEvent, PanResponder, StyleSheet, View } from 'react-native';
+import {
+  Image,
+  type LayoutChangeEvent,
+  PanResponder,
+  StyleSheet,
+  View,
+} from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { foragingColorMap } from '@/lib/foraging-colors';
 import type { Point } from '@/lib/homography';
 import { requestForegroundPermission } from '@/lib/location-permissions';
+import { COMPASS_RIGHT, CONTROL_SIZE, NATIVE_COMPASS_SIZE } from '@/lib/map-controls';
 import type { GeoCoord, MapOverlay } from '@/lib/map-overlays';
 import {
   edgeMidpoints,
@@ -31,7 +39,7 @@ import {
   rotateQuad,
   rotationHandlePoint,
 } from '@/lib/overlay-transform';
-import { useTheme } from '@/lib/theme';
+import { spacing, useTheme } from '@/lib/theme';
 import type { TrackingPoint } from '@/lib/track-to-trail';
 import type { ForagingSpot, ForagingType, ImagePin, Place, Trail } from '@/lib/types';
 
@@ -132,6 +140,7 @@ export function UnifiedMap({
   onBoundsChange,
 }: UnifiedMapProps) {
   const { colors } = useTheme();
+  const { top: safeTop } = useSafeAreaInsets();
   const cameraRef = useRef<CameraRef>(null);
   // @ts-expect-error — MapLibre RN type definition doesn't match runtime component shape
   const mapRef = useRef<InstanceType<typeof Map>>(null);
@@ -251,6 +260,11 @@ export function UnifiedMap({
         mapStyle={MAP_STYLE}
         // @ts-expect-error — logoEnabled exists at runtime but not in MapLibre RN type defs
         logoEnabled={false}
+        compassPosition={{
+          // Centre the ornament on the 42 px menu button next to it.
+          top: spacing.lg + safeTop + (CONTROL_SIZE - NATIVE_COMPASS_SIZE) / 2,
+          right: COMPASS_RIGHT,
+        }}
         attributionPosition={{ bottom: 8, right: 8 }}
         touchRotate={!isEditingOverlay}
         touchPitch={!isEditingOverlay}
