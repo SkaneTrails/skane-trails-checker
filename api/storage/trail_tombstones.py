@@ -1,8 +1,10 @@
-"""Tombstones for deleted trails, so clients can delta-sync deletions.
+"""Tombstones for trails that deleted or stopped being shared, so clients can delta-sync removals.
 
-Each deleted trail leaves a tiny `trail_tombstones` document (same ID as the trail)
-holding the trail's visibility and deletion time. Clients ask for everything deleted
-since their last sync instead of comparing full ID lists.
+Each one is a tiny `trail_tombstones` document (same ID as the trail) holding who could see the
+trail and when it went away. Clients ask for everything removed since their last sync instead of
+comparing full ID lists. A tombstone is written in the same batch as the change it records, so
+the two can never disagree. It is never deleted; a trail that comes back is reported as changed
+and `get_trail_changes` leaves it out of the removed IDs.
 """
 
 from typing import Any
@@ -12,21 +14,24 @@ from api.storage.firestore_client import get_collection
 COLLECTION = "trail_tombstones"
 
 
-def record_tombstone(trail_id: str, trail_data: dict[str, Any], deleted_at: str) -> None:
-    """Record that a trail was deleted.
+def add_tombstone_to_batch(batch: Any, trail_id: str, trail_data: dict[str, Any], deleted_at: str) -> None:
+    """Add a tombstone write to a Firestore batch.
 
     Args:
-        trail_id: ID of the deleted trail.
-        trail_data: The trail's Firestore document as it was before deletion.
-        deleted_at: ISO timestamp (Z-suffix UTC) of the deletion.
+        batch: The batch that also carries the deletion or visibility change.
+        trail_id: ID of the trail that went away for some viewers.
+        trail_data: The trail's Firestore document as it was before the change; its group and
+            sharing decide who is told.
+        deleted_at: ISO timestamp (Z-suffix UTC) of the change.
     """
-    get_collection(COLLECTION).document(trail_id).set(
+    batch.set(
+        get_collection(COLLECTION).document(trail_id),
         {
             "trail_id": trail_id,
             "group_id": trail_data.get("group_id"),
             "is_public": trail_data.get("is_public", False),
             "deleted_at": deleted_at,
-        }
+        },
     )
 
 

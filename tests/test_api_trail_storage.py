@@ -631,55 +631,132 @@ class TestUpdateTrail:
         mock_sync.assert_called_once()
 
 
-class TestDeleteTrail:
-    """Tests for delete_trail — deletes both trail and trail_details."""
+class TestUpdateTrailVisibility:
+    """Making a shared trail private must tell the groups that saw it, without hiding it from its owner."""
 
-    @patch("api.storage.trail_storage.record_tombstone")
+    @patch("api.storage.trail_storage.add_tombstone_to_batch")
+    @patch("api.storage.trail_storage.create_batch")
     @patch("api.storage.trail_storage._update_sync_metadata")
-    def test_deletes_trail_and_details(self, mock_sync, mock_tombstone, mock_collection) -> None:
-        mock_collection.document.return_value.get.return_value = _make_doc(SAMPLE_TRAIL)
+    def test_unsharing_a_public_trail_updates_and_tombstones_in_one_batch(
+        self, mock_sync, mock_batch_factory, mock_add, mock_collection
+    ) -> None:
+        previous = {**SAMPLE_TRAIL, "group_id": "g1", "is_public": True}
+        mock_collection.document.return_value.get.return_value = _make_doc(previous)
+        batch = mock_batch_factory.return_value
 
-        delete_trail("t1")
+        with patch("api.storage.trail_storage._utc_now_z", return_value="2026-03-01T13:00:00Z"):
+            update_trail("t1", {"is_public": False})
 
-        # One read (for the tombstone), then a delete from trails and from trail_details
-        calls = mock_collection.document.call_args_list
-        assert [call.args for call in calls] == [("t1",)] * 3
-        assert mock_collection.document.return_value.delete.call_count == 2
-        mock_tombstone.assert_called_once()
+        batch.update.assert_called_once()
+        updated = batch.update.call_args.args[1]
+        assert updated["is_public"] is False
+        assert updated["modified_at"] == "2026-03-01T13:00:00Z"
+        mock_add.assert_called_once_with(batch, "t1", previous, "2026-03-01T13:00:00Z")
+        batch.commit.assert_called_once()
+        mock_collection.document.return_value.update.assert_not_called()
         mock_sync.assert_called_once()
 
-    @patch("api.storage.trail_storage.record_tombstone")
+    @patch("api.storage.trail_storage.create_batch")
     @patch("api.storage.trail_storage._update_sync_metadata")
-    def test_delete_trail_skips_sync_when_disabled(self, mock_sync, mock_tombstone, mock_collection) -> None:
-        mock_collection.document.return_value.get.return_value = _make_doc(SAMPLE_TRAIL)
+    def test_sharing_a_trail_needs_no_tombstone(self, mock_sync, mock_batch_factory, mock_collection) -> None:
+        update_trail("t1", {"is_public": True})
 
-        delete_trail("t1", update_sync=False)
+        mock_batch_factory.assert_not_called()
+        mock_collection.document.return_value.get.assert_not_called()
+        mock_collection.document.return_value.update.assert_called_once()
+        mock_sync.assert_called_once()
 
-        assert mock_collection.document.return_value.delete.call_count == 2
-        mock_tombstone.assert_called_once()
-        mock_sync.assert_not_called()
-
-    @patch("api.storage.trail_storage.record_tombstone")
+    @patch("api.storage.trail_storage.create_batch")
     @patch("api.storage.trail_storage._update_sync_metadata")
-    def test_records_tombstone_with_the_deleted_trail_data(self, mock_sync, mock_tombstone, mock_collection) -> None:
+    def test_unsharing_a_trail_that_was_private_needs_no_tombstone(
+        self, mock_sync, mock_batch_factory, mock_collection
+    ) -> None:
+        mock_collection.document.return_value.get.return_value = _make_doc({**SAMPLE_TRAIL, "is_public": False})
+
+        update_trail("t1", {"is_public": False})
+
+        mock_batch_factory.assert_not_called()
+        mock_collection.document.return_value.update.assert_called_once()
+        mock_sync.assert_called_once()
+
+    @patch("api.storage.trail_storage.create_batch")
+    @patch("api.storage.trail_storage._update_sync_metadata")
+    def test_unsharing_a_missing_trail_falls_through_to_a_plain_update(
+        self, mock_sync, mock_batch_factory, mock_collection
+    ) -> None:
+        mock_collection.document.return_value.get.return_value = _make_doc(None, exists=False)
+
+        update_trail("t1", {"is_public": False})
+
+        mock_batch_factory.assert_not_called()
+        mock_collection.document.return_value.update.assert_called_once()
+        mock_sync.assert_called_once()
+
+
+class TestDeleteTrail:
+    """Tests for delete_trail — trail, details and tombstone go in one atomic batch."""
+
+    @patch("api.storage.trail_storage.add_tombstone_to_batch")
+    @patch("api.storage.trail_storage.create_batch")
+    @patch("api.storage.trail_storage._update_sync_metadata")
+    def test_deletes_trail_details_and_writes_tombstone_in_one_batch(
+        self, mock_sync, mock_batch_factory, mock_add, mock_collection
+    ) -> None:
         trail_data = {**SAMPLE_TRAIL, "group_id": "g1"}
         mock_collection.document.return_value.get.return_value = _make_doc(trail_data)
+        batch = mock_batch_factory.return_value
 
         with patch("api.storage.trail_storage._utc_now_z", return_value="2026-03-01T12:00:00Z"):
             delete_trail("t1")
 
-        mock_tombstone.assert_called_once_with("t1", trail_data, "2026-03-01T12:00:00Z")
+        assert batch.delete.call_count == 2
+        mock_add.assert_called_once_with(batch, "t1", trail_data, "2026-03-01T12:00:00Z")
+        batch.commit.assert_called_once()
+        mock_collection.document.return_value.delete.assert_not_called()
         mock_sync.assert_called_once()
 
-    @patch("api.storage.trail_storage.record_tombstone")
+    @patch("api.storage.trail_storage.add_tombstone_to_batch")
+    @patch("api.storage.trail_storage.create_batch")
     @patch("api.storage.trail_storage._update_sync_metadata")
-    def test_no_tombstone_for_a_trail_that_does_not_exist(self, mock_sync, mock_tombstone, mock_collection) -> None:
+    def test_delete_trail_skips_sync_when_disabled(
+        self, mock_sync, mock_batch_factory, mock_add, mock_collection
+    ) -> None:
+        mock_collection.document.return_value.get.return_value = _make_doc(SAMPLE_TRAIL)
+
+        delete_trail("t1", update_sync=False)
+
+        mock_batch_factory.return_value.commit.assert_called_once()
+        mock_add.assert_called_once()
+        mock_sync.assert_not_called()
+
+    @patch("api.storage.trail_storage.add_tombstone_to_batch")
+    @patch("api.storage.trail_storage.create_batch")
+    @patch("api.storage.trail_storage._update_sync_metadata")
+    def test_no_tombstone_for_a_trail_that_does_not_exist(
+        self, mock_sync, mock_batch_factory, mock_add, mock_collection
+    ) -> None:
         mock_collection.document.return_value.get.return_value = _make_doc(None, exists=False)
 
         delete_trail("t1")
 
-        mock_tombstone.assert_not_called()
+        mock_add.assert_not_called()
+        mock_batch_factory.return_value.commit.assert_called_once()
         mock_sync.assert_called_once()
+
+    @patch("api.storage.trail_storage.add_tombstone_to_batch")
+    @patch("api.storage.trail_storage.create_batch")
+    @patch("api.storage.trail_storage._update_sync_metadata")
+    def test_failed_commit_raises_and_leaves_sync_metadata_alone(
+        self, mock_sync, mock_batch_factory, mock_add, mock_collection
+    ) -> None:
+        mock_collection.document.return_value.get.return_value = _make_doc(SAMPLE_TRAIL)
+        mock_batch_factory.return_value.commit.side_effect = RuntimeError("firestore unavailable")
+
+        with pytest.raises(RuntimeError, match="firestore unavailable"):
+            delete_trail("t1")
+
+        mock_add.assert_called_once()
+        mock_sync.assert_not_called()
 
 
 class TestSaveTrail:
@@ -1024,6 +1101,18 @@ class TestGetTrailChanges:
         assert result.server_time == "2026-03-01T12:00:00Z"
         mock_all.assert_called_once_with(since="2026-03-01T00:00:00Z", group_id="g1")
         mock_deleted.assert_called_once_with("2026-03-01T00:00:00Z", "g1")
+
+    @patch("api.storage.trail_storage.get_deleted_trail_ids")
+    @patch("api.storage.trail_storage.get_all_trails")
+    def test_a_trail_that_is_still_visible_is_not_reported_deleted(self, mock_all, mock_deleted) -> None:
+        """Recreated or merely un-shared-by-someone-else trails come back as changed, not deleted."""
+        mock_all.return_value = [TrailResponse(**_trail_kwargs())]
+        mock_deleted.return_value = ["t1", "gone"]
+
+        result = get_trail_changes("2026-03-01T00:00:00Z", "g1")
+
+        assert [t.trail_id for t in result.trails] == ["t1"]
+        assert result.deleted_ids == ["gone"]
 
     @patch("api.storage.trail_storage.get_deleted_trail_ids", return_value=[])
     @patch("api.storage.trail_storage.get_all_trails", return_value=[])

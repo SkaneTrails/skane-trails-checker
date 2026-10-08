@@ -1,11 +1,11 @@
-"""Tests for trail deletion tombstones (delta sync of deletions)."""
+"""Tests for trail tombstones (delta sync of deletions and lost visibility)."""
 
 from collections.abc import Generator
 from unittest.mock import MagicMock, patch
 
 import pytest
 
-from api.storage.trail_tombstones import get_deleted_trail_ids, record_tombstone
+from api.storage.trail_tombstones import add_tombstone_to_batch, get_deleted_trail_ids
 
 
 @pytest.fixture
@@ -22,21 +22,31 @@ def _doc(data: dict) -> MagicMock:
     return doc
 
 
-class TestRecordTombstone:
-    def test_writes_tombstone_with_group_and_visibility(self, mock_collection) -> None:
-        record_tombstone("t1", {"group_id": "g1", "is_public": True}, "2026-03-01T12:00:00Z")
+class TestAddTombstoneToBatch:
+    def test_adds_tombstone_with_group_and_visibility(self, mock_collection) -> None:
+        batch = MagicMock()
+
+        add_tombstone_to_batch(batch, "t1", {"group_id": "g1", "is_public": True}, "2026-03-01T12:00:00Z")
 
         mock_collection.document.assert_called_once_with("t1")
-        mock_collection.document.return_value.set.assert_called_once_with(
-            {"trail_id": "t1", "group_id": "g1", "is_public": True, "deleted_at": "2026-03-01T12:00:00Z"}
+        batch.set.assert_called_once_with(
+            mock_collection.document.return_value,
+            {"trail_id": "t1", "group_id": "g1", "is_public": True, "deleted_at": "2026-03-01T12:00:00Z"},
         )
 
     def test_defaults_when_trail_has_no_group(self, mock_collection) -> None:
-        record_tombstone("t1", {}, "2026-03-01T12:00:00Z")
+        batch = MagicMock()
 
-        written = mock_collection.document.return_value.set.call_args.args[0]
+        add_tombstone_to_batch(batch, "t1", {}, "2026-03-01T12:00:00Z")
+
+        written = batch.set.call_args.args[1]
         assert written["group_id"] is None
         assert written["is_public"] is False
+
+    def test_does_not_write_on_its_own(self, mock_collection) -> None:
+        add_tombstone_to_batch(MagicMock(), "t1", {}, "2026-03-01T12:00:00Z")
+
+        mock_collection.document.return_value.set.assert_not_called()
 
 
 class TestGetDeletedTrailIds:

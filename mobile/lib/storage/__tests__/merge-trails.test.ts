@@ -32,8 +32,10 @@ describe('mergeTrails', () => {
     expect(result.map((t) => t.trail_id)).toEqual(['b']);
   });
 
-  it('lets a deletion win over a change to the same trail', () => {
-    expect(mergeTrails([], [trail('a')], ['a'])).toEqual([]);
+  it('keeps a trail that is both changed and listed as deleted, since the change is newer', () => {
+    const result = mergeTrails([trail('a', 'old')], [trail('a', 'recreated')], ['a']);
+    expect(result).toHaveLength(1);
+    expect(result[0].name).toBe('recreated');
   });
 
   it('ignores deletions of unknown trails', () => {

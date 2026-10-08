@@ -15,8 +15,8 @@ from api.models.trail import (
     TrailImagesResponse,
     TrailResponse,
 )
-from api.storage.firestore_client import get_collection
-from api.storage.trail_tombstones import get_deleted_trail_ids, record_tombstone
+from api.storage.firestore_client import create_batch, get_collection
+from api.storage.trail_tombstones import add_tombstone_to_batch, get_deleted_trail_ids
 from api.storage.validation import validate_document_id
 
 logger = logging.getLogger(__name__)
@@ -257,26 +257,50 @@ def update_trail_name(trail_id: str, name: str) -> None:
 
 
 def update_trail(trail_id: str, updates: dict) -> None:
-    """Update multiple fields of a trail."""
+    """Update multiple fields of a trail.
+
+    Making a shared trail private also leaves a tombstone (in the same batch), so the groups
+    that saw it drop their copy; its owner keeps it because the trail is still in their delta.
+    """
     validate_document_id(trail_id, field_name="trail_id")
     logger.info("Updating trail %s with fields: %s", trail_id, list(updates.keys()))
     now = _utc_now_z()
     updates["last_updated"] = now
     updates["modified_at"] = now
-    get_collection("trails").document(trail_id).update(updates)
+    trail_ref = get_collection("trails").document(trail_id)
+    shared_trail = _shared_trail_being_made_private(trail_ref, updates)
+    if shared_trail is None:
+        trail_ref.update(updates)
+    else:
+        batch = create_batch()
+        batch.update(trail_ref, updates)
+        add_tombstone_to_batch(batch, trail_id, shared_trail, now)
+        batch.commit()
     _update_sync_metadata()
 
 
+def _shared_trail_being_made_private(trail_ref: Any, updates: dict) -> dict | None:
+    """Return the trail's current data if this update stops sharing a public trail, else None."""
+    if updates.get("is_public") is not False:
+        return None
+    snapshot = trail_ref.get()
+    data = snapshot.to_dict() if snapshot.exists else None
+    return data if data and data.get("is_public") else None
+
+
 def delete_trail(trail_id: str, *, update_sync: bool = True) -> None:
-    """Delete a trail and its details from Firestore, leaving a tombstone for client delta sync."""
+    """Delete a trail and its details, with a tombstone for client delta sync, in one atomic batch."""
     validate_document_id(trail_id, field_name="trail_id")
     logger.info("Deleting trail %s", trail_id)
-    snapshot = get_collection("trails").document(trail_id).get()
+    trail_ref = get_collection("trails").document(trail_id)
+    snapshot = trail_ref.get()
     trail_data = snapshot.to_dict() if snapshot.exists else None
-    get_collection("trails").document(trail_id).delete()
-    get_collection("trail_details").document(trail_id).delete()
+    batch = create_batch()
+    batch.delete(trail_ref)
+    batch.delete(get_collection("trail_details").document(trail_id))
     if trail_data is not None:
-        record_tombstone(trail_id, trail_data, _utc_now_z())
+        add_tombstone_to_batch(batch, trail_id, trail_data, _utc_now_z())
+    batch.commit()
     if update_sync:
         _update_sync_metadata()
 
@@ -304,11 +328,15 @@ def get_trail_changes(since: str | None, group_id: str | None) -> TrailChangesRe
 
     Returns:
         Changed trails (with coordinates), deleted IDs, and the time to use as the next `since`.
-        The time is read before the data so a write landing mid-request is picked up next time.
+        A trail that is in the changed list is never also reported deleted (it was recreated, or
+        is still visible to this caller after being made private to others), so the client can
+        apply deletions and changes in any order. The time is read before the data so a write
+        landing mid-request is picked up next time.
     """
     server_time = _utc_now_z()
     trails = get_all_trails(since=since, group_id=group_id)
-    deleted_ids = get_deleted_trail_ids(since, group_id)
+    changed_ids = {trail.trail_id for trail in trails}
+    deleted_ids = [trail_id for trail_id in get_deleted_trail_ids(since, group_id) if trail_id not in changed_ids]
     return TrailChangesResponse(trails=trails, deleted_ids=deleted_ids, server_time=server_time)
 
 
