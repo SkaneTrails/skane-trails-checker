@@ -94,7 +94,11 @@ async function runPoll(queryClient: QueryClient, ownerUid: string): Promise<void
       state = { ownerUid, scope: status.scope, seen: {} };
     }
 
-    const changed = SYNC_KINDS.filter((kind) => status[kind] !== (state.seen[kind] ?? null));
+    // A kind with no remembered version at all is refreshed once, even if the server has none yet,
+    // so that every kind is backfilled and recorded before it is trusted.
+    const changed = SYNC_KINDS.filter(
+      (kind) => !(kind in state.seen) || status[kind] !== state.seen[kind],
+    );
     const refreshed: Partial<SyncStatus> = {};
     await Promise.all(
       changed.map(async (kind) => {

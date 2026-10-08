@@ -975,6 +975,27 @@ class TestSaveTrailOverwrite:
         assert transaction.set.call_args.args[1]["images_revision"] == "rev-9"
         assert trail.images_revision == "rev-9"
 
+    @patch("api.storage.trail_storage.run_in_transaction")
+    @patch("api.storage.trail_storage._update_sync_metadata")
+    def test_a_retried_transaction_uses_the_revision_it_reads_the_second_time(
+        self, mock_sync, mock_run, mock_collection
+    ) -> None:
+        """Firestore re-runs the callback when the trail changes concurrently; attempts must not share state."""
+        trail_ref = mock_collection.document.return_value
+        trail_ref.get.side_effect = [
+            _make_doc({"trail_id": "t1", "group_id": "owner", "images_revision": "rev-1"}),
+            _make_doc({"trail_id": "t1", "group_id": "owner", "images_revision": "rev-2"}),
+        ]
+        transactions = [MagicMock(), MagicMock()]
+        mock_run.side_effect = lambda operation: [operation(t) for t in transactions]
+        trail = self._trail()
+
+        save_trail(trail)
+
+        assert transactions[0].set.call_args.args[1]["images_revision"] == "rev-1"
+        assert transactions[1].set.call_args.args[1]["images_revision"] == "rev-2"
+        assert trail.images_revision == "rev-2"
+
     @patch("api.storage.trail_storage._update_sync_metadata")
     def test_a_trail_that_never_had_photos_has_no_revision(self, mock_sync, transaction, mock_collection) -> None:
         mock_collection.document.return_value.get.return_value = _make_doc({"trail_id": "t1", "group_id": "owner"})
@@ -1228,6 +1249,24 @@ class TestUpdateSyncMetadata:
         assert set_call["count"] == 3
         assert set_call["last_modified"] == "2026-03-01T12:00:00Z"
         mock_touch.assert_called_once_with("trails")
+
+    @patch("api.storage.trail_storage.touch")
+    @patch("api.storage.trail_storage._write_legacy_trails_sync", side_effect=RuntimeError("count failed"))
+    def test_a_failing_legacy_write_does_not_hide_the_new_version(self, mock_legacy, mock_touch) -> None:
+        _update_sync_metadata()
+
+        mock_touch.assert_called_once_with("trails")
+
+    @patch("api.storage.trail_storage._write_legacy_trails_sync")
+    @patch("api.storage.trail_storage.touch")
+    def test_the_version_is_written_before_the_legacy_document(self, mock_touch, mock_legacy) -> None:
+        order: list[str] = []
+        mock_touch.side_effect = lambda *_, **__: order.append("touch")
+        mock_legacy.side_effect = lambda: order.append("legacy")
+
+        _update_sync_metadata()
+
+        assert order == ["touch", "legacy"]
 
     @patch("api.storage.trail_storage._update_sync_metadata")
     def test_public_wrapper_delegates(self, mock_internal) -> None:

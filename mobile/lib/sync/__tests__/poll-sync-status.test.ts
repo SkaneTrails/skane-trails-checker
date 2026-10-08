@@ -175,7 +175,17 @@ describe('pollSyncStatus', () => {
     expect(syncSeen.set).toHaveBeenCalledWith(seenState(versionsOf()));
   });
 
-  it('treats a data type that was never written as unchanged', async () => {
+  it('leaves a data type the server never wrote alone once that was recorded', async () => {
+    vi.mocked(syncApi.getStatus).mockResolvedValue(status({ places: null }));
+    vi.mocked(syncSeen.get).mockResolvedValue(seenState(versionsOf({ places: null })));
+
+    await pollSyncStatus(queryClient);
+
+    expect(invalidate).not.toHaveBeenCalled();
+    expect(syncSeen.set).not.toHaveBeenCalled();
+  });
+
+  it('refetches a data type never recorded before, even if the server has no version yet, and records it', async () => {
     vi.mocked(syncApi.getStatus).mockResolvedValue(status({ places: null }));
     // places absent from the remembered versions entirely
     vi.mocked(syncSeen.get).mockResolvedValue(
@@ -184,7 +194,12 @@ describe('pollSyncStatus', () => {
 
     await pollSyncStatus(queryClient);
 
-    expect(invalidate).not.toHaveBeenCalled();
+    expect(invalidate).toHaveBeenCalledOnce();
+    expect(invalidate).toHaveBeenCalledWith(
+      { queryKey: ['places'], refetchType: 'active' },
+      { throwOnError: true },
+    );
+    expect(syncSeen.set).toHaveBeenCalledWith(seenState(versionsOf({ places: null })));
   });
 
   it('retries a failed refetch at the next poll by not remembering its version', async () => {

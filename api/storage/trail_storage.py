@@ -224,21 +224,27 @@ def save_trail(trail: TrailResponse, *, update_sync: bool = True) -> None:
         trail.created_at = now
     trail_ref = get_collection("trails").document(trail.trail_id)
     data = trail.to_dict()
-    run_in_transaction(lambda transaction: _overwrite_trail(transaction, trail_ref, trail.trail_id, data, now))
-    trail.images_revision = data.get("images_revision")
+    stored: dict = {}
+    run_in_transaction(lambda transaction: _overwrite_trail(transaction, trail_ref, data, now, stored))
+    trail.images_revision = stored.get("images_revision")
     if update_sync:
         _update_sync_metadata()
 
 
-def _overwrite_trail(transaction: Any, trail_ref: Any, trail_id: str, data: dict, now: str) -> None:
+def _overwrite_trail(transaction: Any, trail_ref: Any, data: dict, now: str, stored: dict) -> None:
+    """One attempt of the overwrite; `stored` ends up holding what the last attempt wrote."""
     snapshot = trail_ref.get(transaction=transaction)
     previous = snapshot.to_dict() if snapshot.exists else None
+    # A retried attempt must start from the original payload, not from what an earlier one added.
+    doc = dict(data)
     # The photos live in their own document and survive an overwrite, so the trail keeps their revision.
-    if previous and previous.get("images_revision") and "images_revision" not in data:
-        data["images_revision"] = previous["images_revision"]
-    transaction.set(trail_ref, data)
-    if previous and _audience_shrinks(previous, data):
-        add_tombstone(transaction, trail_id, previous, now)
+    if previous and previous.get("images_revision") and "images_revision" not in doc:
+        doc["images_revision"] = previous["images_revision"]
+    transaction.set(trail_ref, doc)
+    stored.clear()
+    stored.update(doc)
+    if previous and _audience_shrinks(previous, doc):
+        add_tombstone(transaction, data["trail_id"], previous, now)
 
 
 def _audience_shrinks(previous: dict, current: dict) -> bool:
@@ -402,10 +408,14 @@ def _update_sync_metadata() -> None:
 
     Uses a Firestore aggregation query to count documents server-side,
     avoiding O(N) client reads from streaming the entire collection.
-    Called after trail create, update, or delete.
+    Called after trail create, update, or delete. The version clients poll comes first: the legacy
+    document only serves `GET /trails/sync`, and its failure must not hide a committed change.
     """
-    _write_legacy_trails_sync()
     touch("trails")
+    try:
+        _write_legacy_trails_sync()
+    except Exception:
+        logger.warning("Could not update the legacy trails_sync document", exc_info=True)
 
 
 def _write_legacy_trails_sync() -> None:
