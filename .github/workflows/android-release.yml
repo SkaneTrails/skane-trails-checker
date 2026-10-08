@@ -38,6 +38,13 @@ jobs:
         with:
           node-version: "24.21.0"
 
+      - name: Install pnpm
+        run: npm install -g pnpm@10
+
+      # EAS resolves the Expo config plugins (expo-router, ...) locally before it uploads.
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
       - name: Setup EAS
         uses: expo/expo-github-action@eab7a230208c952974db8c3245cfd78402c7b385 # v9.0.0
         with:
