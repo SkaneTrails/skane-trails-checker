@@ -10,6 +10,7 @@ vi.mock('@/lib/storage/sync-seen', () => ({
 }));
 
 import { syncApi } from '@/lib/api';
+import { currentUserId } from '@/lib/auth-scope';
 import { forceReload } from '@/lib/force-reload';
 import { syncMapTrails } from '@/lib/map-trail-sync';
 import { syncSeen } from '@/lib/storage/sync-seen';
@@ -43,6 +44,7 @@ describe('claimLocalData', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.mocked(currentUserId).mockReturnValue('user-1');
     queryClient = new QueryClient();
   });
 
@@ -54,12 +56,14 @@ describe('claimLocalData', () => {
     expect(forceReload).not.toHaveBeenCalled();
   });
 
-  it('leaves a device that has never synced alone', async () => {
-    const state = { ownerUid: null, scope: null, seen: {} };
-    vi.mocked(syncSeen.get).mockResolvedValue(state);
+  it('clears data of an unknown owner, since an older app version may have left it for someone else', async () => {
+    vi.mocked(syncSeen.get).mockResolvedValue({ ownerUid: null, scope: null, seen: {} });
 
-    expect(await claimLocalData(queryClient)).toBe(state);
-    expect(forceReload).not.toHaveBeenCalled();
+    const state = await claimLocalData(queryClient);
+
+    expect(forceReload).toHaveBeenCalledWith(queryClient);
+    expect(state).toEqual({ ownerUid: 'user-1', scope: null, seen: {} });
+    expect(syncSeen.set).toHaveBeenCalledWith(state);
   });
 
   it('clears another user\'s data without asking the server, and takes over', async () => {
@@ -80,6 +84,7 @@ describe('pollSyncStatus', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.mocked(currentUserId).mockReturnValue('user-1');
     queryClient = new QueryClient();
     invalidate = vi.spyOn(queryClient, 'invalidateQueries').mockResolvedValue(undefined);
     vi.mocked(syncMapTrails).mockResolvedValue([]);
@@ -265,5 +270,48 @@ describe('pollSyncStatus', () => {
     await Promise.all([pollSyncStatus(queryClient), pollSyncStatus(queryClient)]);
 
     expect(syncApi.getStatus).toHaveBeenCalledOnce();
+  });
+
+  it('does not let a new user join the poll of the previous one', async () => {
+    let answer: (value: ReturnType<typeof status>) => void = () => undefined;
+    vi.mocked(syncApi.getStatus).mockReturnValueOnce(new Promise((resolve) => (answer = resolve)));
+    vi.mocked(syncApi.getStatus).mockResolvedValue(status());
+    vi.mocked(syncSeen.get).mockResolvedValue(seenState(versionsOf()));
+
+    const first = pollSyncStatus(queryClient);
+    vi.mocked(currentUserId).mockReturnValue('user-2');
+    const second = pollSyncStatus(queryClient);
+    answer(status());
+    await Promise.all([first, second]);
+
+    expect(syncApi.getStatus).toHaveBeenCalledTimes(2);
+  });
+
+  it('discards the result of a poll when another user signed in meanwhile', async () => {
+    vi.mocked(syncSeen.get).mockResolvedValue(seenState(versionsOf()));
+    vi.mocked(syncApi.getStatus).mockImplementation(async () => {
+      vi.mocked(currentUserId).mockReturnValue('user-2');
+      return status({ places: 'p2', trails: 't2' });
+    });
+
+    await pollSyncStatus(queryClient);
+
+    expect(invalidate).not.toHaveBeenCalled();
+    expect(syncMapTrails).not.toHaveBeenCalled();
+    expect(syncSeen.set).not.toHaveBeenCalled();
+  });
+
+  it("does not show the previous user's trails or remember their versions when they sign out mid-refresh", async () => {
+    vi.mocked(syncSeen.get).mockResolvedValue(seenState(versionsOf()));
+    vi.mocked(syncApi.getStatus).mockResolvedValue(status({ trails: 't2' }));
+    vi.mocked(syncMapTrails).mockImplementation(async () => {
+      vi.mocked(currentUserId).mockReturnValue('user-2');
+      return [{ trail_id: 'private' }] as never;
+    });
+
+    await pollSyncStatus(queryClient);
+
+    expect(queryClient.getQueryData(['trails', 'map'])).toBeUndefined();
+    expect(syncSeen.set).not.toHaveBeenCalled();
   });
 });
