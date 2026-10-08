@@ -38,6 +38,14 @@ export interface Trail {
   is_public?: boolean;
 }
 
+// Trails changed or deleted since a sync time (local-first delta sync)
+export interface TrailChanges {
+  trails: Trail[];
+  deleted_ids: string[];
+  /** Use as `since` for the next request. */
+  server_time: string;
+}
+
 // Full trail details with all coordinates and elevation
 export interface TrailDetails {
   trail_id: string;

@@ -328,6 +328,7 @@ All endpoints are prefixed with `/api/v1`.
 | Method   | Path                   | Auth | Description                                      |
 | -------- | ---------------------- | ---- | ------------------------------------------------ |
 | `GET`    | `/trails/sync`         | No   | Sync metadata (count, last_modified)             |
+| `GET`    | `/trails/changes`      | Yes  | Trails changed + IDs deleted since `?since=`     |
 | `GET`    | `/trails`              | No   | List trails (filter by source, status, distance) |
 | `GET`    | `/trails/{id}`         | No   | Get single trail                                 |
 | `GET`    | `/trails/{id}/details` | No   | Full trail data (all coordinates)                |
@@ -359,6 +360,17 @@ All endpoints are prefixed with `/api/v1`.
 | Method | Path      | Auth | Description  |
 | ------ | --------- | ---- | ------------ |
 | `GET`  | `/health` | No   | Health check |
+
+## Local-First Trail Sync
+
+The app keeps its own copy of every trail, including the map coordinates, and only downloads what changed:
+
+1. On start the map draws from the local copy at once (files in the app's document folder on native, IndexedDB on web: `mobile/lib/storage/map-trail-store.*`).
+1. It then calls `GET /trails/changes?since=<last server_time>`. The response holds the trails modified since then (with coordinates), the IDs deleted since then, and a new `server_time` to store. Without a local copy (first run) it fetches everything once.
+1. Deletions travel as tombstones: `delete_trail` writes a `trail_tombstones` document, so a deletion is never missed even if another trail was added in the same window.
+1. If the request fails, the local copy is used.
+
+The React Query cache is saved to a single AsyncStorage entry, which Android caps at about 6 MB. The trail queries that are too big for it (map trails, full tracks, photos) are therefore not saved there (`mobile/lib/storage/persist-filter.ts`).
 
 ## Seeding Trail Data
 

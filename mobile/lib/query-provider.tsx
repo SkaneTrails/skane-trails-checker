@@ -3,6 +3,7 @@ import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client
 import { type ReactNode, useState } from 'react';
 import { createPersister } from '@/lib/storage/query-persister';
 import { PERSIST_MAX_AGE } from '@/lib/storage/persist-constants';
+import { shouldPersistQuery } from '@/lib/storage/persist-filter';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -20,7 +21,14 @@ export function QueryProvider({ children }: { children: ReactNode }) {
   const [persister] = useState(() => createPersister());
 
   return (
-    <PersistQueryClientProvider client={queryClient} persistOptions={{ persister, maxAge: PERSIST_MAX_AGE }}>
+    <PersistQueryClientProvider
+      client={queryClient}
+      persistOptions={{
+        persister,
+        maxAge: PERSIST_MAX_AGE,
+        dehydrateOptions: { shouldDehydrateQuery: shouldPersistQuery },
+      }}
+    >
       {children}
     </PersistQueryClientProvider>
   );

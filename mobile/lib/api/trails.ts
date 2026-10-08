@@ -2,6 +2,7 @@ import type {
   ImagePinsResponse,
   SyncMetadata,
   Trail,
+  TrailChanges,
   TrailDetails,
   TrailImagesResponse,
   TrailUpdate,
@@ -56,6 +57,11 @@ export const trailsApi = {
 
   getTrailDetails(id: string): Promise<TrailDetails> {
     return apiRequest<TrailDetails>(`/api/v1/trails/${id}/details`);
+  },
+
+  /** Trails changed and trail IDs deleted since `since` (full fetch without it), with coordinates. */
+  getTrailChanges(since?: string): Promise<TrailChanges> {
+    return apiRequest<TrailChanges>(`/api/v1/trails/changes${buildQuery({ since })}`);
   },
 
   getSyncMetadata(): Promise<SyncMetadata> {

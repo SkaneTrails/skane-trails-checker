@@ -12,7 +12,7 @@ const DB_NAME = 'skane-trails';
 const DB_VERSION = 1;
 const STORE_NAME = 'trail-cache';
 
-function openDb(): Promise<IDBDatabase> {
+export function openDb(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
     const request = indexedDB.open(DB_NAME, DB_VERSION);
     request.onupgradeneeded = () => {
@@ -26,7 +26,7 @@ function openDb(): Promise<IDBDatabase> {
   });
 }
 
-function getFromStore<T>(db: IDBDatabase, key: string): Promise<T | undefined> {
+export function getFromStore<T>(db: IDBDatabase, key: string): Promise<T | undefined> {
   return new Promise((resolve, reject) => {
     const tx = db.transaction(STORE_NAME, 'readonly');
     const request = tx.objectStore(STORE_NAME).get(key);
@@ -35,7 +35,7 @@ function getFromStore<T>(db: IDBDatabase, key: string): Promise<T | undefined> {
   });
 }
 
-function putInStore<T>(db: IDBDatabase, key: string, value: T): Promise<void> {
+export function putInStore<T>(db: IDBDatabase, key: string, value: T): Promise<void> {
   return new Promise((resolve, reject) => {
     const tx = db.transaction(STORE_NAME, 'readwrite');
     const request = tx.objectStore(STORE_NAME).put(value, key);

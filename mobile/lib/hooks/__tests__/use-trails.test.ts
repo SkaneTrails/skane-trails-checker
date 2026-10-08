@@ -26,6 +26,7 @@ import {
 vi.mock('@/lib/api', () => ({
   trailsApi: {
     getTrails: vi.fn(),
+    getTrailChanges: vi.fn(),
     getTrailSummaries: vi.fn(),
     getTrail: vi.fn(),
     getTrailDetails: vi.fn(),
@@ -50,11 +51,21 @@ vi.mock('@/lib/storage/trail-cache', () => ({
   },
 }));
 
+vi.mock('@/lib/storage/map-trail-store', () => ({
+  mapTrailStore: {
+    get: vi.fn().mockResolvedValue({ trails: [], lastSyncTime: null }),
+    apply: vi.fn().mockResolvedValue(undefined),
+    clear: vi.fn().mockResolvedValue(undefined),
+  },
+}));
+
 import { trailsApi } from '@/lib/api';
+import { mapTrailStore } from '@/lib/storage/map-trail-store';
 import { trailCache } from '@/lib/storage/trail-cache';
 
 const mockTrailsApi = vi.mocked(trailsApi);
 const mockTrailCache = vi.mocked(trailCache);
+const mockMapTrailStore = vi.mocked(mapTrailStore);
 
 const sampleTrail = {
   trail_id: 'abc123',
@@ -449,15 +460,40 @@ describe('useMapTrails', () => {
     vi.clearAllMocks();
   });
 
-  it('fetches full trail data for map rendering', async () => {
-    mockTrailsApi.getTrails.mockResolvedValue([sampleTrail]);
+  it('loads map trails local-first: only changes are requested after the first sync', async () => {
+    mockMapTrailStore.get.mockResolvedValue({
+      trails: [sampleTrail],
+      lastSyncTime: '2025-06-01T00:00:00Z',
+    });
+    mockTrailsApi.getTrailChanges.mockResolvedValue({
+      trails: [],
+      deleted_ids: [],
+      server_time: '2025-06-02T00:00:00Z',
+    });
     const wrapper = createQueryWrapper();
 
     const { result } = renderHook(() => useMapTrails(), { wrapper });
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
     expect(result.current.data).toEqual([sampleTrail]);
-    expect(mockTrailsApi.getTrails).toHaveBeenCalledWith({});
+    expect(mockTrailsApi.getTrailChanges).toHaveBeenCalledWith('2025-06-01T00:00:00Z');
+    expect(mockTrailsApi.getTrails).not.toHaveBeenCalled();
+  });
+
+  it('fetches everything once when there is no local copy', async () => {
+    mockMapTrailStore.get.mockResolvedValue({ trails: [], lastSyncTime: null });
+    mockTrailsApi.getTrailChanges.mockResolvedValue({
+      trails: [sampleTrail],
+      deleted_ids: [],
+      server_time: '2025-06-02T00:00:00Z',
+    });
+    const wrapper = createQueryWrapper();
+
+    const { result } = renderHook(() => useMapTrails(), { wrapper });
+
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+    expect(result.current.data).toEqual([sampleTrail]);
+    expect(mockTrailsApi.getTrailChanges).toHaveBeenCalledWith(undefined);
   });
 });
 
@@ -511,6 +547,7 @@ describe('useUpdateTrail', () => {
     // Verify the setQueryData callbacks updated both caches
     expect(queryClient.getQueryData(['trails', 'list'])).toEqual([updatedTrail]);
     expect(queryClient.getQueryData(['trails', 'map'])).toEqual([updatedTrail]);
+    expect(mockMapTrailStore.apply).toHaveBeenCalledWith([updatedTrail], []);
   });
 });
 
@@ -547,6 +584,7 @@ describe('useDeleteTrail', () => {
     // Verify the setQueryData callbacks removed the trail from both caches
     expect(queryClient.getQueryData(['trails', 'list'])).toEqual([]);
     expect(queryClient.getQueryData(['trails', 'map'])).toEqual([]);
+    expect(mockMapTrailStore.apply).toHaveBeenCalledWith([], ['abc123']);
   });
 });
 
@@ -608,6 +646,7 @@ describe('useUploadGpx', () => {
         serverSyncTime,
       );
     });
+    expect(mockMapTrailStore.apply).toHaveBeenCalledWith([uploadedTrail], []);
   });
 });
 
@@ -875,6 +914,7 @@ describe('useSaveRecording', () => {
     await waitFor(() => {
       expect(mockTrailCache.set).toHaveBeenCalled();
     });
+    expect(mockMapTrailStore.apply).toHaveBeenCalledWith([savedTrail], []);
   });
 });
 
