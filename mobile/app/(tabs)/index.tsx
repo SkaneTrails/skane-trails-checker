@@ -1,6 +1,7 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Image, StyleSheet, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AddSpotForm } from '@/components/AddSpotForm';
 import { FloatingButton } from '@/components/FloatingButton';
 import { FloatingCardOverlay } from '@/components/FloatingCardOverlay';
@@ -68,6 +69,8 @@ type SelectedItem =
 export default function MapScreen() {
   const { colors } = useTheme();
   const { t } = useTranslation();
+  // Edge-to-edge on Android: keep the floating controls clear of the status bar.
+  const { top: safeTop } = useSafeAreaInsets();
   const { enabledPlaceCategories } = useSettings();
   const router = useRouter();
   const { trailId, editTrail } = useLocalSearchParams<{ trailId?: string; editTrail?: string }>();
@@ -443,12 +446,12 @@ export default function MapScreen() {
       />
 
       {/* Layer toggle button (top-left) */}
-      <View style={styles.layerButton}>
+      <View style={[styles.layerButton, { top: spacing.lg + safeTop }]}>
         <FloatingButton label={t('map.layers')} onPress={() => setShowLayers((v) => !v)} />
       </View>
 
       {/* Hamburger menu (top-right) */}
-      <View style={styles.menuContainer}>
+      <View style={[styles.menuContainer, { top: spacing.lg + safeTop }]}>
         <HamburgerMenu
           isOpen={showMenu}
           onToggle={() => setShowMenu((v) => !v)}
@@ -492,14 +495,14 @@ export default function MapScreen() {
 
       {/* Layer toggle panel */}
       {showLayers && (
-        <View style={styles.layerPanel}>
+        <View style={[styles.layerPanel, { top: spacing.lg + 48 + safeTop }]}>
           <LayerToggle layers={layerList} onToggle={handleToggleLayer} />
         </View>
       )}
 
       {/* Loading indicator */}
       {trailsFetching && (
-        <View style={[styles.spinner, glassPill(colors.glass)]}>
+        <View style={[styles.spinner, glassPill(colors.glass), { top: spacing.lg + safeTop }]}>
           <ActivityIndicator size="small" color={colors.primary} />
         </View>
       )}

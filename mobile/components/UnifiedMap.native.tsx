@@ -16,10 +16,11 @@ import {
   Marker,
   UserLocation,
 } from '@maplibre/maplibre-react-native';
-import { useEffect, useRef, useState } from 'react';
-import { type LayoutChangeEvent, PanResponder, StyleSheet, View } from 'react-native';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { Image, type LayoutChangeEvent, PanResponder, StyleSheet, View } from 'react-native';
 import { foragingColorMap } from '@/lib/foraging-colors';
 import type { Point } from '@/lib/homography';
+import { requestForegroundPermission } from '@/lib/location-permissions';
 import type { GeoCoord, MapOverlay } from '@/lib/map-overlays';
 import {
   edgeMidpoints,
@@ -69,6 +70,7 @@ interface UnifiedMapProps {
 const DEFAULT_CENTER: [number, number] = [13.4, 55.95];
 const DEFAULT_ZOOM = 7;
 const PLACES_MIN_ZOOM = 13;
+const IMAGE_PINS_MIN_ZOOM = 11;
 const RECORDING_COLOR = '#ef4444';
 
 /** OpenStreetMap raster tiles — free, no API key required. */
@@ -136,8 +138,16 @@ export function UnifiedMap({
   const boundsRequestRef = useRef(0);
   const [currentZoom, setCurrentZoom] = useState(DEFAULT_ZOOM);
 
-  const colorMap = foragingColorMap(foragingTypes);
   const showPlaces = currentZoom >= PLACES_MIN_ZOOM;
+  const showImagePins = currentZoom >= IMAGE_PINS_MIN_ZOOM;
+
+  // The map layer never asks for location access itself, so the blue dot needs this.
+  const [locationGranted, setLocationGranted] = useState(false);
+  useEffect(() => {
+    void requestForegroundPermission()
+      .then((result) => setLocationGranted(result === 'granted'))
+      .catch(() => setLocationGranted(false));
+  }, []);
 
   // Viewport geometry needed to convert pixel drags into geo coordinates
   // when editing an overlay's corner/rotation handles.
@@ -149,12 +159,6 @@ export function UnifiedMap({
   } | null>(null);
   const [mapSize, setMapSize] = useState<{ width: number; height: number } | null>(null);
 
-  const exploredTrails = layers.trails
-    ? trails.filter((t) => t.status === 'Explored!' && t.coordinates_map?.length)
-    : [];
-  const unexploredTrails = layers.trails
-    ? trails.filter((t) => t.status !== 'Explored!' && t.coordinates_map?.length)
-    : [];
 
   // Handle drags are converted with an axis-aligned view box, which only holds north-up and flat.
   const isEditingOverlay = editingOverlayId != null;
@@ -172,62 +176,67 @@ export function UnifiedMap({
     });
   }, [focusBounds]);
 
-  const exploredGeoJSON: GeoJSON.FeatureCollection = {
-    type: 'FeatureCollection',
-    features: exploredTrails.map((t) => trailToGeoJSON(t, colors.explored)),
-  };
+  // Memoized so a zoom/pan/selection re-render does not hand MapLibre megabytes of new GeoJSON.
+  const exploredGeoJSON = useMemo<GeoJSON.FeatureCollection>(
+    () => ({
+      type: 'FeatureCollection',
+      features: layers.trails
+        ? trails
+            .filter((t) => t.status === 'Explored!' && t.coordinates_map?.length)
+            .map((t) => trailToGeoJSON(t, colors.explored))
+        : [],
+    }),
+    [trails, layers.trails, colors.explored],
+  );
 
-  const unexploredGeoJSON: GeoJSON.FeatureCollection = {
-    type: 'FeatureCollection',
-    features: unexploredTrails.map((t) => trailToGeoJSON(t, colors.toExplore)),
-  };
+  const unexploredGeoJSON = useMemo<GeoJSON.FeatureCollection>(
+    () => ({
+      type: 'FeatureCollection',
+      features: layers.trails
+        ? trails
+            .filter((t) => t.status !== 'Explored!' && t.coordinates_map?.length)
+            .map((t) => trailToGeoJSON(t, colors.toExplore))
+        : [],
+    }),
+    [trails, layers.trails, colors.toExplore],
+  );
 
-  const spotsGeoJSON: GeoJSON.FeatureCollection = layers.foraging
-    ? {
-        type: 'FeatureCollection',
-        features: foragingSpots.map((spot) => ({
-          type: 'Feature' as const,
-          properties: {
-            id: spot.id,
-            color: colorMap.get(spot.type) ?? colors.text.muted,
-          },
-          geometry: {
-            type: 'Point' as const,
-            coordinates: [spot.lng, spot.lat],
-          },
-        })),
-      }
-    : { type: 'FeatureCollection', features: [] };
+  const spotsGeoJSON = useMemo<GeoJSON.FeatureCollection>(() => {
+    if (!layers.foraging) return { type: 'FeatureCollection', features: [] };
+    const colorMap = foragingColorMap(foragingTypes);
+    return {
+      type: 'FeatureCollection',
+      features: foragingSpots.map((spot) => ({
+        type: 'Feature' as const,
+        properties: {
+          id: spot.id,
+          color: colorMap.get(spot.type) ?? colors.text.muted,
+        },
+        geometry: {
+          type: 'Point' as const,
+          coordinates: [spot.lng, spot.lat],
+        },
+      })),
+    };
+  }, [foragingSpots, foragingTypes, layers.foraging, colors.text.muted]);
 
-  const placesGeoJSON: GeoJSON.FeatureCollection =
-    layers.places && showPlaces
-      ? {
-          type: 'FeatureCollection',
-          features: places.map((place) => ({
-            type: 'Feature' as const,
-            properties: { id: place.place_id, name: place.name },
-            geometry: {
-              type: 'Point' as const,
-              coordinates: [place.lng, place.lat],
-            },
-          })),
-        }
-      : { type: 'FeatureCollection', features: [] };
-
-  const imagePinsGeoJSON: GeoJSON.FeatureCollection =
-    layers.images && imagePins?.length
-      ? {
-          type: 'FeatureCollection',
-          features: imagePins.map((pin) => ({
-            type: 'Feature' as const,
-            properties: { trailId: pin.trail_id },
-            geometry: {
-              type: 'Point' as const,
-              coordinates: [pin.lng, pin.lat],
-            },
-          })),
-        }
-      : { type: 'FeatureCollection', features: [] };
+  const placesGeoJSON = useMemo<GeoJSON.FeatureCollection>(
+    () =>
+      layers.places && showPlaces
+        ? {
+            type: 'FeatureCollection',
+            features: places.map((place) => ({
+              type: 'Feature' as const,
+              properties: { id: place.place_id, name: place.name },
+              geometry: {
+                type: 'Point' as const,
+                coordinates: [place.lng, place.lat],
+              },
+            })),
+          }
+        : { type: 'FeatureCollection', features: [] },
+    [places, layers.places, showPlaces],
+  );
 
   return (
     <View
@@ -284,8 +293,10 @@ export function UnifiedMap({
           }}
         />
 
-        {/* @ts-expect-error — MapLibre UserLocation prop types incomplete */}
-        <UserLocation visible />
+        {locationGranted && (
+          // @ts-expect-error — MapLibre UserLocation prop types incomplete
+          <UserLocation visible />
+        )}
 
         {/* Image overlays — rendered below trails so trails are visible on top */}
         {imageOverlays.map((overlay) => (
@@ -464,34 +475,23 @@ export function UnifiedMap({
           />
         </GeoJSONSource>
 
-        {/* Image pin markers — primary photos with GPS */}
-        <GeoJSONSource
-          id="image-pins"
-          data={imagePinsGeoJSON}
-          onPress={(e) => {
-            const trailId = e.nativeEvent.features?.[0]?.properties?.trailId;
-            if (trailId) onImagePinSelect?.(trailId);
-          }}
-        >
-          <Layer
-            id="image-pins-circle"
-            type="circle"
-            paint={{
-              'circle-radius': 10,
-              'circle-color': colors.explored,
-              'circle-stroke-width': 3,
-              'circle-stroke-color': '#ffffff',
-            }}
-          />
-          <Layer
-            id="image-pins-icon"
-            type="symbol"
-            layout={{
-              'text-field': '📷',
-              'text-size': 12,
-            }}
-          />
-        </GeoJSONSource>
+        {/* Photo bubbles — primary trail photos with GPS, like the web map */}
+        {layers.images &&
+          showImagePins &&
+          imagePins?.map((pin) => (
+            <Marker
+              key={pin.trail_id}
+              lngLat={[pin.lng, pin.lat]}
+              onPress={() => onImagePinSelect?.(pin.trail_id)}
+            >
+              <View style={[styles.photoBubble, { borderColor: colors.explored }]}>
+                <Image
+                  source={{ uri: `data:image/jpeg;base64,${pin.thumbnail}` }}
+                  style={styles.photoBubbleImage}
+                />
+              </View>
+            </Marker>
+          ))}
 
         {/* Live recording polyline */}
         {recordingPoints && recordingPoints.length >= 2 && (
@@ -657,6 +657,18 @@ const styles = StyleSheet.create({
   },
   map: {
     flex: 1,
+  },
+  photoBubble: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    borderWidth: 3,
+    overflow: 'hidden',
+    backgroundColor: '#fff',
+  },
+  photoBubbleImage: {
+    width: '100%',
+    height: '100%',
   },
   cornerHandle: {
     width: 22,
