@@ -2,7 +2,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { renderHook, waitFor } from '@testing-library/react';
 import type { ReactNode } from 'react';
 import { createElement } from 'react';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createQueryWrapper } from '@/test/helpers';
 import {
   filterTrails,
@@ -55,9 +55,10 @@ vi.mock('@/lib/storage/map-trail-store', () => ({
   },
 }));
 
-vi.mock('@/lib/auth-scope', () => ({ currentUserId: () => 'user-1' }));
+vi.mock('@/lib/auth-scope', () => ({ currentUserId: vi.fn(() => 'user-1') }));
 
 import { trailsApi } from '@/lib/api';
+import { currentUserId } from '@/lib/auth-scope';
 import { mapTrailStore } from '@/lib/storage/map-trail-store';
 import { trailImageStore } from '@/lib/storage/trail-image-store';
 
@@ -763,6 +764,112 @@ describe('useDeleteTrailImage', () => {
     await waitFor(() => {
       expect(mockTrailsApi.getImagePins).toHaveBeenCalled();
     });
+  });
+});
+
+describe('mutations that finish after another user signed in', () => {
+  const images = {
+    trail_id: 'abc123',
+    images: [{ image_data: 'b64', role: 'primary' as const, lat: null, lng: null, caption: null }],
+    revision: 'r1',
+  };
+
+  const switchUser = <T,>(result: T) =>
+    vi.fn(async () => {
+      vi.mocked(currentUserId).mockReturnValue('user-2');
+      return result;
+    });
+
+  const setup = () => {
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    queryClient.setQueryData(['trails', 'map'], [sampleTrail]);
+    const wrapper = ({ children }: { children: ReactNode }) =>
+      createElement(QueryClientProvider, { client: queryClient }, children);
+    return { queryClient, wrapper };
+  };
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.mocked(currentUserId).mockReturnValue('user-1');
+  });
+
+  afterEach(() => {
+    vi.mocked(currentUserId).mockReturnValue('user-1');
+  });
+
+  const expectNothingWritten = (queryClient: QueryClient) => {
+    expect(queryClient.getQueryData(['trails', 'map'])).toEqual([sampleTrail]);
+    expect(mockMapTrailStore.apply).not.toHaveBeenCalled();
+    expect(mockImageStore.put).not.toHaveBeenCalled();
+    expect(mockImageStore.remove).not.toHaveBeenCalled();
+  };
+
+  it('does not store photos an upload returns', async () => {
+    mockTrailsApi.uploadTrailImage.mockImplementation(switchUser(images));
+    const { queryClient, wrapper } = setup();
+    const { result } = renderHook(() => useUploadTrailImage(), { wrapper });
+
+    await result.current.mutateAsync({
+      trailId: 'abc123',
+      file: new File(['x'], 'p.jpg') as never,
+      role: 'primary',
+    });
+
+    expect(queryClient.getQueryData(['trails', 'images', 'abc123', 'r1'])).toBeUndefined();
+    expectNothingWritten(queryClient);
+  });
+
+  it('does not store the photos left after a delete', async () => {
+    mockTrailsApi.deleteTrailImage.mockImplementation(switchUser(images));
+    const { queryClient, wrapper } = setup();
+    const { result } = renderHook(() => useDeleteTrailImage(), { wrapper });
+
+    await result.current.mutateAsync({ trailId: 'abc123', imageIndex: 0 });
+
+    expectNothingWritten(queryClient);
+  });
+
+  it('does not apply a trail update', async () => {
+    mockTrailsApi.updateTrail.mockImplementation(switchUser({ ...sampleTrail, name: 'Renamed' }) as never);
+    const { queryClient, wrapper } = setup();
+    const { result } = renderHook(() => useUpdateTrail(), { wrapper });
+
+    await result.current.mutateAsync({ id: 'abc123', data: { name: 'Renamed' } });
+
+    expect(queryClient.getQueryData(['trails', 'detail', 'abc123'])).toBeUndefined();
+    expectNothingWritten(queryClient);
+  });
+
+  it('does not apply a delete', async () => {
+    mockTrailsApi.deleteTrail.mockImplementation(switchUser(undefined) as never);
+    const { queryClient, wrapper } = setup();
+    const { result } = renderHook(() => useDeleteTrail(), { wrapper });
+
+    await result.current.mutateAsync('abc123');
+
+    expectNothingWritten(queryClient);
+  });
+
+  it('does not add uploaded trails', async () => {
+    mockTrailsApi.uploadGpx.mockImplementation(switchUser([{ ...sampleTrail, trail_id: 'new' }]) as never);
+    const { queryClient, wrapper } = setup();
+    const { result } = renderHook(() => useUploadGpx(), { wrapper });
+
+    await result.current.mutateAsync({ file: new File(['x'], 't.gpx') });
+
+    expectNothingWritten(queryClient);
+  });
+
+  it('does not add a saved recording', async () => {
+    mockTrailsApi.saveRecording.mockImplementation(
+      switchUser({ ...sampleTrail, trail_id: 'rec' }) as never,
+    );
+    const { queryClient, wrapper } = setup();
+    const { result } = renderHook(() => useSaveRecording(), { wrapper });
+
+    await result.current.mutateAsync({ name: 'Walk', points: [] });
+
+    expectNothingWritten(queryClient);
   });
 });
 

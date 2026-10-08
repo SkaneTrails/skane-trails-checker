@@ -145,13 +145,20 @@ export function useTrailDetails(id: string) {
   });
 }
 
+/** Who started a mutation: its result is theirs, so it is dropped if someone else is signed in by then. */
+const startedBy = () => ({ ownerUid: currentUserId() });
+const sameUser = (started: { ownerUid: string } | undefined) =>
+  started?.ownerUid === currentUserId();
+
 export function useUpdateTrail() {
   const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: ({ id, data }: { id: string; data: TrailUpdate }) =>
       trailsApi.updateTrail(id, data),
-    onSuccess: (updatedTrail, { id }) => {
+    onMutate: startedBy,
+    onSuccess: (updatedTrail, { id }, started) => {
+      if (!sameUser(started)) return;
       // Update React Query cache directly — no refetch needed since we
       // have the full server response with computed fields.
       queryClient.setQueryData(trailKeys.detail(id), updatedTrail);
@@ -168,7 +175,9 @@ export function useDeleteTrail() {
 
   return useMutation({
     mutationFn: (id: string) => trailsApi.deleteTrail(id),
-    onSuccess: (_data, deletedId) => {
+    onMutate: startedBy,
+    onSuccess: (_data, deletedId, started) => {
+      if (!sameUser(started)) return;
       // Update React Query cache directly — no refetch needed.
       queryClient.removeQueries({ queryKey: trailKeys.detail(deletedId) });
       queryClient.removeQueries({ queryKey: trailKeys.details(deletedId) });
@@ -192,7 +201,9 @@ export function useUploadGpx() {
       ...options
     }: { file: File } & Parameters<typeof trailsApi.uploadGpx>[1]) =>
       trailsApi.uploadGpx(file, options),
-    onSuccess: (newTrails) => {
+    onMutate: startedBy,
+    onSuccess: (newTrails, _variables, started) => {
+      if (!sameUser(started)) return;
       // Merge new trails into React Query cache directly — no refetch.
       if (newTrails.length > 0) {
         queryClient.setQueryData<Trail[]>(trailKeys.map(), (old) => {
@@ -214,7 +225,9 @@ export function useSaveRecording() {
   return useMutation({
     mutationFn: ({ name, points }: { name: string; points: TrackingPoint[] }) =>
       trailsApi.saveRecording(name, points),
-    onSuccess: (savedTrail) => {
+    onMutate: startedBy,
+    onSuccess: (savedTrail, _variables, started) => {
+      if (!sameUser(started)) return;
       // Add saved trail to React Query cache directly — no refetch.
       queryClient.setQueryData<Trail[]>(trailKeys.map(), (old) => {
         const merged = new Map((old ?? []).map((t) => [t.trail_id, t]));
@@ -286,7 +299,10 @@ export function useUploadTrailImage() {
       role: 'primary' | 'secondary';
       caption?: string;
     }) => trailsApi.uploadTrailImage(trailId, file, role, caption),
-    onSuccess: (result) => recordImagesChange(queryClient, result),
+    onMutate: startedBy,
+    onSuccess: (result, _variables, started) => {
+      if (sameUser(started)) recordImagesChange(queryClient, result);
+    },
   });
 }
 
@@ -296,7 +312,10 @@ export function useDeleteTrailImage() {
   return useMutation({
     mutationFn: ({ trailId, imageIndex }: { trailId: string; imageIndex: number }) =>
       trailsApi.deleteTrailImage(trailId, imageIndex),
-    onSuccess: (result) => recordImagesChange(queryClient, result),
+    onMutate: startedBy,
+    onSuccess: (result, _variables, started) => {
+      if (sameUser(started)) recordImagesChange(queryClient, result);
+    },
   });
 }
 
