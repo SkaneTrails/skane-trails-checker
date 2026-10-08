@@ -10,6 +10,9 @@ from api.storage.validation import validate_document_id
 
 logger = logging.getLogger(__name__)
 
+# Firestore allows 500 writes per batch; one is the sync marker.
+MAX_PLACES_PER_BATCH = 499
+
 
 def _doc_to_place(data: dict) -> PlaceResponse:
     """Convert a Firestore document dict to a PlaceResponse model."""
@@ -72,12 +75,19 @@ def save_place(place: PlaceResponse) -> None:
     batch.commit()
 
 
-def save_places_batch(places: list[PlaceResponse], batch_size: int = 500) -> int:
+def save_places_batch(places: list[PlaceResponse], batch_size: int = MAX_PLACES_PER_BATCH) -> int:
     """Save multiple places in batches.
 
-    Firestore has a limit of 500 writes per batch. Every batch carries the marker, so places that
+    Firestore has a limit of 500 writes per batch and one of them is the marker, so at most
+    MAX_PLACES_PER_BATCH places go in each. Every batch carries the marker, so places that
     were committed are announced even if a later batch fails and the import is run again.
+
+    Raises:
+        ValueError: If batch_size is not between 1 and MAX_PLACES_PER_BATCH.
     """
+    if not 1 <= batch_size <= MAX_PLACES_PER_BATCH:
+        msg = f"batch_size must be between 1 and {MAX_PLACES_PER_BATCH}, got {batch_size}"
+        raise ValueError(msg)
     if not places:
         return 0
 

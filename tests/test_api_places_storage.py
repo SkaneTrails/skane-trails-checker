@@ -11,6 +11,7 @@ import pytest
 
 from api.models.place import PLACE_CATEGORIES, PlaceCategoryResponse, PlaceResponse, get_category_display
 from api.storage.places_storage import (
+    MAX_PLACES_PER_BATCH,
     delete_all_places,
     delete_place,
     get_all_places,
@@ -288,6 +289,23 @@ class TestSavePlacesBatch:
     def test_empty_list_returns_zero(self, mock_collection) -> None:
         result = save_places_batch([])
         assert result == 0
+
+    def test_a_default_batch_leaves_room_for_the_marker(self, mock_collection, mock_touch) -> None:
+        """Firestore allows 500 writes per batch: the places and the marker must fit."""
+        places = [PlaceResponse(place_id=f"p{i}", name="A", lat=56.0, lng=13.0) for i in range(500)]
+        with patch("api.storage.places_storage.create_batch") as mock_create_batch:
+            save_places_batch(places)
+
+        batch = mock_create_batch.return_value
+        assert batch.set.call_count == 500
+        assert batch.commit.call_count == 2
+        assert mock_touch.call_count == 2
+        assert MAX_PLACES_PER_BATCH + 1 <= 500
+
+    @pytest.mark.parametrize("batch_size", [0, -1, MAX_PLACES_PER_BATCH + 1])
+    def test_rejects_a_batch_size_that_cannot_hold_the_marker(self, mock_collection, batch_size) -> None:
+        with pytest.raises(ValueError, match="batch_size"):
+            save_places_batch([PlaceResponse(place_id="p1", name="A", lat=56.0, lng=13.0)], batch_size=batch_size)
 
 
 class TestDeletePlace:
