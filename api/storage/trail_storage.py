@@ -1,7 +1,7 @@
 """Firestore storage operations for trails."""
 
 import logging
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from api.models.trail import (
@@ -20,6 +20,11 @@ from api.storage.trail_tombstones import add_tombstone, get_deleted_trail_ids
 from api.storage.validation import validate_document_id
 
 logger = logging.getLogger(__name__)
+
+# A write takes its timestamp before it commits, so one can land just after a sync chose its cursor
+# yet carry an older time. The cursor trails the clock by this much so such a write is delivered
+# again next time (changes are applied idempotently) instead of being missed for good.
+CURSOR_OVERLAP = timedelta(minutes=2)
 
 # Fields returned for the "summary" list view (everything except the heavy
 # coordinates_map polyline). Used with Firestore query.select() so the
@@ -354,10 +359,11 @@ def get_trail_changes(since: str | None, group_id: str | None) -> TrailChangesRe
         Changed trails (with coordinates), deleted IDs, and the time to use as the next `since`.
         A trail that is in the changed list is never also reported deleted (it was recreated, or
         is still visible to this caller after being made private to others), so the client can
-        apply deletions and changes in any order. The time is read before the data so a write
-        landing mid-request is picked up next time.
+        apply deletions and changes in any order. The returned time is taken before the data is
+        read and trails the clock by CURSOR_OVERLAP, so writes that commit shortly after their own
+        timestamp are picked up by the next sync; the overlap re-delivers a few recent changes.
     """
-    server_time = _utc_now_z()
+    server_time = _utc_now_z(CURSOR_OVERLAP)
     trails = get_all_trails(since=since, group_id=group_id)
     changed_ids = {trail.trail_id for trail in trails}
     deleted_ids = [trail_id for trail_id in get_deleted_trail_ids(since, group_id) if trail_id not in changed_ids]
@@ -369,9 +375,9 @@ def get_trail_changes(since: str | None, group_id: str | None) -> TrailChangesRe
     )
 
 
-def _utc_now_z() -> str:
-    """Return current UTC time as ISO string with Z suffix (not +00:00)."""
-    return datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
+def _utc_now_z(earlier_by: timedelta = timedelta(0)) -> str:
+    """Return the current UTC time, optionally moved back, as an ISO string with Z suffix."""
+    return (datetime.now(UTC) - earlier_by).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
 def update_sync_metadata() -> None:

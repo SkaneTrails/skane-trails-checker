@@ -232,7 +232,10 @@ class TrailChangesResponse(BaseModel):
 
     trails: list[TrailResponse] = Field(description="Created or modified trails, including coordinates_map")
     deleted_ids: list[str] = Field(description="IDs of trails deleted since the timestamp")
-    server_time: str = Field(description="Pass as `since` next time (taken before the data was read)")
+    server_time: str = Field(
+        description="Pass as `since` next time. Taken before the data was read and a couple of minutes behind "
+        "the clock, so a write that commits after its own timestamp is still delivered next time."
+    )
     scope: str = Field(
         description="Whose trails these are: 'all' for a superuser, else 'group:<id>'. "
         "A client whose saved scope differs must discard its local copy and cursor."

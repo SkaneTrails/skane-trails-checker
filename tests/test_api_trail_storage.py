@@ -5,12 +5,14 @@ Tests the Pydantic-model-returning API storage layer
 """
 
 from collections.abc import Generator
+from datetime import UTC, datetime, timedelta
 from unittest.mock import MagicMock, patch
 
 import pytest
 
 from api.models.trail import Coordinate, SyncMetadata, TrailBounds, TrailDetailsResponse, TrailImage, TrailResponse
 from api.storage.trail_storage import (
+    CURSOR_OVERLAP,
     _update_sync_metadata,
     _utc_now_z,
     delete_trail,
@@ -1224,7 +1226,7 @@ class TestGetTrailChanges:
         order: list[str] = []
         mock_all.side_effect = lambda **_: order.append("read") or []
 
-        def fake_now() -> str:
+        def fake_now(*_: object) -> str:
             order.append("clock")
             return "2026-03-01T12:00:00Z"
 
@@ -1233,6 +1235,16 @@ class TestGetTrailChanges:
 
         assert order == ["clock", "read"]
         mock_deleted.assert_called_once_with(None, None)
+
+    @patch("api.storage.trail_storage.get_deleted_trail_ids", return_value=[])
+    @patch("api.storage.trail_storage.get_all_trails", return_value=[])
+    def test_cursor_trails_the_clock_so_late_committing_writes_are_not_missed(self, mock_all, mock_deleted) -> None:
+        with patch("api.storage.trail_storage._utc_now_z", return_value="2026-03-01T12:00:00Z") as mock_now:
+            get_trail_changes(None, None)
+
+        mock_now.assert_called_once_with(CURSOR_OVERLAP)
+        mock_all.assert_called_once()
+        mock_deleted.assert_called_once()
 
 
 def _trail_kwargs() -> dict:
@@ -1257,6 +1269,14 @@ class TestUtcNowZ:
         result = _utc_now_z()
         assert result.endswith("Z")
         assert "+" not in result
+
+    def test_can_be_moved_back_from_now(self) -> None:
+        earlier = datetime.strptime(_utc_now_z(timedelta(minutes=2)), "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=UTC)
+
+        assert 118 <= (datetime.now(UTC) - earlier).total_seconds() <= 123
+
+    def test_cursor_overlap_covers_slow_commits_but_stays_small(self) -> None:
+        assert timedelta(seconds=30) <= CURSOR_OVERLAP <= timedelta(minutes=10)
 
 
 class TestTrailImages:
