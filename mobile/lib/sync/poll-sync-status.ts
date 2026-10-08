@@ -37,6 +37,23 @@ async function refreshTrails(queryClient: QueryClient): Promise<void> {
 let inFlight: Promise<void> | null = null;
 
 /**
+ * Make sure the local data belongs to the signed-in user, and return what was last synced for them.
+ *
+ * If someone else signed in on this device, nothing local is theirs to keep: it is cleared whether
+ * or not the server can be reached, and the new owner is saved with nothing seen. Needs no network.
+ */
+export async function claimLocalData(queryClient: QueryClient): Promise<SeenState> {
+  const ownerUid = currentUserId();
+  const state = await syncSeen.get();
+  if (state.ownerUid === null || state.ownerUid === ownerUid) return state;
+
+  await forceReload(queryClient);
+  const fresh: SeenState = { ownerUid, scope: null, seen: {} };
+  await syncSeen.set(fresh);
+  return fresh;
+}
+
+/**
  * Ask the server what changed and refetch only that. One small request when nothing did.
  *
  * Versions are only compared for equality, and a version is remembered only after its
@@ -53,15 +70,7 @@ export function pollSyncStatus(queryClient: QueryClient): Promise<void> {
 async function runPoll(queryClient: QueryClient): Promise<void> {
   try {
     const ownerUid = currentUserId();
-    let state = await syncSeen.get();
-
-    // Someone else signed in on this device: nothing local is theirs to keep, whether or not the
-    // server can be reached now.
-    if (state.ownerUid !== null && state.ownerUid !== ownerUid) {
-      await forceReload(queryClient);
-      state = { ownerUid, scope: null, seen: {} };
-      await syncSeen.set(state);
-    }
+    let state = await claimLocalData(queryClient);
 
     const status = await syncApi.getStatus();
     let dirty = state.ownerUid !== ownerUid || state.scope !== status.scope;

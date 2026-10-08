@@ -13,7 +13,7 @@ import { syncApi } from '@/lib/api';
 import { forceReload } from '@/lib/force-reload';
 import { syncMapTrails } from '@/lib/map-trail-sync';
 import { syncSeen } from '@/lib/storage/sync-seen';
-import { pollSyncStatus } from '../poll-sync-status';
+import { claimLocalData, pollSyncStatus } from '../poll-sync-status';
 
 const VERSIONS = {
   trails: 't1',
@@ -37,6 +37,42 @@ const seenState = (
 ) => ({ ownerUid, scope, seen });
 
 const versionsOf = (overrides: Record<string, string | null> = {}) => ({ ...VERSIONS, ...overrides });
+
+describe('claimLocalData', () => {
+  let queryClient: QueryClient;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    queryClient = new QueryClient();
+  });
+
+  it('keeps the data of the same user', async () => {
+    const state = seenState(versionsOf());
+    vi.mocked(syncSeen.get).mockResolvedValue(state);
+
+    expect(await claimLocalData(queryClient)).toBe(state);
+    expect(forceReload).not.toHaveBeenCalled();
+  });
+
+  it('leaves a device that has never synced alone', async () => {
+    const state = { ownerUid: null, scope: null, seen: {} };
+    vi.mocked(syncSeen.get).mockResolvedValue(state);
+
+    expect(await claimLocalData(queryClient)).toBe(state);
+    expect(forceReload).not.toHaveBeenCalled();
+  });
+
+  it('clears another user\'s data without asking the server, and takes over', async () => {
+    vi.mocked(syncSeen.get).mockResolvedValue(seenState(versionsOf(), 'someone-else'));
+
+    const state = await claimLocalData(queryClient);
+
+    expect(syncApi.getStatus).not.toHaveBeenCalled();
+    expect(forceReload).toHaveBeenCalledWith(queryClient);
+    expect(state).toEqual({ ownerUid: 'user-1', scope: null, seen: {} });
+    expect(syncSeen.set).toHaveBeenCalledWith(state);
+  });
+});
 
 describe('pollSyncStatus', () => {
   let queryClient: QueryClient;

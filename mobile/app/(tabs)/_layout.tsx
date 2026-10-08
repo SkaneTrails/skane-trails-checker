@@ -4,7 +4,7 @@ import { Button } from '@/components';
 import { ApiClientError } from '@/lib/api';
 import { useAuth } from '@/lib/hooks/use-auth';
 import { useCurrentUser } from '@/lib/hooks/use-hike-groups';
-import { useSyncPolling } from '@/lib/hooks/use-sync-polling';
+import { useLocalDataReady, useSyncPolling } from '@/lib/hooks/use-sync-polling';
 import { useTranslation } from '@/lib/i18n';
 import { fontSize, spacing, useTheme } from '@/lib/theme';
 
@@ -14,9 +14,10 @@ export default function TabLayout() {
   const { data: currentUser, isLoading: userLoading, error, refetch } = useCurrentUser({
     enabled: !loading && !!user,
   });
-  useSyncPolling(!!currentUser);
+  const localDataReady = useLocalDataReady(user?.uid);
+  useSyncPolling(!!currentUser && localDataReady);
 
-  if (loading || userLoading) {
+  if (loading || userLoading || (!!user && !localDataReady)) {
     return (
       <View
         style={{
