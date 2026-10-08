@@ -77,6 +77,17 @@ ______________________________________________________________________
 
 Updated automatically on trail save/delete. Used by clients to detect changes efficiently (1 Firestore read per app open).
 
+### `trail_tombstones` — Trails that were deleted or stopped being shared (delta sync of removals)
+
+| Field        | Type   | Required | Description                                                |
+| ------------ | ------ | -------- | ---------------------------------------------------------- |
+| `trail_id`   | `str`  | ✅       | ID of the deleted trail                                    |
+| `group_id`   | `str`  | ❌       | Group the trail belonged to (null for public/bootstrapped) |
+| `is_public`  | `bool` | ✅       | Whether the trail was shared with all groups               |
+| `deleted_at` | `str`  | ✅       | ISO timestamp (Z-suffix UTC) of the deletion               |
+
+**Document ID**: Auto-generated, one document per removal event (trail IDs are reusable, so a later removal must not overwrite an earlier one and its audience). Written in the same batch as the deletion (`delete_trail`) or as the update that makes a public trail private (`update_trail`), and read by `GET /trails/changes?since=` so clients drop the trail from their local copy (an ID is reported once). `group_id`/`is_public` hold who could see the trail before the change and decide who is told. Never deleted (tiny documents); a trail that is visible and changed again is returned as changed and left out of `deleted_ids`.
+
 ### `foraging_spots` — Foraging locations
 
 | Field          | Type        | Required | Description                                          |

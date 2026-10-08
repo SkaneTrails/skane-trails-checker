@@ -29,7 +29,8 @@ type IconName =
   | 'chevron-forward'
   | 'eye'
   | 'eye-off'
-  | 'x';
+  | 'x'
+  | 'refresh';
 
 interface TabIconProps {
   name: IconName;
@@ -64,6 +65,8 @@ const paths: Record<IconName, string> = {
     'M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94 M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19 M1 1l22 22 M14.12 14.12a3 3 0 1 1-4.24-4.24',
   image: 'M19 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V5a2 2 0 0 0-2-2z M8.5 10a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3z M21 15l-5-5L5 21',
   x: 'M18 6L6 18 M6 6l12 12',
+  refresh:
+    'M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8 M21 3v5h-5 M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16 M8 16H3v5',
 };
 
 export function TabIcon({ name, color, size = 22, strokeWidth = 1.5 }: TabIconProps) {

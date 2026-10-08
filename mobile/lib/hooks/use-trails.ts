@@ -2,6 +2,9 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { trailsApi } from '@/lib/api';
 import type { ImageFile } from '@/lib/api/trails';
+import { currentUserId } from '@/lib/auth-scope';
+import { syncMapTrails } from '@/lib/map-trail-sync';
+import { mapTrailStore } from '@/lib/storage/map-trail-store';
 import { trailCache } from '@/lib/storage/trail-cache';
 import type { TrackingPoint } from '@/lib/track-to-trail';
 import type { Trail, TrailImage, TrailImagesResponse, TrailUpdate } from '@/lib/types';
@@ -276,18 +279,21 @@ export function useTrail(id: string) {
 }
 
 /**
- * Fetch full trail data (including coordinates_map) for map rendering.
+ * Every trail with its map coordinates, local-first.
  *
- * Uses long stale time since trail routes rarely change.
- * Mutations update this cache directly via setQueryData.
- * Shows summary data from the list cache as placeholder while loading.
+ * The local copy shows immediately; only trails changed on the server since the last
+ * sync are then downloaded (everything on the very first run). Mutations update this
+ * cache and the local copy directly. Shows summary data from the list cache as
+ * placeholder while loading.
  */
 export function useMapTrails(options?: { enabled?: boolean }) {
   const queryClient = useQueryClient();
   return useQuery({
     queryKey: trailKeys.map(),
-    queryFn: () => trailsApi.getTrails({}),
+    queryFn: () => syncMapTrails((local) => queryClient.setQueryData(trailKeys.map(), local)),
     staleTime: 30 * 60 * 1000, // 30 min — mutations update cache directly
+    // The sync keeps array identity when nothing changed; a deep compare would walk megabytes.
+    structuralSharing: false,
     placeholderData: () => queryClient.getQueryData<Trail[]>(trailKeys.list()),
     enabled: options?.enabled,
   });
@@ -317,6 +323,7 @@ export function useUpdateTrail() {
       queryClient.setQueryData<Trail[]>(trailKeys.map(), (old) =>
         old?.map((t) => (t.trail_id === id ? (updatedTrail as Trail) : t)),
       );
+      void mapTrailStore.apply(currentUserId(), [updatedTrail as Trail], []);
       trailCache.get().then(({ trails, lastSyncTime }) => {
         const updated = trails.map((t) => (t.trail_id === id ? (updatedTrail as Trail) : t));
         trailCache.set(updated, lastSyncTime ?? new Date().toISOString());
@@ -340,6 +347,7 @@ export function useDeleteTrail() {
       queryClient.setQueryData<Trail[]>(trailKeys.map(), (old) =>
         old?.filter((t) => t.trail_id !== deletedId),
       );
+      void mapTrailStore.apply(currentUserId(), [], [deletedId]);
       trailCache.get().then(({ trails, lastSyncTime }) => {
         const filtered = trails.filter((t) => t.trail_id !== deletedId);
         trailCache.set(filtered, lastSyncTime ?? new Date().toISOString());
@@ -374,6 +382,7 @@ export function useUploadGpx() {
           }
           return Array.from(merged.values());
         });
+        void mapTrailStore.apply(currentUserId(), newTrails, []);
         trailCache.get().then(({ trails, lastSyncTime }) => {
           const merged = new Map(trails.map((t) => [t.trail_id, t]));
           for (const trail of newTrails) {
@@ -404,6 +413,7 @@ export function useSaveRecording() {
         merged.set(savedTrail.trail_id, savedTrail);
         return Array.from(merged.values());
       });
+      void mapTrailStore.apply(currentUserId(), [savedTrail], []);
       trailCache.get().then(({ trails, lastSyncTime }) => {
         const merged = new Map(trails.map((t) => [t.trail_id, t]));
         merged.set(savedTrail.trail_id, savedTrail);

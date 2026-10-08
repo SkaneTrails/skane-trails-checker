@@ -93,6 +93,25 @@ describe('trailsApi', () => {
     });
   });
 
+  describe('getTrailChanges', () => {
+    const changes = { trails: [], deleted_ids: ['gone'], server_time: '2026-03-01T12:00:00Z' };
+
+    it('requests everything when there is no previous sync', async () => {
+      mockApiRequest.mockResolvedValue(changes);
+      const result = await trailsApi.getTrailChanges();
+      expect(mockApiRequest).toHaveBeenCalledWith('/api/v1/trails/changes');
+      expect(result).toEqual(changes);
+    });
+
+    it('passes the last sync time as since', async () => {
+      mockApiRequest.mockResolvedValue(changes);
+      await trailsApi.getTrailChanges('2026-03-01T00:00:00Z');
+      expect(mockApiRequest).toHaveBeenCalledWith(
+        '/api/v1/trails/changes?since=2026-03-01T00%3A00%3A00Z',
+      );
+    });
+  });
+
   describe('uploadGpx', () => {
     it('sends POST with FormData and returns trails', async () => {
       const uploaded = [{ trail_id: 'new1', name: 'Uploaded' }];
