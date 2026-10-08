@@ -50,3 +50,8 @@ output "play_publisher_sa" {
   description = "Service account email for publishing to Google Play (create its key, then invite it in Play Console)"
   value       = module.iam.play_publisher_email
 }
+
+output "firebase_android_app_id" {
+  description = "Firebase Android app ID (registers the Play signing fingerprints for Google Sign-In)"
+  value       = module.firebase.android_app_id
+}

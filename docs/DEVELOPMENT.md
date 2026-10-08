@@ -539,13 +539,13 @@ by EAS (`appVersionSource: "remote"` + `autoIncrement: true` in `mobile/eas.json
 
 **What is automated and what is not:**
 
-| Part                                                                    | How                                                           |
-| ----------------------------------------------------------------------- | ------------------------------------------------------------- |
-| Google Play Android Developer API, Play publisher service account       | Terraform (`infra/`)                                          |
-| Service account JSON key                                                | One-time manual step (kept out of Terraform state on purpose) |
-| Play Console app, declarations, tracks, testers, service-account invite | Manual in Play Console (no API)                               |
-| Android OAuth client for Google sign-in                                 | Manual in Google Cloud Console (no API for Android clients)   |
-| EAS project, build-time `EXPO_PUBLIC_*` variables, keystore             | `eas` CLI (the keystore is generated and stored by EAS)       |
+| Part                                                                    | How                                                                                |
+| ----------------------------------------------------------------------- | ---------------------------------------------------------------------------------- |
+| Google Play Android Developer API, Play publisher service account       | Terraform (`infra/`)                                                               |
+| Service account JSON key                                                | One-time manual step (kept out of Terraform state on purpose)                      |
+| Play Console app, declarations, tracks, testers, service-account invite | Manual in Play Console (no API)                                                    |
+| Android OAuth client for Google sign-in                                 | Terraform: `google_firebase_android_app` with the Play signing SHA hashes (step 9) |
+| EAS project, build-time `EXPO_PUBLIC_*` variables, keystore             | `eas` CLI (the keystore is generated and stored by EAS)                            |
 
 Always pass the project explicitly to `gcloud` (`--project=<PROJECT_ID>`); never rely on
 the active gcloud configuration. `<PROJECT_ID>` is the `project` value in
@@ -638,14 +638,29 @@ the active gcloud configuration. `<PROJECT_ID>` is the `project` value in
 
 1. **Google sign-in on Play-installed builds** - the app only reads the web client ID
    (`EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID`), but Google also requires an Android OAuth client
-   for the package and signing certificate. In Google Cloud Console (same project as the
-   web client) go to **APIs & Services > Credentials > Create credentials > OAuth client
-   ID**, choose **Android**, set the package name, and enter the SHA-1 of the **App
-   signing key certificate** (Play Console: Test and release > App integrity > Play app
-   signing). Testers install a copy that Google re-signs, so that is the certificate that
-   matters. To also support sideloaded EAS builds, add a second Android client with the
-   upload keystore SHA-1 (`pnpm dlx eas-cli credentials --platform android`). No
-   environment variable changes are needed.
+   for the package and signing certificate. Terraform registers the app in Firebase
+   (`google_firebase_android_app` in `infra/modules/firebase`), and Firebase then creates
+   that client itself. Testers install a copy that Google re-signs, so the fingerprints
+   needed are those of the **Play app signing key certificate** (Play Console: Test and
+   release > App integrity > Play app signing, or from the installed app:
+   `adb shell pm path com.skanetrails.hikes`, `adb pull <base.apk path>`, then
+   `apksigner verify --print-certs base.apk`). Set them in `terraform.tfvars` as
+   lowercase hex without colons:
+
+   ```hcl
+   android_sha1_hashes   = ["<play-app-signing-sha1>"]
+   android_sha256_hashes = ["<play-app-signing-sha256>"]
+   ```
+
+   Run `terraform apply` in `infra/environments/dev`, then re-run
+   `scripts/sync-secrets.ps1` so the `TF_VARS_FILE` secret carries the same values;
+   otherwise the next CD run removes them again. Check that **APIs & Services >
+   Credentials** now lists an auto-created "Android client for com.skanetrails.hikes".
+   To also support sideloaded EAS builds, add the upload keystore fingerprints
+   (`pnpm dlx eas-cli credentials --platform android`) to the same lists. If no client
+   appears, create one manually: **Create credentials > OAuth client ID > Android**
+   with the package name and the Play app signing SHA-1. No environment variable changes
+   are needed in either case.
 
 After setup, releases are one command: `git tag v1.0.1 && git push origin v1.0.1`.
 
