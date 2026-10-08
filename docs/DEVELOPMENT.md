@@ -284,7 +284,7 @@ Background location requires a two-step permission flow: foreground first, then 
 
 | Problem                              | Solution                                                                                    |
 | ------------------------------------ | ------------------------------------------------------------------------------------------- |
-| `INSTALL_FAILED_UPDATE_INCOMPATIBLE` | Uninstall the existing app: `adb uninstall com.skanetrails.checker`                         |
+| `INSTALL_FAILED_UPDATE_INCOMPATIBLE` | Uninstall the existing app: `adb uninstall com.skanetrails.hikes`                           |
 | Build fails with SDK errors          | Open `mobile/android/` in Android Studio and let it sync Gradle                             |
 | Build fails with Kotlin errors       | Ensure Gradle wrapper version is 8.x (not 9.x) in `gradle-wrapper.properties`               |
 | `JAVA_HOME` not set                  | Set to Android Studio JBR: `$env:JAVA_HOME = "C:\Program Files\Android\Android Studio\jbr"` |
@@ -524,6 +524,185 @@ uv sync --upgrade-package package-name
 - **security-checks.yml** - License scanning, Trivy vulnerability scanning
 - **renovate.yml** - Automated dependency updates
 - **auto-label-pr.yml** - Auto-label PRs based on changes
+- **android-release.yml** - Build the Android app bundle on EAS and submit it to Google Play internal testing
+
+### Android release pipeline
+
+`android-release.yml` builds a signed Android App Bundle with **EAS Build** (Expo
+cloud, 15 free Android builds/month) and submits it to the Google Play **internal
+testing** track (invited testers only). EAS stores the signing keystore in the
+cloud, so no keystore is kept in the repo.
+
+**Triggers:** pushing a version tag (`v*`, e.g. `git tag v1.0.1 && git push origin v1.0.1`)
+or a manual run from the Actions tab. The Android `versionCode` is auto-incremented
+by EAS (`appVersionSource: "remote"` + `autoIncrement: true` in `mobile/eas.json`).
+
+**What is automated and what is not:**
+
+| Part                                                                    | How                                                                                |
+| ----------------------------------------------------------------------- | ---------------------------------------------------------------------------------- |
+| Google Play Android Developer API, Play publisher service account       | Terraform (`infra/`)                                                               |
+| Service account JSON key                                                | One-time manual step (kept out of Terraform state on purpose)                      |
+| Play Console app, declarations, tracks, testers, service-account invite | Manual in Play Console (no API)                                                    |
+| Android OAuth client for Google sign-in                                 | Terraform: `google_firebase_android_app` with the Play signing SHA hashes (step 9) |
+| EAS project, build-time `EXPO_PUBLIC_*` variables, keystore             | `eas` CLI (the keystore is generated and stored by EAS)                            |
+
+Always pass the project explicitly to `gcloud` (`--project=<PROJECT_ID>`); never rely on
+the active gcloud configuration. `<PROJECT_ID>` is the `project` value in
+`infra/environments/dev/terraform.tfvars`.
+
+**One-time setup** (order matters):
+
+1. **Expo project** - from `mobile/`, run `eas login` then `eas init`. Commit the
+   resulting `owner` and `extra.eas.projectId` added to `mobile/app.json`.
+
+1. **Expo token** - create an access token at expo.dev (Account > Access tokens)
+   and add it as the `EXPO_TOKEN` repository secret
+   (`gh secret set EXPO_TOKEN --repo SkaneTrails/skane-trails-checker`).
+
+1. **Build-time environment variables** - cloud builds never see your gitignored
+   `mobile/.env*` files, so the `EXPO_PUBLIC_*` values must live on EAS. Copy
+   `mobile/.env.example` to `mobile/.env.production`, fill in the production values
+   (the API URL is `terraform output cloud_run_url`), then from `mobile/`:
+
+   ```bash
+   pnpm dlx eas-cli env:push production --path .env.production
+   pnpm dlx eas-cli env:list production     # check every EXPO_PUBLIC_* name is listed
+   ```
+
+   The `production` build profile in `mobile/eas.json` is pinned to this environment.
+   These values are public by design (they are embedded in the app bundle).
+
+1. **Package name** - `expo.android.package` in `mobile/app.json` must equal the
+   package name of the app in Play Console (`com.skanetrails.hikes`). Google Play fixes
+   the package name when the app is created and it cannot be changed afterwards.
+
+1. **Terraform** - apply the infrastructure (merging to `main` runs the CD workflow, or
+   run `terraform apply` in `infra/environments/dev`). This enables the Google Play
+   Android Developer API and creates the Play publisher service account. Get its email:
+
+   ```bash
+   terraform output play_publisher_sa
+   ```
+
+1. **Play Console app** - create the app with the package name above and complete the
+   **App content** declarations (privacy policy URL, data safety, content rating, target
+   audience, app access, and the background location declaration for
+   `ACCESS_BACKGROUND_LOCATION`). Under **Testing > Internal testing**, create the
+   track and add your testers' emails as a list, then copy the opt-in link.
+
+1. **First build and first upload (manual, once)** - Google Play requires the first
+   bundle of a new app to be uploaded in the Console; automated submits only work for
+   later releases. From `mobile/`, on a branch with a clean working tree:
+
+   ```bash
+   pnpm dlx eas-cli build --platform android --profile production
+   ```
+
+   Answer **yes** when asked to generate an Android keystore (run interactively, not
+   with `--non-interactive`). When the build finishes, download the `.aab`, then in
+   Play Console go to **Internal testing > Create new release**, accept Play App
+   Signing, upload the file and roll it out.
+
+   The certificate that signs this first bundle becomes the app's **upload key** in Google
+   Play, and every later bundle must be signed with the same key. EAS keeps one keystore
+   per application identifier, so if you ever change `expo.android.package` after a first
+   upload, EAS generates a new keystore and Play rejects the result (see Troubleshooting).
+   Get the right package name before the first upload.
+
+1. **Service account key and Play permission** - create a key for the Play publisher
+   service account and store it as the `PLAY_SERVICE_ACCOUNT_JSON` repository secret,
+   then delete the local copy. Terraform deliberately does not manage this key, because
+   a managed key would put the private key in the Terraform state.
+
+   ```powershell
+   # PowerShell
+   gcloud iam service-accounts keys create play-key.json --iam-account=<play_publisher_sa> --project=<PROJECT_ID>
+   Get-Content play-key.json -Raw | gh secret set PLAY_SERVICE_ACCOUNT_JSON --repo SkaneTrails/skane-trails-checker
+   Remove-Item play-key.json
+   ```
+
+   ```bash
+   # bash
+   gcloud iam service-accounts keys create play-key.json --iam-account=<play_publisher_sa> --project=<PROJECT_ID>
+   gh secret set PLAY_SERVICE_ACCOUNT_JSON --repo SkaneTrails/skane-trails-checker < play-key.json
+   rm play-key.json
+   ```
+
+   If key creation is blocked, an organisation policy
+   (`iam.disableServiceAccountKeyCreation`) is enforced and must be relaxed for this
+   project. Then in Play Console go to **Users and permissions > Invite new users**,
+   enter the service account email and grant it permission to release to testing
+   tracks for this app. Menu names change occasionally; the goal is that the account can
+   create releases on the Internal testing track.
+
+1. **Google sign-in on Play-installed builds** - the app only reads the web client ID
+   (`EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID`), but Google also requires an Android OAuth client
+   for the package and signing certificate. Terraform registers the app in Firebase
+   (`google_firebase_android_app` in `infra/modules/firebase`), and Firebase then creates
+   that client itself. Testers install a copy that Google re-signs, so the fingerprints
+   needed are those of the **Play app signing key certificate** (Play Console: Test and
+   release > App integrity > Play app signing, or from the installed app:
+   `adb shell pm path com.skanetrails.hikes`, `adb pull <base.apk path>`, then
+   `apksigner verify --print-certs base.apk`). Set them in `terraform.tfvars` as
+   lowercase hex without colons:
+
+   ```hcl
+   android_sha1_hashes   = ["<play-app-signing-sha1>"]
+   android_sha256_hashes = ["<play-app-signing-sha256>"]
+   ```
+
+   Run `terraform apply` in `infra/environments/dev`, then re-run
+   `scripts/sync-secrets.ps1` so the `TF_VARS_FILE` secret carries the same values;
+   otherwise the next CD run removes them again. Check that **APIs & Services >
+   Credentials** now lists an auto-created "Android client for com.skanetrails.hikes".
+   To also support sideloaded EAS builds, add the upload keystore fingerprints
+   (`pnpm dlx eas-cli credentials --platform android`) to the same lists. If no client
+   appears, create one manually: **Create credentials > OAuth client ID > Android**
+   with the package name and the Play app signing SHA-1. No environment variable changes
+   are needed in either case.
+
+After setup, releases are one command: `git tag v1.0.1 && git push origin v1.0.1`.
+
+To widen the beta later, change `submit.production.android.track` in
+`mobile/eas.json` from `internal` to a closed-testing track (e.g. `alpha`).
+
+**Troubleshooting:**
+
+| Symptom                                                                          | Cause and fix                                                                                                                                                                                                    |
+| -------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Play rejects the bundle: package name must be `...`                              | `expo.android.package` differs from the Play app. Change `mobile/app.json`; the Play side cannot be changed. Rebuild.                                                                                            |
+| Play rejects the bundle: signed with the wrong key (shows two SHA1 fingerprints) | The bundle's certificate differs from the upload key Play registered, usually because EAS generated a new keystore for a changed package name. Reuse the old keystore: see "Reusing an existing keystore" below. |
+| EAS runs `npm ci` and fails with `ERESOLVE`                                      | A stray `mobile/package-lock.json` was uploaded, so EAS chose npm. `.easignore` replaces `.gitignore` for EAS uploads, so every ignore must be repeated there. Delete the stray file.                            |
+| EAS upload is about 1 GB                                                         | `.easignore` is missing or incomplete (the whole git root is archived: `.venv`, `mobile/node_modules`, `mobile/android`).                                                                                        |
+| Native compile error in `expo-modules-core` (for example `tryGetMutableBuffer`)  | Dependencies drifted from the Expo SDK. Run `pnpm dlx expo-doctor`, then `pnpm exec expo install --fix`. Remove any stray `mobile/package-lock.json` first, otherwise `expo install` uses npm.                   |
+| Google sign-in fails on tester devices                                           | The Android OAuth client is missing or has the wrong package or SHA-1 (step 9).                                                                                                                                  |
+| Build has no API URL or Firebase config                                          | The EAS `production` environment variables are missing (step 3).                                                                                                                                                 |
+
+**Reusing an existing keystore** (move the keystore that Play already knows to the
+current package name). You need the old package name and the SHA1 Play expects; check
+which EAS build produced it with
+`keytool -printcert -jarfile <old-bundle>.aab`. From `mobile/`, run interactively:
+
+1. Temporarily set `expo.android.package` in `mobile/app.json` to the **old** package
+   name (do not commit this).
+1. `pnpm dlx eas-cli credentials --platform android`, choose the `production` profile,
+   then **credentials.json: Upload/Download credentials between EAS servers and your
+   local json**, then **Download credentials from EAS to credentials.json**. Confirm the
+   fingerprint matches the one Play expects.
+1. Set `expo.android.package` back to the current package name.
+1. Run the same command again and choose **Upload credentials from credentials.json to
+   EAS**. The current package now signs with the old keystore.
+1. Delete the downloaded `mobile/credentials.json` and `mobile/credentials/` (they hold
+   the keystore and its passwords; both are ignored by git and `.easignore`, but do not
+   leave them around) and rebuild. Alternatively, ask Google to reset the upload key in
+   Play Console (Test and release > App integrity > Play app signing) and register the
+   new certificate; this can take a couple of days.
+
+**Upgrading the Expo SDK:** the packages Expo pins (`react`, `react-native`, `typescript`,
+`@react-native-async-storage/async-storage` and others) are excluded from Renovate in
+`renovate.json`. Upgrade them together in a dedicated PR with `npx expo install expo@<next> --fix`,
+and move the `<58.0.0` cap on Expo packages in `renovate.json` at the same time.
 
 ### Security Scanning
 

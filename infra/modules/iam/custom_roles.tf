@@ -169,6 +169,8 @@ resource "google_project_iam_custom_role" "terraform_ci" {
     "datastore.indexes.list",
 
     # Firebase
+    "firebase.clients.get",
+    "firebase.clients.list",
     "firebase.projects.get",
     "firebasehosting.sites.get",
     "firebasehosting.sites.list",
