@@ -1,8 +1,13 @@
 import { trailsApi } from '@/lib/api';
 import { currentUserId } from '@/lib/auth-scope';
-import { mergeTrails } from '@/lib/storage/merge-trails';
 import { mapTrailStore } from '@/lib/storage/map-trail-store';
+import { mergeTrails } from '@/lib/storage/merge-trails';
+import { createSerialQueue } from '@/lib/storage/serial-queue';
 import type { Trail, TrailChanges } from '@/lib/types';
+
+// One sync at a time: each reads the stored cursor first, so overlapping ones (the query on mount
+// and the status poll) could otherwise finish out of order and let an older result replace a newer.
+const serialize = createSerialQueue();
 
 /**
  * Local-first load of every trail with its map coordinates.
@@ -15,8 +20,22 @@ import type { Trail, TrailChanges } from '@/lib/types';
  * copy and its cursor no longer apply, so it is dropped and everything is fetched again.
  *
  * With a usable local copy, a failed request is not an error: the local trails are returned.
+ * With `strict`, it is: the failure is thrown, so a caller that must know the sync happened
+ * (the sync status poll) does not mistake the old local copy for a fresh one.
+ *
+ * Calls run one after another, in the order they were made.
  */
-export async function syncMapTrails(onLocal: (trails: Trail[]) => void): Promise<Trail[]> {
+export function syncMapTrails(
+  onLocal: (trails: Trail[]) => void,
+  options: { strict?: boolean } = {},
+): Promise<Trail[]> {
+  return serialize(() => runSync(onLocal, options));
+}
+
+async function runSync(
+  onLocal: (trails: Trail[]) => void,
+  options: { strict?: boolean },
+): Promise<Trail[]> {
   const ownerUid = currentUserId();
   let local = await mapTrailStore.get(ownerUid);
   if (local.trails.length > 0) onLocal(local.trails);
@@ -25,7 +44,7 @@ export async function syncMapTrails(onLocal: (trails: Trail[]) => void): Promise
   try {
     changes = await trailsApi.getTrailChanges(local.lastSyncTime ?? undefined);
   } catch (error) {
-    if (local.trails.length === 0) throw error;
+    if (local.trails.length === 0 || options.strict) throw error;
     console.warn('Trail sync failed, using the local copy', error);
     return local.trails;
   }

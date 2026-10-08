@@ -2,12 +2,10 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { renderHook, waitFor } from '@testing-library/react';
 import type { ReactNode } from 'react';
 import { createElement } from 'react';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createQueryWrapper } from '@/test/helpers';
 import {
   filterTrails,
-  pollForChanges,
-  SYNC_POLL_INTERVAL,
   sortTrails,
   useDeleteTrail,
   useDeleteTrailImage,
@@ -27,13 +25,11 @@ vi.mock('@/lib/api', () => ({
   trailsApi: {
     getTrails: vi.fn(),
     getTrailChanges: vi.fn(),
-    getTrailSummaries: vi.fn(),
     getTrail: vi.fn(),
     getTrailDetails: vi.fn(),
     updateTrail: vi.fn(),
     deleteTrail: vi.fn(),
     uploadGpx: vi.fn(),
-    getSyncMetadata: vi.fn(),
     saveRecording: vi.fn(),
     getTrailImages: vi.fn(),
     getImagePins: vi.fn(),
@@ -42,11 +38,11 @@ vi.mock('@/lib/api', () => ({
   },
 }));
 
-vi.mock('@/lib/storage/trail-cache', () => ({
-  trailCache: {
-    get: vi.fn().mockResolvedValue({ trails: [], lastSyncTime: null }),
-    set: vi.fn().mockResolvedValue(undefined),
-    merge: vi.fn().mockResolvedValue([]),
+vi.mock('@/lib/storage/trail-image-store', () => ({
+  trailImageStore: {
+    get: vi.fn().mockResolvedValue(null),
+    put: vi.fn().mockResolvedValue(undefined),
+    remove: vi.fn().mockResolvedValue(undefined),
     clear: vi.fn().mockResolvedValue(undefined),
   },
 }));
@@ -59,14 +55,15 @@ vi.mock('@/lib/storage/map-trail-store', () => ({
   },
 }));
 
-vi.mock('@/lib/auth-scope', () => ({ currentUserId: () => 'user-1' }));
+vi.mock('@/lib/auth-scope', () => ({ currentUserId: vi.fn(() => 'user-1') }));
 
 import { trailsApi } from '@/lib/api';
+import { currentUserId } from '@/lib/auth-scope';
 import { mapTrailStore } from '@/lib/storage/map-trail-store';
-import { trailCache } from '@/lib/storage/trail-cache';
+import { trailImageStore } from '@/lib/storage/trail-image-store';
 
 const mockTrailsApi = vi.mocked(trailsApi);
-const mockTrailCache = vi.mocked(trailCache);
+const mockImageStore = vi.mocked(trailImageStore);
 const mockMapTrailStore = vi.mocked(mapTrailStore);
 
 const sampleTrail = {
@@ -87,373 +84,43 @@ describe('useTrails', () => {
     vi.clearAllMocks();
   });
 
-  it('fetches trails on mount', async () => {
-    mockTrailsApi.getTrailSummaries.mockResolvedValue([sampleTrail]);
-    mockTrailsApi.getSyncMetadata.mockResolvedValue({ count: 0, last_modified: null });
-    const wrapper = createQueryWrapper();
+  it('lists the same local-first trails as the map, sorted', async () => {
+    const older = { ...sampleTrail, trail_id: 'b', name: 'Older', source: 'other_trails', created_at: '2024-01-01T00:00:00Z' };
+    const newer = { ...sampleTrail, trail_id: 'c', name: 'Newer', source: 'other_trails', created_at: '2025-01-01T00:00:00Z' };
+    mockMapTrailStore.get.mockResolvedValue({
+      trails: [older, sampleTrail, newer],
+      lastSyncTime: '2025-06-01T00:00:00Z',
+      scope: 'group:g1',
+    });
+    mockTrailsApi.getTrailChanges.mockResolvedValue({
+      trails: [],
+      deleted_ids: [],
+      server_time: '2025-06-02T00:00:00Z',
+      scope: 'group:g1',
+    });
 
-    const { result } = renderHook(() => useTrails(), { wrapper });
+    const { result } = renderHook(() => useTrails(), { wrapper: createQueryWrapper() });
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
-    expect(result.current.data).toEqual([sampleTrail]);
-    expect(mockTrailsApi.getTrailSummaries).toHaveBeenCalledWith({});
+    expect(result.current.data?.map((t) => t.trail_id)).toEqual(['c', 'b', sampleTrail.trail_id]);
   });
 
-  it('seeds React Query from IndexedDB cache on mount', async () => {
-    mockTrailCache.get.mockResolvedValue({
-      trails: [sampleTrail],
-      lastSyncTime: '2025-06-01T00:00:00Z',
-    });
-    mockTrailsApi.getSyncMetadata.mockResolvedValue({
-      count: 1,
-      last_modified: '2025-06-01T00:00:00Z',
-    });
-    mockTrailsApi.getTrailSummaries.mockResolvedValue([sampleTrail]);
-    const wrapper = createQueryWrapper();
-
-    const { result } = renderHook(() => useTrails(), { wrapper });
-
-    await waitFor(() => expect(result.current.data).toEqual([sampleTrail]));
-    expect(mockTrailCache.get).toHaveBeenCalled();
-    expect(mockTrailsApi.getSyncMetadata).toHaveBeenCalled();
-  });
-
-  it('performs delta fetch when server has newer data', async () => {
-    const newTrail = { ...sampleTrail, trail_id: 'new1', name: 'New Trail' };
-    mockTrailCache.get.mockResolvedValue({
-      trails: [sampleTrail],
-      lastSyncTime: '2025-06-01T00:00:00Z',
-    });
-    mockTrailsApi.getSyncMetadata.mockResolvedValue({
-      count: 2,
-      last_modified: '2025-07-01T00:00:00Z',
-    });
-    mockTrailsApi.getTrailSummaries.mockImplementation((filters?: { since?: string }) => {
-      if (filters?.since) return Promise.resolve([newTrail]);
-      return Promise.resolve([sampleTrail, newTrail]);
-    });
-    mockTrailCache.merge.mockResolvedValue([sampleTrail, newTrail]);
-    const wrapper = createQueryWrapper();
-
-    renderHook(() => useTrails(), { wrapper });
-
-    await waitFor(() => {
-      expect(mockTrailsApi.getTrailSummaries).toHaveBeenCalledWith(
-        expect.objectContaining({ since: '2025-06-01T00:00:00Z' }),
-      );
-    });
-    expect(mockTrailCache.merge).toHaveBeenCalled();
-  });
-
-  it('falls back to full refetch when delta returns empty (edit case)', async () => {
-    const editedTrail = { ...sampleTrail, name: 'Edited Name' };
-    mockTrailCache.get.mockResolvedValue({
-      trails: [sampleTrail],
-      lastSyncTime: '2025-06-01T00:00:00Z',
-    });
-    mockTrailsApi.getSyncMetadata.mockResolvedValue({
-      count: 1,
-      last_modified: '2025-07-01T00:00:00Z',
-    });
-    mockTrailsApi.getTrailSummaries.mockImplementation((filters?: { since?: string }) => {
-      if (filters?.since) return Promise.resolve([]);
-      return Promise.resolve([editedTrail]);
-    });
-    const wrapper = createQueryWrapper();
-
-    renderHook(() => useTrails(), { wrapper });
-
-    await waitFor(() => {
-      expect(mockTrailsApi.getTrailSummaries).toHaveBeenCalledWith({});
-    });
-    expect(mockTrailCache.set).toHaveBeenCalledWith([editedTrail], '2025-07-01T00:00:00Z');
-  });
-
-  it('performs full refetch when server count < local count (deletion)', async () => {
-    mockTrailCache.get.mockResolvedValue({
-      trails: [sampleTrail, { ...sampleTrail, trail_id: 'del1' }],
-      lastSyncTime: '2025-06-01T00:00:00Z',
-    });
-    mockTrailsApi.getSyncMetadata.mockResolvedValue({
-      count: 1,
-      last_modified: '2025-07-01T00:00:00Z',
-    });
-    mockTrailsApi.getTrailSummaries.mockResolvedValue([sampleTrail]);
-    const wrapper = createQueryWrapper();
-
-    renderHook(() => useTrails(), { wrapper });
-
-    await waitFor(() => {
-      expect(mockTrailCache.set).toHaveBeenCalled();
-    });
-  });
-
-  it('falls back to full refetch when delta fetch fails (e.g. invalid timestamp)', async () => {
-    const allTrails = [sampleTrail, { ...sampleTrail, trail_id: 'other1', name: 'Other' }];
-    mockTrailCache.get.mockResolvedValue({
-      trails: [sampleTrail],
-      lastSyncTime: '2025-06-01T00:00:00.123Z', // millisecond timestamp used to simulate a 422 delta-fetch failure
-    });
-    mockTrailsApi.getSyncMetadata.mockResolvedValue({
-      count: 2,
-      last_modified: '2025-07-01T00:00:00Z',
-    });
-    mockTrailsApi.getTrailSummaries.mockImplementation((filters?: { since?: string }) => {
-      if (filters?.since) return Promise.reject(new Error('API 422: invalid since format'));
-      return Promise.resolve(allTrails);
-    });
-    const wrapper = createQueryWrapper();
-    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
-
-    renderHook(() => useTrails(), { wrapper });
-
-    // Should fall back to full refetch after delta fails
-    await waitFor(() => {
-      expect(mockTrailsApi.getTrailSummaries).toHaveBeenCalledWith({});
-    });
-    expect(mockTrailCache.set).toHaveBeenCalledWith(allTrails, '2025-07-01T00:00:00Z');
-    expect(warnSpy).toHaveBeenCalledWith(
-      'Trail delta fetch failed, falling back to full refetch',
-      expect.any(Error),
-    );
-    warnSpy.mockRestore();
-  });
-
-  it('handles sync failure gracefully when cache throws', async () => {
-    mockTrailCache.get.mockRejectedValueOnce(new Error('IndexedDB error'));
-    mockTrailsApi.getTrailSummaries.mockResolvedValue([sampleTrail]);
-    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
-    const wrapper = createQueryWrapper();
-
-    renderHook(() => useTrails(), { wrapper });
-
-    await waitFor(() => {
-      expect(warnSpy).toHaveBeenCalledWith('Trail sync failed:', expect.any(Error));
-    });
-    warnSpy.mockRestore();
-  });
-
-  it('uses current time as syncTime when server last_modified is null on first load', async () => {
-    mockTrailCache.get.mockResolvedValue({ trails: [], lastSyncTime: null });
-    mockTrailsApi.getSyncMetadata.mockResolvedValue({ count: 1, last_modified: null });
-    mockTrailsApi.getTrailSummaries.mockResolvedValue([sampleTrail]);
-    const wrapper = createQueryWrapper();
-
-    renderHook(() => useTrails(), { wrapper });
-
-    await waitFor(() => {
-      expect(mockTrailCache.set).toHaveBeenCalledWith([sampleTrail], expect.any(String));
-    });
-  });
-
-  it('schedules polling with SYNC_POLL_INTERVAL after sync completes', async () => {
-    vi.useFakeTimers();
-
-    // Initial mount: cache has data, server matches
-    mockTrailCache.get.mockResolvedValue({
-      trails: [sampleTrail],
-      lastSyncTime: '2025-06-01T00:00:00Z',
-    });
-    mockTrailsApi.getSyncMetadata.mockResolvedValue({
-      count: 1,
-      last_modified: '2025-06-01T00:00:00Z',
-    });
-    mockTrailsApi.getTrailSummaries.mockResolvedValue([sampleTrail]);
-    const wrapper = createQueryWrapper();
-
-    renderHook(() => useTrails(), { wrapper });
-
-    // Wait for initial sync to complete
-    await vi.waitFor(() => {
-      expect(mockTrailsApi.getSyncMetadata).toHaveBeenCalled();
-    });
-
-    // Clear call counts before advancing timer
-    mockTrailsApi.getSyncMetadata.mockClear();
-
-    // Advance timer to trigger poll callback
-    await vi.advanceTimersByTimeAsync(SYNC_POLL_INTERVAL);
-
-    expect(mockTrailsApi.getSyncMetadata).toHaveBeenCalled();
-
-    vi.useRealTimers();
-  });
-});
-
-describe('pollForChanges', () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-  });
-
-  it('does nothing when server matches cache', async () => {
-    mockTrailCache.get.mockResolvedValue({
-      trails: [sampleTrail],
-      lastSyncTime: '2025-06-01T00:00:00Z',
-    });
-    mockTrailsApi.getSyncMetadata.mockResolvedValue({
-      count: 1,
-      last_modified: '2025-06-01T00:00:00Z',
-    });
-
-    const { QueryClient } = await import('@tanstack/react-query');
-    const qc = new QueryClient();
-
-    await pollForChanges(qc as any, ['trails', 'list']);
-
-    // No trail fetch or cache write should occur
-    expect(mockTrailsApi.getTrailSummaries).not.toHaveBeenCalled();
-    expect(mockTrailCache.set).not.toHaveBeenCalled();
-  });
-
-  it('triggers full refetch when server has different last_modified and delta returns empty', async () => {
-    // Cache state
-    mockTrailCache.get.mockResolvedValue({
-      trails: [sampleTrail],
-      lastSyncTime: '2025-06-01T00:00:00Z',
-    });
-
-    // Server reports newer data
-    mockTrailsApi.getSyncMetadata.mockResolvedValue({
-      count: 1,
-      last_modified: '2025-07-01T00:00:00Z',
-    });
-
-    // Delta yields nothing → triggers full refetch
-    const renamedTrail = { ...sampleTrail, name: 'Renamed' };
-    mockTrailsApi.getTrailSummaries.mockImplementation((filters?: { since?: string }) => {
-      if (filters?.since) return Promise.resolve([]);
-      return Promise.resolve([renamedTrail]);
-    });
-
-    const queryKey = ['trails', 'list'] as const;
-
-    // Use a real QueryClient for setQueryData
-    const { QueryClient } = await import('@tanstack/react-query');
-    const qc = new QueryClient();
-
-    await pollForChanges(qc as any, queryKey);
-
-    // Should have done a full refetch and written to cache
-    expect(mockTrailCache.set).toHaveBeenCalledWith([renamedTrail], '2025-07-01T00:00:00Z');
-  });
-
-  it('performs delta merge when new trails exist since last sync', async () => {
-    const newTrail = { ...sampleTrail, trail_id: 'new1', name: 'New Trail' };
-
-    mockTrailCache.get.mockResolvedValue({
-      trails: [sampleTrail],
-      lastSyncTime: '2025-06-01T00:00:00Z',
-    });
-    mockTrailsApi.getSyncMetadata.mockResolvedValue({
-      count: 2,
-      last_modified: '2025-07-01T00:00:00Z',
-    });
-    mockTrailsApi.getTrailSummaries.mockImplementation((filters?: { since?: string }) => {
-      if (filters?.since) return Promise.resolve([newTrail]);
-      return Promise.resolve([sampleTrail, newTrail]);
-    });
-    mockTrailCache.merge.mockResolvedValue([sampleTrail, newTrail]);
-
-    const queryKey = ['trails', 'list'] as const;
-    const { QueryClient } = await import('@tanstack/react-query');
-    const qc = new QueryClient();
-
-    await pollForChanges(qc as any, queryKey);
-
-    expect(mockTrailCache.merge).toHaveBeenCalledWith([newTrail], '2025-07-01T00:00:00Z');
-  });
-
-  it('triggers full refetch when server count < local count (deletion)', async () => {
-    mockTrailCache.get.mockResolvedValue({
-      trails: [sampleTrail, { ...sampleTrail, trail_id: 'del1' }],
-      lastSyncTime: '2025-06-01T00:00:00Z',
-    });
-    mockTrailsApi.getSyncMetadata.mockResolvedValue({
-      count: 1,
-      last_modified: '2025-07-01T00:00:00Z',
-    });
-    mockTrailsApi.getTrailSummaries.mockResolvedValue([sampleTrail]);
-
-    const queryKey = ['trails', 'list'] as const;
-    const { QueryClient } = await import('@tanstack/react-query');
-    const qc = new QueryClient();
-
-    await pollForChanges(qc as any, queryKey);
-
-    expect(mockTrailCache.set).toHaveBeenCalledWith([sampleTrail], '2025-07-01T00:00:00Z');
-  });
-
-  it('handles poll failure gracefully', async () => {
-    mockTrailsApi.getSyncMetadata.mockRejectedValue(new Error('Network error'));
-    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
-
-    const queryKey = ['trails', 'list'] as const;
-    const { QueryClient } = await import('@tanstack/react-query');
-    const qc = new QueryClient();
-
-    await pollForChanges(qc as any, queryKey);
-
-    expect(warnSpy).toHaveBeenCalledWith('Background sync poll failed:', expect.any(Error));
-    warnSpy.mockRestore();
-  });
-
-  it('performs full fetch when cache is empty (first device sync)', async () => {
-    mockTrailCache.get.mockResolvedValue({
+  it('does not poll or refetch on its own once loaded', async () => {
+    mockMapTrailStore.get.mockResolvedValue({ trails: [sampleTrail], lastSyncTime: '2025-06-01T00:00:00Z', scope: 'group:g1' });
+    mockTrailsApi.getTrailChanges.mockResolvedValue({
       trails: [],
-      lastSyncTime: null,
+      deleted_ids: [],
+      server_time: '2025-06-02T00:00:00Z',
+      scope: 'group:g1',
     });
-    mockTrailsApi.getSyncMetadata.mockResolvedValue({
-      count: 1,
-      last_modified: '2025-07-01T00:00:00Z',
-    });
-    mockTrailsApi.getTrailSummaries.mockResolvedValue([sampleTrail]);
+    const wrapper = createQueryWrapper();
 
-    const queryKey = ['trails', 'list'] as const;
-    const { QueryClient } = await import('@tanstack/react-query');
-    const qc = new QueryClient();
+    const first = renderHook(() => useTrails(), { wrapper });
+    await waitFor(() => expect(first.result.current.isSuccess).toBe(true));
+    first.unmount();
+    renderHook(() => useTrails(), { wrapper });
 
-    await pollForChanges(qc as any, queryKey);
-
-    expect(mockTrailsApi.getTrailSummaries).toHaveBeenCalledWith({});
-    expect(mockTrailCache.set).toHaveBeenCalledWith([sampleTrail], '2025-07-01T00:00:00Z');
-  });
-
-  it('falls back to full refetch when delta fetch throws during poll', async () => {
-    mockTrailCache.get.mockResolvedValue({
-      trails: [sampleTrail],
-      lastSyncTime: '2025-06-01T00:00:00Z',
-    });
-    mockTrailsApi.getSyncMetadata.mockResolvedValue({
-      count: 2,
-      last_modified: '2025-07-01T00:00:00Z',
-    });
-    mockTrailsApi.getTrailSummaries.mockImplementation((filters?: { since?: string }) => {
-      if (filters?.since) return Promise.reject(new Error('Server error'));
-      return Promise.resolve([sampleTrail]);
-    });
-
-    const queryKey = ['trails', 'list'] as const;
-    const { QueryClient } = await import('@tanstack/react-query');
-    const qc = new QueryClient();
-
-    await pollForChanges(qc as any, queryKey);
-
-    expect(mockTrailCache.set).toHaveBeenCalledWith([sampleTrail], '2025-07-01T00:00:00Z');
-  });
-
-  it('uses current time when last_modified is null (first-load sync)', async () => {
-    mockTrailCache.get.mockResolvedValue({ trails: [], lastSyncTime: null });
-    mockTrailsApi.getSyncMetadata.mockResolvedValue({ count: 1, last_modified: null });
-    mockTrailsApi.getTrailSummaries.mockResolvedValue([sampleTrail]);
-
-    const queryKey = ['trails', 'list'] as const;
-    const { QueryClient } = await import('@tanstack/react-query');
-    const qc = new QueryClient();
-
-    await pollForChanges(qc as any, queryKey);
-
-    // Should still call set — the syncTime will be new Date().toISOString()
-    expect(mockTrailCache.set).toHaveBeenCalledWith([sampleTrail], expect.any(String));
+    expect(mockTrailsApi.getTrailChanges).toHaveBeenCalledTimes(1);
   });
 });
 
@@ -526,16 +193,11 @@ describe('useUpdateTrail', () => {
   it('calls updateTrail API and updates cache on success', async () => {
     const updatedTrail = { ...sampleTrail, status: 'Explored!' as const };
     mockTrailsApi.updateTrail.mockResolvedValue(updatedTrail);
-    mockTrailCache.get.mockResolvedValue({
-      trails: [sampleTrail],
-      lastSyncTime: '2025-06-01T00:00:00Z',
-    });
 
     // Pre-seed query cache so setQueryData callbacks execute their mapping
     const queryClient = new QueryClient({
       defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
     });
-    queryClient.setQueryData(['trails', 'list'], [sampleTrail]);
     queryClient.setQueryData(['trails', 'map'], [sampleTrail]);
     const wrapper = ({ children }: { children: ReactNode }) =>
       createElement(QueryClientProvider, { client: queryClient }, children);
@@ -546,11 +208,6 @@ describe('useUpdateTrail', () => {
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
     expect(mockTrailsApi.updateTrail).toHaveBeenCalledWith('abc123', { status: 'Explored!' });
-    await waitFor(() => {
-      expect(mockTrailCache.set).toHaveBeenCalledWith([updatedTrail], '2025-06-01T00:00:00Z');
-    });
-    // Verify the setQueryData callbacks updated both caches
-    expect(queryClient.getQueryData(['trails', 'list'])).toEqual([updatedTrail]);
     expect(queryClient.getQueryData(['trails', 'map'])).toEqual([updatedTrail]);
     expect(mockMapTrailStore.apply).toHaveBeenCalledWith('user-1', [updatedTrail], []);
   });
@@ -563,16 +220,11 @@ describe('useDeleteTrail', () => {
 
   it('calls deleteTrail API and updates cache on success', async () => {
     mockTrailsApi.deleteTrail.mockResolvedValue(undefined);
-    mockTrailCache.get.mockResolvedValue({
-      trails: [sampleTrail],
-      lastSyncTime: '2025-06-01T00:00:00Z',
-    });
 
     // Pre-seed query cache so setQueryData callbacks execute their filter
     const queryClient = new QueryClient({
       defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
     });
-    queryClient.setQueryData(['trails', 'list'], [sampleTrail]);
     queryClient.setQueryData(['trails', 'map'], [sampleTrail]);
     const wrapper = ({ children }: { children: ReactNode }) =>
       createElement(QueryClientProvider, { client: queryClient }, children);
@@ -583,13 +235,9 @@ describe('useDeleteTrail', () => {
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
     expect(mockTrailsApi.deleteTrail).toHaveBeenCalledWith('abc123');
-    await waitFor(() => {
-      expect(mockTrailCache.set).toHaveBeenCalledWith([], '2025-06-01T00:00:00Z');
-    });
-    // Verify the setQueryData callbacks removed the trail from both caches
-    expect(queryClient.getQueryData(['trails', 'list'])).toEqual([]);
     expect(queryClient.getQueryData(['trails', 'map'])).toEqual([]);
     expect(mockMapTrailStore.apply).toHaveBeenCalledWith('user-1', [], ['abc123']);
+    expect(mockImageStore.remove).toHaveBeenCalledWith('abc123');
   });
 });
 
@@ -613,22 +261,15 @@ describe('useUploadGpx', () => {
     expect(mockTrailsApi.uploadGpx).toHaveBeenCalledWith(mockFile, {});
   });
 
-  it('preserves server lastSyncTime when merging uploaded trails into cache', async () => {
-    const serverSyncTime = '2025-06-15T10:00:00Z';
+  it('adds uploaded trails to the map cache and the local copy', async () => {
     const existingTrails = [sampleTrail];
-    mockTrailCache.get.mockResolvedValue({
-      trails: existingTrails,
-      lastSyncTime: serverSyncTime,
-    });
 
     const uploadedTrail = { ...sampleTrail, trail_id: 'new1', name: 'Uploaded Trail' };
     mockTrailsApi.uploadGpx.mockResolvedValue([uploadedTrail]);
 
-    // Pre-seed both caches so setQueryData callbacks execute
     const queryClient = new QueryClient({
       defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
     });
-    queryClient.setQueryData(['trails', 'list'], existingTrails);
     queryClient.setQueryData(['trails', 'map'], existingTrails);
     const wrapper = ({ children }: { children: ReactNode }) =>
       createElement(QueryClientProvider, { client: queryClient }, children);
@@ -640,17 +281,7 @@ describe('useUploadGpx', () => {
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
 
-    // Must use a single get+set (no double-read via merge), preserving the
-    // server-issued lastSyncTime so the next delta sync uses the correct baseline.
-    await waitFor(() => {
-      expect(mockTrailCache.set).toHaveBeenCalledWith(
-        expect.arrayContaining([
-          expect.objectContaining({ trail_id: sampleTrail.trail_id }),
-          expect.objectContaining({ trail_id: 'new1' }),
-        ]),
-        serverSyncTime,
-      );
-    });
+    expect(queryClient.getQueryData<unknown[]>(['trails', 'map'])).toHaveLength(2);
     expect(mockMapTrailStore.apply).toHaveBeenCalledWith('user-1', [uploadedTrail], []);
   });
 });
@@ -891,16 +522,11 @@ describe('useSaveRecording', () => {
       source: 'other_trails',
     };
     mockTrailsApi.saveRecording.mockResolvedValue(savedTrail);
-    mockTrailCache.get.mockResolvedValue({
-      trails: [sampleTrail],
-      lastSyncTime: '2025-06-01T00:00:00Z',
-    });
 
-    // Pre-seed both caches so setQueryData callbacks execute
+    // Pre-seed the map cache so the setQueryData callback executes
     const queryClient = new QueryClient({
       defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
     });
-    queryClient.setQueryData(['trails', 'list'], [sampleTrail]);
     queryClient.setQueryData(['trails', 'map'], [sampleTrail]);
     const wrapper = ({ children }: { children: ReactNode }) =>
       createElement(QueryClientProvider, { client: queryClient }, children);
@@ -916,48 +542,134 @@ describe('useSaveRecording', () => {
 
     expect(mockTrailsApi.saveRecording).toHaveBeenCalledWith('Morning Walk', points);
 
-    await waitFor(() => {
-      expect(mockTrailCache.set).toHaveBeenCalled();
-    });
+    expect(queryClient.getQueryData<unknown[]>(['trails', 'map'])).toHaveLength(2);
     expect(mockMapTrailStore.apply).toHaveBeenCalledWith('user-1', [savedTrail], []);
   });
 });
 
 describe('useTrailImages', () => {
-  it('fetches images for a trail', async () => {
-    const images = {
-      trail_id: 'abc',
-      images: [{ image_data: 'b64', role: 'primary', lat: 55.0, lng: 13.0, caption: null }],
-    };
-    mockTrailsApi.getTrailImages.mockResolvedValue(images);
+  const photos = [
+    { image_data: 'b64', role: 'primary' as const, lat: 55.0, lng: 13.0, caption: null },
+  ];
 
-    const { result } = renderHook(() => useTrailImages('abc'), { wrapper: createQueryWrapper() });
+  const seededClient = (revision: string | null) => {
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    queryClient.setQueryData(
+      ['trails', 'map'],
+      [{ ...sampleTrail, trail_id: 'abc', images_revision: revision }],
+    );
+    const wrapper = ({ children }: { children: ReactNode }) =>
+      createElement(QueryClientProvider, { client: queryClient }, children);
+    return { queryClient, wrapper };
+  };
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockImageStore.get.mockResolvedValue(null);
+  });
+
+  it('downloads the photos and keeps a copy for this revision', async () => {
+    const images = { trail_id: 'abc', images: photos, revision: 'r1' };
+    mockTrailsApi.getTrailImages.mockResolvedValue(images);
+    const { wrapper } = seededClient('r1');
+
+    const { result } = renderHook(() => useTrailImages('abc'), { wrapper });
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
     expect(result.current.data).toEqual(images);
+    expect(mockImageStore.put).toHaveBeenCalledWith('user-1', 'abc', 'r1', photos);
+  });
+
+  it('uses the copy on the device while its revision is current', async () => {
+    mockImageStore.get.mockResolvedValue({ revision: 'r1', images: photos } as never);
+    const { wrapper } = seededClient('r1');
+
+    const { result } = renderHook(() => useTrailImages('abc'), { wrapper });
+
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+    expect(result.current.data).toEqual({ trail_id: 'abc', images: photos, revision: 'r1' });
+    expect(mockTrailsApi.getTrailImages).not.toHaveBeenCalled();
+  });
+
+  it('downloads again when the trail has a newer revision', async () => {
+    mockImageStore.get.mockResolvedValue({ revision: 'r1', images: [] } as never);
+    mockTrailsApi.getTrailImages.mockResolvedValue({ trail_id: 'abc', images: photos, revision: 'r2' });
+    const { wrapper } = seededClient('r2');
+
+    const { result } = renderHook(() => useTrailImages('abc'), { wrapper });
+
+    await waitFor(() => expect(result.current.data?.revision).toBe('r2'));
+    expect(mockTrailsApi.getTrailImages).toHaveBeenCalledWith('abc');
+    expect(mockImageStore.put).toHaveBeenCalledWith('user-1', 'abc', 'r2', photos);
+  });
+
+  it('does not keep a copy when the server sends no revision', async () => {
+    mockTrailsApi.getTrailImages.mockResolvedValue({ trail_id: 'abc', images: photos });
+    const { wrapper } = seededClient(null);
+
+    const { result } = renderHook(() => useTrailImages('abc'), { wrapper });
+
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+    expect(mockImageStore.get).not.toHaveBeenCalled();
+    expect(mockImageStore.put).not.toHaveBeenCalled();
   });
 });
 
 describe('useUploadTrailImage', () => {
-  it('uploads an image and updates cache', async () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('stores the new photos and moves the trail to the new revision', async () => {
     const response = {
       trail_id: 'abc',
-      images: [{ image_data: 'b64', role: 'primary', lat: null, lng: null, caption: null }],
+      images: [
+        { image_data: 'b64', role: 'primary' as const, lat: null, lng: null, caption: null },
+      ],
+      revision: 'r9',
     };
     mockTrailsApi.uploadTrailImage.mockResolvedValue(response);
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const trail = { ...sampleTrail, trail_id: 'abc', images_revision: 'r8' };
+    queryClient.setQueryData(['trails', 'map'], [trail]);
+    const wrapper = ({ children }: { children: ReactNode }) =>
+      createElement(QueryClientProvider, { client: queryClient }, children);
 
-    const { result } = renderHook(() => useUploadTrailImage(), { wrapper: createQueryWrapper() });
+    const { result } = renderHook(() => useUploadTrailImage(), { wrapper });
 
     const file = new File(['img'], 'photo.jpg');
     await result.current.mutateAsync({ trailId: 'abc', file, role: 'primary' });
 
     expect(mockTrailsApi.uploadTrailImage).toHaveBeenCalledWith('abc', file, 'primary', undefined);
+    expect(queryClient.getQueryData(['trails', 'images', 'abc', 'r9'])).toEqual(response);
+    expect(mockImageStore.put).toHaveBeenCalledWith('user-1', 'abc', 'r9', response.images);
+    const updated = { ...trail, images_revision: 'r9' };
+    expect(queryClient.getQueryData(['trails', 'map'])).toEqual([updated]);
+    expect(mockMapTrailStore.apply).toHaveBeenCalledWith('user-1', [updated], []);
+  });
+
+  it('copes with a trail that is not in the map cache and a missing revision', async () => {
+    const response = { trail_id: 'abc', images: [] };
+    mockTrailsApi.uploadTrailImage.mockResolvedValue(response);
+
+    const { result } = renderHook(() => useUploadTrailImage(), { wrapper: createQueryWrapper() });
+
+    await result.current.mutateAsync({
+      trailId: 'abc',
+      file: new File(['img'], 'photo.jpg'),
+      role: 'primary',
+    });
+
+    expect(mockImageStore.put).not.toHaveBeenCalled();
+    expect(mockMapTrailStore.apply).not.toHaveBeenCalled();
   });
 
   it('invalidates imagePins cache after upload', async () => {
     const response = {
       trail_id: 'abc',
-      images: [{ image_data: 'b64', role: 'primary', lat: 55.5, lng: 13.2, caption: null }],
+      images: [
+        { image_data: 'b64', role: 'primary' as const, lat: 55.5, lng: 13.2, caption: null },
+      ],
     };
     mockTrailsApi.uploadTrailImage.mockResolvedValue(response);
     mockTrailsApi.getImagePins.mockResolvedValue({
@@ -986,9 +698,20 @@ describe('useUploadTrailImage', () => {
 });
 
 describe('useDeleteTrailImage', () => {
-  it('deletes an image by index', async () => {
-    mockTrailsApi.deleteTrailImage.mockResolvedValue(undefined);
+  const remaining = {
+    trail_id: 'abc',
+    images: [
+      { image_data: 'img1', role: 'secondary' as const, lat: null, lng: null, caption: null },
+    ],
+    revision: 'r10',
+  };
 
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockTrailsApi.deleteTrailImage.mockResolvedValue(remaining);
+  });
+
+  it('deletes an image by index', async () => {
     const { result } = renderHook(() => useDeleteTrailImage(), { wrapper: createQueryWrapper() });
 
     await result.current.mutateAsync({ trailId: 'abc', imageIndex: 0 });
@@ -996,17 +719,15 @@ describe('useDeleteTrailImage', () => {
     expect(mockTrailsApi.deleteTrailImage).toHaveBeenCalledWith('abc', 0);
   });
 
-  it('optimistically removes image from cache on success', async () => {
-    mockTrailsApi.deleteTrailImage.mockResolvedValue(undefined);
-
+  it('replaces the cached photos with what is left, under the new revision', async () => {
     const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-    // Seed cache with existing images
-    queryClient.setQueryData(['trails', 'images', 'abc'], {
+    queryClient.setQueryData(['trails', 'images', 'abc', 'r9'], {
       trail_id: 'abc',
       images: [
-        { image_data: 'img0', role: 'primary', lat: null, lng: null, caption: null },
-        { image_data: 'img1', role: 'secondary', lat: null, lng: null, caption: null },
+        { image_data: 'img0', role: 'primary' as const, lat: null, lng: null, caption: null },
+        { image_data: 'img1', role: 'secondary' as const, lat: null, lng: null, caption: null },
       ],
+      revision: 'r9',
     });
 
     const wrapper = ({ children }: { children: ReactNode }) =>
@@ -1016,24 +737,17 @@ describe('useDeleteTrailImage', () => {
 
     await result.current.mutateAsync({ trailId: 'abc', imageIndex: 0 });
 
-    await waitFor(() => {
-      const cached = queryClient.getQueryData(['trails', 'images', 'abc']) as any;
-      expect(cached.images).toHaveLength(1);
-      expect(cached.images[0].image_data).toBe('img1');
-    });
+    expect(queryClient.getQueryData(['trails', 'images', 'abc', 'r9'])).toBeUndefined();
+    expect(queryClient.getQueryData(['trails', 'images', 'abc', 'r10'])).toEqual(remaining);
+    expect(mockImageStore.put).toHaveBeenCalledWith('user-1', 'abc', 'r10', remaining.images);
   });
 
   it('invalidates imagePins cache after delete', async () => {
-    mockTrailsApi.deleteTrailImage.mockResolvedValue(undefined);
     mockTrailsApi.getImagePins.mockResolvedValue({
       pins: [{ trail_id: 'abc', lat: 55.5, lng: 13.2, thumbnail: 'thumb' }],
     });
 
     const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-    queryClient.setQueryData(['trails', 'images', 'abc'], {
-      trail_id: 'abc',
-      images: [{ image_data: 'img0', role: 'primary', lat: null, lng: null, caption: null }],
-    });
     // Seed imagePins so invalidation triggers refetch
     queryClient.setQueryData(['trails', 'image-pins'], { pins: [] });
 
@@ -1050,6 +764,112 @@ describe('useDeleteTrailImage', () => {
     await waitFor(() => {
       expect(mockTrailsApi.getImagePins).toHaveBeenCalled();
     });
+  });
+});
+
+describe('mutations that finish after another user signed in', () => {
+  const images = {
+    trail_id: 'abc123',
+    images: [{ image_data: 'b64', role: 'primary' as const, lat: null, lng: null, caption: null }],
+    revision: 'r1',
+  };
+
+  const switchUser = <T,>(result: T) =>
+    vi.fn(async () => {
+      vi.mocked(currentUserId).mockReturnValue('user-2');
+      return result;
+    });
+
+  const setup = () => {
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    queryClient.setQueryData(['trails', 'map'], [sampleTrail]);
+    const wrapper = ({ children }: { children: ReactNode }) =>
+      createElement(QueryClientProvider, { client: queryClient }, children);
+    return { queryClient, wrapper };
+  };
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.mocked(currentUserId).mockReturnValue('user-1');
+  });
+
+  afterEach(() => {
+    vi.mocked(currentUserId).mockReturnValue('user-1');
+  });
+
+  const expectNothingWritten = (queryClient: QueryClient) => {
+    expect(queryClient.getQueryData(['trails', 'map'])).toEqual([sampleTrail]);
+    expect(mockMapTrailStore.apply).not.toHaveBeenCalled();
+    expect(mockImageStore.put).not.toHaveBeenCalled();
+    expect(mockImageStore.remove).not.toHaveBeenCalled();
+  };
+
+  it('does not store photos an upload returns', async () => {
+    mockTrailsApi.uploadTrailImage.mockImplementation(switchUser(images));
+    const { queryClient, wrapper } = setup();
+    const { result } = renderHook(() => useUploadTrailImage(), { wrapper });
+
+    await result.current.mutateAsync({
+      trailId: 'abc123',
+      file: new File(['x'], 'p.jpg') as never,
+      role: 'primary',
+    });
+
+    expect(queryClient.getQueryData(['trails', 'images', 'abc123', 'r1'])).toBeUndefined();
+    expectNothingWritten(queryClient);
+  });
+
+  it('does not store the photos left after a delete', async () => {
+    mockTrailsApi.deleteTrailImage.mockImplementation(switchUser(images));
+    const { queryClient, wrapper } = setup();
+    const { result } = renderHook(() => useDeleteTrailImage(), { wrapper });
+
+    await result.current.mutateAsync({ trailId: 'abc123', imageIndex: 0 });
+
+    expectNothingWritten(queryClient);
+  });
+
+  it('does not apply a trail update', async () => {
+    mockTrailsApi.updateTrail.mockImplementation(switchUser({ ...sampleTrail, name: 'Renamed' }) as never);
+    const { queryClient, wrapper } = setup();
+    const { result } = renderHook(() => useUpdateTrail(), { wrapper });
+
+    await result.current.mutateAsync({ id: 'abc123', data: { name: 'Renamed' } });
+
+    expect(queryClient.getQueryData(['trails', 'detail', 'abc123'])).toBeUndefined();
+    expectNothingWritten(queryClient);
+  });
+
+  it('does not apply a delete', async () => {
+    mockTrailsApi.deleteTrail.mockImplementation(switchUser(undefined) as never);
+    const { queryClient, wrapper } = setup();
+    const { result } = renderHook(() => useDeleteTrail(), { wrapper });
+
+    await result.current.mutateAsync('abc123');
+
+    expectNothingWritten(queryClient);
+  });
+
+  it('does not add uploaded trails', async () => {
+    mockTrailsApi.uploadGpx.mockImplementation(switchUser([{ ...sampleTrail, trail_id: 'new' }]) as never);
+    const { queryClient, wrapper } = setup();
+    const { result } = renderHook(() => useUploadGpx(), { wrapper });
+
+    await result.current.mutateAsync({ file: new File(['x'], 't.gpx') });
+
+    expectNothingWritten(queryClient);
+  });
+
+  it('does not add a saved recording', async () => {
+    mockTrailsApi.saveRecording.mockImplementation(
+      switchUser({ ...sampleTrail, trail_id: 'rec' }) as never,
+    );
+    const { queryClient, wrapper } = setup();
+    const { result } = renderHook(() => useSaveRecording(), { wrapper });
+
+    await result.current.mutateAsync({ name: 'Walk', points: [] });
+
+    expectNothingWritten(queryClient);
   });
 });
 

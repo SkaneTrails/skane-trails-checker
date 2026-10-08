@@ -383,15 +383,18 @@ def upload_trail_image(
     new_image = TrailImage(image_data=image_data, role=role, lat=lat, lng=lng, caption=caption, thumbnail=thumbnail)
     images.append(new_image)
 
-    trail_storage.save_trail_images(trail_id, images)
-    return TrailImagesResponse(trail_id=trail_id, images=images)
+    revision = trail_storage.save_trail_images(trail_id, images)
+    return TrailImagesResponse(trail_id=trail_id, images=images, revision=revision)
 
 
-@router.delete("/{trail_id}/images/{image_index}", status_code=204)
+@router.delete("/{trail_id}/images/{image_index}")
 def delete_trail_image(
     trail_id: str, image_index: int, user: Annotated[AuthenticatedUser, Depends(require_auth)]
-) -> None:
-    """Delete a specific image from a trail by index (0-based)."""
+) -> TrailImagesResponse:
+    """Delete a specific image from a trail by index (0-based).
+
+    Returns the remaining images and their new revision, so the client has one outcome to act on.
+    """
     _require_admin_role(user)
 
     trail = trail_storage.get_trail(trail_id)
@@ -405,4 +408,5 @@ def delete_trail_image(
         raise HTTPException(status_code=404, detail="Image not found")
 
     images = [img for i, img in enumerate(existing.images) if i != image_index]
-    trail_storage.save_trail_images(trail_id, images)
+    revision = trail_storage.save_trail_images(trail_id, images)
+    return TrailImagesResponse(trail_id=trail_id, images=images, revision=revision)

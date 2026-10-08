@@ -73,9 +73,9 @@ describe('createPersister (native/AsyncStorage)', () => {
     expect(restored?.clientState.queries[0].state.data).toEqual({ hello: 'world' });
   });
 
-  it('discards stale cache older than 24 hours', async () => {
+  it('discards stale cache older than 30 days', async () => {
     const staleClient = makePersistedClient({
-      timestamp: Date.now() - 1000 * 60 * 60 * 25,
+      timestamp: Date.now() - 1000 * 60 * 60 * 24 * 31,
     });
     mockStorage.getItem.mockResolvedValue(JSON.stringify(staleClient));
 
@@ -84,9 +84,9 @@ describe('createPersister (native/AsyncStorage)', () => {
     expect(mockStorage.removeItem).toHaveBeenCalledWith('@skane_trails_query_cache');
   });
 
-  it('keeps cache within 24 hours', async () => {
+  it('keeps cache within 30 days', async () => {
     const freshClient = makePersistedClient({
-      timestamp: Date.now() - 1000 * 60 * 60 * 23,
+      timestamp: Date.now() - 1000 * 60 * 60 * 24 * 29,
     });
     mockStorage.getItem.mockResolvedValue(JSON.stringify(freshClient));
 

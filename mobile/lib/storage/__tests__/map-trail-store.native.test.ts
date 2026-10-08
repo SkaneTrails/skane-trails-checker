@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { Trail } from '@/lib/types';
 
 // In-memory stand-in for expo-file-system's File/Directory.
@@ -204,5 +205,17 @@ describe('mapTrailStore (native / files)', () => {
     await mapTrailStore.clear();
     expect(files.size).toBe(0);
     expect(await mapTrailStore.get('u1')).toEqual(EMPTY);
+  });
+
+  it('clear also purges the trail cache of older app versions', async () => {
+    await mapTrailStore.clear();
+
+    expect(AsyncStorage.multiRemove).toHaveBeenCalledWith(['@trails', '@lastSyncTime']);
+  });
+
+  it('clear does not throw when the older cache cannot be removed', async () => {
+    vi.mocked(AsyncStorage.multiRemove).mockRejectedValueOnce(new Error('locked'));
+
+    await expect(mapTrailStore.clear()).resolves.toBeUndefined();
   });
 });

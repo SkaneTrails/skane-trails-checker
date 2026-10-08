@@ -9,7 +9,7 @@ const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
       staleTime: 10 * 60 * 1000, // 10 minutes
-      gcTime: PERSIST_MAX_AGE, // 24 hours — keep cached data for persistence
+      gcTime: PERSIST_MAX_AGE, // keep cached data for persistence
       retry: 2,
       refetchOnWindowFocus: false,
       networkMode: 'offlineFirst',

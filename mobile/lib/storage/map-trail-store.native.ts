@@ -9,6 +9,7 @@
  * everything for a superuser). Asking for it as another user erases it, so private
  * trails never carry over and a cursor from one scope is never sent for another.
  */
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Directory, File, Paths } from 'expo-file-system';
 import type { Trail } from '@/lib/types';
 import { createSerialQueue } from './serial-queue';
@@ -35,6 +36,8 @@ interface StoreIndex {
 
 const DIRECTORY_NAME = 'map-trails';
 const INDEX_FILE_NAME = 'index.json';
+// Trail list cache of app versions before the map copy; purged on clear for upgraded installs.
+const LEGACY_KEYS = ['@trails', '@lastSyncTime'];
 const EMPTY: CachedMapTrails = { trails: [], lastSyncTime: null, scope: null };
 const EMPTY_INDEX: StoreIndex = { ownerUid: null, lastSyncTime: null, scope: null, ids: [] };
 
@@ -135,6 +138,11 @@ const unqueuedStore = {
   async clear(): Promise<void> {
     try {
       eraseStore();
+    } catch {
+      // Nothing to clear.
+    }
+    try {
+      await AsyncStorage.multiRemove(LEGACY_KEYS);
     } catch {
       // Nothing to clear.
     }

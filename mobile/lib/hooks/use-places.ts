@@ -11,7 +11,7 @@ export function usePlaces(category?: string, options?: { enabled?: boolean }) {
   return useQuery({
     queryKey: placeKeys.list(category),
     queryFn: () => placesApi.getPlaces(category),
-    staleTime: 24 * 60 * 60 * 1000, // 24 h — places rarely change
+    staleTime: Number.POSITIVE_INFINITY, // the sync status poll refetches when they change
     enabled: options?.enabled,
   });
 }
@@ -20,7 +20,7 @@ export function usePlaceCategories(options?: { enabled?: boolean }) {
   return useQuery({
     queryKey: placeKeys.categories,
     queryFn: () => placesApi.getCategories(),
-    staleTime: 24 * 60 * 60 * 1000, // 24 h — categories rarely change
+    staleTime: Number.POSITIVE_INFINITY, // the sync status poll refetches when they change
     enabled: options?.enabled,
   });
 }

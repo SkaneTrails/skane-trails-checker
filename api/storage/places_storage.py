@@ -5,9 +5,13 @@ from datetime import UTC, datetime
 
 from api.models.place import PlaceCategoryResponse, PlaceResponse
 from api.storage.firestore_client import create_batch, get_collection
+from api.storage.sync_status import touch
 from api.storage.validation import validate_document_id
 
 logger = logging.getLogger(__name__)
+
+# Firestore allows 500 writes per batch; one is the sync marker.
+MAX_PLACES_PER_BATCH = 499
 
 
 def _doc_to_place(data: dict) -> PlaceResponse:
@@ -65,14 +69,25 @@ def save_place(place: PlaceResponse) -> None:
     """Save or update a place in Firestore."""
     validate_document_id(place.place_id, field_name="place_id")
     place.last_updated = datetime.now(UTC).isoformat()
-    get_collection("places").document(place.place_id).set(place.to_dict())
+    batch = create_batch()
+    batch.set(get_collection("places").document(place.place_id), place.to_dict())
+    touch("places", batch=batch)
+    batch.commit()
 
 
-def save_places_batch(places: list[PlaceResponse], batch_size: int = 500) -> int:
+def save_places_batch(places: list[PlaceResponse], batch_size: int = MAX_PLACES_PER_BATCH) -> int:
     """Save multiple places in batches.
 
-    Firestore has a limit of 500 writes per batch.
+    Firestore has a limit of 500 writes per batch and one of them is the marker, so at most
+    MAX_PLACES_PER_BATCH places go in each. Every batch carries the marker, so places that
+    were committed are announced even if a later batch fails and the import is run again.
+
+    Raises:
+        ValueError: If batch_size is not between 1 and MAX_PLACES_PER_BATCH.
     """
+    if not 1 <= batch_size <= MAX_PLACES_PER_BATCH:
+        msg = f"batch_size must be between 1 and {MAX_PLACES_PER_BATCH}, got {batch_size}"
+        raise ValueError(msg)
     if not places:
         return 0
 
@@ -91,6 +106,7 @@ def save_places_batch(places: list[PlaceResponse], batch_size: int = 500) -> int
             doc_ref = collection.document(place.place_id)
             batch.set(doc_ref, place.to_dict())
 
+        touch("places", batch=batch)
         batch.commit()
         saved_count += len(batch_places)
         logger.info("Saved batch %d: %d/%d places", i // batch_size + 1, saved_count, len(places))
@@ -102,7 +118,10 @@ def save_places_batch(places: list[PlaceResponse], batch_size: int = 500) -> int
 def delete_place(place_id: str) -> None:
     """Delete a place from Firestore."""
     validate_document_id(place_id, field_name="place_id")
-    get_collection("places").document(place_id).delete()
+    batch = create_batch()
+    batch.delete(get_collection("places").document(place_id))
+    touch("places", batch=batch)
+    batch.commit()
 
 
 def delete_all_places() -> int:
@@ -117,6 +136,7 @@ def delete_all_places() -> int:
         deleted_count += 1
 
     logger.info("Deleted %d places", deleted_count)
+    touch("places")
     return deleted_count
 
 

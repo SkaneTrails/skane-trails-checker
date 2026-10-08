@@ -42,6 +42,93 @@ def _make_doc(doc_id: str, data: dict | None) -> MagicMock:
     return doc
 
 
+@pytest.fixture(autouse=True)
+def mock_touch() -> Generator[MagicMock]:
+    """Keep the sync-status marker write away from Firestore."""
+    with patch("api.storage.foraging_storage.touch") as mock:
+        yield mock
+
+
+@pytest.fixture(autouse=True)
+def mock_batch() -> Generator[MagicMock]:
+    """Keep batched writes away from Firestore."""
+    with patch("api.storage.foraging_storage.create_batch") as mock_factory:
+        yield mock_factory.return_value
+
+
+class TestSyncStatusTouches:
+    """Every write marks its data type changed, after the data is written; reads never do."""
+
+    def test_spot_updates_and_deletes_touch_foraging_spots(self, mock_collection, mock_touch) -> None:
+        update_foraging_spot("s1", {"notes": "x"})
+        delete_foraging_spot("s1")
+
+        assert [call.args for call in mock_touch.call_args_list] == [("foraging_spots",)] * 2
+
+    def test_creating_a_spot_commits_it_and_its_marker_in_one_batch(
+        self, mock_collection, mock_touch, mock_batch
+    ) -> None:
+        save_foraging_spot({"type": "Blueberries", "lat": 56.0, "lng": 13.0})
+
+        mock_touch.assert_called_once_with("foraging_spots", batch=mock_batch)
+        mock_batch.commit.assert_called_once()
+        mock_collection.document.return_value.set.assert_not_called()
+
+    def test_a_failed_create_commit_stores_nothing_and_announces_nothing(
+        self, mock_collection, mock_touch, mock_batch
+    ) -> None:
+        mock_batch.commit.side_effect = RuntimeError("firestore unavailable")
+
+        with pytest.raises(RuntimeError, match="firestore unavailable"):
+            save_foraging_spot({"type": "Blueberries", "lat": 56.0, "lng": 13.0})
+
+        mock_collection.document.return_value.set.assert_not_called()
+
+    def test_type_writes_touch_foraging_types(self, mock_collection, mock_touch) -> None:
+        save_foraging_type("Blueberries", {"icon": "x"})
+        update_foraging_type("Blueberries", {"icon": "y"})
+        delete_foraging_type("Blueberries")
+
+        assert [call.args for call in mock_touch.call_args_list] == [("foraging_types",)] * 3
+
+    def test_the_marker_and_the_data_are_queued_in_one_batch_before_it_commits(
+        self, mock_collection, mock_touch, mock_batch
+    ) -> None:
+        order: list[str] = []
+        mock_batch.delete.side_effect = lambda *_: order.append("data")
+        mock_touch.side_effect = lambda kind, **_: order.append(f"touch {kind}")
+        mock_batch.commit.side_effect = lambda: order.append("commit")
+
+        delete_foraging_spot("s1")
+
+        assert order == ["data", "touch foraging_spots", "commit"]
+
+    def test_every_spot_and_type_write_uses_the_batch(self, mock_collection, mock_touch, mock_batch) -> None:
+        update_foraging_spot("s1", {"notes": "x"})
+        delete_foraging_spot("s1")
+        save_foraging_type("T", {"icon": "x"})
+        update_foraging_type("T", {"icon": "y"})
+        delete_foraging_type("T")
+
+        assert [call.kwargs for call in mock_touch.call_args_list] == [{"batch": mock_batch}] * 5
+        assert mock_batch.commit.call_count == 5
+        document = mock_collection.document.return_value
+        document.set.assert_not_called()
+        document.update.assert_not_called()
+        document.delete.assert_not_called()
+
+    def test_reads_do_not_touch(self, mock_collection, mock_touch) -> None:
+        mock_collection.stream.return_value = []
+        mock_collection.document.return_value.get.return_value = _make_doc("x", None)
+
+        get_foraging_spots()
+        get_foraging_types()
+        get_foraging_spot("s1")
+        get_foraging_type("t1")
+
+        mock_touch.assert_not_called()
+
+
 class TestGetForagingSpot:
     """Tests for get_foraging_spot — returns single ForagingSpotResponse."""
 
@@ -200,7 +287,7 @@ class TestSaveForagingSpot:
     """Tests for save_foraging_spot."""
 
     @patch("api.storage.foraging_storage.datetime")
-    def test_saves_and_returns_id(self, mock_dt, mock_collection) -> None:
+    def test_saves_and_returns_id(self, mock_dt, mock_collection, mock_batch) -> None:
         fixed = datetime(2026, 3, 1, 12, 0, 0, tzinfo=UTC)
         mock_dt.now.return_value = fixed
 
@@ -212,7 +299,8 @@ class TestSaveForagingSpot:
 
         assert result == "new-id"
         mock_collection.document.assert_called_once_with()
-        saved = mock_doc.set.call_args[0][0]
+        assert mock_batch.set.call_args[0][0] is mock_doc
+        saved = mock_batch.set.call_args[0][1]
         assert saved["created_at"] == fixed.isoformat()
         assert saved["last_updated"] == fixed.isoformat()
         assert saved["type"] == "Mushroom"
@@ -222,14 +310,14 @@ class TestUpdateForagingSpot:
     """Tests for update_foraging_spot."""
 
     @patch("api.storage.foraging_storage.datetime")
-    def test_updates_with_timestamp(self, mock_dt, mock_collection) -> None:
+    def test_updates_with_timestamp(self, mock_dt, mock_collection, mock_batch) -> None:
         fixed = datetime(2026, 3, 1, 13, 0, 0, tzinfo=UTC)
         mock_dt.now.return_value = fixed
 
         update_foraging_spot("spot-1", {"notes": "Updated"})
 
         mock_collection.document.assert_called_once_with("spot-1")
-        updated = mock_collection.document.return_value.update.call_args[0][0]
+        updated = mock_batch.update.call_args[0][1]
         assert updated["notes"] == "Updated"
         assert updated["last_updated"] == fixed.isoformat()
 
@@ -237,11 +325,11 @@ class TestUpdateForagingSpot:
 class TestDeleteForagingSpot:
     """Tests for delete_foraging_spot."""
 
-    def test_deletes_by_id(self, mock_collection) -> None:
+    def test_deletes_by_id(self, mock_collection, mock_batch) -> None:
         delete_foraging_spot("spot-1")
 
         mock_collection.document.assert_called_once_with("spot-1")
-        mock_collection.document.return_value.delete.assert_called_once()
+        mock_batch.delete.assert_called_once_with(mock_collection.document.return_value)
 
 
 class TestGetForagingTypes:
@@ -275,21 +363,21 @@ class TestGetForagingTypes:
 class TestSaveForagingType:
     """Tests for save_foraging_type."""
 
-    def test_saves_type(self, mock_collection) -> None:
+    def test_saves_type(self, mock_collection, mock_batch) -> None:
         save_foraging_type("Mushroom", {"icon": "🍄"})
 
         mock_collection.document.assert_called_once_with("Mushroom")
-        mock_collection.document.return_value.set.assert_called_once_with({"icon": "🍄"})
+        mock_batch.set.assert_called_once_with(mock_collection.document.return_value, {"icon": "🍄"})
 
 
 class TestUpdateForagingType:
     """Tests for update_foraging_type."""
 
-    def test_updates_type(self, mock_collection) -> None:
+    def test_updates_type(self, mock_collection, mock_batch) -> None:
         update_foraging_type("Mushroom", {"color": "#FF0000"})
 
         mock_collection.document.assert_called_once_with("Mushroom")
-        mock_collection.document.return_value.update.assert_called_once_with({"color": "#FF0000"})
+        mock_batch.update.assert_called_once_with(mock_collection.document.return_value, {"color": "#FF0000"})
 
     def test_rejects_invalid_id(self, mock_collection) -> None:
         with pytest.raises(InvalidDocumentIdError, match="type_name"):
@@ -339,8 +427,8 @@ class TestGetForagingType:
 class TestDeleteForagingType:
     """Tests for delete_foraging_type."""
 
-    def test_deletes_type(self, mock_collection) -> None:
+    def test_deletes_type(self, mock_collection, mock_batch) -> None:
         delete_foraging_type("Mushroom")
 
         mock_collection.document.assert_called_once_with("Mushroom")
-        mock_collection.document.return_value.delete.assert_called_once()
+        mock_batch.delete.assert_called_once_with(mock_collection.document.return_value)
