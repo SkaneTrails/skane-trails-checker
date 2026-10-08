@@ -43,6 +43,20 @@ def mock_collection() -> Generator[MagicMock]:
         yield mock_coll
 
 
+@pytest.fixture(autouse=True)
+def trails_touch() -> Generator[MagicMock]:
+    """Keep the sync-status marker write away from Firestore."""
+    with patch("api.storage.trail_storage.touch") as mock:
+        yield mock
+
+
+@pytest.fixture(autouse=True)
+def trails_batch() -> Generator[MagicMock]:
+    """Keep batched writes away from Firestore."""
+    with patch("api.storage.trail_storage.create_batch") as mock_factory:
+        yield mock_factory.return_value
+
+
 def _make_doc(data: dict | None, *, exists: bool = True) -> MagicMock:
     doc = MagicMock()
     doc.exists = exists
@@ -640,23 +654,27 @@ class TestUpdateTrail:
     """Tests for update_trail — generic field update."""
 
     @patch("api.storage.trail_storage._update_sync_metadata")
-    def test_updates_multiple_fields(self, mock_sync, mock_collection) -> None:
+    def test_updates_multiple_fields(self, mock_sync, mock_collection, trails_batch, trails_touch) -> None:
         with patch("api.storage.trail_storage._utc_now_z", return_value="2026-03-01T13:00:00Z"):
             update_trail("t1", {"difficulty": "hard", "length_km": 10.0})
 
-        updated = mock_collection.document.return_value.update.call_args[0][0]
+        updated = trails_batch.update.call_args[0][1]
         assert updated["difficulty"] == "hard"
         assert updated["length_km"] == 10.0
         assert updated["last_updated"] == "2026-03-01T13:00:00Z"
         assert updated["modified_at"] == "2026-03-01T13:00:00Z"
+        # The marker commits with the change, not after it
+        trails_touch.assert_called_once_with("trails", batch=trails_batch)
+        trails_batch.commit.assert_called_once()
+        mock_collection.document.return_value.update.assert_not_called()
         mock_sync.assert_called_once()
 
     @patch("api.storage.trail_storage._update_sync_metadata")
-    def test_updates_single_field(self, mock_sync, mock_collection) -> None:
+    def test_updates_single_field(self, mock_sync, mock_collection, trails_batch) -> None:
         with patch("api.storage.trail_storage._utc_now_z", return_value="2026-03-01T13:00:00Z"):
             update_trail("t1", {"status": "Explored!"})
 
-        updated = mock_collection.document.return_value.update.call_args[0][0]
+        updated = trails_batch.update.call_args[0][1]
         assert updated["status"] == "Explored!"
         assert "last_updated" in updated
         mock_sync.assert_called_once()
@@ -695,14 +713,25 @@ class TestUpdateTrailVisibility:
         trail_ref.update.assert_not_called()
         mock_sync.assert_called_once()
 
+    @patch("api.storage.trail_storage.add_tombstone")
+    @patch("api.storage.trail_storage._update_sync_metadata")
+    def test_unsharing_commits_the_marker_in_the_same_transaction(
+        self, mock_sync, mock_add, transaction, mock_collection, trails_touch
+    ) -> None:
+        mock_collection.document.return_value.get.return_value = _make_doc({**SAMPLE_TRAIL, "is_public": True})
+
+        update_trail("t1", {"is_public": False})
+
+        trails_touch.assert_called_once_with("trails", batch=transaction)
+
     @patch("api.storage.trail_storage.run_in_transaction")
     @patch("api.storage.trail_storage._update_sync_metadata")
-    def test_sharing_a_trail_needs_no_transaction(self, mock_sync, mock_run, mock_collection) -> None:
+    def test_sharing_a_trail_needs_no_transaction(self, mock_sync, mock_run, mock_collection, trails_batch) -> None:
         update_trail("t1", {"is_public": True})
 
         mock_run.assert_not_called()
         mock_collection.document.return_value.get.assert_not_called()
-        mock_collection.document.return_value.update.assert_called_once()
+        trails_batch.update.assert_called_once()
         mock_sync.assert_called_once()
 
     @patch("api.storage.trail_storage.add_tombstone")
@@ -764,6 +793,17 @@ class TestDeleteTrail:
         mock_add.assert_called_once_with(transaction, "t1", trail_data, "2026-03-01T12:00:00Z")
         trail_ref.delete.assert_not_called()
         mock_sync.assert_called_once()
+
+    @patch("api.storage.trail_storage.add_tombstone")
+    @patch("api.storage.trail_storage._update_sync_metadata")
+    def test_the_marker_commits_in_the_same_transaction(
+        self, mock_sync, mock_add, transaction, mock_collection, trails_touch
+    ) -> None:
+        mock_collection.document.return_value.get.return_value = _make_doc(SAMPLE_TRAIL)
+
+        delete_trail("t1", update_sync=False)
+
+        trails_touch.assert_called_once_with("trails", batch=transaction)
 
     @patch("api.storage.trail_storage.add_tombstone")
     @patch("api.storage.trail_storage._update_sync_metadata")
@@ -995,6 +1035,43 @@ class TestSaveTrailOverwrite:
         assert transactions[0].set.call_args.args[1]["images_revision"] == "rev-1"
         assert transactions[1].set.call_args.args[1]["images_revision"] == "rev-2"
         assert trail.images_revision == "rev-2"
+
+    @patch("api.storage.trail_storage._update_sync_metadata")
+    def test_the_marker_commits_in_the_same_transaction(
+        self, mock_sync, transaction, mock_collection, trails_touch
+    ) -> None:
+        mock_collection.document.return_value.get.return_value = _make_doc(None, exists=False)
+
+        save_trail(self._trail(), update_sync=False)
+
+        trails_touch.assert_called_once_with("trails", batch=transaction)
+        mock_sync.assert_not_called()
+
+    @patch("api.storage.trail_storage._update_sync_metadata")
+    def test_a_revision_the_caller_carried_over_is_replaced_by_the_stored_one(
+        self, mock_sync, transaction, mock_collection
+    ) -> None:
+        mock_collection.document.return_value.get.return_value = _make_doc(
+            {"trail_id": "t1", "group_id": "owner", "images_revision": "rev-new"}
+        )
+        trail = self._trail(images_revision="rev-old")
+
+        save_trail(trail)
+
+        assert transaction.set.call_args.args[1]["images_revision"] == "rev-new"
+        assert trail.images_revision == "rev-new"
+
+    @patch("api.storage.trail_storage._update_sync_metadata")
+    def test_a_revision_for_a_trail_without_stored_photos_is_dropped(
+        self, mock_sync, transaction, mock_collection
+    ) -> None:
+        mock_collection.document.return_value.get.return_value = _make_doc(None, exists=False)
+        trail = self._trail(images_revision="rev-old")
+
+        save_trail(trail)
+
+        assert "images_revision" not in transaction.set.call_args.args[1]
+        assert trail.images_revision is None
 
     @patch("api.storage.trail_storage._update_sync_metadata")
     def test_a_trail_that_never_had_photos_has_no_revision(self, mock_sync, transaction, mock_collection) -> None:
@@ -1236,8 +1313,7 @@ class TestGetSyncMetadata:
 class TestUpdateSyncMetadata:
     """Tests for _update_sync_metadata."""
 
-    @patch("api.storage.trail_storage.touch")
-    def test_counts_trails_and_sets_timestamp(self, mock_touch, mock_collection) -> None:
+    def test_counts_trails_and_sets_timestamp(self, trails_touch, mock_collection) -> None:
         mock_agg_result = MagicMock()
         mock_agg_result.value = 3
         mock_collection.count.return_value.get.return_value = [[mock_agg_result]]
@@ -1248,25 +1324,14 @@ class TestUpdateSyncMetadata:
         set_call = mock_collection.document.return_value.set.call_args[0][0]
         assert set_call["count"] == 3
         assert set_call["last_modified"] == "2026-03-01T12:00:00Z"
-        mock_touch.assert_called_once_with("trails")
+        # The version clients poll commits with the trail itself, not here
+        trails_touch.assert_not_called()
 
-    @patch("api.storage.trail_storage.touch")
     @patch("api.storage.trail_storage._write_legacy_trails_sync", side_effect=RuntimeError("count failed"))
-    def test_a_failing_legacy_write_does_not_hide_the_new_version(self, mock_legacy, mock_touch) -> None:
+    def test_a_failing_legacy_write_does_not_fail_the_change(self, mock_legacy) -> None:
         _update_sync_metadata()
 
-        mock_touch.assert_called_once_with("trails")
-
-    @patch("api.storage.trail_storage._write_legacy_trails_sync")
-    @patch("api.storage.trail_storage.touch")
-    def test_the_version_is_written_before_the_legacy_document(self, mock_touch, mock_legacy) -> None:
-        order: list[str] = []
-        mock_touch.side_effect = lambda *_, **__: order.append("touch")
-        mock_legacy.side_effect = lambda: order.append("legacy")
-
-        _update_sync_metadata()
-
-        assert order == ["touch", "legacy"]
+        mock_legacy.assert_called_once()
 
     @patch("api.storage.trail_storage._update_sync_metadata")
     def test_public_wrapper_delegates(self, mock_internal) -> None:

@@ -1,7 +1,8 @@
 """Change markers per data type, so clients can poll one small document to see what changed.
 
-`_meta/sync_status` holds one opaque version per data type. Every write path calls `touch` after
-its data is written, which replaces that type's version. Clients remember the versions they last
+`_meta/sync_status` holds one opaque version per data type. Every write path calls `touch` with the
+batch or transaction that writes its data, so the version changes exactly when the data does.
+Clients remember the versions they last
 synced and refetch only the types whose version differs. Versions are compared for equality, never
 ordered, so clock differences and writes landing mid-sync cannot hide a change.
 """

@@ -238,6 +238,36 @@ describe('syncMapTrails', () => {
     await expect(syncMapTrails(vi.fn(), { strict: true })).rejects.toThrow('offline');
   });
 
+  it('runs overlapping syncs one after another, so the later one starts from what the earlier stored', async () => {
+    store.get.mockResolvedValue({ trails: [trail('a')], lastSyncTime: '2026-03-01T00:00:00Z', scope: SCOPE });
+    let answerFirst: (value: never) => void = () => undefined;
+    getTrailChanges.mockReturnValueOnce(new Promise((resolve) => (answerFirst = resolve)));
+    getTrailChanges.mockResolvedValue({ trails: [], deleted_ids: [], server_time: 'x', scope: SCOPE });
+
+    const first = syncMapTrails(vi.fn());
+    const second = syncMapTrails(vi.fn());
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(store.get).toHaveBeenCalledOnce();
+    expect(getTrailChanges).toHaveBeenCalledOnce();
+
+    answerFirst({ trails: [], deleted_ids: [], server_time: 'x', scope: SCOPE } as never);
+    await Promise.all([first, second]);
+
+    expect(store.get).toHaveBeenCalledTimes(2);
+    expect(getTrailChanges).toHaveBeenCalledTimes(2);
+  });
+
+  it('keeps going after a sync failed', async () => {
+    store.get.mockResolvedValue({ trails: [], lastSyncTime: null, scope: null });
+    getTrailChanges.mockRejectedValueOnce(new Error('offline'));
+    getTrailChanges.mockResolvedValueOnce({ trails: [trail('a')], deleted_ids: [], server_time: 'x', scope: SCOPE });
+
+    await expect(syncMapTrails(vi.fn())).rejects.toThrow('offline');
+    expect((await syncMapTrails(vi.fn())).map((t) => t.trail_id)).toEqual(['a']);
+  });
+
   it('throws when the request fails and there is no local copy', async () => {
     store.get.mockResolvedValue({ trails: [], lastSyncTime: null, scope: null });
     getTrailChanges.mockRejectedValue(new Error('offline'));

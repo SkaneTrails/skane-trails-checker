@@ -211,9 +211,9 @@ def save_trail(trail: TrailResponse, *, update_sync: bool = True) -> None:
 
     Args:
         trail: The trail to save.
-        update_sync: Whether to update sync metadata. Set to False during
-            bulk imports (e.g. GPX upload) and call _update_sync_metadata()
-            once after the loop.
+        update_sync: Whether to refresh the legacy `/trails/sync` document (count, last_modified).
+            Set to False during bulk imports (e.g. GPX upload) and call update_sync_metadata() once
+            after the loop. The version clients poll is written with every trail regardless.
     """
     validate_document_id(trail.trail_id, field_name="trail_id")
     logger.info("Saving trail: %s (ID: %s, Source: %s)", trail.name, trail.trail_id, trail.source)
@@ -237,10 +237,13 @@ def _overwrite_trail(transaction: Any, trail_ref: Any, data: dict, now: str, sto
     previous = snapshot.to_dict() if snapshot.exists else None
     # A retried attempt must start from the original payload, not from what an earlier one added.
     doc = dict(data)
-    # The photos live in their own document and survive an overwrite, so the trail keeps their revision.
-    if previous and previous.get("images_revision") and "images_revision" not in doc:
+    # The photos live in their own document and survive an overwrite, so the trail's revision is the
+    # stored one, never one the caller carried over from an earlier read.
+    doc.pop("images_revision", None)
+    if previous and previous.get("images_revision"):
         doc["images_revision"] = previous["images_revision"]
     transaction.set(trail_ref, doc)
+    touch("trails", batch=transaction)
     stored.clear()
     stored.update(doc)
     if previous and _audience_shrinks(previous, doc):
@@ -312,7 +315,10 @@ def update_trail(trail_id: str, updates: dict) -> None:
     if updates.get("is_public") is False:
         run_in_transaction(lambda transaction: _make_private(transaction, trail_ref, trail_id, updates, now))
     else:
-        trail_ref.update(updates)
+        batch = create_batch()
+        batch.update(trail_ref, updates)
+        touch("trails", batch=batch)
+        batch.commit()
     _update_sync_metadata()
 
 
@@ -321,6 +327,7 @@ def _make_private(transaction: Any, trail_ref: Any, trail_id: str, updates: dict
     snapshot = trail_ref.get(transaction=transaction)
     previous = snapshot.to_dict() if snapshot.exists else None
     transaction.update(trail_ref, updates)
+    touch("trails", batch=transaction)
     if previous and previous.get("is_public"):
         add_tombstone(transaction, trail_id, previous, now)
 
@@ -343,6 +350,7 @@ def _delete_with_tombstone(transaction: Any, trail_ref: Any, trail_id: str) -> N
     snapshot = trail_ref.get(transaction=transaction)
     trail_data = snapshot.to_dict() if snapshot.exists else None
     transaction.delete(trail_ref)
+    touch("trails", batch=transaction)
     transaction.delete(get_collection("trail_details").document(trail_id))
     if trail_data is not None:
         add_tombstone(transaction, trail_id, trail_data, _utc_now_z())
@@ -395,7 +403,7 @@ def _utc_now_z(earlier_by: timedelta = timedelta(0)) -> str:
 
 
 def update_sync_metadata() -> None:
-    """Public wrapper for sync metadata update.
+    """Public wrapper to refresh the legacy `/trails/sync` document.
 
     Use after bulk operations (e.g. GPX upload) where
     individual save_trail calls use update_sync=False.
@@ -408,10 +416,10 @@ def _update_sync_metadata() -> None:
 
     Uses a Firestore aggregation query to count documents server-side,
     avoiding O(N) client reads from streaming the entire collection.
-    Called after trail create, update, or delete. The version clients poll comes first: the legacy
-    document only serves `GET /trails/sync`, and its failure must not hide a committed change.
+    Called after a trail is created, updated or deleted. The version clients poll is not written
+    here: it commits with the trail itself. This document only serves `GET /trails/sync`, so a
+    failure to write it is logged and must not fail a change that already committed.
     """
-    touch("trails")
     try:
         _write_legacy_trails_sync()
     except Exception:
@@ -492,11 +500,7 @@ def save_trail_images(trail_id: str, images: list[TrailImage]) -> str:
     # The markers commit with the data, so a failure cannot leave changed photos that clients are never told about.
     touch("trails", "images", batch=batch)
     batch.commit()
-    try:
-        _write_legacy_trails_sync()
-    except Exception:
-        # Only `GET /trails/sync` reads it; failing the request now would invite a duplicate upload.
-        logger.warning("Could not update the legacy trails_sync document", exc_info=True)
+    _update_sync_metadata()
     return revision
 
 

@@ -1,8 +1,13 @@
 import { trailsApi } from '@/lib/api';
 import { currentUserId } from '@/lib/auth-scope';
-import { mergeTrails } from '@/lib/storage/merge-trails';
 import { mapTrailStore } from '@/lib/storage/map-trail-store';
+import { mergeTrails } from '@/lib/storage/merge-trails';
+import { createSerialQueue } from '@/lib/storage/serial-queue';
 import type { Trail, TrailChanges } from '@/lib/types';
+
+// One sync at a time: each reads the stored cursor first, so overlapping ones (the query on mount
+// and the status poll) could otherwise finish out of order and let an older result replace a newer.
+const serialize = createSerialQueue();
 
 /**
  * Local-first load of every trail with its map coordinates.
@@ -17,10 +22,19 @@ import type { Trail, TrailChanges } from '@/lib/types';
  * With a usable local copy, a failed request is not an error: the local trails are returned.
  * With `strict`, it is: the failure is thrown, so a caller that must know the sync happened
  * (the sync status poll) does not mistake the old local copy for a fresh one.
+ *
+ * Calls run one after another, in the order they were made.
  */
-export async function syncMapTrails(
+export function syncMapTrails(
   onLocal: (trails: Trail[]) => void,
   options: { strict?: boolean } = {},
+): Promise<Trail[]> {
+  return serialize(() => runSync(onLocal, options));
+}
+
+async function runSync(
+  onLocal: (trails: Trail[]) => void,
+  options: { strict?: boolean },
 ): Promise<Trail[]> {
   const ownerUid = currentUserId();
   let local = await mapTrailStore.get(ownerUid);
