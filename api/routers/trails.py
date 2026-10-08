@@ -383,8 +383,8 @@ def upload_trail_image(
     new_image = TrailImage(image_data=image_data, role=role, lat=lat, lng=lng, caption=caption, thumbnail=thumbnail)
     images.append(new_image)
 
-    trail_storage.save_trail_images(trail_id, images)
-    return TrailImagesResponse(trail_id=trail_id, images=images)
+    revision = trail_storage.save_trail_images(trail_id, images)
+    return TrailImagesResponse(trail_id=trail_id, images=images, revision=revision)
 
 
 @router.delete("/{trail_id}/images/{image_index}", status_code=204)

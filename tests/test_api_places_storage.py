@@ -50,6 +50,51 @@ SAMPLE_PLACE = {
 }
 
 
+@pytest.fixture(autouse=True)
+def mock_touch() -> Generator[MagicMock]:
+    """Keep the sync-status marker write away from Firestore."""
+    with patch("api.storage.places_storage.touch") as mock:
+        yield mock
+
+
+class TestSyncStatusTouches:
+    """Every write marks places changed; reads never do."""
+
+    def test_save_place_touches(self, mock_collection, mock_touch) -> None:
+        save_place(PlaceResponse(place_id="p1", name="A", lat=56.0, lng=13.0))
+
+        mock_touch.assert_called_once_with("places")
+
+    def test_batch_import_touches_once_after_all_batches(self, mock_collection, mock_touch) -> None:
+        places = [PlaceResponse(place_id=f"p{i}", name="A", lat=56.0, lng=13.0) for i in range(3)]
+        with patch("api.storage.places_storage.create_batch") as mock_create_batch:
+            save_places_batch(places, batch_size=2)
+
+        assert mock_create_batch.return_value.commit.call_count == 2
+        mock_touch.assert_called_once_with("places")
+
+    def test_empty_batch_does_not_touch(self, mock_collection, mock_touch) -> None:
+        save_places_batch([])
+
+        mock_touch.assert_not_called()
+
+    def test_deletes_touch(self, mock_collection, mock_touch) -> None:
+        mock_collection.stream.return_value = []
+
+        delete_place("p1")
+        delete_all_places()
+
+        assert [call.args for call in mock_touch.call_args_list] == [("places",)] * 2
+
+    def test_reads_do_not_touch(self, mock_collection, mock_touch) -> None:
+        mock_collection.stream.return_value = []
+
+        get_all_places()
+        get_places_by_category("parkering")
+
+        mock_touch.assert_not_called()
+
+
 class TestDocToPlace:
     """Tests for _doc_to_place conversion (via get_all_places)."""
 

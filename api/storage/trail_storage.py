@@ -3,6 +3,7 @@
 import logging
 from datetime import UTC, datetime, timedelta
 from typing import Any
+from uuid import uuid4
 
 from api.models.trail import (
     Coordinate,
@@ -15,7 +16,8 @@ from api.models.trail import (
     TrailImagesResponse,
     TrailResponse,
 )
-from api.storage.firestore_client import get_collection, run_in_transaction
+from api.storage.firestore_client import create_batch, get_collection, run_in_transaction
+from api.storage.sync_status import touch
 from api.storage.trail_tombstones import add_tombstone, get_deleted_trail_ids
 from api.storage.validation import validate_document_id
 
@@ -52,6 +54,7 @@ _SUMMARY_FIELDS: tuple[str, ...] = (
     "group_id",
     "line_color",
     "is_public",
+    "images_revision",
 )
 
 
@@ -93,6 +96,7 @@ def _doc_to_trail(data: dict) -> TrailResponse:
         group_id=data.get("group_id"),
         line_color=data.get("line_color"),
         is_public=data.get("is_public", False),
+        images_revision=data.get("images_revision"),
     )
 
 
@@ -401,6 +405,7 @@ def _update_sync_metadata() -> None:
     count_result = collection.count().get()
     count = count_result[0][0].value
     get_collection("_meta").document("trails_sync").set({"count": count, "last_modified": now})
+    touch("trails")
 
 
 def get_trail_images(trail_id: str) -> TrailImagesResponse:
@@ -423,19 +428,30 @@ def get_trail_images(trail_id: str) -> TrailImagesResponse:
         )
         for img in data.get("images", [])
     ]
-    return TrailImagesResponse(trail_id=trail_id, images=images)
+    return TrailImagesResponse(trail_id=trail_id, images=images, revision=data.get("revision"))
 
 
-def save_trail_images(trail_id: str, images: list[TrailImage]) -> None:
-    """Save trail images to Firestore.
+def save_trail_images(trail_id: str, images: list[TrailImage]) -> str:
+    """Save trail images to Firestore and give them a new revision.
+
+    The images and the trail's `images_revision` are written in one batch, so a client that sees
+    a trail's revision in its delta and then loads the photos can never get an older set. The
+    trail's `modified_at` moves too, which delivers the new revision through `/trails/changes`.
+    Afterwards the `trails` and `images` sync markers change.
 
     Note: With 800px/60% JPEG compression, images are typically 50-100KB each.
     Max 3 images stays well under Firestore's 1 MiB document limit.
+
+    Returns:
+        The new revision.
     """
     validate_document_id(trail_id, field_name="trail_id")
     logger.info("Saving %d image(s) for trail %s", len(images), trail_id)
+    revision = uuid4().hex
+    now = _utc_now_z()
     data = {
         "trail_id": trail_id,
+        "revision": revision,
         "images": [
             {
                 "image_data": img.image_data,
@@ -448,13 +464,23 @@ def save_trail_images(trail_id: str, images: list[TrailImage]) -> None:
             for img in images
         ],
     }
-    get_collection("trail_images").document(trail_id).set(data)
+    batch = create_batch()
+    batch.set(get_collection("trail_images").document(trail_id), data)
+    batch.update(
+        get_collection("trails").document(trail_id),
+        {"images_revision": revision, "modified_at": now, "last_updated": now},
+    )
+    batch.commit()
+    _update_sync_metadata()
+    touch("images")
+    return revision
 
 
 def delete_trail_images(trail_id: str) -> None:
-    """Delete trail images document."""
+    """Delete trail images document (used when the trail itself is deleted)."""
     validate_document_id(trail_id, field_name="trail_id")
     get_collection("trail_images").document(trail_id).delete()
+    touch("images")
 
 
 def get_image_pins(trail_ids: list[str]) -> list[ImagePin]:

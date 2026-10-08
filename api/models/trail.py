@@ -61,6 +61,9 @@ class TrailResponse(BaseModel):
     group_id: str | None = None
     line_color: str | None = None
     is_public: bool = False
+    images_revision: str | None = Field(
+        default=None, description="Changes whenever the trail's photos change; clients cache photos by it"
+    )
 
     @field_validator("line_color")
     @classmethod
@@ -110,6 +113,7 @@ class TrailResponse(BaseModel):
             "modified_at": self.modified_at,
             "created_by": self.created_by,
             "line_color": self.line_color,
+            "images_revision": self.images_revision,
         }
         data.update({k: v for k, v in optional_str.items() if v is not None})
 
@@ -258,6 +262,9 @@ class TrailImagesResponse(BaseModel):
 
     trail_id: str
     images: list[TrailImage] = Field(default_factory=list, max_length=3)
+    revision: str | None = Field(
+        default=None, description="Same value as the trail's images_revision when these images were saved"
+    )
 
 
 class ImagePin(BaseModel):

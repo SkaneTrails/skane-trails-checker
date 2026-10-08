@@ -119,6 +119,35 @@ class TestDocToTrail:
         assert trail.coordinates_map[0].elevation == 100.0
         assert trail.coordinates_map[1].elevation == 220.5
 
+    def test_maps_images_revision(self, mock_collection) -> None:
+        mock_doc = MagicMock()
+        mock_doc.to_dict.return_value = {**SAMPLE_TRAIL, "images_revision": "rev-9"}
+        mock_collection.stream.return_value = [mock_doc]
+
+        assert get_all_trails()[0].images_revision == "rev-9"
+
+    def test_images_revision_defaults_to_none(self, mock_collection) -> None:
+        mock_doc = MagicMock()
+        mock_doc.to_dict.return_value = SAMPLE_TRAIL
+        mock_collection.stream.return_value = [mock_doc]
+
+        assert get_all_trails()[0].images_revision is None
+
+    def test_summary_projection_keeps_images_revision(self, mock_collection) -> None:
+        mock_collection.stream.return_value = []
+
+        get_all_trails(summary=True)
+
+        projected = mock_collection.select.call_args.args[0]
+        assert "images_revision" in projected
+        assert "coordinates_map" not in projected
+
+    def test_images_revision_is_stored_when_set(self) -> None:
+        trail = TrailResponse(**{**_trail_kwargs(), "images_revision": "rev-9"})
+
+        assert trail.to_dict()["images_revision"] == "rev-9"
+        assert "images_revision" not in TrailResponse(**_trail_kwargs()).to_dict()
+
     def test_minimal_document_fills_defaults(self, mock_collection) -> None:
         """Trail with only required fields should populate defaults."""
         minimal = {"trail_id": "t2", "name": "Minimal Trail"}
@@ -1162,7 +1191,8 @@ class TestGetSyncMetadata:
 class TestUpdateSyncMetadata:
     """Tests for _update_sync_metadata."""
 
-    def test_counts_trails_and_sets_timestamp(self, mock_collection) -> None:
+    @patch("api.storage.trail_storage.touch")
+    def test_counts_trails_and_sets_timestamp(self, mock_touch, mock_collection) -> None:
         mock_agg_result = MagicMock()
         mock_agg_result.value = 3
         mock_collection.count.return_value.get.return_value = [[mock_agg_result]]
@@ -1173,6 +1203,7 @@ class TestUpdateSyncMetadata:
         set_call = mock_collection.document.return_value.set.call_args[0][0]
         assert set_call["count"] == 3
         assert set_call["last_modified"] == "2026-03-01T12:00:00Z"
+        mock_touch.assert_called_once_with("trails")
 
     @patch("api.storage.trail_storage._update_sync_metadata")
     def test_public_wrapper_delegates(self, mock_internal) -> None:
@@ -1297,6 +1328,7 @@ class TestTrailImages:
     def test_get_images_with_data(self, mock_collection) -> None:
         data = {
             "trail_id": "t1",
+            "revision": "rev-7",
             "images": [
                 {"image_data": "base64abc", "role": "primary", "lat": 56.0, "lng": 13.0, "caption": "View"},
                 {"image_data": "base64def", "role": "secondary"},
@@ -1304,6 +1336,7 @@ class TestTrailImages:
         }
         mock_collection.document.return_value.get.return_value = _make_doc(data)
         result = get_trail_images("t1")
+        assert result.revision == "rev-7"
         assert len(result.images) == 2
         assert result.images[0].role == "primary"
         assert result.images[0].lat == 56.0
@@ -1311,23 +1344,76 @@ class TestTrailImages:
         assert result.images[1].role == "secondary"
         assert result.images[1].lat is None
 
-    def test_save_images(self, mock_collection) -> None:
+    def test_get_images_without_a_stored_revision(self, mock_collection) -> None:
+        mock_collection.document.return_value.get.return_value = _make_doc(
+            {"trail_id": "t1", "images": [{"image_data": "b", "role": "primary"}]}
+        )
+
+        assert get_trail_images("t1").revision is None
+
+    @patch("api.storage.trail_storage.touch")
+    @patch("api.storage.trail_storage._update_sync_metadata")
+    @patch("api.storage.trail_storage.create_batch")
+    def test_save_images_writes_images_and_trail_revision_in_one_batch(
+        self, mock_batch_factory, mock_sync, mock_touch, mock_collection
+    ) -> None:
         images = [
             TrailImage(image_data="b64data", role="primary", lat=56.0, lng=13.0, caption="Peak"),
             TrailImage(image_data="b64data2", role="secondary"),
         ]
-        save_trail_images("t1", images)
-        mock_collection.document.assert_called_with("t1")
-        call_data = mock_collection.document.return_value.set.call_args[0][0]
+        batch = mock_batch_factory.return_value
+
+        with patch("api.storage.trail_storage._utc_now_z", return_value="2026-06-15T10:00:00Z"):
+            revision = save_trail_images("t1", images)
+
+        image_write, trail_write = batch.set.call_args, batch.update.call_args
+        call_data = image_write.args[1]
         assert call_data["trail_id"] == "t1"
+        assert call_data["revision"] == revision
         assert len(call_data["images"]) == 2
         assert call_data["images"][0]["lat"] == 56.0
         assert "lat" not in call_data["images"][1]
+        assert trail_write.args[1] == {
+            "images_revision": revision,
+            "modified_at": "2026-06-15T10:00:00Z",
+            "last_updated": "2026-06-15T10:00:00Z",
+        }
+        batch.commit.assert_called_once()
+        mock_sync.assert_called_once()
+        mock_touch.assert_called_once_with("images")
 
-    def test_delete_images(self, mock_collection) -> None:
+    @patch("api.storage.trail_storage.touch")
+    @patch("api.storage.trail_storage._update_sync_metadata")
+    @patch("api.storage.trail_storage.create_batch")
+    def test_every_save_gets_a_new_revision(self, mock_batch_factory, mock_sync, mock_touch, mock_collection) -> None:
+        first = save_trail_images("t1", [])
+        second = save_trail_images("t1", [])
+
+        assert first != second
+        assert mock_batch_factory.return_value.commit.call_count == 2
+        assert mock_sync.call_count == 2
+        assert mock_touch.call_count == 2
+
+    @patch("api.storage.trail_storage.touch")
+    @patch("api.storage.trail_storage._update_sync_metadata")
+    @patch("api.storage.trail_storage.create_batch")
+    def test_failed_batch_leaves_the_sync_markers_alone(
+        self, mock_batch_factory, mock_sync, mock_touch, mock_collection
+    ) -> None:
+        mock_batch_factory.return_value.commit.side_effect = RuntimeError("firestore unavailable")
+
+        with pytest.raises(RuntimeError, match="firestore unavailable"):
+            save_trail_images("t1", [])
+
+        mock_sync.assert_not_called()
+        mock_touch.assert_not_called()
+
+    @patch("api.storage.trail_storage.touch")
+    def test_delete_images(self, mock_touch, mock_collection) -> None:
         delete_trail_images("t1")
         mock_collection.document.assert_called_with("t1")
         mock_collection.document.return_value.delete.assert_called_once()
+        mock_touch.assert_called_once_with("images")
 
 
 class TestGetImagePins:

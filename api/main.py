@@ -10,7 +10,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import JSONResponse
 
-from api.routers import foraging, hike_groups, places, trails
+from api.routers import foraging, hike_groups, places, sync, trails
 from api.storage.validation import InvalidDocumentIdError
 
 logger = logging.getLogger(__name__)
@@ -44,6 +44,7 @@ app.include_router(trails.router, prefix="/api/v1")
 app.include_router(foraging.router, prefix="/api/v1")
 app.include_router(places.router, prefix="/api/v1")
 app.include_router(hike_groups.router, prefix="/api/v1")
+app.include_router(sync.router, prefix="/api/v1")
 
 
 @app.exception_handler(InvalidDocumentIdError)

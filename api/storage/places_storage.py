@@ -5,6 +5,7 @@ from datetime import UTC, datetime
 
 from api.models.place import PlaceCategoryResponse, PlaceResponse
 from api.storage.firestore_client import create_batch, get_collection
+from api.storage.sync_status import touch
 from api.storage.validation import validate_document_id
 
 logger = logging.getLogger(__name__)
@@ -66,6 +67,7 @@ def save_place(place: PlaceResponse) -> None:
     validate_document_id(place.place_id, field_name="place_id")
     place.last_updated = datetime.now(UTC).isoformat()
     get_collection("places").document(place.place_id).set(place.to_dict())
+    touch("places")
 
 
 def save_places_batch(places: list[PlaceResponse], batch_size: int = 500) -> int:
@@ -96,6 +98,7 @@ def save_places_batch(places: list[PlaceResponse], batch_size: int = 500) -> int
         logger.info("Saved batch %d: %d/%d places", i // batch_size + 1, saved_count, len(places))
 
     logger.info("Saved %d places total", saved_count)
+    touch("places")
     return saved_count
 
 
@@ -103,6 +106,7 @@ def delete_place(place_id: str) -> None:
     """Delete a place from Firestore."""
     validate_document_id(place_id, field_name="place_id")
     get_collection("places").document(place_id).delete()
+    touch("places")
 
 
 def delete_all_places() -> int:
@@ -117,6 +121,7 @@ def delete_all_places() -> int:
         deleted_count += 1
 
     logger.info("Deleted %d places", deleted_count)
+    touch("places")
     return deleted_count
 
 

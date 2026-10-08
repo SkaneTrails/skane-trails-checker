@@ -42,6 +42,51 @@ def _make_doc(doc_id: str, data: dict | None) -> MagicMock:
     return doc
 
 
+@pytest.fixture(autouse=True)
+def mock_touch() -> Generator[MagicMock]:
+    """Keep the sync-status marker write away from Firestore."""
+    with patch("api.storage.foraging_storage.touch") as mock:
+        yield mock
+
+
+class TestSyncStatusTouches:
+    """Every write marks its data type changed, after the data is written; reads never do."""
+
+    def test_spot_writes_touch_foraging_spots(self, mock_collection, mock_touch) -> None:
+        save_foraging_spot({"type": "Blueberries", "lat": 56.0, "lng": 13.0})
+        update_foraging_spot("s1", {"notes": "x"})
+        delete_foraging_spot("s1")
+
+        assert [call.args for call in mock_touch.call_args_list] == [("foraging_spots",)] * 3
+
+    def test_type_writes_touch_foraging_types(self, mock_collection, mock_touch) -> None:
+        save_foraging_type("Blueberries", {"icon": "x"})
+        update_foraging_type("Blueberries", {"icon": "y"})
+        delete_foraging_type("Blueberries")
+
+        assert [call.args for call in mock_touch.call_args_list] == [("foraging_types",)] * 3
+
+    def test_the_marker_is_written_after_the_data(self, mock_collection, mock_touch) -> None:
+        order: list[str] = []
+        mock_collection.document.return_value.delete.side_effect = lambda: order.append("data")
+        mock_touch.side_effect = lambda kind: order.append(f"touch {kind}")
+
+        delete_foraging_spot("s1")
+
+        assert order == ["data", "touch foraging_spots"]
+
+    def test_reads_do_not_touch(self, mock_collection, mock_touch) -> None:
+        mock_collection.stream.return_value = []
+        mock_collection.document.return_value.get.return_value = _make_doc("x", None)
+
+        get_foraging_spots()
+        get_foraging_types()
+        get_foraging_spot("s1")
+        get_foraging_type("t1")
+
+        mock_touch.assert_not_called()
+
+
 class TestGetForagingSpot:
     """Tests for get_foraging_spot — returns single ForagingSpotResponse."""
 

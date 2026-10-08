@@ -76,7 +76,7 @@ class TestGetTrailImages:
 
 
 class TestUploadTrailImage:
-    @patch("api.routers.trails.trail_storage.save_trail_images")
+    @patch("api.routers.trails.trail_storage.save_trail_images", return_value="rev1")
     @patch("api.routers.trails.trail_storage.get_trail_images")
     @patch("api.routers.trails.trail_storage.get_trail")
     def test_upload_primary_image(self, mock_get_trail, mock_get_images, mock_save, authenticated_client):
@@ -93,9 +93,10 @@ class TestUploadTrailImage:
         assert len(data["images"]) == 1
         assert data["images"][0]["role"] == "primary"
         assert data["images"][0]["caption"] == "Summit"
+        assert data["revision"] == "rev1"
         mock_save.assert_called_once()
 
-    @patch("api.routers.trails.trail_storage.save_trail_images")
+    @patch("api.routers.trails.trail_storage.save_trail_images", return_value="rev1")
     @patch("api.routers.trails.trail_storage.get_trail_images")
     @patch("api.routers.trails.trail_storage.get_trail")
     def test_upload_replaces_existing_primary(self, mock_get_trail, mock_get_images, mock_save, authenticated_client):
@@ -182,7 +183,7 @@ class TestUploadTrailImage:
         assert response.status_code == 413
         assert "Processed image too large" in response.json()["detail"]
 
-    @patch("api.routers.trails.trail_storage.save_trail_images")
+    @patch("api.routers.trails.trail_storage.save_trail_images", return_value="rev1")
     @patch("api.routers.trails.trail_storage.get_trail_images")
     @patch("api.routers.trails.trail_storage.get_trail")
     def test_upload_generates_thumbnail_when_gps_present(
@@ -204,7 +205,7 @@ class TestUploadTrailImage:
             saved_images = mock_save.call_args[0][1]
             assert saved_images[0].thumbnail == "tiny_thumb"
 
-    @patch("api.routers.trails.trail_storage.save_trail_images")
+    @patch("api.routers.trails.trail_storage.save_trail_images", return_value="rev1")
     @patch("api.routers.trails.trail_storage.get_trail_images")
     @patch("api.routers.trails.trail_storage.get_trail")
     def test_upload_falls_back_to_trail_midpoint_when_no_gps(
