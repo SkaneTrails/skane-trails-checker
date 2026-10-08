@@ -51,10 +51,13 @@ describe('syncMapTrails', () => {
     expect(getTrailChanges).toHaveBeenCalledWith(undefined);
     expect(onLocal).not.toHaveBeenCalled();
     expect(result.map((t) => t.trail_id)).toEqual(['a', 'b']);
-    expect(store.apply).toHaveBeenCalledWith('user-1', [trail('a'), trail('b')], [], {
-      lastSyncTime: '2026-03-01T12:00:00Z',
-      scope: SCOPE,
-    });
+    expect(store.apply).toHaveBeenCalledWith(
+      'user-1',
+      [trail('a'), trail('b')],
+      [],
+      { lastSyncTime: '2026-03-01T12:00:00Z', scope: SCOPE },
+      { replace: true },
+    );
   });
 
   it('shows the local copy before the network answers', async () => {
@@ -113,10 +116,13 @@ describe('syncMapTrails', () => {
     const result = await syncMapTrails(vi.fn());
 
     expect(result.map((t) => `${t.trail_id}:${t.name}`).sort()).toEqual(['a:new', 'c:c', 'd:d']);
-    expect(store.apply).toHaveBeenCalledWith('user-1', [trail('a', 'new'), trail('d')], ['b'], {
-      lastSyncTime: '2026-03-02T00:00:00Z',
-      scope: SCOPE,
-    });
+    expect(store.apply).toHaveBeenCalledWith(
+      'user-1',
+      [trail('a', 'new'), trail('d')],
+      ['b'],
+      { lastSyncTime: '2026-03-02T00:00:00Z', scope: SCOPE },
+      { replace: false },
+    );
   });
 
   it('records the sync position when the very first sync finds no trails', async () => {
@@ -129,10 +135,13 @@ describe('syncMapTrails', () => {
     });
 
     expect(await syncMapTrails(vi.fn())).toEqual([]);
-    expect(store.apply).toHaveBeenCalledWith('user-1', [], [], {
-      lastSyncTime: '2026-03-01T12:00:00Z',
-      scope: SCOPE,
-    });
+    expect(store.apply).toHaveBeenCalledWith(
+      'user-1',
+      [],
+      [],
+      { lastSyncTime: '2026-03-01T12:00:00Z', scope: SCOPE },
+      { replace: true },
+    );
   });
 
   it('drops the local copy and fetches everything when the server reports another scope', async () => {
@@ -161,9 +170,29 @@ describe('syncMapTrails', () => {
     expect(getTrailChanges).toHaveBeenNthCalledWith(1, '2026-03-01T00:00:00Z');
     expect(getTrailChanges).toHaveBeenNthCalledWith(2);
     expect(result.map((t) => t.trail_id)).toEqual(['new-group-trail']);
-    expect(store.apply).toHaveBeenCalledWith('user-1', [trail('new-group-trail')], [], {
-      lastSyncTime: '2026-03-02T00:00:01Z',
-      scope: 'group:new',
+    expect(store.apply).toHaveBeenCalledWith(
+      'user-1',
+      [trail('new-group-trail')],
+      [],
+      { lastSyncTime: '2026-03-02T00:00:01Z', scope: 'group:new' },
+      { replace: true },
+    );
+  });
+
+  it('replaces the stored copy when the local one was unreadable, since a full snapshot has no tombstones', async () => {
+    // The store reports an unreadable copy as empty with no cursor.
+    store.get.mockResolvedValue({ trails: [], lastSyncTime: null, scope: null });
+    getTrailChanges.mockResolvedValue({
+      trails: [trail('still-there')],
+      deleted_ids: [],
+      server_time: '2026-03-02T00:00:00Z',
+      scope: SCOPE,
+    });
+
+    await syncMapTrails(vi.fn());
+
+    expect(store.apply).toHaveBeenCalledWith('user-1', [trail('still-there')], [], expect.anything(), {
+      replace: true,
     });
   });
 

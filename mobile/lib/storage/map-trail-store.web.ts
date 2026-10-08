@@ -89,19 +89,23 @@ export const mapTrailStore = {
 
   /**
    * Store changed trails and drop deleted ones for `ownerUid`, replacing another user's copy.
-   * Keeps the previous sync position when none is given.
+   * Keeps the previous sync position when none is given. With `replace`, `changed` is a full
+   * snapshot: whatever was stored before (even after a failed read) is discarded, so a trail
+   * deleted on the server cannot linger.
    */
   async apply(
     ownerUid: string,
     changed: Trail[],
     deletedIds: string[],
     sync?: MapSyncState,
+    options: { replace?: boolean } = {},
   ): Promise<void> {
     let db: IDBDatabase | undefined;
     try {
       db = await openDb();
       const stored = await readAll(db);
-      const base = stored.ownerUid === ownerUid ? stored : { ...stored, trails: [], lastSyncTime: null, scope: null };
+      const keep = stored.ownerUid === ownerUid && !options.replace;
+      const base = keep ? stored : { ...stored, trails: [], lastSyncTime: null, scope: null };
       await putAll(db, [
         [TRAILS_KEY, mergeTrails(base.trails, changed, deletedIds)],
         [SYNC_TIME_KEY, sync?.lastSyncTime ?? base.lastSyncTime ?? ''],

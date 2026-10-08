@@ -5,7 +5,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from api.storage.trail_tombstones import add_tombstone_to_batch, get_deleted_trail_ids
+from api.storage.trail_tombstones import add_tombstone, get_deleted_trail_ids
 
 
 @pytest.fixture
@@ -22,11 +22,11 @@ def _doc(data: dict) -> MagicMock:
     return doc
 
 
-class TestAddTombstoneToBatch:
+class TestAddTombstone:
     def test_adds_tombstone_with_group_and_visibility(self, mock_collection) -> None:
         batch = MagicMock()
 
-        add_tombstone_to_batch(batch, "t1", {"group_id": "g1", "is_public": True}, "2026-03-01T12:00:00Z")
+        add_tombstone(batch, "t1", {"group_id": "g1", "is_public": True}, "2026-03-01T12:00:00Z")
 
         mock_collection.document.assert_called_once_with()
         batch.set.assert_called_once_with(
@@ -37,14 +37,14 @@ class TestAddTombstoneToBatch:
     def test_defaults_when_trail_has_no_group(self, mock_collection) -> None:
         batch = MagicMock()
 
-        add_tombstone_to_batch(batch, "t1", {}, "2026-03-01T12:00:00Z")
+        add_tombstone(batch, "t1", {}, "2026-03-01T12:00:00Z")
 
         written = batch.set.call_args.args[1]
         assert written["group_id"] is None
         assert written["is_public"] is False
 
     def test_does_not_write_on_its_own(self, mock_collection) -> None:
-        add_tombstone_to_batch(MagicMock(), "t1", {}, "2026-03-01T12:00:00Z")
+        add_tombstone(MagicMock(), "t1", {}, "2026-03-01T12:00:00Z")
 
         mock_collection.document.return_value.set.assert_not_called()
 
@@ -52,8 +52,8 @@ class TestAddTombstoneToBatch:
         """A later removal of a re-used trail ID must not overwrite the earlier audience."""
         batch = MagicMock()
 
-        add_tombstone_to_batch(batch, "t1", {"group_id": None, "is_public": True}, "2026-03-01T12:00:00Z")
-        add_tombstone_to_batch(batch, "t1", {"group_id": "g1", "is_public": False}, "2026-03-03T12:00:00Z")
+        add_tombstone(batch, "t1", {"group_id": None, "is_public": True}, "2026-03-01T12:00:00Z")
+        add_tombstone(batch, "t1", {"group_id": "g1", "is_public": False}, "2026-03-03T12:00:00Z")
 
         assert mock_collection.document.call_args_list == [(), ()]
         assert batch.set.call_count == 2

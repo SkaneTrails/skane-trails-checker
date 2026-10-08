@@ -147,6 +147,17 @@ describe('mapTrailStore (native / files)', () => {
     expect(files.has('doc/map-trails/private.json')).toBe(false);
   });
 
+  it('replaces everything stored when applying a full snapshot, even an unreadable copy', async () => {
+    await mapTrailStore.apply('u1', [trail('a'), trail('gone')], [], SYNC);
+    files.delete('doc/map-trails/gone.json'); // the index still lists it, so reads fail
+    expect(await mapTrailStore.get('u1')).toEqual(EMPTY);
+
+    await mapTrailStore.apply('u1', [trail('a')], [], SYNC, { replace: true });
+
+    const stored = await mapTrailStore.get('u1');
+    expect(stored.trails.map((t) => t.trail_id)).toEqual(['a']);
+  });
+
   it('escapes trail ids that are not safe file names', async () => {
     await mapTrailStore.apply('u1', [trail('a/b')], [], SYNC);
     expect(files.has('doc/map-trails/a%2Fb.json')).toBe(true);

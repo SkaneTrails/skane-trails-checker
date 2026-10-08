@@ -631,131 +631,143 @@ class TestUpdateTrail:
         mock_sync.assert_called_once()
 
 
+@pytest.fixture
+def transaction() -> Generator[MagicMock]:
+    """Make run_in_transaction run its operation at once against a mock transaction."""
+    with patch("api.storage.trail_storage.run_in_transaction") as mock_run:
+        mock_transaction = MagicMock()
+        mock_run.side_effect = lambda operation: operation(mock_transaction)
+        yield mock_transaction
+
+
 class TestUpdateTrailVisibility:
     """Making a shared trail private must tell the groups that saw it, without hiding it from its owner."""
 
-    @patch("api.storage.trail_storage.add_tombstone_to_batch")
-    @patch("api.storage.trail_storage.create_batch")
+    @patch("api.storage.trail_storage.add_tombstone")
     @patch("api.storage.trail_storage._update_sync_metadata")
-    def test_unsharing_a_public_trail_updates_and_tombstones_in_one_batch(
-        self, mock_sync, mock_batch_factory, mock_add, mock_collection
+    def test_unsharing_a_public_trail_reads_updates_and_tombstones_in_one_transaction(
+        self, mock_sync, mock_add, transaction, mock_collection
     ) -> None:
         previous = {**SAMPLE_TRAIL, "group_id": "g1", "is_public": True}
-        mock_collection.document.return_value.get.return_value = _make_doc(previous)
-        batch = mock_batch_factory.return_value
+        trail_ref = mock_collection.document.return_value
+        trail_ref.get.return_value = _make_doc(previous)
 
         with patch("api.storage.trail_storage._utc_now_z", return_value="2026-03-01T13:00:00Z"):
             update_trail("t1", {"is_public": False})
 
-        batch.update.assert_called_once()
-        updated = batch.update.call_args.args[1]
+        trail_ref.get.assert_called_once_with(transaction=transaction)
+        transaction.update.assert_called_once()
+        updated = transaction.update.call_args.args[1]
         assert updated["is_public"] is False
         assert updated["modified_at"] == "2026-03-01T13:00:00Z"
-        mock_add.assert_called_once_with(batch, "t1", previous, "2026-03-01T13:00:00Z")
-        batch.commit.assert_called_once()
-        mock_collection.document.return_value.update.assert_not_called()
+        mock_add.assert_called_once_with(transaction, "t1", previous, "2026-03-01T13:00:00Z")
+        trail_ref.update.assert_not_called()
         mock_sync.assert_called_once()
 
-    @patch("api.storage.trail_storage.create_batch")
+    @patch("api.storage.trail_storage.run_in_transaction")
     @patch("api.storage.trail_storage._update_sync_metadata")
-    def test_sharing_a_trail_needs_no_tombstone(self, mock_sync, mock_batch_factory, mock_collection) -> None:
+    def test_sharing_a_trail_needs_no_transaction(self, mock_sync, mock_run, mock_collection) -> None:
         update_trail("t1", {"is_public": True})
 
-        mock_batch_factory.assert_not_called()
+        mock_run.assert_not_called()
         mock_collection.document.return_value.get.assert_not_called()
         mock_collection.document.return_value.update.assert_called_once()
         mock_sync.assert_called_once()
 
-    @patch("api.storage.trail_storage.create_batch")
+    @patch("api.storage.trail_storage.add_tombstone")
     @patch("api.storage.trail_storage._update_sync_metadata")
     def test_unsharing_a_trail_that_was_private_needs_no_tombstone(
-        self, mock_sync, mock_batch_factory, mock_collection
+        self, mock_sync, mock_add, transaction, mock_collection
     ) -> None:
         mock_collection.document.return_value.get.return_value = _make_doc({**SAMPLE_TRAIL, "is_public": False})
 
         update_trail("t1", {"is_public": False})
 
-        mock_batch_factory.assert_not_called()
-        mock_collection.document.return_value.update.assert_called_once()
+        transaction.update.assert_called_once()
+        mock_add.assert_not_called()
         mock_sync.assert_called_once()
 
-    @patch("api.storage.trail_storage.create_batch")
+    @patch("api.storage.trail_storage.add_tombstone")
     @patch("api.storage.trail_storage._update_sync_metadata")
-    def test_unsharing_a_missing_trail_falls_through_to_a_plain_update(
-        self, mock_sync, mock_batch_factory, mock_collection
+    def test_unsharing_a_missing_trail_still_attempts_the_update_without_a_tombstone(
+        self, mock_sync, mock_add, transaction, mock_collection
     ) -> None:
         mock_collection.document.return_value.get.return_value = _make_doc(None, exists=False)
 
         update_trail("t1", {"is_public": False})
 
-        mock_batch_factory.assert_not_called()
-        mock_collection.document.return_value.update.assert_called_once()
+        transaction.update.assert_called_once()
+        mock_add.assert_not_called()
         mock_sync.assert_called_once()
+
+    @patch("api.storage.trail_storage.run_in_transaction", side_effect=RuntimeError("contention"))
+    @patch("api.storage.trail_storage._update_sync_metadata")
+    def test_a_failed_transaction_raises_and_leaves_sync_metadata_alone(
+        self, mock_sync, mock_run, mock_collection
+    ) -> None:
+        with pytest.raises(RuntimeError, match="contention"):
+            update_trail("t1", {"is_public": False})
+
+        mock_run.assert_called_once()
+        mock_collection.document.return_value.update.assert_not_called()
+        mock_sync.assert_not_called()
 
 
 class TestDeleteTrail:
-    """Tests for delete_trail — trail, details and tombstone go in one atomic batch."""
+    """Tests for delete_trail — audience read, deletes and tombstone happen in one transaction."""
 
-    @patch("api.storage.trail_storage.add_tombstone_to_batch")
-    @patch("api.storage.trail_storage.create_batch")
+    @patch("api.storage.trail_storage.add_tombstone")
     @patch("api.storage.trail_storage._update_sync_metadata")
-    def test_deletes_trail_details_and_writes_tombstone_in_one_batch(
-        self, mock_sync, mock_batch_factory, mock_add, mock_collection
+    def test_reads_the_audience_then_deletes_and_tombstones_in_one_transaction(
+        self, mock_sync, mock_add, transaction, mock_collection
     ) -> None:
         trail_data = {**SAMPLE_TRAIL, "group_id": "g1"}
-        mock_collection.document.return_value.get.return_value = _make_doc(trail_data)
-        batch = mock_batch_factory.return_value
+        trail_ref = mock_collection.document.return_value
+        trail_ref.get.return_value = _make_doc(trail_data)
 
         with patch("api.storage.trail_storage._utc_now_z", return_value="2026-03-01T12:00:00Z"):
             delete_trail("t1")
 
-        assert batch.delete.call_count == 2
-        mock_add.assert_called_once_with(batch, "t1", trail_data, "2026-03-01T12:00:00Z")
-        batch.commit.assert_called_once()
-        mock_collection.document.return_value.delete.assert_not_called()
+        trail_ref.get.assert_called_once_with(transaction=transaction)
+        assert transaction.delete.call_count == 2
+        mock_add.assert_called_once_with(transaction, "t1", trail_data, "2026-03-01T12:00:00Z")
+        trail_ref.delete.assert_not_called()
         mock_sync.assert_called_once()
 
-    @patch("api.storage.trail_storage.add_tombstone_to_batch")
-    @patch("api.storage.trail_storage.create_batch")
+    @patch("api.storage.trail_storage.add_tombstone")
     @patch("api.storage.trail_storage._update_sync_metadata")
-    def test_delete_trail_skips_sync_when_disabled(
-        self, mock_sync, mock_batch_factory, mock_add, mock_collection
-    ) -> None:
+    def test_delete_trail_skips_sync_when_disabled(self, mock_sync, mock_add, transaction, mock_collection) -> None:
         mock_collection.document.return_value.get.return_value = _make_doc(SAMPLE_TRAIL)
 
         delete_trail("t1", update_sync=False)
 
-        mock_batch_factory.return_value.commit.assert_called_once()
+        assert transaction.delete.call_count == 2
         mock_add.assert_called_once()
         mock_sync.assert_not_called()
 
-    @patch("api.storage.trail_storage.add_tombstone_to_batch")
-    @patch("api.storage.trail_storage.create_batch")
+    @patch("api.storage.trail_storage.add_tombstone")
     @patch("api.storage.trail_storage._update_sync_metadata")
     def test_no_tombstone_for_a_trail_that_does_not_exist(
-        self, mock_sync, mock_batch_factory, mock_add, mock_collection
+        self, mock_sync, mock_add, transaction, mock_collection
     ) -> None:
         mock_collection.document.return_value.get.return_value = _make_doc(None, exists=False)
 
         delete_trail("t1")
 
         mock_add.assert_not_called()
-        mock_batch_factory.return_value.commit.assert_called_once()
+        assert transaction.delete.call_count == 2
         mock_sync.assert_called_once()
 
-    @patch("api.storage.trail_storage.add_tombstone_to_batch")
-    @patch("api.storage.trail_storage.create_batch")
+    @patch("api.storage.trail_storage.run_in_transaction", side_effect=RuntimeError("firestore unavailable"))
     @patch("api.storage.trail_storage._update_sync_metadata")
-    def test_failed_commit_raises_and_leaves_sync_metadata_alone(
-        self, mock_sync, mock_batch_factory, mock_add, mock_collection
+    def test_failed_transaction_raises_and_leaves_sync_metadata_alone(
+        self, mock_sync, mock_run, mock_collection
     ) -> None:
-        mock_collection.document.return_value.get.return_value = _make_doc(SAMPLE_TRAIL)
-        mock_batch_factory.return_value.commit.side_effect = RuntimeError("firestore unavailable")
-
         with pytest.raises(RuntimeError, match="firestore unavailable"):
             delete_trail("t1")
 
-        mock_add.assert_called_once()
+        mock_run.assert_called_once()
+        mock_collection.document.return_value.delete.assert_not_called()
         mock_sync.assert_not_called()
 
 

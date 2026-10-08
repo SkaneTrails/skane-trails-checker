@@ -86,18 +86,23 @@ export const mapTrailStore = {
 
   /**
    * Store changed trails and drop deleted ones for `ownerUid`, replacing another user's copy.
-   * Keeps the previous sync position when none is given.
+   * Keeps the previous sync position when none is given. With `replace`, `changed` is a full
+   * snapshot: whatever was stored before (even an unreadable copy) is discarded, so a trail
+   * deleted on the server cannot linger.
    */
   async apply(
     ownerUid: string,
     changed: Trail[],
     deletedIds: string[],
     sync?: MapSyncState,
+    options: { replace?: boolean } = {},
   ): Promise<void> {
     try {
       let directory = openDirectory();
-      let previous = await readIndex(directory).catch((): StoreIndex => EMPTY_INDEX);
-      if (previous.ownerUid !== ownerUid) {
+      let previous = options.replace
+        ? EMPTY_INDEX
+        : await readIndex(directory).catch((): StoreIndex => EMPTY_INDEX);
+      if (options.replace || previous.ownerUid !== ownerUid) {
         eraseStore();
         directory = openDirectory();
         previous = EMPTY_INDEX;

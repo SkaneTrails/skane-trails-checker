@@ -76,6 +76,15 @@ describe('mapTrailStore (web / IndexedDB)', () => {
     expect(stored.scope).toBe('group:g2');
   });
 
+  it('replaces everything stored when applying a full snapshot, so a trail deleted on the server cannot linger', async () => {
+    await mapTrailStore.apply('u1', [trail('a'), trail('deleted-on-server')], [], SYNC);
+
+    await mapTrailStore.apply('u1', [trail('a')], [], SYNC, { replace: true });
+
+    const stored = await mapTrailStore.get('u1');
+    expect(stored.trails.map((t) => t.trail_id)).toEqual(['a']);
+  });
+
   it('changes all stored keys in a single transaction, so a failure cannot leave trails and cursor apart', async () => {
     await mapTrailStore.apply('u1', [trail('a')], [], SYNC);
     const transaction = vi.spyOn(IDBDatabase.prototype, 'transaction');

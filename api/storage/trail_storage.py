@@ -15,8 +15,8 @@ from api.models.trail import (
     TrailImagesResponse,
     TrailResponse,
 )
-from api.storage.firestore_client import create_batch, get_collection
-from api.storage.trail_tombstones import add_tombstone_to_batch, get_deleted_trail_ids
+from api.storage.firestore_client import get_collection, run_in_transaction
+from api.storage.trail_tombstones import add_tombstone, get_deleted_trail_ids
 from api.storage.validation import validate_document_id
 
 logger = logging.getLogger(__name__)
@@ -259,8 +259,9 @@ def update_trail_name(trail_id: str, name: str) -> None:
 def update_trail(trail_id: str, updates: dict) -> None:
     """Update multiple fields of a trail.
 
-    Making a shared trail private also leaves a tombstone (in the same batch), so the groups
-    that saw it drop their copy; its owner keeps it because the trail is still in their delta.
+    Making a shared trail private also leaves a tombstone, written in the same transaction that
+    read the trail's sharing, so the groups that saw it drop their copy even if the sharing is
+    changed concurrently. Its owner keeps the trail because it is still in their delta.
     """
     validate_document_id(trail_id, field_name="trail_id")
     logger.info("Updating trail %s with fields: %s", trail_id, list(updates.keys()))
@@ -268,41 +269,43 @@ def update_trail(trail_id: str, updates: dict) -> None:
     updates["last_updated"] = now
     updates["modified_at"] = now
     trail_ref = get_collection("trails").document(trail_id)
-    shared_trail = _shared_trail_being_made_private(trail_ref, updates)
-    if shared_trail is None:
-        trail_ref.update(updates)
+    if updates.get("is_public") is False:
+        run_in_transaction(lambda transaction: _make_private(transaction, trail_ref, trail_id, updates, now))
     else:
-        batch = create_batch()
-        batch.update(trail_ref, updates)
-        add_tombstone_to_batch(batch, trail_id, shared_trail, now)
-        batch.commit()
+        trail_ref.update(updates)
     _update_sync_metadata()
 
 
-def _shared_trail_being_made_private(trail_ref: Any, updates: dict) -> dict | None:
-    """Return the trail's current data if this update stops sharing a public trail, else None."""
-    if updates.get("is_public") is not False:
-        return None
-    snapshot = trail_ref.get()
-    data = snapshot.to_dict() if snapshot.exists else None
-    return data if data and data.get("is_public") else None
+def _make_private(transaction: Any, trail_ref: Any, trail_id: str, updates: dict, now: str) -> None:
+    """Apply an update that stops sharing a trail, with a tombstone if it was shared."""
+    snapshot = trail_ref.get(transaction=transaction)
+    previous = snapshot.to_dict() if snapshot.exists else None
+    transaction.update(trail_ref, updates)
+    if previous and previous.get("is_public"):
+        add_tombstone(transaction, trail_id, previous, now)
 
 
 def delete_trail(trail_id: str, *, update_sync: bool = True) -> None:
-    """Delete a trail and its details, with a tombstone for client delta sync, in one atomic batch."""
+    """Delete a trail and its details, with a tombstone for client delta sync, in one transaction.
+
+    The transaction reads who could see the trail and writes the tombstone for that audience, so a
+    concurrent change of sharing cannot leave the recorded audience stale.
+    """
     validate_document_id(trail_id, field_name="trail_id")
     logger.info("Deleting trail %s", trail_id)
     trail_ref = get_collection("trails").document(trail_id)
-    snapshot = trail_ref.get()
-    trail_data = snapshot.to_dict() if snapshot.exists else None
-    batch = create_batch()
-    batch.delete(trail_ref)
-    batch.delete(get_collection("trail_details").document(trail_id))
-    if trail_data is not None:
-        add_tombstone_to_batch(batch, trail_id, trail_data, _utc_now_z())
-    batch.commit()
+    run_in_transaction(lambda transaction: _delete_with_tombstone(transaction, trail_ref, trail_id))
     if update_sync:
         _update_sync_metadata()
+
+
+def _delete_with_tombstone(transaction: Any, trail_ref: Any, trail_id: str) -> None:
+    snapshot = trail_ref.get(transaction=transaction)
+    trail_data = snapshot.to_dict() if snapshot.exists else None
+    transaction.delete(trail_ref)
+    transaction.delete(get_collection("trail_details").document(trail_id))
+    if trail_data is not None:
+        add_tombstone(transaction, trail_id, trail_data, _utc_now_z())
 
 
 def get_sync_metadata() -> SyncMetadata:

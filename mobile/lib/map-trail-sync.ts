@@ -39,9 +39,14 @@ export async function syncMapTrails(onLocal: (trails: Trail[]) => void): Promise
   const hasChanges = changes.trails.length > 0 || changes.deleted_ids.length > 0;
   if (!hasChanges && local.lastSyncTime !== null) return local.trails;
 
-  await mapTrailStore.apply(ownerUid, changes.trails, changes.deleted_ids, {
-    lastSyncTime: changes.server_time,
-    scope: changes.scope,
-  });
+  await mapTrailStore.apply(
+    ownerUid,
+    changes.trails,
+    changes.deleted_ids,
+    { lastSyncTime: changes.server_time, scope: changes.scope },
+    // Without a cursor the response is a full snapshot (also after an unreadable local copy), so it
+    // replaces what is stored: a trail deleted on the server has no tombstone to remove it.
+    { replace: local.lastSyncTime === null },
+  );
   return mergeTrails(local.trails, changes.trails, changes.deleted_ids);
 }

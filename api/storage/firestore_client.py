@@ -1,6 +1,7 @@
 """Firestore client wrapper with authentication and connection management."""
 
 import os
+from collections.abc import Callable
 from functools import lru_cache
 
 from google.cloud import firestore, secretmanager
@@ -126,3 +127,12 @@ def create_batch() -> firestore.WriteBatch:  # pragma: no cover
         Write batch for atomic operations
     """
     return get_firestore_client().batch()
+
+
+def run_in_transaction(operation: Callable[[firestore.Transaction], None]) -> None:  # pragma: no cover
+    """Run an operation in a Firestore transaction, retrying it if the data it read changes.
+
+    Args:
+        operation: Called with the transaction; all reads must come before its writes.
+    """
+    firestore.transactional(operation)(get_firestore_client().transaction())

@@ -4,7 +4,7 @@ Each removal is a tiny `trail_tombstones` document holding the trail ID, who cou
 when it went away. Every event gets its own document: trail IDs are reusable (a GPX re-upload gets the
 same ID), so a later removal must not overwrite an earlier one and the audience it recorded. Clients ask
 for everything removed since their last sync instead of comparing full ID lists. A tombstone is written in
-the same batch as the change it records, so the two can never disagree. They are never deleted; a trail
+the same transaction as the change it records, so the two can never disagree. They are never deleted; a trail
 that comes back is reported as changed and `get_trail_changes` leaves it out of the removed IDs.
 """
 
@@ -15,17 +15,17 @@ from api.storage.firestore_client import get_collection
 COLLECTION = "trail_tombstones"
 
 
-def add_tombstone_to_batch(batch: Any, trail_id: str, trail_data: dict[str, Any], deleted_at: str) -> None:
-    """Add a tombstone write to a Firestore batch.
+def add_tombstone(writer: Any, trail_id: str, trail_data: dict[str, Any], deleted_at: str) -> None:
+    """Add a tombstone write to a Firestore transaction or batch.
 
     Args:
-        batch: The batch that also carries the deletion or visibility change.
+        writer: The transaction (or batch) that also carries the deletion or visibility change.
         trail_id: ID of the trail that went away for some viewers.
         trail_data: The trail's Firestore document as it was before the change; its group and
             sharing decide who is told.
         deleted_at: ISO timestamp (Z-suffix UTC) of the change.
     """
-    batch.set(
+    writer.set(
         get_collection(COLLECTION).document(),
         {
             "trail_id": trail_id,
