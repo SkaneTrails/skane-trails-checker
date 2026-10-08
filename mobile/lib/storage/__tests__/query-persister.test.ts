@@ -61,9 +61,9 @@ describe('createPersister (web/IndexedDB)', () => {
     expect(restored?.clientState.queries[0].state.data).toEqual({ hello: 'world' });
   });
 
-  it('discards stale cache older than 24 hours', async () => {
+  it('discards stale cache older than 30 days', async () => {
     const staleClient = makePersistedClient({
-      timestamp: Date.now() - 1000 * 60 * 60 * 25, // 25 hours ago
+      timestamp: Date.now() - 1000 * 60 * 60 * 24 * 31, // 31 days ago
     });
     await persister.persistClient(staleClient);
 
@@ -71,9 +71,9 @@ describe('createPersister (web/IndexedDB)', () => {
     expect(restored).toBeUndefined();
   });
 
-  it('keeps cache within 24 hours', async () => {
+  it('keeps cache within 30 days', async () => {
     const freshClient = makePersistedClient({
-      timestamp: Date.now() - 1000 * 60 * 60 * 23, // 23 hours ago
+      timestamp: Date.now() - 1000 * 60 * 60 * 24 * 29, // 29 days ago
     });
     await persister.persistClient(freshClient);
 

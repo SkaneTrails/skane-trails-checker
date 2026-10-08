@@ -12,6 +12,7 @@ export function useForagingSpots(month?: string, options?: { enabled?: boolean }
   return useQuery({
     queryKey: foragingKeys.spots(month),
     queryFn: () => foragingApi.getSpots(month),
+    staleTime: Number.POSITIVE_INFINITY, // the sync status poll refetches when they change
     enabled: options?.enabled,
   });
 }
@@ -20,7 +21,7 @@ export function useForagingTypes(options?: { enabled?: boolean }) {
   return useQuery({
     queryKey: foragingKeys.types,
     queryFn: () => foragingApi.getTypes(),
-    staleTime: 24 * 60 * 60 * 1000, // 24 h — types rarely change
+    staleTime: Number.POSITIVE_INFINITY, // the sync status poll refetches when they change
     enabled: options?.enabled,
   });
 }

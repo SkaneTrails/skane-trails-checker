@@ -328,6 +328,7 @@ All endpoints are prefixed with `/api/v1`.
 | Method   | Path                   | Auth | Description                                      |
 | -------- | ---------------------- | ---- | ------------------------------------------------ |
 | `GET`    | `/trails/sync`         | No   | Sync metadata (count, last_modified)             |
+| `GET`    | `/sync/status`         | Yes  | One version per data type, for change polling    |
 | `GET`    | `/trails/changes`      | Yes  | Trails changed + IDs deleted since `?since=`     |
 | `GET`    | `/trails`              | No   | List trails (filter by source, status, distance) |
 | `GET`    | `/trails/{id}`         | No   | Get single trail                                 |
@@ -372,6 +373,15 @@ The app keeps its own copy of every trail, including the map coordinates, and on
 1. The local copy belongs to one signed-in user and one scope (`scope` in the response: `all` for a superuser, else `group:<id>`). A different user, or a scope that no longer matches, erases it and fetches everything again, so private trails never carry over and an old cursor is never reused.
 
 If the local copy is ever wrong, **Menu > Refresh all data** clears everything stored on the device and downloads it again.
+
+### Change polling
+
+`GET /sync/status` returns one opaque version per data type (`trails`, `places`, `foraging_spots`, `foraging_types`, `images`), stored in `_meta/sync_status` and replaced by every write path (`api/storage/sync_status.py`). The app (`mobile/lib/sync/poll-sync-status.ts`, driven by `useSyncPolling`) checks it on start, when it returns to the foreground and every 5 minutes, and refetches only the types whose version differs from the last one it synced (`mobile/lib/storage/sync-seen.ts`). Versions are compared for equality, never ordered. A refetch that fails is not remembered, so the next poll retries it.
+
+- Queries have `staleTime: Infinity`; the poll and the app's own mutations are the only things that refresh them. Foraging spots, foraging types and places are refetched whole when their version changes.
+- Trails travel through the delta described above. The trail list is derived from the same local copy as the map.
+- Photos: each trail carries an `images_revision`. The app keeps a trail's photos on the device (`mobile/lib/storage/trail-image-store.*`) and downloads them again only when that revision changes. The `images` version drives the map's photo pins.
+- A different signed-in user clears the local data before the first poll result is applied.
 
 The React Query cache is saved to a single AsyncStorage entry, which Android caps at about 6 MB. The trail queries that are too big for it (map trails, full tracks, photos) are therefore not saved there (`mobile/lib/storage/persist-filter.ts`).
 

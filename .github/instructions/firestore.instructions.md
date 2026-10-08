@@ -77,6 +77,12 @@ ______________________________________________________________________
 
 Updated automatically on trail save/delete. Used by clients to detect changes efficiently (1 Firestore read per app open).
 
+**Document: `sync_status`**
+
+One field per data type (`trails`, `places`, `foraging_spots`, `foraging_types`, `images`), each an opaque random version (`uuid4().hex`). Every write path calls `touch(kind)` after its data is written, which replaces that version. Clients compare versions for equality only (never order them) and refetch the types that differ. Served by `GET /sync/status`.
+
+Trail documents also carry `images_revision`, replaced in the same batch that writes `trail_images`; a client re-downloads a trail's photos only when it changes.
+
 ### `trail_tombstones` — Trails that were deleted or stopped being shared (delta sync of removals)
 
 | Field        | Type   | Required | Description                                                |

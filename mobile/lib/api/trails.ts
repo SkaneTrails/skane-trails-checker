@@ -1,6 +1,5 @@
 import type {
   ImagePinsResponse,
-  SyncMetadata,
   Trail,
   TrailChanges,
   TrailDetails,
@@ -46,11 +45,6 @@ export const trailsApi = {
     return apiRequest<Trail[]>(`/api/v1/trails${buildQuery(filters)}`);
   },
 
-  /** Fetch trail summaries (no coordinates_map) — much smaller payload for list/sync. */
-  getTrailSummaries(filters: TrailFilters = {}): Promise<Trail[]> {
-    return apiRequest<Trail[]>(`/api/v1/trails${buildQuery({ ...filters, fields: 'summary' })}`);
-  },
-
   getTrail(id: string): Promise<Trail> {
     return apiRequest<Trail>(`/api/v1/trails/${id}`);
   },
@@ -62,10 +56,6 @@ export const trailsApi = {
   /** Trails changed and trail IDs deleted since `since` (full fetch without it), with coordinates. */
   getTrailChanges(since?: string): Promise<TrailChanges> {
     return apiRequest<TrailChanges>(`/api/v1/trails/changes${buildQuery({ since })}`);
-  },
-
-  getSyncMetadata(): Promise<SyncMetadata> {
-    return apiRequest<SyncMetadata>('/api/v1/trails/sync');
   },
 
   updateTrail(id: string, data: TrailUpdate): Promise<Trail> {

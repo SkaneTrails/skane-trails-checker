@@ -1,8 +1,8 @@
 /**
  * Local copy of every trail with its map coordinates (web, IndexedDB).
  *
- * Kept apart from the summary cache in trail-cache so the heavy coordinates are
- * stored once and only changed trails travel from the server after the first sync.
+ * The heavy coordinates are stored once and only changed trails travel from the server after the
+ * first sync.
  *
  * The copy belongs to one signed-in user and one visibility scope (their group, or
  * everything for a superuser). Asking for it as another user empties it, so private
@@ -11,7 +11,7 @@
  * can never leave the trails and the cursor disagreeing.
  */
 import type { Trail } from '@/lib/types';
-import { getFromStore, openDb, STORE_NAME } from './trail-cache.web';
+import { getFromStore, openDb, putAll } from './idb';
 import { mergeTrails } from './merge-trails';
 import { createSerialQueue } from './serial-queue';
 
@@ -34,18 +34,6 @@ const OWNER_KEY = 'mapOwnerUid';
 const SCOPE_KEY = 'mapScope';
 
 const EMPTY: CachedMapTrails = { trails: [], lastSyncTime: null, scope: null };
-
-/** Write several keys in one transaction: either all of them are stored or none. */
-function putAll(db: IDBDatabase, entries: [string, unknown][]): Promise<void> {
-  return new Promise((resolve, reject) => {
-    const tx = db.transaction(STORE_NAME, 'readwrite');
-    const store = tx.objectStore(STORE_NAME);
-    for (const [key, value] of entries) store.put(value, key);
-    tx.oncomplete = () => resolve();
-    tx.onerror = () => reject(tx.error);
-    tx.onabort = () => reject(tx.error);
-  });
-}
 
 async function readAll(db: IDBDatabase) {
   const [trails, lastSyncTime, ownerUid, scope] = await Promise.all([

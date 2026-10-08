@@ -84,17 +84,8 @@ describe('trailsApi', () => {
     });
   });
 
-  describe('getSyncMetadata', () => {
-    it('fetches sync metadata', async () => {
-      mockApiRequest.mockResolvedValue({ count: 42, last_modified: '2026-03-01T12:00:00Z' });
-      const result = await trailsApi.getSyncMetadata();
-      expect(mockApiRequest).toHaveBeenCalledWith('/api/v1/trails/sync');
-      expect(result).toEqual({ count: 42, last_modified: '2026-03-01T12:00:00Z' });
-    });
-  });
-
   describe('getTrailChanges', () => {
-    const changes = { trails: [], deleted_ids: ['gone'], server_time: '2026-03-01T12:00:00Z' };
+    const changes = { trails: [], deleted_ids: ['gone'], server_time: '2026-03-01T12:00:00Z', scope: 'all' };
 
     it('requests everything when there is no previous sync', async () => {
       mockApiRequest.mockResolvedValue(changes);
