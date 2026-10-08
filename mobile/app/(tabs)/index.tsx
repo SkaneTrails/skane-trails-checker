@@ -40,6 +40,11 @@ import { forceReload } from '@/lib/force-reload';
 import { getCurrentPosition } from '@/lib/location';
 import { type MapLayers, useMapLayers } from '@/lib/map-layers';
 import {
+  CONTROL_SIZE,
+  SPINNER_RIGHT_WITH_COMPASS,
+  SPINNER_RIGHT_WITHOUT_COMPASS,
+} from '@/lib/map-controls';
+import {
   calculateCornersForImage,
   isPointInCorners,
   type MapOverlay,
@@ -519,9 +524,19 @@ export default function MapScreen() {
         </View>
       )}
 
-      {/* Loading indicator */}
+      {/* Loading indicator — right to left: menu, compass (native only), spinner */}
       {trailsFetching && (
-        <View style={[styles.spinner, glassPill(colors.glass), { top: spacing.lg + safeTop }]}>
+        <View
+          style={[
+            styles.spinner,
+            glassPill(colors.glass),
+            {
+              top: spacing.lg + safeTop,
+              right:
+                Platform.OS === 'web' ? SPINNER_RIGHT_WITHOUT_COMPASS : SPINNER_RIGHT_WITH_COMPASS,
+            },
+          ]}
+        >
           <ActivityIndicator size="small" color={colors.primary} />
         </View>
       )}
@@ -649,9 +664,10 @@ const styles = StyleSheet.create({
   },
   spinner: {
     position: 'absolute',
-    top: spacing.lg,
-    right: spacing.lg + 44,
-    padding: spacing.sm,
+    width: CONTROL_SIZE,
+    height: CONTROL_SIZE,
+    alignItems: 'center',
+    justifyContent: 'center',
     zIndex: 800,
   },
 });
