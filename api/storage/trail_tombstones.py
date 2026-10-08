@@ -1,10 +1,11 @@
 """Tombstones for trails that deleted or stopped being shared, so clients can delta-sync removals.
 
-Each one is a tiny `trail_tombstones` document (same ID as the trail) holding who could see the
-trail and when it went away. Clients ask for everything removed since their last sync instead of
-comparing full ID lists. A tombstone is written in the same batch as the change it records, so
-the two can never disagree. It is never deleted; a trail that comes back is reported as changed
-and `get_trail_changes` leaves it out of the removed IDs.
+Each removal is a tiny `trail_tombstones` document holding the trail ID, who could see the trail and
+when it went away. Every event gets its own document: trail IDs are reusable (a GPX re-upload gets the
+same ID), so a later removal must not overwrite an earlier one and the audience it recorded. Clients ask
+for everything removed since their last sync instead of comparing full ID lists. A tombstone is written in
+the same batch as the change it records, so the two can never disagree. They are never deleted; a trail
+that comes back is reported as changed and `get_trail_changes` leaves it out of the removed IDs.
 """
 
 from typing import Any
@@ -25,7 +26,7 @@ def add_tombstone_to_batch(batch: Any, trail_id: str, trail_data: dict[str, Any]
         deleted_at: ISO timestamp (Z-suffix UTC) of the change.
     """
     batch.set(
-        get_collection(COLLECTION).document(trail_id),
+        get_collection(COLLECTION).document(),
         {
             "trail_id": trail_id,
             "group_id": trail_data.get("group_id"),
@@ -45,7 +46,7 @@ def get_deleted_trail_ids(since: str | None, group_id: str | None) -> list[str]:
             Group members see their group's trails plus public ones.
 
     Returns:
-        IDs of the deleted trails.
+        IDs of the deleted trails, each once even if it was removed several times.
     """
     if since is None:
         return []
@@ -58,4 +59,4 @@ def get_deleted_trail_ids(since: str | None, group_id: str | None) -> list[str]:
             continue
         if group_id is None or data.get("group_id") in (group_id, None) or data.get("is_public"):
             visible.append(data["trail_id"])
-    return visible
+    return list(dict.fromkeys(visible))

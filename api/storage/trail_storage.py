@@ -337,7 +337,12 @@ def get_trail_changes(since: str | None, group_id: str | None) -> TrailChangesRe
     trails = get_all_trails(since=since, group_id=group_id)
     changed_ids = {trail.trail_id for trail in trails}
     deleted_ids = [trail_id for trail_id in get_deleted_trail_ids(since, group_id) if trail_id not in changed_ids]
-    return TrailChangesResponse(trails=trails, deleted_ids=deleted_ids, server_time=server_time)
+    return TrailChangesResponse(
+        trails=trails,
+        deleted_ids=deleted_ids,
+        server_time=server_time,
+        scope="all" if group_id is None else f"group:{group_id}",
+    )
 
 
 def _utc_now_z() -> str:

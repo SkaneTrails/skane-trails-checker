@@ -233,6 +233,10 @@ class TrailChangesResponse(BaseModel):
     trails: list[TrailResponse] = Field(description="Created or modified trails, including coordinates_map")
     deleted_ids: list[str] = Field(description="IDs of trails deleted since the timestamp")
     server_time: str = Field(description="Pass as `since` next time (taken before the data was read)")
+    scope: str = Field(
+        description="Whose trails these are: 'all' for a superuser, else 'group:<id>'. "
+        "A client whose saved scope differs must discard its local copy and cursor."
+    )
 
 
 class TrailImage(BaseModel):

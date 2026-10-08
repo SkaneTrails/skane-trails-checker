@@ -6,4 +6,4 @@
  * tests/Node.
  */
 export { mapTrailStore } from './map-trail-store.web';
-export type { CachedMapTrails } from './map-trail-store.web';
+export type { CachedMapTrails, MapSyncState } from './map-trail-store.web';

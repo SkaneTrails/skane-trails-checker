@@ -28,7 +28,7 @@ class TestAddTombstoneToBatch:
 
         add_tombstone_to_batch(batch, "t1", {"group_id": "g1", "is_public": True}, "2026-03-01T12:00:00Z")
 
-        mock_collection.document.assert_called_once_with("t1")
+        mock_collection.document.assert_called_once_with()
         batch.set.assert_called_once_with(
             mock_collection.document.return_value,
             {"trail_id": "t1", "group_id": "g1", "is_public": True, "deleted_at": "2026-03-01T12:00:00Z"},
@@ -47,6 +47,16 @@ class TestAddTombstoneToBatch:
         add_tombstone_to_batch(MagicMock(), "t1", {}, "2026-03-01T12:00:00Z")
 
         mock_collection.document.return_value.set.assert_not_called()
+
+    def test_every_removal_gets_its_own_document(self, mock_collection) -> None:
+        """A later removal of a re-used trail ID must not overwrite the earlier audience."""
+        batch = MagicMock()
+
+        add_tombstone_to_batch(batch, "t1", {"group_id": None, "is_public": True}, "2026-03-01T12:00:00Z")
+        add_tombstone_to_batch(batch, "t1", {"group_id": "g1", "is_public": False}, "2026-03-03T12:00:00Z")
+
+        assert mock_collection.document.call_args_list == [(), ()]
+        assert batch.set.call_count == 2
 
 
 class TestGetDeletedTrailIds:
@@ -80,6 +90,24 @@ class TestGetDeletedTrailIds:
         ]
 
         assert get_deleted_trail_ids("2026-03-01T00:00:00Z", group_id=None) == ["a", "b"]
+
+    def test_a_trail_removed_several_times_is_listed_once(self, mock_collection) -> None:
+        mock_collection.where.return_value.stream.return_value = [
+            _doc({"trail_id": "a", "group_id": None, "is_public": True}),
+            _doc({"trail_id": "b", "group_id": "g1"}),
+            _doc({"trail_id": "a", "group_id": "g1", "is_public": False}),
+        ]
+
+        assert get_deleted_trail_ids("2026-03-01T00:00:00Z", group_id="g1") == ["a", "b"]
+
+    def test_a_later_private_removal_does_not_hide_an_earlier_public_one(self, mock_collection) -> None:
+        """A lagging group that saw the public trail must still be told, even after a private re-delete."""
+        mock_collection.where.return_value.stream.return_value = [
+            _doc({"trail_id": "a", "group_id": "owner", "is_public": True}),
+            _doc({"trail_id": "a", "group_id": "owner", "is_public": False}),
+        ]
+
+        assert get_deleted_trail_ids("2026-03-01T00:00:00Z", group_id="lagging") == ["a"]
 
     def test_skips_empty_documents(self, mock_collection) -> None:
         mock_collection.where.return_value.stream.return_value = [_doc({})]

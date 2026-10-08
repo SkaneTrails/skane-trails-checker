@@ -260,7 +260,7 @@ class TestGetTrailChanges:
     @patch("api.routers.trails.trail_storage.get_trail_changes")
     def test_returns_changes_scoped_to_the_group(self, mock_changes, authenticated_client):
         mock_changes.return_value = TrailChangesResponse(
-            trails=[SAMPLE_TRAIL], deleted_ids=["gone"], server_time="2026-03-01T12:00:00Z"
+            trails=[SAMPLE_TRAIL], deleted_ids=["gone"], server_time="2026-03-01T12:00:00Z", scope="group:test-group"
         )
         response = authenticated_client.get("/api/v1/trails/changes?since=2026-03-01T00:00:00Z")
         assert response.status_code == 200
@@ -269,18 +269,23 @@ class TestGetTrailChanges:
         assert body["trails"][0]["coordinates_map"] != []
         assert body["deleted_ids"] == ["gone"]
         assert body["server_time"] == "2026-03-01T12:00:00Z"
+        assert body["scope"] == "group:test-group"
         mock_changes.assert_called_once_with(since="2026-03-01T00:00:00Z", group_id=TEST_GROUP_ID)
 
     @patch("api.routers.trails.trail_storage.get_trail_changes")
     def test_superuser_sees_all_groups(self, mock_changes, superuser_client):
-        mock_changes.return_value = TrailChangesResponse(trails=[], deleted_ids=[], server_time="2026-03-01T12:00:00Z")
+        mock_changes.return_value = TrailChangesResponse(
+            trails=[], deleted_ids=[], server_time="2026-03-01T12:00:00Z", scope="all"
+        )
         response = superuser_client.get("/api/v1/trails/changes")
         assert response.status_code == 200
         mock_changes.assert_called_once_with(since=None, group_id=None)
 
     @patch("api.routers.trails.trail_storage.get_trail_changes")
     def test_accepts_milliseconds_in_since(self, mock_changes, authenticated_client):
-        mock_changes.return_value = TrailChangesResponse(trails=[], deleted_ids=[], server_time="2026-03-01T12:00:00Z")
+        mock_changes.return_value = TrailChangesResponse(
+            trails=[], deleted_ids=[], server_time="2026-03-01T12:00:00Z", scope="group:test-group"
+        )
         response = authenticated_client.get("/api/v1/trails/changes?since=2026-03-01T00:00:00.123Z")
         assert response.status_code == 200
 

@@ -10,7 +10,7 @@ import type { Trail } from '@/lib/types';
 
 const DB_NAME = 'skane-trails';
 const DB_VERSION = 1;
-const STORE_NAME = 'trail-cache';
+export const STORE_NAME = 'trail-cache';
 
 export function openDb(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {

@@ -1099,8 +1099,18 @@ class TestGetTrailChanges:
         assert result.trails == [trail]
         assert result.deleted_ids == ["gone"]
         assert result.server_time == "2026-03-01T12:00:00Z"
+        assert result.scope == "group:g1"
         mock_all.assert_called_once_with(since="2026-03-01T00:00:00Z", group_id="g1")
         mock_deleted.assert_called_once_with("2026-03-01T00:00:00Z", "g1")
+
+    @patch("api.storage.trail_storage.get_deleted_trail_ids", return_value=[])
+    @patch("api.storage.trail_storage.get_all_trails", return_value=[])
+    def test_superuser_scope_is_all(self, mock_all, mock_deleted) -> None:
+        result = get_trail_changes(None, None)
+
+        assert result.scope == "all"
+        mock_all.assert_called_once_with(since=None, group_id=None)
+        mock_deleted.assert_called_once_with(None, None)
 
     @patch("api.storage.trail_storage.get_deleted_trail_ids")
     @patch("api.storage.trail_storage.get_all_trails")

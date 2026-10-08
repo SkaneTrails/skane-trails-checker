@@ -2,8 +2,9 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Trail } from '@/lib/types';
 
 vi.mock('@/lib/api', () => ({ trailsApi: { getTrailChanges: vi.fn() } }));
+vi.mock('@/lib/auth-scope', () => ({ currentUserId: () => 'user-1' }));
 vi.mock('@/lib/storage/map-trail-store', () => ({
-  mapTrailStore: { get: vi.fn(), apply: vi.fn() },
+  mapTrailStore: { get: vi.fn(), apply: vi.fn(), clear: vi.fn() },
 }));
 
 import { trailsApi } from '@/lib/api';
@@ -12,6 +13,7 @@ import { syncMapTrails } from '../map-trail-sync';
 
 const getTrailChanges = vi.mocked(trailsApi.getTrailChanges);
 const store = vi.mocked(mapTrailStore);
+const SCOPE = 'group:g1';
 
 const trail = (id: string, name = id): Trail => ({
   trail_id: id,
@@ -30,37 +32,39 @@ describe('syncMapTrails', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     store.apply.mockResolvedValue(undefined);
+    store.clear.mockResolvedValue(undefined);
   });
 
-  it('first sync fetches everything once and stores it', async () => {
-    store.get.mockResolvedValue({ trails: [], lastSyncTime: null });
+  it('first sync fetches everything once and stores it for the signed-in user', async () => {
+    store.get.mockResolvedValue({ trails: [], lastSyncTime: null, scope: null });
     getTrailChanges.mockResolvedValue({
       trails: [trail('a'), trail('b')],
       deleted_ids: [],
       server_time: '2026-03-01T12:00:00Z',
+      scope: SCOPE,
     });
     const onLocal = vi.fn();
 
     const result = await syncMapTrails(onLocal);
 
+    expect(store.get).toHaveBeenCalledWith('user-1');
     expect(getTrailChanges).toHaveBeenCalledWith(undefined);
     expect(onLocal).not.toHaveBeenCalled();
     expect(result.map((t) => t.trail_id)).toEqual(['a', 'b']);
-    expect(store.apply).toHaveBeenCalledWith(
-      [trail('a'), trail('b')],
-      [],
-      '2026-03-01T12:00:00Z',
-    );
+    expect(store.apply).toHaveBeenCalledWith('user-1', [trail('a'), trail('b')], [], {
+      lastSyncTime: '2026-03-01T12:00:00Z',
+      scope: SCOPE,
+    });
   });
 
   it('shows the local copy before the network answers', async () => {
     const local = [trail('a')];
-    store.get.mockResolvedValue({ trails: local, lastSyncTime: '2026-03-01T00:00:00Z' });
+    store.get.mockResolvedValue({ trails: local, lastSyncTime: '2026-03-01T00:00:00Z', scope: SCOPE });
     const order: string[] = [];
     const onLocal = vi.fn(() => order.push('local'));
     getTrailChanges.mockImplementation(async () => {
       order.push('request');
-      return { trails: [], deleted_ids: [], server_time: '2026-03-02T00:00:00Z' };
+      return { trails: [], deleted_ids: [], server_time: '2026-03-02T00:00:00Z', scope: SCOPE };
     });
 
     await syncMapTrails(onLocal);
@@ -70,8 +74,12 @@ describe('syncMapTrails', () => {
   });
 
   it('asks only for changes since the last sync', async () => {
-    store.get.mockResolvedValue({ trails: [trail('a')], lastSyncTime: '2026-03-01T00:00:00Z' });
-    getTrailChanges.mockResolvedValue({ trails: [], deleted_ids: [], server_time: 'x' });
+    store.get.mockResolvedValue({
+      trails: [trail('a')],
+      lastSyncTime: '2026-03-01T00:00:00Z',
+      scope: SCOPE,
+    });
+    getTrailChanges.mockResolvedValue({ trails: [], deleted_ids: [], server_time: 'x', scope: SCOPE });
 
     await syncMapTrails(vi.fn());
 
@@ -80,8 +88,8 @@ describe('syncMapTrails', () => {
 
   it('returns the very same array and writes nothing when nothing changed', async () => {
     const local = [trail('a')];
-    store.get.mockResolvedValue({ trails: local, lastSyncTime: '2026-03-01T00:00:00Z' });
-    getTrailChanges.mockResolvedValue({ trails: [], deleted_ids: [], server_time: 'x' });
+    store.get.mockResolvedValue({ trails: local, lastSyncTime: '2026-03-01T00:00:00Z', scope: SCOPE });
+    getTrailChanges.mockResolvedValue({ trails: [], deleted_ids: [], server_time: 'x', scope: SCOPE });
 
     const result = await syncMapTrails(vi.fn());
 
@@ -93,38 +101,75 @@ describe('syncMapTrails', () => {
     store.get.mockResolvedValue({
       trails: [trail('a', 'old'), trail('b'), trail('c')],
       lastSyncTime: '2026-03-01T00:00:00Z',
+      scope: SCOPE,
     });
     getTrailChanges.mockResolvedValue({
       trails: [trail('a', 'new'), trail('d')],
       deleted_ids: ['b'],
       server_time: '2026-03-02T00:00:00Z',
+      scope: SCOPE,
     });
 
     const result = await syncMapTrails(vi.fn());
 
     expect(result.map((t) => `${t.trail_id}:${t.name}`).sort()).toEqual(['a:new', 'c:c', 'd:d']);
-    expect(store.apply).toHaveBeenCalledWith(
-      [trail('a', 'new'), trail('d')],
-      ['b'],
-      '2026-03-02T00:00:00Z',
-    );
+    expect(store.apply).toHaveBeenCalledWith('user-1', [trail('a', 'new'), trail('d')], ['b'], {
+      lastSyncTime: '2026-03-02T00:00:00Z',
+      scope: SCOPE,
+    });
   });
 
-  it('records the sync time when the very first sync finds no trails', async () => {
-    store.get.mockResolvedValue({ trails: [], lastSyncTime: null });
+  it('records the sync position when the very first sync finds no trails', async () => {
+    store.get.mockResolvedValue({ trails: [], lastSyncTime: null, scope: null });
     getTrailChanges.mockResolvedValue({
       trails: [],
       deleted_ids: [],
       server_time: '2026-03-01T12:00:00Z',
+      scope: SCOPE,
     });
 
     expect(await syncMapTrails(vi.fn())).toEqual([]);
-    expect(store.apply).toHaveBeenCalledWith([], [], '2026-03-01T12:00:00Z');
+    expect(store.apply).toHaveBeenCalledWith('user-1', [], [], {
+      lastSyncTime: '2026-03-01T12:00:00Z',
+      scope: SCOPE,
+    });
+  });
+
+  it('drops the local copy and fetches everything when the server reports another scope', async () => {
+    store.get.mockResolvedValue({
+      trails: [trail('old-group-trail')],
+      lastSyncTime: '2026-03-01T00:00:00Z',
+      scope: 'group:old',
+    });
+    getTrailChanges
+      .mockResolvedValueOnce({
+        trails: [],
+        deleted_ids: [],
+        server_time: '2026-03-02T00:00:00Z',
+        scope: 'group:new',
+      })
+      .mockResolvedValueOnce({
+        trails: [trail('new-group-trail')],
+        deleted_ids: [],
+        server_time: '2026-03-02T00:00:01Z',
+        scope: 'group:new',
+      });
+
+    const result = await syncMapTrails(vi.fn());
+
+    expect(store.clear).toHaveBeenCalledOnce();
+    expect(getTrailChanges).toHaveBeenNthCalledWith(1, '2026-03-01T00:00:00Z');
+    expect(getTrailChanges).toHaveBeenNthCalledWith(2);
+    expect(result.map((t) => t.trail_id)).toEqual(['new-group-trail']);
+    expect(store.apply).toHaveBeenCalledWith('user-1', [trail('new-group-trail')], [], {
+      lastSyncTime: '2026-03-02T00:00:01Z',
+      scope: 'group:new',
+    });
   });
 
   it('falls back to the local copy when the request fails', async () => {
     const local = [trail('a')];
-    store.get.mockResolvedValue({ trails: local, lastSyncTime: '2026-03-01T00:00:00Z' });
+    store.get.mockResolvedValue({ trails: local, lastSyncTime: '2026-03-01T00:00:00Z', scope: SCOPE });
     getTrailChanges.mockRejectedValue(new Error('offline'));
     vi.spyOn(console, 'warn').mockImplementation(() => undefined);
 
@@ -132,7 +177,7 @@ describe('syncMapTrails', () => {
   });
 
   it('throws when the request fails and there is no local copy', async () => {
-    store.get.mockResolvedValue({ trails: [], lastSyncTime: null });
+    store.get.mockResolvedValue({ trails: [], lastSyncTime: null, scope: null });
     getTrailChanges.mockRejectedValue(new Error('offline'));
 
     await expect(syncMapTrails(vi.fn())).rejects.toThrow('offline');

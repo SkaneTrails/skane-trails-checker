@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { trailsApi } from '@/lib/api';
 import type { ImageFile } from '@/lib/api/trails';
+import { currentUserId } from '@/lib/auth-scope';
 import { syncMapTrails } from '@/lib/map-trail-sync';
 import { mapTrailStore } from '@/lib/storage/map-trail-store';
 import { trailCache } from '@/lib/storage/trail-cache';
@@ -322,7 +323,7 @@ export function useUpdateTrail() {
       queryClient.setQueryData<Trail[]>(trailKeys.map(), (old) =>
         old?.map((t) => (t.trail_id === id ? (updatedTrail as Trail) : t)),
       );
-      void mapTrailStore.apply([updatedTrail as Trail], []);
+      void mapTrailStore.apply(currentUserId(), [updatedTrail as Trail], []);
       trailCache.get().then(({ trails, lastSyncTime }) => {
         const updated = trails.map((t) => (t.trail_id === id ? (updatedTrail as Trail) : t));
         trailCache.set(updated, lastSyncTime ?? new Date().toISOString());
@@ -346,7 +347,7 @@ export function useDeleteTrail() {
       queryClient.setQueryData<Trail[]>(trailKeys.map(), (old) =>
         old?.filter((t) => t.trail_id !== deletedId),
       );
-      void mapTrailStore.apply([], [deletedId]);
+      void mapTrailStore.apply(currentUserId(), [], [deletedId]);
       trailCache.get().then(({ trails, lastSyncTime }) => {
         const filtered = trails.filter((t) => t.trail_id !== deletedId);
         trailCache.set(filtered, lastSyncTime ?? new Date().toISOString());
@@ -381,7 +382,7 @@ export function useUploadGpx() {
           }
           return Array.from(merged.values());
         });
-        void mapTrailStore.apply(newTrails, []);
+        void mapTrailStore.apply(currentUserId(), newTrails, []);
         trailCache.get().then(({ trails, lastSyncTime }) => {
           const merged = new Map(trails.map((t) => [t.trail_id, t]));
           for (const trail of newTrails) {
@@ -412,7 +413,7 @@ export function useSaveRecording() {
         merged.set(savedTrail.trail_id, savedTrail);
         return Array.from(merged.values());
       });
-      void mapTrailStore.apply([savedTrail], []);
+      void mapTrailStore.apply(currentUserId(), [savedTrail], []);
       trailCache.get().then(({ trails, lastSyncTime }) => {
         const merged = new Map(trails.map((t) => [t.trail_id, t]));
         merged.set(savedTrail.trail_id, savedTrail);

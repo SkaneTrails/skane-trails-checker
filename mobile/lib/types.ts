@@ -44,6 +44,8 @@ export interface TrailChanges {
   deleted_ids: string[];
   /** Use as `since` for the next request. */
   server_time: string;
+  /** Whose trails these are ('all' or 'group:<id>'); a different saved scope means discard the local copy. */
+  scope: string;
 }
 
 // Full trail details with all coordinates and elevation
