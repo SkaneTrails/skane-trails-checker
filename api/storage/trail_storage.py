@@ -9,12 +9,14 @@ from api.models.trail import (
     ImagePin,
     SyncMetadata,
     TrailBounds,
+    TrailChangesResponse,
     TrailDetailsResponse,
     TrailImage,
     TrailImagesResponse,
     TrailResponse,
 )
 from api.storage.firestore_client import get_collection
+from api.storage.trail_tombstones import get_deleted_trail_ids, record_tombstone
 from api.storage.validation import validate_document_id
 
 logger = logging.getLogger(__name__)
@@ -266,11 +268,15 @@ def update_trail(trail_id: str, updates: dict) -> None:
 
 
 def delete_trail(trail_id: str, *, update_sync: bool = True) -> None:
-    """Delete a trail and its details from Firestore."""
+    """Delete a trail and its details from Firestore, leaving a tombstone for client delta sync."""
     validate_document_id(trail_id, field_name="trail_id")
     logger.info("Deleting trail %s", trail_id)
+    snapshot = get_collection("trails").document(trail_id).get()
+    trail_data = snapshot.to_dict() if snapshot.exists else None
     get_collection("trails").document(trail_id).delete()
     get_collection("trail_details").document(trail_id).delete()
+    if trail_data is not None:
+        record_tombstone(trail_id, trail_data, _utc_now_z())
     if update_sync:
         _update_sync_metadata()
 
@@ -287,6 +293,23 @@ def get_sync_metadata() -> SyncMetadata:
     if not data:
         return SyncMetadata(count=0, last_modified=None)
     return SyncMetadata(count=data.get("count", 0), last_modified=data.get("last_modified"))
+
+
+def get_trail_changes(since: str | None, group_id: str | None) -> TrailChangesResponse:
+    """Get trails changed and trail IDs deleted since a timestamp, for client delta sync.
+
+    Args:
+        since: ISO timestamp from a previous response's server_time. None returns every trail.
+        group_id: Caller's group (their trails plus public ones), or None for a superuser.
+
+    Returns:
+        Changed trails (with coordinates), deleted IDs, and the time to use as the next `since`.
+        The time is read before the data so a write landing mid-request is picked up next time.
+    """
+    server_time = _utc_now_z()
+    trails = get_all_trails(since=since, group_id=group_id)
+    deleted_ids = get_deleted_trail_ids(since, group_id)
+    return TrailChangesResponse(trails=trails, deleted_ids=deleted_ids, server_time=server_time)
 
 
 def _utc_now_z() -> str:

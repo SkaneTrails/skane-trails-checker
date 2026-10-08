@@ -17,6 +17,8 @@ from api.models.trail import (
     ImagePinsResponse,
     RecordingCreate,
     SyncMetadata,
+    TrailChangesParams,
+    TrailChangesResponse,
     TrailDetailsResponse,
     TrailFilterParams,
     TrailImage,
@@ -61,6 +63,19 @@ def get_sync_metadata() -> SyncMetadata:
     to decide whether a full or delta fetch is needed.
     """
     return trail_storage.get_sync_metadata()
+
+
+@router.get("/changes")
+def get_trail_changes(
+    params: Annotated[TrailChangesParams, Query()], user: Annotated[AuthenticatedUser, Depends(require_auth)]
+) -> TrailChangesResponse:
+    """Get trails changed and trail IDs deleted since a timestamp (local-first delta sync).
+
+    Pass the previous response's server_time as `since`; omit it for a full fetch. Returned
+    trails include coordinates_map, so a client keeps one local copy and never refetches it whole.
+    """
+    group_id = None if user.role == "superuser" else require_group(user)
+    return trail_storage.get_trail_changes(since=params.since, group_id=group_id)
 
 
 @router.get("")

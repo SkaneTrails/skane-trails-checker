@@ -19,6 +19,7 @@ from api.storage.trail_storage import (
     get_image_pins,
     get_sync_metadata,
     get_trail,
+    get_trail_changes,
     get_trail_details,
     get_trail_images,
     save_trail,
@@ -633,25 +634,52 @@ class TestUpdateTrail:
 class TestDeleteTrail:
     """Tests for delete_trail — deletes both trail and trail_details."""
 
+    @patch("api.storage.trail_storage.record_tombstone")
     @patch("api.storage.trail_storage._update_sync_metadata")
-    def test_deletes_trail_and_details(self, mock_sync, mock_collection) -> None:
+    def test_deletes_trail_and_details(self, mock_sync, mock_tombstone, mock_collection) -> None:
+        mock_collection.document.return_value.get.return_value = _make_doc(SAMPLE_TRAIL)
+
         delete_trail("t1")
 
-        # Should call get_collection twice (trails + trail_details)
-        # and delete from both
+        # One read (for the tombstone), then a delete from trails and from trail_details
         calls = mock_collection.document.call_args_list
-        assert len(calls) == 2
-        assert calls[0].args == ("t1",)
-        assert calls[1].args == ("t1",)
+        assert [call.args for call in calls] == [("t1",)] * 3
+        assert mock_collection.document.return_value.delete.call_count == 2
+        mock_tombstone.assert_called_once()
         mock_sync.assert_called_once()
 
+    @patch("api.storage.trail_storage.record_tombstone")
     @patch("api.storage.trail_storage._update_sync_metadata")
-    def test_delete_trail_skips_sync_when_disabled(self, mock_sync, mock_collection) -> None:
+    def test_delete_trail_skips_sync_when_disabled(self, mock_sync, mock_tombstone, mock_collection) -> None:
+        mock_collection.document.return_value.get.return_value = _make_doc(SAMPLE_TRAIL)
+
         delete_trail("t1", update_sync=False)
 
-        calls = mock_collection.document.call_args_list
-        assert len(calls) == 2
+        assert mock_collection.document.return_value.delete.call_count == 2
+        mock_tombstone.assert_called_once()
         mock_sync.assert_not_called()
+
+    @patch("api.storage.trail_storage.record_tombstone")
+    @patch("api.storage.trail_storage._update_sync_metadata")
+    def test_records_tombstone_with_the_deleted_trail_data(self, mock_sync, mock_tombstone, mock_collection) -> None:
+        trail_data = {**SAMPLE_TRAIL, "group_id": "g1"}
+        mock_collection.document.return_value.get.return_value = _make_doc(trail_data)
+
+        with patch("api.storage.trail_storage._utc_now_z", return_value="2026-03-01T12:00:00Z"):
+            delete_trail("t1")
+
+        mock_tombstone.assert_called_once_with("t1", trail_data, "2026-03-01T12:00:00Z")
+        mock_sync.assert_called_once()
+
+    @patch("api.storage.trail_storage.record_tombstone")
+    @patch("api.storage.trail_storage._update_sync_metadata")
+    def test_no_tombstone_for_a_trail_that_does_not_exist(self, mock_sync, mock_tombstone, mock_collection) -> None:
+        mock_collection.document.return_value.get.return_value = _make_doc(None, exists=False)
+
+        delete_trail("t1")
+
+        mock_tombstone.assert_not_called()
+        mock_sync.assert_called_once()
 
 
 class TestSaveTrail:
@@ -977,6 +1005,56 @@ class TestUpdateSyncMetadata:
     def test_public_wrapper_delegates(self, mock_internal) -> None:
         update_sync_metadata()
         mock_internal.assert_called_once()
+
+
+class TestGetTrailChanges:
+    """Tests for get_trail_changes — changed trails plus deleted ids for delta sync."""
+
+    @patch("api.storage.trail_storage.get_deleted_trail_ids", return_value=["gone"])
+    @patch("api.storage.trail_storage.get_all_trails")
+    def test_combines_changed_trails_and_deletions(self, mock_all, mock_deleted) -> None:
+        trail = TrailResponse(**_trail_kwargs())
+        mock_all.return_value = [trail]
+
+        with patch("api.storage.trail_storage._utc_now_z", return_value="2026-03-01T12:00:00Z"):
+            result = get_trail_changes("2026-03-01T00:00:00Z", "g1")
+
+        assert result.trails == [trail]
+        assert result.deleted_ids == ["gone"]
+        assert result.server_time == "2026-03-01T12:00:00Z"
+        mock_all.assert_called_once_with(since="2026-03-01T00:00:00Z", group_id="g1")
+        mock_deleted.assert_called_once_with("2026-03-01T00:00:00Z", "g1")
+
+    @patch("api.storage.trail_storage.get_deleted_trail_ids", return_value=[])
+    @patch("api.storage.trail_storage.get_all_trails", return_value=[])
+    def test_server_time_is_taken_before_reading(self, mock_all, mock_deleted) -> None:
+        order: list[str] = []
+        mock_all.side_effect = lambda **_: order.append("read") or []
+
+        def fake_now() -> str:
+            order.append("clock")
+            return "2026-03-01T12:00:00Z"
+
+        with patch("api.storage.trail_storage._utc_now_z", side_effect=fake_now):
+            get_trail_changes(None, None)
+
+        assert order == ["clock", "read"]
+        mock_deleted.assert_called_once_with(None, None)
+
+
+def _trail_kwargs() -> dict:
+    return {
+        "trail_id": "t1",
+        "name": "Trail",
+        "difficulty": "Easy",
+        "length_km": 1.0,
+        "status": "To Explore",
+        "coordinates_map": [Coordinate(lat=56.0, lng=13.0)],
+        "bounds": TrailBounds(north=56.0, south=56.0, east=13.0, west=13.0),
+        "center": Coordinate(lat=56.0, lng=13.0),
+        "source": "other_trails",
+        "last_updated": "2026-01-01T00:00:00Z",
+    }
 
 
 class TestUtcNowZ:
