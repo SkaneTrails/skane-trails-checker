@@ -43,7 +43,9 @@ class TestGetCurrentUser:
         assert data["group_id"] == "test-group"
         assert data["group_name"] is None
 
-    def test_me_superuser(self, superuser_client):
+    @patch("api.routers.hike_groups.hike_group_storage.get_hike_group")
+    def test_me_superuser(self, mock_get, superuser_client):
+        mock_get.return_value = SAMPLE_GROUP
         response = superuser_client.get("/api/v1/admin/me")
         assert response.status_code == 200
         data = response.json()

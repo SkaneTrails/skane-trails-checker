@@ -108,8 +108,9 @@ class TestSecurityHeaders:
 
 class TestGlobalExceptionHandler:
     @patch("api.routers.places.places_storage.get_all_places")
-    def test_unhandled_exception_returns_500(self, mock_get_all):
+    def test_unhandled_exception_returns_500(self, mock_get_all, authenticated_client):
         mock_get_all.side_effect = RuntimeError("unexpected")
+        # The fixture's auth override stays active on the shared app.
         error_client = TestClient(app, raise_server_exceptions=False)
         response = error_client.get("/api/v1/places")
         assert response.status_code == 500
