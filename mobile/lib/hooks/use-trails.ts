@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { trailsApi } from '@/lib/api';
+import type { UploadFile } from '@/lib/api/form-file';
 import type { ImageFile } from '@/lib/api/trails';
 import { currentUserId } from '@/lib/auth-scope';
 import { syncMapTrails } from '@/lib/map-trail-sync';
@@ -199,7 +200,7 @@ export function useUploadGpx() {
     mutationFn: ({
       file,
       ...options
-    }: { file: File } & Parameters<typeof trailsApi.uploadGpx>[1]) =>
+    }: { file: UploadFile } & Parameters<typeof trailsApi.uploadGpx>[1]) =>
       trailsApi.uploadGpx(file, options),
     onMutate: startedBy,
     onSuccess: (newTrails, _variables, started) => {
