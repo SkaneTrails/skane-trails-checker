@@ -251,8 +251,8 @@ class TestUploadTrailImage:
         assert response.status_code == 404
 
     @patch("api.routers.trails.trail_storage.get_trail")
-    def test_upload_member_forbidden(self, mock_get_trail, member_client):
-        mock_get_trail.return_value = SAMPLE_TRAIL
+    def test_upload_other_group_forbidden(self, mock_get_trail, member_client):
+        mock_get_trail.return_value = SAMPLE_TRAIL.model_copy(update={"group_id": "other-group"})
         jpeg_data = _make_jpeg()
         response = member_client.post(
             "/api/v1/trails/abc123/images?role=primary", files={"file": ("photo.jpg", jpeg_data, "image/jpeg")}
@@ -298,8 +298,8 @@ class TestDeleteTrailImage:
         assert response.status_code == 404
 
     @patch("api.routers.trails.trail_storage.get_trail")
-    def test_delete_image_member_forbidden(self, mock_get_trail, member_client):
-        mock_get_trail.return_value = SAMPLE_TRAIL
+    def test_delete_image_other_group_forbidden(self, mock_get_trail, member_client):
+        mock_get_trail.return_value = SAMPLE_TRAIL.model_copy(update={"group_id": "other-group"})
         response = member_client.delete("/api/v1/trails/abc123/images/0")
         assert response.status_code == 403
 

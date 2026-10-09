@@ -28,6 +28,13 @@ class PlaceResponse(BaseModel):
     weburl: str = ""
     source: str = "skaneleden"
     last_updated: str = ""
+    # Imported places are public; one added in the app is private to `group_id`.
+    is_public: bool = True
+    group_id: str | None = None
+
+    def is_visible_to(self, group_id: str | None) -> bool:
+        """Whether a user in `group_id` may see this place."""
+        return self.is_public or (group_id is not None and self.group_id == group_id)
 
     def to_dict(self) -> dict:
         """Convert to dictionary for Firestore storage."""
@@ -42,6 +49,8 @@ class PlaceResponse(BaseModel):
             "weburl": self.weburl,
             "source": self.source,
             "last_updated": self.last_updated,
+            "is_public": self.is_public,
+            "group_id": self.group_id,
         }
 
     @property

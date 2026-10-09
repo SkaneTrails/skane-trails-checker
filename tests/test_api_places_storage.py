@@ -152,6 +152,25 @@ class TestDocToPlace:
         assert place.categories == []
         assert place.source == "skaneleden"
 
+    def test_existing_place_without_visibility_is_public(self, mock_collection) -> None:
+        mock_collection.stream.return_value = [_make_doc({"place_id": "p2"})]
+
+        place = get_all_places()[0]
+
+        assert place.is_public is True
+        assert place.group_id is None
+
+    def test_private_place_keeps_its_group(self, mock_collection) -> None:
+        mock_collection.stream.return_value = [_make_doc({"place_id": "p2", "is_public": False, "group_id": "g1"})]
+
+        place = get_all_places()[0]
+
+        assert place.is_public is False
+        assert place.group_id == "g1"
+        assert place.is_visible_to("g1")
+        assert not place.is_visible_to("g2")
+        assert not place.is_visible_to(None)
+
     def test_multiple_categories(self, mock_collection) -> None:
         data = {
             "place_id": "p3",
