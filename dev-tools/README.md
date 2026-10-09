@@ -295,7 +295,7 @@ The import pipeline preserves elevation data, extracts duration from timestamps,
 
 ### Maintenance
 
-- **`assign_orphan_data.py`**: Move trails and foraging spots created in the app without a group (saved by superusers before they were scoped to a group) into the group all superusers belong to, so other groups stop seeing them. Compiled-in public trails (no group, no `created_by`) are untouched and nothing is deleted. Preview with `--dry-run`; pass `--group-id` if the superusers are not in one group.
+- **`assign_orphan_data.py`**: Move trails and foraging spots created in the app without a group (saved by superusers before they were scoped to a group) into the group all superusers belong to, so other groups stop seeing them. Compiled-in public trails (no group, no `created_by`) are untouched and nothing is deleted. Preview with `--dry-run`; pass `--group-id` if the superusers are not in one group. Every superuser must belong to a group (the script refuses otherwise).
 
 - **`backfill_trail_metadata.py`**: Update existing trails with missing metadata
 
