@@ -48,7 +48,7 @@ class TestGetCurrentUser:
         assert response.status_code == 200
         data = response.json()
         assert data["role"] == "superuser"
-        assert data["group_id"] is None
+        assert data["group_id"] == "test-group"
 
     def test_me_unauthenticated(self, unauthenticated_client):
         response = unauthenticated_client.get("/api/v1/admin/me")

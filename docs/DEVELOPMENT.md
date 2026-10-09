@@ -370,7 +370,7 @@ The app keeps its own copy of every trail, including the map coordinates, and on
 1. It then calls `GET /trails/changes?since=<last server_time>`. The response holds the trails modified since then (with coordinates), the IDs deleted since then, and a new `server_time` to store. That time trails the clock by two minutes (`CURSOR_OVERLAP`), because a write takes its timestamp before it commits and could otherwise land just after a sync chose its cursor and be missed for good; the overlap re-delivers a few recent changes, which the app applies idempotently. Without a local copy (first run) it fetches everything once.
 1. Deletions travel as tombstones: `delete_trail` writes a `trail_tombstones` document, so a deletion is never missed even if another trail was added in the same window.
 1. If the request fails, the local copy is used.
-1. The local copy belongs to one signed-in user and one scope (`scope` in the response: `all` for a superuser, else `group:<id>`). A different user, or a scope that no longer matches, erases it and fetches everything again, so private trails never carry over and an old cursor is never reused.
+1. The local copy belongs to one signed-in user and one scope (`scope` in the response: `group:<id>`, the same for every role). A different user, or a scope that no longer matches, erases it and fetches everything again, so private trails never carry over and an old cursor is never reused.
 
 If the local copy is ever wrong, **Menu > Refresh all data** clears everything stored on the device and downloads it again.
 

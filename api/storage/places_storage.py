@@ -30,6 +30,8 @@ def _doc_to_place(data: dict) -> PlaceResponse:
         weburl=data.get("weburl") or "",
         source=data.get("source") or "skaneleden",
         last_updated=data.get("last_updated") or "",
+        is_public=data.get("is_public", True),
+        group_id=data.get("group_id"),
     )
 
 

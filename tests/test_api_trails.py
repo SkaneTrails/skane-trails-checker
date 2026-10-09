@@ -55,12 +55,12 @@ SAMPLE_DETAILS = TrailDetailsResponse(
 
 class TestListTrails:
     @patch("api.routers.trails.trail_storage.get_all_trails")
-    def test_list_all_trails_superuser(self, mock_get_all, superuser_client):
-        """Superuser sees all trails (group_id=None passed to storage)."""
+    def test_list_trails_superuser_limited_to_own_group(self, mock_get_all, superuser_client):
+        """A superuser sees only their own group's trails."""
         mock_get_all.return_value = [SAMPLE_TRAIL]
         response = superuser_client.get("/api/v1/trails")
         assert response.status_code == 200
-        mock_get_all.assert_called_once_with(source=None, since=None, group_id=None, summary=False)
+        mock_get_all.assert_called_once_with(source=None, since=None, group_id=TEST_GROUP_ID, summary=False)
 
     @patch("api.routers.trails.trail_storage.get_all_trails")
     def test_list_all_trails(self, mock_get_all, authenticated_client):
@@ -273,13 +273,13 @@ class TestGetTrailChanges:
         mock_changes.assert_called_once_with(since="2026-03-01T00:00:00Z", group_id=TEST_GROUP_ID)
 
     @patch("api.routers.trails.trail_storage.get_trail_changes")
-    def test_superuser_sees_all_groups(self, mock_changes, superuser_client):
+    def test_superuser_changes_limited_to_own_group(self, mock_changes, superuser_client):
         mock_changes.return_value = TrailChangesResponse(
-            trails=[], deleted_ids=[], server_time="2026-03-01T12:00:00Z", scope="all"
+            trails=[], deleted_ids=[], server_time="2026-03-01T12:00:00Z", scope="group:test-group"
         )
         response = superuser_client.get("/api/v1/trails/changes")
         assert response.status_code == 200
-        mock_changes.assert_called_once_with(since=None, group_id=None)
+        mock_changes.assert_called_once_with(since=None, group_id=TEST_GROUP_ID)
 
     @patch("api.routers.trails.trail_storage.get_trail_changes")
     def test_accepts_milliseconds_in_since(self, mock_changes, authenticated_client):
@@ -323,6 +323,18 @@ class TestGetTrail:
         mock_get.return_value = other_group_trail
         response = authenticated_client.get("/api/v1/trails/abc123")
         assert response.status_code == 403
+
+    @patch("api.routers.trails.trail_storage.get_trail")
+    def test_get_trail_superuser_forbidden_other_group(self, mock_get, superuser_client):
+        mock_get.return_value = SAMPLE_TRAIL.model_copy(update={"group_id": "other-group"})
+        response = superuser_client.get("/api/v1/trails/abc123")
+        assert response.status_code == 403
+
+    @patch("api.routers.trails.trail_storage.get_trail")
+    def test_get_trail_shared_with_all_groups(self, mock_get, authenticated_client):
+        mock_get.return_value = SAMPLE_TRAIL.model_copy(update={"group_id": "other-group", "is_public": True})
+        response = authenticated_client.get("/api/v1/trails/abc123")
+        assert response.status_code == 200
 
 
 class TestGetTrailDetails:
@@ -408,35 +420,31 @@ class TestUpdateTrail:
         mock_get.return_value = other_group_trail
         response = authenticated_client.patch("/api/v1/trails/abc123", json={"name": "Stolen"})
         assert response.status_code == 403
-        assert "Admin access required" in response.json()["detail"]
+        assert "Not authorized" in response.json()["detail"]
 
     @patch("api.routers.trails.trail_storage.get_trail")
     def test_update_trail_forbidden_public_trail(self, mock_get, authenticated_client):
-        """Non-superusers cannot modify public (bootstrapped) trails."""
+        """Public (bootstrapped) trails are not editable through the API."""
         public_trail = SAMPLE_TRAIL.model_copy(update={"group_id": None})
         mock_get.return_value = public_trail
         response = authenticated_client.patch("/api/v1/trails/abc123", json={"name": "Stolen"})
         assert response.status_code == 403
-        assert "Only superusers" in response.json()["detail"]
-
-    @patch("api.routers.trails.trail_storage.get_trail")
-    def test_update_trail_forbidden_member(self, mock_get, member_client):
-        """Members are view-only and cannot modify trails."""
-        mock_get.return_value = SAMPLE_TRAIL
-        response = member_client.patch("/api/v1/trails/abc123", json={"name": "Nope"})
-        assert response.status_code == 403
+        assert "Public trails" in response.json()["detail"]
 
     @patch("api.routers.trails.trail_storage.get_trail")
     @patch("api.routers.trails.trail_storage.update_trail")
-    def test_update_trail_superuser_can_modify_any(self, mock_update, mock_get, superuser_client):
-        """Superuser can update any trail, including public ones."""
-        public_trail = SAMPLE_TRAIL.model_copy(update={"group_id": None})
-        updated = public_trail.model_copy(update={"name": "SU Edit"})
-        mock_get.side_effect = [public_trail, updated]
-        mock_update.return_value = None
-        response = superuser_client.patch("/api/v1/trails/abc123", json={"name": "SU Edit"})
+    def test_update_trail_member_can_modify_group_trail(self, mock_update, mock_get, member_client):
+        updated = SAMPLE_TRAIL.model_copy(update={"name": "Member Edit"})
+        mock_get.side_effect = [SAMPLE_TRAIL, updated]
+        response = member_client.patch("/api/v1/trails/abc123", json={"name": "Member Edit"})
         assert response.status_code == 200
-        assert response.json()["name"] == "SU Edit"
+        assert response.json()["name"] == "Member Edit"
+
+    @patch("api.routers.trails.trail_storage.get_trail")
+    def test_update_trail_superuser_cannot_modify_other_group(self, mock_get, superuser_client):
+        mock_get.return_value = SAMPLE_TRAIL.model_copy(update={"group_id": "other-group"})
+        response = superuser_client.patch("/api/v1/trails/abc123", json={"name": "Nope"})
+        assert response.status_code == 403
 
     @patch("api.routers.trails.trail_storage.get_trail")
     @patch("api.routers.trails.trail_storage.update_trail")
@@ -530,11 +538,13 @@ class TestDeleteTrail:
         assert response.status_code == 403
 
     @patch("api.routers.trails.trail_storage.get_trail")
-    def test_delete_trail_forbidden_member(self, mock_get, member_client):
-        """Members cannot delete trails."""
+    @patch("api.routers.trails.trail_storage.delete_trail")
+    @patch("api.routers.trails.trail_storage.delete_trail_images")
+    def test_delete_trail_member_can_delete_group_trail(self, mock_images, mock_delete, mock_get, member_client):
         mock_get.return_value = SAMPLE_TRAIL
         response = member_client.delete("/api/v1/trails/abc123")
-        assert response.status_code == 403
+        assert response.status_code == 204
+        mock_delete.assert_called_once_with("abc123")
 
 
 class TestSaveRecording:
@@ -610,10 +620,20 @@ class TestSaveRecording:
         response = unauthenticated_client.post("/api/v1/trails/record", json=self.SAMPLE_RECORDING)
         assert response.status_code == 401
 
-    def test_save_recording_forbidden_member(self, member_client):
-        """Members (view-only) cannot create recordings."""
+    @patch("api.routers.trails.trail_storage.save_trail_details")
+    @patch("api.routers.trails.trail_storage.save_trail")
+    def test_save_recording_member_saves_in_own_group(self, mock_save, mock_details, member_client):
         response = member_client.post("/api/v1/trails/record", json=self.SAMPLE_RECORDING)
-        assert response.status_code == 403
+        assert response.status_code == 201
+        assert response.json()["group_id"] == TEST_GROUP_ID
+
+    @patch("api.routers.trails.trail_storage.save_trail_details")
+    @patch("api.routers.trails.trail_storage.save_trail")
+    def test_save_recording_superuser_saves_in_own_group(self, mock_save, mock_details, superuser_client):
+        """A superuser's recording belongs to their group, never to the public set."""
+        response = superuser_client.post("/api/v1/trails/record", json=self.SAMPLE_RECORDING)
+        assert response.status_code == 201
+        assert response.json()["group_id"] == TEST_GROUP_ID
 
     def test_save_recording_rejects_empty_name(self, authenticated_client):
         recording = {**self.SAMPLE_RECORDING, "name": ""}

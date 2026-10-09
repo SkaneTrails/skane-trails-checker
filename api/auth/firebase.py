@@ -1,9 +1,9 @@
 """Firebase Authentication middleware for FastAPI.
 
-Role-based auth matching meal-planner pattern:
-- Superusers (Terraform-seeded) have global access
-- Group admins manage their group members and data
-- Group members have read-only access to group data
+Role-based auth:
+- Members, admins and superusers all work only with their own group's data
+- Admins also manage the members of their group
+- Superusers (Terraform-seeded) also create groups and manage members of every group
 """
 
 import logging

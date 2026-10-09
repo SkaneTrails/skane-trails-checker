@@ -28,12 +28,12 @@ SAMPLE_TYPE = ForagingTypeResponse(name="Mushrooms", icon="🍄", color="#8B4513
 
 class TestListForagingSpots:
     @patch("api.routers.foraging.foraging_storage.get_foraging_spots")
-    def test_list_all_spots_superuser(self, mock_get, superuser_client):
-        """Superuser sees all spots (group_id=None)."""
+    def test_list_spots_superuser_limited_to_own_group(self, mock_get, superuser_client):
+        """A superuser sees only their own group's spots."""
         mock_get.return_value = [SAMPLE_SPOT]
         response = superuser_client.get("/api/v1/foraging/spots")
         assert response.status_code == 200
-        mock_get.assert_called_once_with(month=None, group_id=None)
+        mock_get.assert_called_once_with(month=None, group_id=TEST_GROUP_ID)
 
     @patch("api.routers.foraging.foraging_storage.get_foraging_spots")
     def test_list_all_spots(self, mock_get, authenticated_client):
@@ -92,12 +92,27 @@ class TestCreateForagingSpot:
         saved_data = mock_save.call_args[0][0]
         assert saved_data["created_by"] == "test-user"
 
-    def test_create_spot_forbidden_member(self, member_client):
-        """Members cannot create spots."""
+    @patch("api.routers.foraging.foraging_storage.get_foraging_spot")
+    @patch("api.routers.foraging.foraging_storage.save_foraging_spot")
+    def test_create_spot_member_saves_in_own_group(self, mock_save, mock_get, member_client):
+        mock_save.return_value = "new_doc_id"
+        mock_get.return_value = None
         response = member_client.post(
             "/api/v1/foraging/spots", json={"type": "Herbs", "lat": 56.2, "lng": 13.3, "months": ["Jun"]}
         )
-        assert response.status_code == 403
+        assert response.status_code == 201
+        assert mock_save.call_args[0][0]["group_id"] == TEST_GROUP_ID
+
+    @patch("api.routers.foraging.foraging_storage.get_foraging_spot")
+    @patch("api.routers.foraging.foraging_storage.save_foraging_spot")
+    def test_create_spot_superuser_saves_in_own_group(self, mock_save, mock_get, superuser_client):
+        mock_save.return_value = "new_doc_id"
+        mock_get.return_value = None
+        response = superuser_client.post(
+            "/api/v1/foraging/spots", json={"type": "Herbs", "lat": 56.2, "lng": 13.3, "months": ["Jun"]}
+        )
+        assert response.status_code == 201
+        assert mock_save.call_args[0][0]["group_id"] == TEST_GROUP_ID
 
     def test_create_spot_invalid_data(self, authenticated_client):
         response = authenticated_client.post(
@@ -134,21 +149,24 @@ class TestUpdateForagingSpot:
         response = authenticated_client.patch("/api/v1/foraging/spots/spot1", json={"notes": "test"})
         assert response.status_code == 403
 
-    @patch("api.routers.foraging.foraging_storage.get_foraging_spot")
-    def test_update_spot_forbidden_member(self, mock_get, member_client):
-        """Members (view-only) cannot modify foraging spots."""
-        mock_get.return_value = SAMPLE_SPOT
-        response = member_client.patch("/api/v1/foraging/spots/spot1", json={"notes": "test"})
-        assert response.status_code == 403
-
     @patch("api.routers.foraging.foraging_storage.update_foraging_spot")
     @patch("api.routers.foraging.foraging_storage.get_foraging_spot")
-    def test_update_spot_superuser(self, mock_get, mock_update, superuser_client):
-        """Superuser can update any spot."""
+    def test_update_spot_member(self, mock_get, mock_update, member_client):
         mock_get.return_value = SAMPLE_SPOT
-        mock_update.return_value = None
-        response = superuser_client.patch("/api/v1/foraging/spots/spot1", json={"notes": "su edit"})
+        response = member_client.patch("/api/v1/foraging/spots/spot1", json={"notes": "test"})
         assert response.status_code == 204
+
+    @patch("api.routers.foraging.foraging_storage.get_foraging_spot")
+    def test_update_spot_superuser_other_group_forbidden(self, mock_get, superuser_client):
+        mock_get.return_value = SAMPLE_SPOT.model_copy(update={"group_id": "other-group"})
+        response = superuser_client.patch("/api/v1/foraging/spots/spot1", json={"notes": "su edit"})
+        assert response.status_code == 403
+
+    @patch("api.routers.foraging.foraging_storage.get_foraging_spot")
+    def test_update_spot_without_group_forbidden(self, mock_get, authenticated_client):
+        mock_get.return_value = SAMPLE_SPOT.model_copy(update={"group_id": None})
+        response = authenticated_client.patch("/api/v1/foraging/spots/spot1", json={"notes": "test"})
+        assert response.status_code == 403
 
 
 class TestDeleteForagingSpot:
@@ -174,21 +192,18 @@ class TestDeleteForagingSpot:
         response = authenticated_client.delete("/api/v1/foraging/spots/spot1")
         assert response.status_code == 403
 
-    @patch("api.routers.foraging.foraging_storage.get_foraging_spot")
-    def test_delete_spot_forbidden_member(self, mock_get, member_client):
-        """Members cannot delete foraging spots."""
-        mock_get.return_value = SAMPLE_SPOT
-        response = member_client.delete("/api/v1/foraging/spots/spot1")
-        assert response.status_code == 403
-
     @patch("api.routers.foraging.foraging_storage.delete_foraging_spot")
     @patch("api.routers.foraging.foraging_storage.get_foraging_spot")
-    def test_delete_spot_superuser(self, mock_get, mock_delete, superuser_client):
-        """Superuser can delete any spot."""
+    def test_delete_spot_member(self, mock_get, mock_delete, member_client):
         mock_get.return_value = SAMPLE_SPOT
-        mock_delete.return_value = None
-        response = superuser_client.delete("/api/v1/foraging/spots/spot1")
+        response = member_client.delete("/api/v1/foraging/spots/spot1")
         assert response.status_code == 204
+
+    @patch("api.routers.foraging.foraging_storage.get_foraging_spot")
+    def test_delete_spot_superuser_other_group_forbidden(self, mock_get, superuser_client):
+        mock_get.return_value = SAMPLE_SPOT.model_copy(update={"group_id": "other-group"})
+        response = superuser_client.delete("/api/v1/foraging/spots/spot1")
+        assert response.status_code == 403
 
 
 class TestListForagingTypes:
@@ -214,6 +229,11 @@ class TestCreateForagingType:
         data = response.json()
         assert data["name"] == "Wild Garlic"
         mock_save.assert_called_once_with("Wild Garlic", {"icon": "🌿", "color": "#228B22"})
+
+    def test_create_type_forbidden_member(self, member_client):
+        """Foraging types are shared reference data, so only admins change them."""
+        response = member_client.post("/api/v1/foraging/types", json={"name": "Wild Garlic", "icon": "🌿"})
+        assert response.status_code == 403
 
 
 class TestDeleteForagingType:

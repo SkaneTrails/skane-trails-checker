@@ -12,8 +12,6 @@ router = APIRouter(prefix="/sync", tags=["sync"])
 
 
 def _scope_of(user: AuthenticatedUser) -> str:
-    if user.role == "superuser":
-        return "all"
     return f"group:{user.group_id}" if user.group_id else "none"
 
 

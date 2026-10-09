@@ -105,8 +105,8 @@ class TestSyncStatusEndpoint:
         assert response.json() == {**mock_status.return_value, "scope": "group:test-group"}
 
     @patch("api.routers.sync.get_status", return_value=dict.fromkeys(SYNC_KINDS))
-    def test_a_superuser_has_scope_all(self, mock_status, superuser_client) -> None:
-        assert superuser_client.get("/api/v1/sync/status").json()["scope"] == "all"
+    def test_a_superuser_has_their_group_scope(self, mock_status, superuser_client) -> None:
+        assert superuser_client.get("/api/v1/sync/status").json()["scope"] == "group:test-group"
 
     @patch("api.routers.sync.get_status", return_value=dict.fromkeys(SYNC_KINDS))
     def test_a_user_without_a_group_has_scope_none(self, mock_status, authenticated_client) -> None:

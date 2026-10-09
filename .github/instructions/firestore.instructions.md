@@ -124,17 +124,19 @@ Trail documents also carry `images_revision`, replaced in the same batch that wr
 
 ### `places` — Points of interest (Skåneleden)
 
-| Field          | Type                       | Required | Description                           |
-| -------------- | -------------------------- | -------- | ------------------------------------- |
-| `name`         | `str`                      | ✅       | Place name                            |
-| `lat`          | `float`                    | ✅       | Latitude                              |
-| `lng`          | `float`                    | ✅       | Longitude                             |
-| `categories`   | `list[{name, slug, icon}]` | ✅       | Place categories                      |
-| `address`      | `str`                      | ❌       | Street address                        |
-| `city`         | `str`                      | ❌       | City name                             |
-| `weburl`       | `str`                      | ❌       | Website URL                           |
-| `source`       | `str`                      | ✅       | Data source (default: `"skaneleden"`) |
-| `last_updated` | `str`                      | ✅       | ISO timestamp                         |
+| Field          | Type                       | Required | Description                                                                                                   |
+| -------------- | -------------------------- | -------- | ------------------------------------------------------------------------------------------------------------- |
+| `name`         | `str`                      | ✅       | Place name                                                                                                    |
+| `lat`          | `float`                    | ✅       | Latitude                                                                                                      |
+| `lng`          | `float`                    | ✅       | Longitude                                                                                                     |
+| `categories`   | `list[{name, slug, icon}]` | ✅       | Place categories                                                                                              |
+| `address`      | `str`                      | ❌       | Street address                                                                                                |
+| `city`         | `str`                      | ❌       | City name                                                                                                     |
+| `weburl`       | `str`                      | ❌       | Website URL                                                                                                   |
+| `source`       | `str`                      | ✅       | Data source (default: `"skaneleden"`)                                                                         |
+| `last_updated` | `str`                      | ✅       | ISO timestamp                                                                                                 |
+| `is_public`    | `bool`                     | ❌       | Missing means public (all imported places). A place added in the app is `false` and private to its `group_id` |
+| `group_id`     | `str`                      | ❌       | Owning group of a private place                                                                               |
 
 ## Common Schema Mistakes
 

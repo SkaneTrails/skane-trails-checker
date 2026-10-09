@@ -1,9 +1,8 @@
 """Trail API endpoints.
 
-Group-scoped access:
-- GET endpoints: any authenticated group member sees group + public trails
-- Write endpoints: admin of group (or superuser) only
-- Members are view-only
+Group-scoped access, the same for every role (superusers included):
+- Read: the user's own group's trails plus public ones
+- Write: any member of the trail's group; public trails are not editable through the API
 """
 
 import logging
@@ -38,21 +37,19 @@ MAX_GPX_SIZE = 10 * 1024 * 1024  # 10 MB (~5x largest Skåneleden GPX)
 router = APIRouter(prefix="/trails", tags=["trails"])
 
 
+def _require_view_access(user: AuthenticatedUser, trail: TrailResponse) -> None:
+    """Require the trail to be public or in the user's group."""
+    if trail.group_id is None or trail.is_public or trail.group_id == user.group_id:
+        return
+    raise HTTPException(status_code=403, detail="Not authorized to view this trail")
+
+
 def _require_write_access(user: AuthenticatedUser, trail: TrailResponse) -> None:
-    """Require admin/SU access to modify a trail."""
-    if user.role == "superuser":
-        return
+    """Require the trail to belong to the user's group."""
     if trail.group_id is None:
-        raise HTTPException(status_code=403, detail="Only superusers can modify public trails")
-    if user.role != "admin" or user.group_id != trail.group_id:
-        raise HTTPException(status_code=403, detail="Admin access required to modify group trails")
-
-
-def _require_admin_role(user: AuthenticatedUser) -> None:
-    """Require admin or superuser role for creating content."""
-    if user.role in ("admin", "superuser"):
-        return
-    raise HTTPException(status_code=403, detail="Admin access required")
+        raise HTTPException(status_code=403, detail="Public trails cannot be modified")
+    if user.group_id != trail.group_id:
+        raise HTTPException(status_code=403, detail="Not authorized to modify this trail")
 
 
 @router.get("/sync")
@@ -74,8 +71,7 @@ def get_trail_changes(
     Pass the previous response's server_time as `since`; omit it for a full fetch. Returned
     trails include coordinates_map, so a client keeps one local copy and never refetches it whole.
     """
-    group_id = None if user.role == "superuser" else require_group(user)
-    return trail_storage.get_trail_changes(since=params.since, group_id=group_id)
+    return trail_storage.get_trail_changes(since=params.since, group_id=require_group(user))
 
 
 @router.get("")
@@ -84,12 +80,11 @@ def list_trails(
 ) -> list[TrailResponse]:
     """List trails visible to the current user.
 
-    Group members see their group's trails + public (bootstrapped) trails.
-    Superusers see all trails.
+    Users see their group's trails + public (bootstrapped) trails.
 
     Use ?fields=summary to exclude coordinates_map (much smaller payload for list views).
     """
-    group_id = None if user.role == "superuser" else require_group(user)
+    group_id = require_group(user)
     summary = filters.fields == "summary"
     trails = trail_storage.get_all_trails(
         source=filters.source, since=filters.since, group_id=group_id, summary=summary
@@ -125,9 +120,7 @@ def get_image_pins(user: Annotated[AuthenticatedUser, Depends(require_auth)]) ->
     Returns thumbnail + GPS coords for all primary images the user can see.
     Single request replaces N individual trail image fetches.
     """
-    all_trails = trail_storage.get_all_trails(
-        group_id=user.group_id if user.role != "superuser" else None, summary=True
-    )
+    all_trails = trail_storage.get_all_trails(group_id=require_group(user), summary=True)
     explored_ids = [t.trail_id for t in all_trails if t.status == "Explored!"]
     pins = trail_storage.get_image_pins(explored_ids)
     return ImagePinsResponse(pins=pins)
@@ -140,9 +133,7 @@ def get_trail(trail_id: str, user: Annotated[AuthenticatedUser, Depends(require_
     if not trail:
         raise HTTPException(status_code=404, detail="Trail not found")
 
-    if trail.group_id is not None and user.role != "superuser" and user.group_id != trail.group_id:
-        raise HTTPException(status_code=403, detail="Not authorized to view this trail")
-
+    _require_view_access(user, trail)
     return trail
 
 
@@ -153,8 +144,7 @@ def get_trail_details(trail_id: str, user: Annotated[AuthenticatedUser, Depends(
     if not trail:
         raise HTTPException(status_code=404, detail="Trail not found")
 
-    if trail.group_id is not None and user.role != "superuser" and user.group_id != trail.group_id:
-        raise HTTPException(status_code=403, detail="Not authorized to view this trail")
+    _require_view_access(user, trail)
 
     details = trail_storage.get_trail_details(trail_id)
     if not details:
@@ -166,7 +156,7 @@ def get_trail_details(trail_id: str, user: Annotated[AuthenticatedUser, Depends(
 def update_trail(
     trail_id: str, body: TrailUpdate, user: Annotated[AuthenticatedUser, Depends(require_auth)]
 ) -> TrailResponse:
-    """Update trail fields (name, status, difficulty). Admin or superuser."""
+    """Update trail fields (name, status, difficulty). Any member of the trail's group."""
     existing = trail_storage.get_trail(trail_id)
     if not existing:
         raise HTTPException(status_code=404, detail="Trail not found")
@@ -187,7 +177,7 @@ def update_trail(
 
 @router.delete("/{trail_id}", status_code=204)
 def delete_trail(trail_id: str, user: Annotated[AuthenticatedUser, Depends(require_auth)]) -> None:
-    """Delete a trail and its details. Admin or superuser."""
+    """Delete a trail and its details. Any member of the trail's group."""
     existing = trail_storage.get_trail(trail_id)
     if not existing:
         raise HTTPException(status_code=404, detail="Trail not found")
@@ -208,15 +198,13 @@ def upload_gpx(
 ) -> list[TrailResponse]:
     """Upload a GPX file and save parsed trails to Firestore.
 
-    Admin or superuser only. Trails are assigned to the user's group.
+    Trails are assigned to the user's group.
 
     Query params:
         status: Trail status ('To Explore' or 'Explored!'). Default: 'Explored!'
         line_color: Hex color for map polyline (one of TRAIL_COLORS).
         is_public: Whether the trail is visible to all groups. Default: false.
     """
-    _require_admin_role(user)
-
     if line_color is not None and line_color not in TRAIL_COLORS:
         raise HTTPException(
             status_code=400, detail=f"Invalid color '{line_color}'. Must be one of: {sorted(TRAIL_COLORS)}"
@@ -253,7 +241,7 @@ def upload_gpx(
             detail = "Invalid GPX file: the file could not be parsed"
         raise HTTPException(status_code=400, detail=detail) from e
 
-    group_id = None if user.role == "superuser" else require_group(user)
+    group_id = require_group(user)
     trail_status = status or "Explored!"
     trails: list[TrailResponse] = []
     for trail, details in parsed:
@@ -278,12 +266,10 @@ def upload_gpx(
 def save_recording(body: RecordingCreate, user: Annotated[AuthenticatedUser, Depends(require_auth)]) -> TrailResponse:
     """Save a GPS recording as a trail.
 
-    Admin or superuser only. Accepts raw GPS coordinates (from device tracking),
+    Accepts raw GPS coordinates (from device tracking),
     computes distance, elevation, bounds, and simplified coordinates.
     """
-    _require_admin_role(user)
-
-    group_id = None if user.role == "superuser" else require_group(user)
+    group_id = require_group(user)
     trail, details = process_recording(name=body.name, coordinates=body.coordinates, user_uid=user.uid)
     trail.group_id = group_id
 
@@ -307,9 +293,7 @@ def get_trail_images(trail_id: str, user: Annotated[AuthenticatedUser, Depends(r
     if not trail:
         raise HTTPException(status_code=404, detail="Trail not found")
 
-    if trail.group_id is not None and user.role != "superuser" and user.group_id != trail.group_id:
-        raise HTTPException(status_code=403, detail="Not authorized to view this trail")
-
+    _require_view_access(user, trail)
     return trail_storage.get_trail_images(trail_id)
 
 
@@ -342,8 +326,6 @@ def upload_trail_image(
     Max 3 images per trail (1 primary + 2 secondary). Images are resized to
     max 800px and compressed to JPEG. EXIF GPS data is extracted for map pins.
     """
-    _require_admin_role(user)
-
     trail = trail_storage.get_trail(trail_id)
     if not trail:
         raise HTTPException(status_code=404, detail="Trail not found")
@@ -395,8 +377,6 @@ def delete_trail_image(
 
     Returns the remaining images and their new revision, so the client has one outcome to act on.
     """
-    _require_admin_role(user)
-
     trail = trail_storage.get_trail(trail_id)
     if not trail:
         raise HTTPException(status_code=404, detail="Trail not found")
