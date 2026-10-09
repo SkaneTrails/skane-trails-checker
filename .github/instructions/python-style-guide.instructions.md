@@ -38,12 +38,12 @@ from api.services import parser
 MAX_RETRIES = 3
 DEFAULT_TIMEOUT = 30
 
-# 5. Classes and functions
-class RecipeService:
-    ...
 
-def parse_ingredients(text: str) -> list[str]:
-    ...
+# 5. Classes and functions
+class RecipeService: ...
+
+
+def parse_ingredients(text: str) -> list[str]: ...
 ```
 
 ## Code Quality
@@ -73,8 +73,8 @@ def parse_ingredients(text: str) -> list[str]:
 RecipeDict = dict[str, Any]
 IngredientList = list[str]
 
-def parse_recipe(data: RecipeDict) -> IngredientList:
-    ...
+
+def parse_recipe(data: RecipeDict) -> IngredientList: ...
 ```
 
 ### Dataclasses Over Dictionaries
@@ -85,6 +85,7 @@ def parse_recipe(data: RecipeDict) -> IngredientList:
 
 ```python
 from dataclasses import dataclass, field
+
 
 @dataclass
 class Recipe:
@@ -126,7 +127,9 @@ def process_recipe(recipe_id: str | None) -> Recipe | None:
 ```python
 class RecipeNotFoundError(Exception):
     """Raised when recipe doesn't exist in database."""
+
     pass
+
 
 def get_recipe(recipe_id: str) -> Recipe:
     recipe = db.get(recipe_id)
@@ -247,6 +250,7 @@ def test_parse_ingredients_handles_empty_input():
     """Should return empty list when given empty string."""
     result = parse_ingredients("")
     assert result == []
+
 
 def test_parse_ingredients_extracts_quantities():
     """Should extract numeric quantities from ingredient text."""
