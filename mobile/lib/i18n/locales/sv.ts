@@ -171,7 +171,7 @@ const sv: Translations = {
     uploadSuccess: '{{count}} led(er) uppladdade!',
     viewTrails: 'Visa leder',
     editUploaded: 'Led uppladdad — redigera namnet om det behövs',
-    webOnly: 'GPX-uppladdning är tillgänglig på webben',
+    chooseFile: 'Välj GPX-fil',
     hikeType: 'Vandringstyp',
     completedHike: 'Genomförd vandring',
     plannedHike: 'Planerad vandring',
