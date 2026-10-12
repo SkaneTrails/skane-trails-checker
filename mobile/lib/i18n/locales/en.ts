@@ -46,6 +46,8 @@ const en = {
     exploredCount: '{{explored}} / {{total}} explored',
     uploadGpx: 'Upload GPX',
     searchPlaceholder: 'Search trails...',
+    sortNewest: 'Newest first',
+    sortName: 'Name A–Z',
     loadingTrails: 'Loading trails...',
     noTrailsFound: 'No trails found',
     failedToLoad: 'Failed to load trails',
@@ -88,6 +90,9 @@ const en = {
     images: 'Images',
     menu: 'Menu',
     closeMenu: 'Close menu',
+    refreshData: 'Refresh all data',
+    refreshConfirm:
+      'Clear the data saved on this device and download everything again? This can take a while on a slow connection.',
   },
 
   tracking: {
@@ -165,7 +170,7 @@ const en = {
     uploadSuccess: '{{count}} trail(s) uploaded successfully!',
     viewTrails: 'View Trails',
     editUploaded: 'Trail uploaded — edit the name if needed',
-    webOnly: 'GPX upload is currently available on web only',
+    chooseFile: 'Choose GPX file',
     hikeType: 'Hike Type',
     completedHike: 'Completed Hike',
     plannedHike: 'Planned Hike',
@@ -292,6 +297,7 @@ const en = {
     edit: 'Edit',
     toggleVisibility: 'Toggle Visibility',
     opacity: 'Opacity',
+    dragHandles: 'Drag the corners to fit the map; use the top handle to rotate',
     selectCorner: 'Select a corner, then tap the map to place it',
     tapToPlace: 'Tap map to place {{corner}}',
     rotate: 'Rotate',
@@ -303,6 +309,11 @@ const en = {
     },
     done: 'Done',
     reset: 'Reset',
+    imageTooLarge: 'Image is too large (max 10 MB). Please choose a smaller image.',
+    imageNotShrinkable:
+      'This image cannot be reduced enough to be saved in the browser. Please choose a smaller image.',
+    imageProcessingFailed: 'The image could not be processed. Please try a different image.',
+    limitReached: 'The browser can only store {{max}} overlays. Delete one to add another.',
   },
 
   noAccess: {

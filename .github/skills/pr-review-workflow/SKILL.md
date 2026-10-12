@@ -154,8 +154,15 @@ owner, repo, pr = data["owner"], data["repo"], data["pr"]
 for t in data["threads"]:
     if t.get("reply"):
         subprocess.run(
-            ["gh", "api", f"repos/{owner}/{repo}/pulls/{pr}/comments/{t['commentId']}/replies",
-             "-X", "POST", "-f", f"body={t['reply']}"],
+            [
+                "gh",
+                "api",
+                f"repos/{owner}/{repo}/pulls/{pr}/comments/{t['commentId']}/replies",
+                "-X",
+                "POST",
+                "-f",
+                f"body={t['reply']}",
+            ],
             check=True,
         )
 

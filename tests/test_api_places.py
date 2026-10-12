@@ -34,28 +34,43 @@ SAMPLE_PLACE_2 = PlaceResponse(
 
 class TestListPlaces:
     @patch("api.routers.places.places_storage.get_all_places")
-    def test_list_all_places(self, mock_get_all):
+    def test_list_all_places(self, mock_get_all, authenticated_client):
         mock_get_all.return_value = [SAMPLE_PLACE, SAMPLE_PLACE_2]
-        response = client.get("/api/v1/places")
+        response = authenticated_client.get("/api/v1/places")
         assert response.status_code == 200
         data = response.json()
         assert len(data) == 2
         assert data[0]["place_id"] == "p1"
 
     @patch("api.routers.places.places_storage.get_places_by_category")
-    def test_list_places_by_category(self, mock_get_cat):
+    def test_list_places_by_category(self, mock_get_cat, authenticated_client):
         mock_get_cat.return_value = [SAMPLE_PLACE]
-        response = client.get("/api/v1/places?category=parkering")
+        response = authenticated_client.get("/api/v1/places?category=parkering")
         assert response.status_code == 200
         assert len(response.json()) == 1
         mock_get_cat.assert_called_once_with("parkering")
 
     @patch("api.routers.places.places_storage.get_all_places")
-    def test_list_places_empty(self, mock_get_all):
+    def test_list_places_empty(self, mock_get_all, authenticated_client):
         mock_get_all.return_value = []
-        response = client.get("/api/v1/places")
+        response = authenticated_client.get("/api/v1/places")
         assert response.status_code == 200
         assert response.json() == []
+
+    @patch("api.routers.places.places_storage.get_all_places")
+    def test_hides_private_places_of_other_groups(self, mock_get_all, authenticated_client):
+        own = SAMPLE_PLACE_2.model_copy(update={"place_id": "own", "is_public": False, "group_id": "test-group"})
+        other = SAMPLE_PLACE_2.model_copy(update={"place_id": "other", "is_public": False, "group_id": "other-group"})
+        mock_get_all.return_value = [SAMPLE_PLACE, own, other]
+        response = authenticated_client.get("/api/v1/places")
+        assert [p["place_id"] for p in response.json()] == ["p1", "own"]
+
+    @patch("api.routers.places.places_storage.get_all_places")
+    def test_superuser_does_not_see_private_places_of_other_groups(self, mock_get_all, superuser_client):
+        other = SAMPLE_PLACE_2.model_copy(update={"place_id": "other", "is_public": False, "group_id": "other-group"})
+        mock_get_all.return_value = [SAMPLE_PLACE, other]
+        response = superuser_client.get("/api/v1/places")
+        assert [p["place_id"] for p in response.json()] == ["p1"]
 
 
 class TestListCategories:
@@ -93,8 +108,9 @@ class TestSecurityHeaders:
 
 class TestGlobalExceptionHandler:
     @patch("api.routers.places.places_storage.get_all_places")
-    def test_unhandled_exception_returns_500(self, mock_get_all):
+    def test_unhandled_exception_returns_500(self, mock_get_all, authenticated_client):
         mock_get_all.side_effect = RuntimeError("unexpected")
+        # The fixture's auth override stays active on the shared app.
         error_client = TestClient(app, raise_server_exceptions=False)
         response = error_client.get("/api/v1/places")
         assert response.status_code == 500

@@ -223,14 +223,14 @@ describe('useSettings — GPS tracking mode', () => {
     vi.clearAllMocks();
   });
 
-  it('defaults to balanced mode', async () => {
+  it('defaults to high precision mode', async () => {
     mockAsyncStorage.getItem.mockResolvedValue(null);
     const wrapper = createWrapper();
 
     const { result } = renderHook(() => useSettings(), { wrapper });
 
     await waitFor(() => expect(result.current.isLoading).toBe(false));
-    expect(result.current.gpsMode).toBe('balanced');
+    expect(result.current.gpsMode).toBe('high_precision');
   });
 
   it('loads persisted gpsMode from AsyncStorage', async () => {
@@ -244,7 +244,7 @@ describe('useSettings — GPS tracking mode', () => {
     expect(result.current.gpsMode).toBe('high_precision');
   });
 
-  it('falls back to balanced when stored gpsMode is invalid', async () => {
+  it('falls back to high precision when stored gpsMode is invalid', async () => {
     const stored = { language: 'en', themeId: 'outdoor', gpsMode: 'invalid_mode' };
     mockAsyncStorage.getItem.mockResolvedValue(JSON.stringify(stored));
     const wrapper = createWrapper();
@@ -252,7 +252,7 @@ describe('useSettings — GPS tracking mode', () => {
     const { result } = renderHook(() => useSettings(), { wrapper });
 
     await waitFor(() => expect(result.current.isLoading).toBe(false));
-    expect(result.current.gpsMode).toBe('balanced');
+    expect(result.current.gpsMode).toBe('high_precision');
   });
 
   it('setGpsMode updates and persists', async () => {

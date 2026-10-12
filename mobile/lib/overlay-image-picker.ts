@@ -8,9 +8,50 @@
 import { Directory, File, Paths } from 'expo-file-system';
 import * as ImagePicker from 'expo-image-picker';
 import { Platform } from 'react-native';
+import { encodeJpeg, encodeWithinBudget } from '@/lib/overlay-image-compress';
 
 /** Directory where overlay images are stored */
 const OVERLAYS_DIR_NAME = 'map-overlays';
+
+/** Maximum size of a picked overlay image, in bytes (10 MB). */
+export const MAX_OVERLAY_IMAGE_BYTES = 10 * 1024 * 1024;
+
+/** Web keeps the image inside localStorage (a few MB in total), so it is shrunk to fit this many bytes (0.75 MB). */
+const WEB_STORED_MAX_BYTES = 0.75 * 1024 * 1024;
+
+/** Thrown when a selected overlay image exceeds {@link MAX_OVERLAY_IMAGE_BYTES}. */
+export class OverlayImageTooLargeError extends Error {
+  readonly sizeBytes: number;
+  constructor(sizeBytes: number) {
+    super(`Overlay image is too large: ${sizeBytes} bytes (max ${MAX_OVERLAY_IMAGE_BYTES})`);
+    this.name = 'OverlayImageTooLargeError';
+    this.sizeBytes = sizeBytes;
+  }
+}
+
+/** Thrown on web when an image within the size cap cannot be shrunk to the browser storage budget. */
+export class OverlayImageNotShrinkableError extends Error {
+  constructor(sizeBytes: number) {
+    super(`Overlay image of ${sizeBytes} bytes cannot be shrunk to ${WEB_STORED_MAX_BYTES} bytes`);
+    this.name = 'OverlayImageNotShrinkableError';
+  }
+}
+
+/** Thrown on web when the browser fails to decode or re-encode the image. */
+export class OverlayImageProcessingError extends Error {
+  constructor(cause: unknown) {
+    super('Overlay image could not be processed', { cause });
+    this.name = 'OverlayImageProcessingError';
+  }
+}
+
+/** Translation key for the overlay image errors thrown here, or null for any other error. */
+export function overlayImageErrorKey(error: unknown): string | null {
+  if (error instanceof OverlayImageTooLargeError) return 'overlays.imageTooLarge';
+  if (error instanceof OverlayImageNotShrinkableError) return 'overlays.imageNotShrinkable';
+  if (error instanceof OverlayImageProcessingError) return 'overlays.imageProcessingFailed';
+  return null;
+}
 
 /**
  * Get the overlays directory, creating it if needed.
@@ -34,15 +75,59 @@ function getExtension(uri: string): string {
 }
 
 /**
+ * Convert an image blob into a persistable `data:` URL so it survives reloads.
+ * Blob/object URLs are only valid for the current document session and break
+ * (ERR_FILE_NOT_FOUND) after a refresh.
+ */
+async function blobToDataUrl(blob: Blob): Promise<string> {
+  return await new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onloadend = () => resolve(reader.result as string);
+    reader.onerror = () => reject(reader.error);
+    reader.readAsDataURL(blob);
+  });
+}
+
+/**
  * Copy an image to the app's local storage and return the new URI.
+ *
+ * On web, expo-file-system is not supported. The picker returns a transient
+ * `blob:` object URL that does not survive a reload, so we convert it to a
+ * persistable `data:` URL before storing, downscaling photos that would not fit
+ * comfortably in localStorage.
+ *
+ * Throws {@link OverlayImageTooLargeError} if the image exceeds
+ * {@link MAX_OVERLAY_IMAGE_BYTES}. On web it can also throw
+ * {@link OverlayImageNotShrinkableError} or {@link OverlayImageProcessingError}.
  */
 async function copyImageToStorage(sourceUri: string): Promise<string> {
+  if (Platform.OS === 'web') {
+    const blob = await (await fetch(sourceUri)).blob();
+    if (blob.size > MAX_OVERLAY_IMAGE_BYTES) throw new OverlayImageTooLargeError(blob.size);
+    if (blob.size <= WEB_STORED_MAX_BYTES) return blobToDataUrl(blob);
+
+    let shrunk: Blob | null;
+    try {
+      shrunk = await encodeWithinBudget((step) => encodeJpeg(blob, step), WEB_STORED_MAX_BYTES);
+    } catch (error) {
+      throw new OverlayImageProcessingError(error);
+    }
+    if (!shrunk) throw new OverlayImageNotShrinkableError(blob.size);
+    return blobToDataUrl(shrunk);
+  }
+
   const overlaysDir = getOverlaysDir();
 
   const ext = getExtension(sourceUri);
   const uuid = Math.random().toString(36).slice(2, 9);
   const filename = `overlay_${Date.now()}_${uuid}.${ext}`;
   const sourceFile = new File(sourceUri);
+
+  const sourceSize = sourceFile.size;
+  if (sourceSize != null && sourceSize > MAX_OVERLAY_IMAGE_BYTES) {
+    throw new OverlayImageTooLargeError(sourceSize);
+  }
+
   const destFile = new File(overlaysDir, filename);
 
   await sourceFile.copy(destFile);
@@ -108,8 +193,15 @@ export async function captureImageFromCamera(): Promise<string | null> {
 
 /**
  * Delete an overlay image from storage.
+ *
+ * On web there is no file to remove (the URI is an in-memory `data:` URL), so
+ * this is a no-op.
  */
 export async function deleteOverlayImage(imageUri: string): Promise<void> {
+  if (Platform.OS === 'web') {
+    return;
+  }
+
   try {
     const file = new File(imageUri);
     if (file.exists) {

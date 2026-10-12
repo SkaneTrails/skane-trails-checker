@@ -86,7 +86,7 @@ const defaultSettings: Settings = {
   enabledPlaceCategories: DEFAULT_PLACE_CATEGORIES,
   defaultPlannedColor: DEFAULT_PLANNED_COLOR,
   defaultCompletedColor: DEFAULT_COMPLETED_COLOR,
-  gpsMode: 'balanced',
+  gpsMode: 'high_precision',
   elevationGradient: 'dark-to-light',
 };
 
@@ -122,7 +122,7 @@ export const SettingsProvider = ({ children }: { children: React.ReactNode }) =>
             gpsMode:
               typeof parsed.gpsMode === 'string' && isSupportedGpsMode(parsed.gpsMode)
                 ? parsed.gpsMode
-                : 'balanced',
+                : 'high_precision',
             elevationGradient:
               typeof parsed.elevationGradient === 'string' && isSupportedElevationGradient(parsed.elevationGradient)
                 ? parsed.elevationGradient

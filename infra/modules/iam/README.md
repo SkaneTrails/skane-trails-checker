@@ -53,6 +53,12 @@ Users listed in `users.txt` also receive:
 
 - **Viewer** (`roles/viewer`) - Read-only access to all project resources
 
+## Google Play Publisher Service Account
+
+`google_service_account.play_publisher` (`st-play-publisher` by default) is the identity EAS Submit uses to publish Android app bundles to Google Play. It has **no GCP IAM roles**: its permissions are granted in Play Console by inviting its email under Users and permissions. The Google Play Android Developer API it calls is enabled by the `apis` module.
+
+The JSON key is intentionally **not** managed by Terraform (a managed key would put the private key in state). See the "Android release pipeline" section of [docs/DEVELOPMENT.md](../../../docs/DEVELOPMENT.md) for creating the key and the other one-time Play setup.
+
 ## Usage
 
 ### Add a User
@@ -74,14 +80,17 @@ Users listed in `users.txt` also receive:
 
 ## Variables
 
-| Name    | Description                    | Type           | Required |
-| ------- | ------------------------------ | -------------- | -------- |
-| project | GCP project ID                 | `string`       | Yes      |
-| users   | List of user emails for access | `list(string)` | No       |
+| Name                      | Description                                     | Type           | Required |
+| ------------------------- | ----------------------------------------------- | -------------- | -------- |
+| project                   | GCP project ID                                  | `string`       | Yes      |
+| users                     | List of user emails for access                  | `list(string)` | No       |
+| play_publisher_account_id | Account ID of the Google Play publisher account | `string`       | No       |
 
 ## Outputs
 
-None
+| Name                   | Description                                                             |
+| ---------------------- | ----------------------------------------------------------------------- |
+| `play_publisher_email` | Email of the Play publisher service account (invite it in Play Console) |
 
 ## Notes
 

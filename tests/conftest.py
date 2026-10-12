@@ -29,7 +29,7 @@ def authenticated_client() -> Generator[TestClient]:
 
 @pytest.fixture
 def member_client() -> Generator[TestClient]:
-    """Test client — member user (read-only within group)."""
+    """Test client — member user (same group rights as admin, except managing members)."""
 
     async def _mock_auth() -> AuthenticatedUser:
         return AuthenticatedUser(
@@ -43,10 +43,12 @@ def member_client() -> Generator[TestClient]:
 
 @pytest.fixture
 def superuser_client() -> Generator[TestClient]:
-    """Test client — superuser (global access, no group)."""
+    """Test client — superuser, who works within their own group like an admin."""
 
     async def _mock_auth() -> AuthenticatedUser:
-        return AuthenticatedUser(uid="su-user", email="su@example.com", name="Super User", role="superuser")
+        return AuthenticatedUser(
+            uid="su-user", email="su@example.com", name="Super User", group_id=TEST_GROUP_ID, role="superuser"
+        )
 
     app.dependency_overrides[require_auth] = _mock_auth
     yield TestClient(app)

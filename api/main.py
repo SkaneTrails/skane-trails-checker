@@ -10,7 +10,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import JSONResponse
 
-from api.routers import foraging, hike_groups, places, trails
+from api.routers import foraging, hike_groups, places, sync, trails
 from api.storage.validation import InvalidDocumentIdError
 
 logger = logging.getLogger(__name__)
@@ -44,6 +44,7 @@ app.include_router(trails.router, prefix="/api/v1")
 app.include_router(foraging.router, prefix="/api/v1")
 app.include_router(places.router, prefix="/api/v1")
 app.include_router(hike_groups.router, prefix="/api/v1")
+app.include_router(sync.router, prefix="/api/v1")
 
 
 @app.exception_handler(InvalidDocumentIdError)
@@ -54,9 +55,9 @@ async def invalid_document_id_handler(request: Request, exc: InvalidDocumentIdEr
 
 
 @app.exception_handler(Exception)
-async def global_exception_handler(request: Request, exc: Exception) -> JSONResponse:  # noqa: ARG001
+async def global_exception_handler(request: Request, exc: Exception) -> JSONResponse:
     """Catch unhandled exceptions and return a generic error response."""
-    logger.exception("Unhandled error on %s %s", request.method, request.url.path)
+    logger.error("Unhandled error on %s %s", request.method, request.url.path, exc_info=exc)
     return JSONResponse(status_code=500, content={"detail": "Internal server error"})
 
 

@@ -36,6 +36,18 @@ export interface Trail {
   max_inclination_deg?: number | null;
   line_color?: string | null;
   is_public?: boolean;
+  /** Changes whenever the trail's photos change; photos are cached by it. */
+  images_revision?: string | null;
+}
+
+// Trails changed or deleted since a sync time (local-first delta sync)
+export interface TrailChanges {
+  trails: Trail[];
+  deleted_ids: string[];
+  /** Use as `since` for the next request. */
+  server_time: string;
+  /** Whose trails these are ('all' or 'group:<id>'); a different saved scope means discard the local copy. */
+  scope: string;
 }
 
 // Full trail details with all coordinates and elevation
@@ -71,6 +83,8 @@ export interface TrailImage {
 export interface TrailImagesResponse {
   trail_id: string;
   images: TrailImage[];
+  /** Same value as the trail's `images_revision` when these images were saved. */
+  revision?: string | null;
 }
 
 // Lightweight image pin for map display
@@ -85,11 +99,12 @@ export interface ImagePinsResponse {
   pins: ImagePin[];
 }
 
-// Sync metadata for delta trail fetching
-export interface SyncMetadata {
-  count: number;
-  last_modified: string | null;
-}
+// Version of each data type on the server; a different value than last synced means it changed.
+export type SyncKind = 'trails' | 'places' | 'foraging_spots' | 'foraging_types' | 'images';
+export type SyncStatus = Record<SyncKind, string | null>;
+
+/** The status plus what the caller may see ('all', 'group:<id>' or 'none'); a change drops local data. */
+export type SyncStatusResponse = SyncStatus & { scope: string };
 
 // Foraging spot
 export interface ForagingSpot {

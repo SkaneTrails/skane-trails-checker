@@ -30,3 +30,9 @@ variable "backup_bucket_name" {
   description = "Name of the backup bucket (for scoped object permissions during terraform apply)"
   type        = string
 }
+
+variable "play_publisher_account_id" {
+  description = "Account ID of the service account EAS Submit uses to publish to Google Play"
+  type        = string
+  default     = "st-play-publisher"
+}

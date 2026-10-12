@@ -68,3 +68,8 @@ output "iamcredentials_service" {
   description = "IAM Credentials API service resource (for Workload Identity Federation)"
   value       = google_project_service.iamcredentials
 }
+
+output "androidpublisher_service" {
+  description = "Google Play Android Developer API service resource (for Play publishing)"
+  value       = google_project_service.androidpublisher
+}

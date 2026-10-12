@@ -1,13 +1,24 @@
 """Firestore storage operations for foraging data."""
 
 import logging
+from collections.abc import Callable
 from datetime import UTC, datetime
+from typing import Any
 
 from api.models.foraging import ForagingSpotResponse, ForagingTypeResponse
-from api.storage.firestore_client import get_collection
+from api.storage.firestore_client import create_batch, get_collection
+from api.storage.sync_status import touch
 from api.storage.validation import validate_document_id
 
 logger = logging.getLogger(__name__)
+
+
+def _commit_with_marker(kind: str, write: Callable[[Any], None]) -> None:
+    """Commit a write together with its sync marker, so clients are told about exactly what was stored."""
+    batch = create_batch()
+    write(batch)
+    touch(kind, batch=batch)
+    batch.commit()
 
 
 def _doc_to_foraging_spot(doc_id: str, data: dict) -> ForagingSpotResponse:
@@ -78,7 +89,8 @@ def save_foraging_spot(spot_data: dict) -> str:
     spot_data["last_updated"] = now
 
     doc_ref = collection.document()
-    doc_ref.set(spot_data)
+    # One commit, so a failure cannot leave a stored spot that no client is told about (a retry would duplicate it).
+    _commit_with_marker("foraging_spots", lambda batch: batch.set(doc_ref, spot_data))
     return doc_ref.id
 
 
@@ -86,13 +98,15 @@ def update_foraging_spot(spot_id: str, spot_data: dict) -> None:
     """Update a foraging spot."""
     validate_document_id(spot_id, field_name="spot_id")
     spot_data["last_updated"] = datetime.now(UTC).isoformat()
-    get_collection("foraging_spots").document(spot_id).update(spot_data)
+    spot_ref = get_collection("foraging_spots").document(spot_id)
+    _commit_with_marker("foraging_spots", lambda batch: batch.update(spot_ref, spot_data))
 
 
 def delete_foraging_spot(spot_id: str) -> None:
     """Delete a foraging spot."""
     validate_document_id(spot_id, field_name="spot_id")
-    get_collection("foraging_spots").document(spot_id).delete()
+    spot_ref = get_collection("foraging_spots").document(spot_id)
+    _commit_with_marker("foraging_spots", lambda batch: batch.delete(spot_ref))
 
 
 def get_foraging_types() -> list[ForagingTypeResponse]:
@@ -123,13 +137,15 @@ def get_foraging_types() -> list[ForagingTypeResponse]:
 def save_foraging_type(type_name: str, type_data: dict) -> None:
     """Save or update a foraging type."""
     validate_document_id(type_name, field_name="type_name")
-    get_collection("foraging_types").document(type_name).set(type_data)
+    type_ref = get_collection("foraging_types").document(type_name)
+    _commit_with_marker("foraging_types", lambda batch: batch.set(type_ref, type_data))
 
 
 def update_foraging_type(type_name: str, updates: dict) -> None:
     """Update fields of an existing foraging type."""
     validate_document_id(type_name, field_name="type_name")
-    get_collection("foraging_types").document(type_name).update(updates)
+    type_ref = get_collection("foraging_types").document(type_name)
+    _commit_with_marker("foraging_types", lambda batch: batch.update(type_ref, updates))
 
 
 def get_foraging_type(type_name: str) -> ForagingTypeResponse | None:
@@ -156,4 +172,5 @@ def get_foraging_type(type_name: str) -> ForagingTypeResponse | None:
 def delete_foraging_type(type_name: str) -> None:
     """Delete a foraging type."""
     validate_document_id(type_name, field_name="type_name")
-    get_collection("foraging_types").document(type_name).delete()
+    type_ref = get_collection("foraging_types").document(type_name)
+    _commit_with_marker("foraging_types", lambda batch: batch.delete(type_ref))

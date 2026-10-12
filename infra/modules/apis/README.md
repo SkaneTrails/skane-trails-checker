@@ -12,6 +12,7 @@ This module must be called **first** in the environment configuration (before IA
 - `secretmanager.googleapis.com` - Secret Manager for storing connection details
 - `cloudresourcemanager.googleapis.com` - Cloud Resource Manager for project-level operations
 - `iam.googleapis.com` - Identity and Access Management for permission management
+- `androidpublisher.googleapis.com` - Google Play Android Developer API, used by EAS Submit (via the Play publisher service account) to publish app bundles
 
 ## Free Tier Compliance
 
@@ -56,6 +57,7 @@ module "firestore" {
 | `secretmanager_service`        | Secret Manager API service resource (for depends_on)         |
 | `cloudresourcemanager_service` | Cloud Resource Manager API service resource (for depends_on) |
 | `iam_service`                  | IAM API service resource (for depends_on)                    |
+| `androidpublisher_service`     | Google Play Android Developer API service resource           |
 
 ## Notes
 

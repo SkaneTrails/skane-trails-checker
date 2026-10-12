@@ -141,6 +141,10 @@ After the first successful CI build:
 
 1. Re-apply: `terraform apply`
 
+## Step 11 (optional): Publish the Android app to Google Play
+
+Terraform creates what it can for the Android release pipeline: it enables the Google Play Android Developer API, creates the Play publisher service account (`terraform output play_publisher_sa`), and registers the Android app in Firebase with the Play signing fingerprints (`android_sha1_hashes`, `android_sha256_hashes`), which makes Firebase create the Android OAuth client for Google sign-in. The remaining steps (creating the service account key and the Play Console setup) cannot be automated and are documented in the "Android release pipeline" section of [docs/DEVELOPMENT.md](../../../docs/DEVELOPMENT.md).
+
 ______________________________________________________________________
 
 ## Directory Structure

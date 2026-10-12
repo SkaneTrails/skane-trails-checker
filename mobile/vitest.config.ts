@@ -90,14 +90,10 @@ export default defineConfig({
         'components/ForagingDrawer.tsx',
         'components/PlacesDrawer.tsx',
         // Overlay components — depend on expo-file-system, expo-image-picker, MapLibre
-        'components/OverlayAlignmentMode.tsx',
+        'components/OverlayEditPanel.tsx',
         'components/OverlayManager.tsx',
         // Overlay image picker — depends on expo-file-system, expo-image-picker (native APIs)
         'lib/overlay-image-picker.ts',
-        // Trail cache: native variant requires AsyncStorage (native runtime)
-        'lib/storage/trail-cache.native.ts',
-        // Trail cache: barrel re-export resolved by bundler (same as **/index.ts)
-        'lib/storage/trail-cache.ts',
         // Persist constants — static value only
         'lib/storage/persist-constants.ts',
         // 3D renderers — require WebGL/Canvas context, cannot test in jsdom

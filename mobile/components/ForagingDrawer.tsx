@@ -6,14 +6,7 @@
  */
 
 import { useState } from 'react';
-import {
-  ActivityIndicator,
-  FlatList,
-  Pressable,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native';
+import { ActivityIndicator, FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Chip } from '@/components/Chip';
 import { ContentCard } from '@/components/ContentCard';
 import { DrawerOverlay } from '@/components/DrawerOverlay';
@@ -72,8 +65,14 @@ export const ForagingDrawer = ({ isOpen, onClose, onAddSpot }: ForagingDrawerPro
   const { colors } = useTheme();
   const { t } = useTranslation();
   const [selectedMonth, setSelectedMonth] = useState<string | undefined>();
-  const { data: spots, isLoading, isFetching, isError, refetch } = useForagingSpots(selectedMonth);
-  const { data: types } = useForagingTypes();
+  const {
+    data: spots,
+    isLoading,
+    isFetching,
+    isError,
+    refetch,
+  } = useForagingSpots(selectedMonth, { enabled: isOpen });
+  const { data: types } = useForagingTypes({ enabled: isOpen });
   const colorMap = foragingColorMap(types ?? []);
 
   return (

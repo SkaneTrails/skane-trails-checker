@@ -1,22 +1,34 @@
 /**
  * GPX upload screen.
  *
- * Web-first: uses a hidden <input type="file"> for file selection.
+ * Web: a hidden <input type="file"> selects the file. Native: the system document picker.
  * Uploads to POST /api/v1/trails/upload and shows results.
  */
 
+import { File as FsFile } from 'expo-file-system';
 import { useRouter } from 'expo-router';
 import { type ChangeEvent, useRef, useState } from 'react';
 import { Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { Button, ColorPicker, ContentCard, EmptyState } from '@/components';
+import { Button, ColorPicker, ContentCard } from '@/components';
 import { Chip } from '@/components/Chip';
 import { TabIcon } from '@/components/TabIcon';
+import type { UploadFile } from '@/lib/api/form-file';
 import { useUploadGpx } from '@/lib/hooks';
 import { useTranslation } from '@/lib/i18n';
 import { useSettings } from '@/lib/settings-context';
 import { borderRadius, fontSize, fontWeight, sheet, spacing, useTheme } from '@/lib/theme';
 import { cssShadow, glassSheet } from '@/lib/theme/styles';
 import type { Trail } from '@/lib/types';
+
+/** Android document URIs end in an encoded document ID, so the readable name is its last part. */
+function pickedLabel(uri: string): string {
+  const raw = uri.split(/[/:]/).pop() ?? uri;
+  try {
+    return decodeURIComponent(raw);
+  } catch {
+    return raw;
+  }
+}
 
 export default function UploadScreen() {
   const { colors, shadows } = useTheme();
@@ -26,32 +38,29 @@ export default function UploadScreen() {
   const { defaultPlannedColor, defaultCompletedColor } = useSettings();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [selectedFile, setSelectedFile] = useState<UploadFile | null>(null);
+  const [selectedLabel, setSelectedLabel] = useState('');
   const [uploadedTrails, setUploadedTrails] = useState<Trail[] | null>(null);
   const [hikeType, setHikeType] = useState<'completed' | 'planned'>('completed');
   const [lineColor, setLineColor] = useState<string>(defaultCompletedColor);
   const [isPublic, setIsPublic] = useState(false);
 
-  if (Platform.OS !== 'web') {
-    return (
-      <View style={styles.backdrop}>
-        <View style={styles.cardWrap}>
-          <EmptyState
-            title={t('upload.webOnly')}
-            actionLabel={t('common.goBack')}
-            onAction={() => router.back()}
-          />
-        </View>
-      </View>
-    );
-  }
-
   const handleFileChange = (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
       setSelectedFile(file);
+      setSelectedLabel(`${file.name} (${(file.size / 1024).toFixed(1)} KB)`);
       setUploadedTrails(null);
     }
+  };
+
+  const handlePickFile = async () => {
+    const picked = await FsFile.pickFileAsync();
+    if (picked.canceled) return;
+    // GPX has no reliable MIME type, so any file is offered; the server rejects non-GPX content.
+    setSelectedFile({ uri: picked.result.uri, name: 'track.gpx', type: 'application/gpx+xml' });
+    setSelectedLabel(pickedLabel(picked.result.uri));
+    setUploadedTrails(null);
   };
 
   const handleHikeTypeChange = (type: 'completed' | 'planned') => {
@@ -123,113 +132,121 @@ export default function UploadScreen() {
           <Text style={[styles.heading, { color: colors.text.primary }]}>
             {t('upload.heading')}
           </Text>
-        <Text style={[styles.description, { color: colors.text.secondary }]}>
-          {t('upload.description')}
-        </Text>
-
-        <View style={styles.fileSection}>
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept=".gpx"
-            onChange={handleFileChange}
-            style={{ marginBottom: spacing.md }}
-          />
-          {selectedFile && (
-            <Text style={[styles.fileName, { color: colors.text.secondary }]}>
-              {selectedFile.name} ({(selectedFile.size / 1024).toFixed(1)} KB)
-            </Text>
-          )}
-        </View>
-
-        {/* Hike Type */}
-        <View style={styles.fieldSection}>
-          <Text style={[styles.fieldLabel, { color: colors.text.secondary }]}>
-            {t('upload.hikeType')}
+          <Text style={[styles.description, { color: colors.text.secondary }]}>
+            {t('upload.description')}
           </Text>
-          <View style={styles.chipRow}>
-            <Chip
-              label={t('upload.completedHike')}
-              selected={hikeType === 'completed'}
-              onPress={() => handleHikeTypeChange('completed')}
-            />
-            <Chip
-              label={t('upload.plannedHike')}
-              selected={hikeType === 'planned'}
-              onPress={() => handleHikeTypeChange('planned')}
-            />
+
+          <View style={styles.fileSection}>
+            {Platform.OS === 'web' ? (
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".gpx"
+                onChange={handleFileChange}
+                style={{ marginBottom: spacing.md }}
+              />
+            ) : (
+              <View style={{ marginBottom: spacing.md }}>
+                <Button title={t('upload.chooseFile')} onPress={handlePickFile} />
+              </View>
+            )}
+            {selectedFile && (
+              <Text style={[styles.fileName, { color: colors.text.secondary }]}>
+                {selectedLabel}
+              </Text>
+            )}
           </View>
-        </View>
 
-        {/* Trail Color */}
-        <View style={styles.fieldSection}>
-          <Text style={[styles.fieldLabel, { color: colors.text.secondary }]}>
-            {t('upload.lineColor')}
-          </Text>
-          <ColorPicker selected={lineColor} onSelect={setLineColor} />
-        </View>
-
-        {/* Visibility (planned only) */}
-        {hikeType === 'planned' && (
+          {/* Hike Type */}
           <View style={styles.fieldSection}>
             <Text style={[styles.fieldLabel, { color: colors.text.secondary }]}>
-              {t('upload.visibility')}
+              {t('upload.hikeType')}
             </Text>
             <View style={styles.chipRow}>
               <Chip
-                label={t('upload.privateTrail')}
-                selected={!isPublic}
-                onPress={() => setIsPublic(false)}
+                label={t('upload.completedHike')}
+                selected={hikeType === 'completed'}
+                onPress={() => handleHikeTypeChange('completed')}
               />
               <Chip
-                label={t('upload.publicTrail')}
-                selected={isPublic}
-                onPress={() => setIsPublic(true)}
-              />
-            </View>
-            <Text style={[styles.hint, { color: colors.text.muted }]}>
-              {isPublic ? t('upload.publicHint') : t('upload.privateHint')}
-            </Text>
-          </View>
-        )}
-
-        <View style={styles.actions}>
-          <Button
-            title={upload.isPending ? t('upload.uploading') : t('upload.upload')}
-            onPress={handleUpload}
-            disabled={!selectedFile || upload.isPending}
-          />
-        </View>
-
-        {upload.isError && (
-          <View style={[styles.errorBox, { backgroundColor: colors.errorBg }]}>
-            <Text style={[styles.errorText, { color: colors.error }]}>
-              {upload.error?.message ?? t('upload.uploadFailed')}
-            </Text>
-          </View>
-        )}
-
-        {uploadedTrails && (
-          <View style={styles.results}>
-            <Text style={[styles.resultHeading, { color: colors.success }]}>
-              {t('upload.uploadSuccess', { count: String(uploadedTrails.length) })}
-            </Text>
-            {uploadedTrails.map((trail) => (
-              <ContentCard key={trail.trail_id}>
-                <Text style={[styles.trailName, { color: colors.text.primary }]}>{trail.name}</Text>
-                <Text style={[styles.trailMeta, { color: colors.text.secondary }]}>
-                  {trail.length_km.toFixed(1)} km
-                </Text>
-              </ContentCard>
-            ))}
-            <View style={styles.actions}>
-              <Button
-                title={t('upload.viewTrails')}
-                onPress={() => router.push('/(tabs)/trails')}
+                label={t('upload.plannedHike')}
+                selected={hikeType === 'planned'}
+                onPress={() => handleHikeTypeChange('planned')}
               />
             </View>
           </View>
-        )}
+
+          {/* Trail Color */}
+          <View style={styles.fieldSection}>
+            <Text style={[styles.fieldLabel, { color: colors.text.secondary }]}>
+              {t('upload.lineColor')}
+            </Text>
+            <ColorPicker selected={lineColor} onSelect={setLineColor} />
+          </View>
+
+          {/* Visibility (planned only) */}
+          {hikeType === 'planned' && (
+            <View style={styles.fieldSection}>
+              <Text style={[styles.fieldLabel, { color: colors.text.secondary }]}>
+                {t('upload.visibility')}
+              </Text>
+              <View style={styles.chipRow}>
+                <Chip
+                  label={t('upload.privateTrail')}
+                  selected={!isPublic}
+                  onPress={() => setIsPublic(false)}
+                />
+                <Chip
+                  label={t('upload.publicTrail')}
+                  selected={isPublic}
+                  onPress={() => setIsPublic(true)}
+                />
+              </View>
+              <Text style={[styles.hint, { color: colors.text.muted }]}>
+                {isPublic ? t('upload.publicHint') : t('upload.privateHint')}
+              </Text>
+            </View>
+          )}
+
+          <View style={styles.actions}>
+            <Button
+              title={upload.isPending ? t('upload.uploading') : t('upload.upload')}
+              onPress={handleUpload}
+              disabled={!selectedFile || upload.isPending}
+            />
+          </View>
+
+          {upload.isError && (
+            <View style={[styles.errorBox, { backgroundColor: colors.errorBg }]}>
+              <Text style={[styles.errorText, { color: colors.error }]}>
+                {upload.error?.message ?? t('upload.uploadFailed')}
+              </Text>
+            </View>
+          )}
+
+          {uploadedTrails && (
+            <View style={styles.results}>
+              <Text style={[styles.resultHeading, { color: colors.success }]}>
+                {t('upload.uploadSuccess', { count: String(uploadedTrails.length) })}
+              </Text>
+              {uploadedTrails.map((trail) => (
+                <ContentCard key={trail.trail_id}>
+                  <Text style={[styles.trailName, { color: colors.text.primary }]}>
+                    {trail.name}
+                  </Text>
+                  <Text style={[styles.trailMeta, { color: colors.text.secondary }]}>
+                    {trail.length_km.toFixed(1)} km
+                  </Text>
+                </ContentCard>
+              ))}
+              <View style={styles.actions}>
+                <Button
+                  title={t('upload.viewTrails')}
+                  onPress={() => router.push('/(tabs)/trails')}
+                />
+              </View>
+            </View>
+          )}
         </ScrollView>
       </View>
     </View>

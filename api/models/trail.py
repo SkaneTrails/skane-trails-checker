@@ -61,6 +61,9 @@ class TrailResponse(BaseModel):
     group_id: str | None = None
     line_color: str | None = None
     is_public: bool = False
+    images_revision: str | None = Field(
+        default=None, description="Changes whenever the trail's photos change; clients cache photos by it"
+    )
 
     @field_validator("line_color")
     @classmethod
@@ -110,6 +113,7 @@ class TrailResponse(BaseModel):
             "modified_at": self.modified_at,
             "created_by": self.created_by,
             "line_color": self.line_color,
+            "images_revision": self.images_revision,
         }
         data.update({k: v for k, v in optional_str.items() if v is not None})
 
@@ -217,6 +221,31 @@ class SyncMetadata(BaseModel):
     )
 
 
+class TrailChangesParams(BaseModel):
+    """Query parameters for the trail changes (delta sync) endpoint."""
+
+    since: str | None = Field(
+        default=None,
+        pattern=r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?Z$",
+        description="ISO timestamp (Z-suffix UTC) from the previous response's server_time. Omit for a full fetch.",
+    )
+
+
+class TrailChangesResponse(BaseModel):
+    """Trails changed or deleted since a timestamp, for local-first clients."""
+
+    trails: list[TrailResponse] = Field(description="Created or modified trails, including coordinates_map")
+    deleted_ids: list[str] = Field(description="IDs of trails deleted since the timestamp")
+    server_time: str = Field(
+        description="Pass as `since` next time. Taken before the data was read and a couple of minutes behind "
+        "the clock, so a write that commits after its own timestamp is still delivered next time."
+    )
+    scope: str = Field(
+        description="Whose trails these are: 'all' for a superuser, else 'group:<id>'. "
+        "A client whose saved scope differs must discard its local copy and cursor."
+    )
+
+
 class TrailImage(BaseModel):
     """An image attached to a trail."""
 
@@ -233,6 +262,9 @@ class TrailImagesResponse(BaseModel):
 
     trail_id: str
     images: list[TrailImage] = Field(default_factory=list, max_length=3)
+    revision: str | None = Field(
+        default=None, description="Same value as the trail's images_revision when these images were saved"
+    )
 
 
 class ImagePin(BaseModel):

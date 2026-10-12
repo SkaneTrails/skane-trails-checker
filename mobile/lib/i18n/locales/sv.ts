@@ -46,6 +46,8 @@ const sv: Translations = {
     exploredCount: '{{explored}} / {{total}} utforskade',
     uploadGpx: 'Ladda upp GPX',
     searchPlaceholder: 'Sök leder...',
+    sortNewest: 'Senaste först',
+    sortName: 'Namn A–Ö',
     loadingTrails: 'Laddar leder...',
     noTrailsFound: 'Inga leder hittades',
     failedToLoad: 'Kunde inte ladda leder',
@@ -88,6 +90,9 @@ const sv: Translations = {
     images: 'Bilder',
     menu: 'Meny',
     closeMenu: 'Stäng meny',
+    refreshData: 'Uppdatera all data',
+    refreshConfirm:
+      'Rensa data som sparats på den här enheten och ladda ner allt igen? Det kan ta en stund med långsam uppkoppling.',
   },
 
   tracking: {
@@ -119,7 +124,8 @@ const sv: Translations = {
 
   permissions: {
     locationRequired: 'Platsbehörighet krävs',
-    openSettings: 'Platsåtkomst har nekats. Aktivera det i Inställningar för att spela in vandringar.',
+    openSettings:
+      'Platsåtkomst har nekats. Aktivera det i Inställningar för att spela in vandringar.',
     settings: 'Inställningar',
     backgroundRequired: 'Bakgrundsplats krävs',
     backgroundExplanation:
@@ -165,7 +171,7 @@ const sv: Translations = {
     uploadSuccess: '{{count}} led(er) uppladdade!',
     viewTrails: 'Visa leder',
     editUploaded: 'Led uppladdad — redigera namnet om det behövs',
-    webOnly: 'GPX-uppladdning är tillgänglig på webben',
+    chooseFile: 'Välj GPX-fil',
     hikeType: 'Vandringstyp',
     completedHike: 'Genomförd vandring',
     plannedHike: 'Planerad vandring',
@@ -292,6 +298,7 @@ const sv: Translations = {
     edit: 'Redigera',
     toggleVisibility: 'Växla synlighet',
     opacity: 'Genomskinlighet',
+    dragHandles: 'Dra i hörnen för att passa kartan; använd det övre handtaget för att rotera',
     selectCorner: 'Välj ett hörn och tryck på kartan för att placera det',
     tapToPlace: 'Tryck på kartan för att placera {{corner}}',
     rotate: 'Rotera',
@@ -303,6 +310,11 @@ const sv: Translations = {
     },
     done: 'Klar',
     reset: 'Återställ',
+    imageTooLarge: 'Bilden är för stor (max 10 MB). Välj en mindre bild.',
+    imageNotShrinkable:
+      'Bilden kan inte minskas tillräckligt för att sparas i webbläsaren. Välj en mindre bild.',
+    imageProcessingFailed: 'Bilden kunde inte bearbetas. Försök med en annan bild.',
+    limitReached: 'Webbläsaren kan bara lagra {{max}} överlägg. Radera ett för att lägga till ett nytt.',
   },
 
   noAccess: {

@@ -11,6 +11,7 @@ import pytest
 
 from api.models.place import PLACE_CATEGORIES, PlaceCategoryResponse, PlaceResponse, get_category_display
 from api.storage.places_storage import (
+    MAX_PLACES_PER_BATCH,
     delete_all_places,
     delete_place,
     get_all_places,
@@ -50,6 +51,70 @@ SAMPLE_PLACE = {
 }
 
 
+@pytest.fixture(autouse=True)
+def mock_touch() -> Generator[MagicMock]:
+    """Keep the sync-status marker write away from Firestore."""
+    with patch("api.storage.places_storage.touch") as mock:
+        yield mock
+
+
+@pytest.fixture(autouse=True)
+def mock_batch() -> Generator[MagicMock]:
+    """Keep batched writes away from Firestore."""
+    with patch("api.storage.places_storage.create_batch") as mock_factory:
+        yield mock_factory.return_value
+
+
+class TestSyncStatusTouches:
+    """Every write is committed together with its places marker; reads never touch."""
+
+    def test_save_place_commits_it_with_the_marker(self, mock_collection, mock_touch, mock_batch) -> None:
+        save_place(PlaceResponse(place_id="p1", name="A", lat=56.0, lng=13.0))
+
+        mock_touch.assert_called_once_with("places", batch=mock_batch)
+        mock_batch.commit.assert_called_once()
+        mock_collection.document.return_value.set.assert_not_called()
+
+    def test_every_import_batch_carries_the_marker(self, mock_collection, mock_touch) -> None:
+        places = [PlaceResponse(place_id=f"p{i}", name="A", lat=56.0, lng=13.0) for i in range(3)]
+        with patch("api.storage.places_storage.create_batch") as mock_create_batch:
+            save_places_batch(places, batch_size=2)
+
+        batch = mock_create_batch.return_value
+        assert batch.commit.call_count == 2
+        assert [call.kwargs for call in mock_touch.call_args_list] == [{"batch": batch}] * 2
+
+    def test_a_failed_import_batch_still_announces_the_earlier_ones(self, mock_collection, mock_touch) -> None:
+        places = [PlaceResponse(place_id=f"p{i}", name="A", lat=56.0, lng=13.0) for i in range(3)]
+        with patch("api.storage.places_storage.create_batch") as mock_create_batch:
+            mock_create_batch.return_value.commit.side_effect = [None, RuntimeError("firestore unavailable")]
+            with pytest.raises(RuntimeError, match="firestore unavailable"):
+                save_places_batch(places, batch_size=2)
+
+        assert mock_touch.call_count == 2
+
+    def test_empty_batch_does_not_touch(self, mock_collection, mock_touch) -> None:
+        save_places_batch([])
+
+        mock_touch.assert_not_called()
+
+    def test_deletes_touch(self, mock_collection, mock_touch) -> None:
+        mock_collection.stream.return_value = []
+
+        delete_place("p1")
+        delete_all_places()
+
+        assert [call.args for call in mock_touch.call_args_list] == [("places",)] * 2
+
+    def test_reads_do_not_touch(self, mock_collection, mock_touch) -> None:
+        mock_collection.stream.return_value = []
+
+        get_all_places()
+        get_places_by_category("parkering")
+
+        mock_touch.assert_not_called()
+
+
 class TestDocToPlace:
     """Tests for _doc_to_place conversion (via get_all_places)."""
 
@@ -86,6 +151,25 @@ class TestDocToPlace:
         assert place.lng == 0.0
         assert place.categories == []
         assert place.source == "skaneleden"
+
+    def test_existing_place_without_visibility_is_public(self, mock_collection) -> None:
+        mock_collection.stream.return_value = [_make_doc({"place_id": "p2"})]
+
+        place = get_all_places()[0]
+
+        assert place.is_public is True
+        assert place.group_id is None
+
+    def test_private_place_keeps_its_group(self, mock_collection) -> None:
+        mock_collection.stream.return_value = [_make_doc({"place_id": "p2", "is_public": False, "group_id": "g1"})]
+
+        place = get_all_places()[0]
+
+        assert place.is_public is False
+        assert place.group_id == "g1"
+        assert place.is_visible_to("g1")
+        assert not place.is_visible_to("g2")
+        assert not place.is_visible_to(None)
 
     def test_multiple_categories(self, mock_collection) -> None:
         data = {
@@ -179,7 +263,7 @@ class TestSavePlace:
     """Tests for save_place."""
 
     @patch("api.storage.places_storage.datetime")
-    def test_saves_place_with_timestamp(self, mock_dt, mock_collection) -> None:
+    def test_saves_place_with_timestamp(self, mock_dt, mock_collection, mock_batch) -> None:
         from datetime import UTC, datetime
 
         fixed = datetime(2026, 6, 15, tzinfo=UTC)
@@ -196,7 +280,7 @@ class TestSavePlace:
         save_place(place)
 
         mock_collection.document.assert_called_once_with("p1")
-        saved = mock_collection.document.return_value.set.call_args[0][0]
+        saved = mock_batch.set.call_args[0][1]
         assert saved["place_id"] == "p1"
         assert saved["name"] == "Test Place"
         assert saved["last_updated"] == fixed.isoformat()
@@ -225,15 +309,34 @@ class TestSavePlacesBatch:
         result = save_places_batch([])
         assert result == 0
 
+    def test_a_default_batch_leaves_room_for_the_marker(self, mock_collection, mock_touch) -> None:
+        """Firestore allows 500 writes per batch: the places and the marker must fit."""
+        places = [PlaceResponse(place_id=f"p{i}", name="A", lat=56.0, lng=13.0) for i in range(500)]
+        with patch("api.storage.places_storage.create_batch") as mock_create_batch:
+            save_places_batch(places)
+
+        batch = mock_create_batch.return_value
+        assert batch.set.call_count == 500
+        assert batch.commit.call_count == 2
+        assert mock_touch.call_count == 2
+        assert MAX_PLACES_PER_BATCH + 1 <= 500
+
+    @pytest.mark.parametrize("batch_size", [0, -1, MAX_PLACES_PER_BATCH + 1])
+    def test_rejects_a_batch_size_that_cannot_hold_the_marker(self, mock_collection, batch_size) -> None:
+        with pytest.raises(ValueError, match="batch_size"):
+            save_places_batch([PlaceResponse(place_id="p1", name="A", lat=56.0, lng=13.0)], batch_size=batch_size)
+
 
 class TestDeletePlace:
     """Tests for delete_place."""
 
-    def test_deletes_place(self, mock_collection) -> None:
+    def test_deletes_place(self, mock_collection, mock_batch, mock_touch) -> None:
         delete_place("p1")
 
         mock_collection.document.assert_called_once_with("p1")
-        mock_collection.document.return_value.delete.assert_called_once()
+        mock_batch.delete.assert_called_once_with(mock_collection.document.return_value)
+        mock_touch.assert_called_once_with("places", batch=mock_batch)
+        mock_batch.commit.assert_called_once()
 
 
 class TestDeleteAllPlaces:

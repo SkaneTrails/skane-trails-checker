@@ -32,6 +32,7 @@ describe('HamburgerMenu', () => {
     onUpload: vi.fn(),
     onOverlays: vi.fn(),
     onSettings: vi.fn(),
+    onRefresh: vi.fn(),
     onAdmin: vi.fn(),
   };
 
@@ -100,6 +101,14 @@ describe('HamburgerMenu', () => {
 
     fireEvent.click(screen.getByLabelText('trails.uploadGpx'));
     expect(onUpload).toHaveBeenCalledOnce();
+  });
+
+  it('calls onRefresh when refresh pressed', () => {
+    const onRefresh = vi.fn();
+    render(<HamburgerMenu {...defaultProps} isOpen={true} onRefresh={onRefresh} />);
+
+    fireEvent.click(screen.getByLabelText('map.refreshData'));
+    expect(onRefresh).toHaveBeenCalledOnce();
   });
 
   it('does not show admin when showAdmin is false', () => {

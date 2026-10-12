@@ -77,6 +77,23 @@ ______________________________________________________________________
 
 Updated automatically on trail save/delete. Used by clients to detect changes efficiently (1 Firestore read per app open).
 
+**Document: `sync_status`**
+
+One field per data type (`trails`, `places`, `foraging_spots`, `foraging_types`, `images`), each an opaque random version (`uuid4().hex`). Every write path calls `touch(kind, batch=...)` so the new version commits in the same batch or transaction as the data it announces (never as a separate write afterwards), which replaces that version. Clients compare versions for equality only (never order them) and refetch the types that differ. Served by `GET /sync/status`.
+
+Trail documents also carry `images_revision`, replaced in the same batch that writes `trail_images`; a client re-downloads a trail's photos only when it changes.
+
+### `trail_tombstones` — Trails that were deleted or stopped being shared (delta sync of removals)
+
+| Field        | Type   | Required | Description                                                |
+| ------------ | ------ | -------- | ---------------------------------------------------------- |
+| `trail_id`   | `str`  | ✅       | ID of the deleted trail                                    |
+| `group_id`   | `str`  | ❌       | Group the trail belonged to (null for public/bootstrapped) |
+| `is_public`  | `bool` | ✅       | Whether the trail was shared with all groups               |
+| `deleted_at` | `str`  | ✅       | ISO timestamp (Z-suffix UTC) of the deletion               |
+
+**Document ID**: Auto-generated, one document per removal event (trail IDs are reusable, so a later removal must not overwrite an earlier one and its audience). Written in the same batch as the deletion (`delete_trail`) or as the update that makes a public trail private (`update_trail`), and read by `GET /trails/changes?since=` so clients drop the trail from their local copy (an ID is reported once). `group_id`/`is_public` hold who could see the trail before the change and decide who is told. Never deleted (tiny documents); a trail that is visible and changed again is returned as changed and left out of `deleted_ids`.
+
 ### `foraging_spots` — Foraging locations
 
 | Field          | Type        | Required | Description                                          |
@@ -107,17 +124,19 @@ Updated automatically on trail save/delete. Used by clients to detect changes ef
 
 ### `places` — Points of interest (Skåneleden)
 
-| Field          | Type                       | Required | Description                           |
-| -------------- | -------------------------- | -------- | ------------------------------------- |
-| `name`         | `str`                      | ✅       | Place name                            |
-| `lat`          | `float`                    | ✅       | Latitude                              |
-| `lng`          | `float`                    | ✅       | Longitude                             |
-| `categories`   | `list[{name, slug, icon}]` | ✅       | Place categories                      |
-| `address`      | `str`                      | ❌       | Street address                        |
-| `city`         | `str`                      | ❌       | City name                             |
-| `weburl`       | `str`                      | ❌       | Website URL                           |
-| `source`       | `str`                      | ✅       | Data source (default: `"skaneleden"`) |
-| `last_updated` | `str`                      | ✅       | ISO timestamp                         |
+| Field          | Type                       | Required | Description                                                                                                   |
+| -------------- | -------------------------- | -------- | ------------------------------------------------------------------------------------------------------------- |
+| `name`         | `str`                      | ✅       | Place name                                                                                                    |
+| `lat`          | `float`                    | ✅       | Latitude                                                                                                      |
+| `lng`          | `float`                    | ✅       | Longitude                                                                                                     |
+| `categories`   | `list[{name, slug, icon}]` | ✅       | Place categories                                                                                              |
+| `address`      | `str`                      | ❌       | Street address                                                                                                |
+| `city`         | `str`                      | ❌       | City name                                                                                                     |
+| `weburl`       | `str`                      | ❌       | Website URL                                                                                                   |
+| `source`       | `str`                      | ✅       | Data source (default: `"skaneleden"`)                                                                         |
+| `last_updated` | `str`                      | ✅       | ISO timestamp                                                                                                 |
+| `is_public`    | `bool`                     | ❌       | Missing means public (all imported places). A place added in the app is `false` and private to its `group_id` |
+| `group_id`     | `str`                      | ❌       | Owning group of a private place                                                                               |
 
 ## Common Schema Mistakes
 

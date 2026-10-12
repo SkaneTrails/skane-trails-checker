@@ -12,7 +12,7 @@ import { borderRadius, fontSize, fontWeight, spacing, useTheme } from '@/lib/the
 import { glassCard } from '@/lib/theme/styles';
 import { TabIcon } from './TabIcon';
 
-type IconName = 'compass' | 'leaf' | 'pin' | 'upload' | 'settings' | 'shield' | 'image';
+type IconName = 'compass' | 'leaf' | 'pin' | 'upload' | 'settings' | 'shield' | 'image' | 'refresh';
 
 interface MenuItem {
   key: string;
@@ -30,6 +30,7 @@ interface HamburgerMenuProps {
   onUpload: () => void;
   onOverlays: () => void;
   onSettings: () => void;
+  onRefresh: () => void;
   onAdmin: () => void;
   showAdmin?: boolean;
 }
@@ -43,6 +44,7 @@ export function HamburgerMenu({
   onUpload,
   onOverlays,
   onSettings,
+  onRefresh,
   onAdmin,
   showAdmin = false,
 }: HamburgerMenuProps) {
@@ -85,6 +87,12 @@ export function HamburgerMenu({
       label: t('settings.title'),
       icon: 'settings',
       onPress: onSettings,
+    },
+    {
+      key: 'refresh',
+      label: t('map.refreshData'),
+      icon: 'refresh',
+      onPress: onRefresh,
     },
     ...(showAdmin
       ? [

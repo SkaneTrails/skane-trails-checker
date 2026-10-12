@@ -76,7 +76,7 @@ class TestGetTrailImages:
 
 
 class TestUploadTrailImage:
-    @patch("api.routers.trails.trail_storage.save_trail_images")
+    @patch("api.routers.trails.trail_storage.save_trail_images", return_value="rev1")
     @patch("api.routers.trails.trail_storage.get_trail_images")
     @patch("api.routers.trails.trail_storage.get_trail")
     def test_upload_primary_image(self, mock_get_trail, mock_get_images, mock_save, authenticated_client):
@@ -93,9 +93,10 @@ class TestUploadTrailImage:
         assert len(data["images"]) == 1
         assert data["images"][0]["role"] == "primary"
         assert data["images"][0]["caption"] == "Summit"
+        assert data["revision"] == "rev1"
         mock_save.assert_called_once()
 
-    @patch("api.routers.trails.trail_storage.save_trail_images")
+    @patch("api.routers.trails.trail_storage.save_trail_images", return_value="rev1")
     @patch("api.routers.trails.trail_storage.get_trail_images")
     @patch("api.routers.trails.trail_storage.get_trail")
     def test_upload_replaces_existing_primary(self, mock_get_trail, mock_get_images, mock_save, authenticated_client):
@@ -182,7 +183,7 @@ class TestUploadTrailImage:
         assert response.status_code == 413
         assert "Processed image too large" in response.json()["detail"]
 
-    @patch("api.routers.trails.trail_storage.save_trail_images")
+    @patch("api.routers.trails.trail_storage.save_trail_images", return_value="rev1")
     @patch("api.routers.trails.trail_storage.get_trail_images")
     @patch("api.routers.trails.trail_storage.get_trail")
     def test_upload_generates_thumbnail_when_gps_present(
@@ -204,7 +205,7 @@ class TestUploadTrailImage:
             saved_images = mock_save.call_args[0][1]
             assert saved_images[0].thumbnail == "tiny_thumb"
 
-    @patch("api.routers.trails.trail_storage.save_trail_images")
+    @patch("api.routers.trails.trail_storage.save_trail_images", return_value="rev1")
     @patch("api.routers.trails.trail_storage.get_trail_images")
     @patch("api.routers.trails.trail_storage.get_trail")
     def test_upload_falls_back_to_trail_midpoint_when_no_gps(
@@ -250,8 +251,8 @@ class TestUploadTrailImage:
         assert response.status_code == 404
 
     @patch("api.routers.trails.trail_storage.get_trail")
-    def test_upload_member_forbidden(self, mock_get_trail, member_client):
-        mock_get_trail.return_value = SAMPLE_TRAIL
+    def test_upload_other_group_forbidden(self, mock_get_trail, member_client):
+        mock_get_trail.return_value = SAMPLE_TRAIL.model_copy(update={"group_id": "other-group"})
         jpeg_data = _make_jpeg()
         response = member_client.post(
             "/api/v1/trails/abc123/images?role=primary", files={"file": ("photo.jpg", jpeg_data, "image/jpeg")}
@@ -260,7 +261,7 @@ class TestUploadTrailImage:
 
 
 class TestDeleteTrailImage:
-    @patch("api.routers.trails.trail_storage.save_trail_images")
+    @patch("api.routers.trails.trail_storage.save_trail_images", return_value="rev-2")
     @patch("api.routers.trails.trail_storage.get_trail_images")
     @patch("api.routers.trails.trail_storage.get_trail")
     def test_delete_image(self, mock_get_trail, mock_get_images, mock_save, authenticated_client):
@@ -271,11 +272,15 @@ class TestDeleteTrailImage:
         )
 
         response = authenticated_client.delete("/api/v1/trails/abc123/images/0")
-        assert response.status_code == 204
+        assert response.status_code == 200
         # Should save with only the second image
         saved_images = mock_save.call_args[0][1]
         assert len(saved_images) == 1
         assert saved_images[0].role == "secondary"
+        # The remaining photos and their revision come back, so the client has one outcome to act on
+        body = response.json()
+        assert body["revision"] == "rev-2"
+        assert [img["role"] for img in body["images"]] == ["secondary"]
 
     @patch("api.routers.trails.trail_storage.get_trail_images")
     @patch("api.routers.trails.trail_storage.get_trail")
@@ -293,8 +298,8 @@ class TestDeleteTrailImage:
         assert response.status_code == 404
 
     @patch("api.routers.trails.trail_storage.get_trail")
-    def test_delete_image_member_forbidden(self, mock_get_trail, member_client):
-        mock_get_trail.return_value = SAMPLE_TRAIL
+    def test_delete_image_other_group_forbidden(self, mock_get_trail, member_client):
+        mock_get_trail.return_value = SAMPLE_TRAIL.model_copy(update={"group_id": "other-group"})
         response = member_client.delete("/api/v1/trails/abc123/images/0")
         assert response.status_code == 403
 
@@ -342,6 +347,8 @@ class TestGetImagePins:
         assert data["pins"][0] == {"trail_id": "t1", "lat": 55.5, "lng": 13.2, "thumbnail": "thumb"}
         # Should only pass explored trail IDs
         mock_get_pins.assert_called_once_with(["t1"])
+        # Must use the summary projection so coordinates_map is never read/deserialized
+        assert mock_get_all.call_args.kwargs.get("summary") is True
 
     @patch("api.routers.trails.trail_storage.get_image_pins")
     @patch("api.routers.trails.trail_storage.get_all_trails")

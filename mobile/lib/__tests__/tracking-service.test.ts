@@ -54,17 +54,17 @@ describe('tracking-service', () => {
     expect(TaskManager.defineTask).not.toHaveBeenCalled();
   });
 
-  it('startTracking starts location updates with balanced mode by default', async () => {
+  it('startTracking starts location updates with high precision mode by default', async () => {
     const onPoint = vi.fn();
     await TrackingService.startTracking(onPoint);
 
     expect(Location.startLocationUpdatesAsync).toHaveBeenCalledWith(
       'background-location-tracking',
       expect.objectContaining({
-        accuracy: Location.Accuracy.Balanced,
-        timeInterval: 10_000,
-        distanceInterval: 10,
-        pausesUpdatesAutomatically: true,
+        accuracy: Location.Accuracy.High,
+        timeInterval: 3_000,
+        distanceInterval: 5,
+        pausesUpdatesAutomatically: false,
       })
     );
   });
@@ -113,6 +113,57 @@ describe('tracking-service', () => {
       altitude: 100,
       timestamp: 1000,
     });
+  });
+
+  it('rejects fixes with accuracy worse than 10 m', async () => {
+    const onPoint = vi.fn();
+    await TrackingService.startTracking(onPoint);
+
+    const taskCb = taskCallbacks.get('background-location-tracking')!;
+    taskCb({
+      data: {
+        locations: [
+          { coords: { latitude: 55.6, longitude: 13.0, altitude: 100, accuracy: 35 }, timestamp: 1000 },
+        ],
+      },
+      error: null,
+    });
+
+    expect(onPoint).not.toHaveBeenCalled();
+  });
+
+  it('keeps fixes with accuracy within 10 m', async () => {
+    const onPoint = vi.fn();
+    await TrackingService.startTracking(onPoint);
+
+    const taskCb = taskCallbacks.get('background-location-tracking')!;
+    taskCb({
+      data: {
+        locations: [
+          { coords: { latitude: 55.6, longitude: 13.0, altitude: 100, accuracy: 8 }, timestamp: 1000 },
+        ],
+      },
+      error: null,
+    });
+
+    expect(onPoint).toHaveBeenCalledWith({ lat: 55.6, lng: 13.0, altitude: 100, timestamp: 1000 });
+  });
+
+  it('keeps fixes with unknown (null) accuracy', async () => {
+    const onPoint = vi.fn();
+    await TrackingService.startTracking(onPoint);
+
+    const taskCb = taskCallbacks.get('background-location-tracking')!;
+    taskCb({
+      data: {
+        locations: [
+          { coords: { latitude: 55.6, longitude: 13.0, altitude: 100, accuracy: null }, timestamp: 1000 },
+        ],
+      },
+      error: null,
+    });
+
+    expect(onPoint).toHaveBeenCalledWith({ lat: 55.6, lng: 13.0, altitude: 100, timestamp: 1000 });
   });
 
   it('task callback ignores errors', async () => {
@@ -302,7 +353,7 @@ describe('tracking-service', () => {
 
     expect(Location.startLocationUpdatesAsync).toHaveBeenCalledWith(
       'background-location-tracking',
-      expect.objectContaining({ accuracy: Location.Accuracy.Balanced }),
+      expect.objectContaining({ accuracy: Location.Accuracy.High }),
     );
 
     // Simulate another point after resume

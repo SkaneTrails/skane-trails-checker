@@ -28,6 +28,13 @@ function flattenStyle(style: unknown): React.CSSProperties | undefined {
 
 export const Alert = { alert: vi.fn() };
 
+export const AppState = {
+  currentState: 'active',
+  addEventListener: vi.fn((_event: string, _handler: (state: string) => void) => ({
+    remove: vi.fn(),
+  })),
+};
+
 /* Simple HTML-element wrappers */
 export const View = React.forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDivElement>>(
   ({ style, ...props }, ref) => React.createElement('div', { ...props, style: flattenStyle(style), ref }),

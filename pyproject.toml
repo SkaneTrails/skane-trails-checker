@@ -8,11 +8,12 @@ version = "0.1.0"
 description = "A FastAPI + Expo app for tracking hiking trails and foraging spots in Skåne, Sweden"
 readme = "README.md"
 license = { text = "MIT" }
-requires-python = ">=3.14.2"
+requires-python = ">=3.14.8"
 classifiers = [
   "Private :: Do Not Upload",
   "Programming Language :: Python :: 3 :: Only",
   "Programming Language :: Python :: 3.14",
+  "Programming Language :: Python :: 3.15",
 ]
 dependencies = [
   "fastapi>=0.115.0",
@@ -71,6 +72,7 @@ lint.ignore = [
   "ANN401",  # Any type (acceptable for dynamic types like UploadedFile)
   "BLE001",  # Blind exception (acceptable with logger.warning for user-facing messages)
   "COM812",  # Trailing comma conflicts with formatter
+  "CPY001",  # Missing copyright notice
   "D",       # Docstring rules (too verbose for now)
   "DTZ007",  # Datetime without timezone (not critical for this use case)
   "E501",    # Line too long (handled by formatter)
@@ -97,8 +99,9 @@ lint.isort.combine-as-imports = true
 lint.isort.split-on-trailing-comma = false
 
 [tool.deptry]
-# Exclude Cloud Function code (has its own requirements.txt) and venv
-exclude = [ ".venv", "htmlcov", "infra/modules/backup/function", "venv" ]
+# Exclude Cloud Function code (has its own requirements.txt), venv, and the Expo app
+# (mobile/node_modules ships third-party .py tooling that is not part of this project)
+exclude = [ ".venv", "htmlcov", "infra/modules/backup/function", "mobile", "venv" ]
 ignore_notebooks = true
 # These are local packages within app/ and dev-tools/
 per_rule_ignores.DEP001 = [
@@ -162,13 +165,13 @@ ini_options.log_cli_format = "%(asctime)s - %(name)s - %(levelname)s - %(message
 ini_options.cache_dir = ".cache/.pytest_cache"
 
 [tool.coverage]
-run.branch = true
-run.omit = [ "app/functions/bootstrap_trails.py", "dev-tools/*" ]
 run.source = [ "api/", "app/" ]
+run.omit = [ "app/functions/bootstrap_trails.py", "dev-tools/*" ]
+run.branch = true
+report.fail_under = 99
+report.precision = 2
 report.exclude_lines = [
   "if __name__ == .__main__.:",
   "pragma: no cover",
 ]
-report.fail_under = 99
-report.precision = 2
 report.skip_empty = true

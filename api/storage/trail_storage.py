@@ -1,23 +1,32 @@
 """Firestore storage operations for trails."""
 
 import logging
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from typing import Any
+from uuid import uuid4
 
 from api.models.trail import (
     Coordinate,
     ImagePin,
     SyncMetadata,
     TrailBounds,
+    TrailChangesResponse,
     TrailDetailsResponse,
     TrailImage,
     TrailImagesResponse,
     TrailResponse,
 )
-from api.storage.firestore_client import get_collection
+from api.storage.firestore_client import create_batch, get_collection, run_in_transaction
+from api.storage.sync_status import touch
+from api.storage.trail_tombstones import add_tombstone, get_deleted_trail_ids
 from api.storage.validation import validate_document_id
 
 logger = logging.getLogger(__name__)
+
+# A write takes its timestamp before it commits, so one can land just after a sync chose its cursor
+# yet carry an older time. The cursor trails the clock by this much so such a write is delivered
+# again next time (changes are applied idempotently) instead of being missed for good.
+CURSOR_OVERLAP = timedelta(minutes=2)
 
 # Fields returned for the "summary" list view (everything except the heavy
 # coordinates_map polyline). Used with Firestore query.select() so the
@@ -45,6 +54,7 @@ _SUMMARY_FIELDS: tuple[str, ...] = (
     "group_id",
     "line_color",
     "is_public",
+    "images_revision",
 )
 
 
@@ -86,6 +96,7 @@ def _doc_to_trail(data: dict) -> TrailResponse:
         group_id=data.get("group_id"),
         line_color=data.get("line_color"),
         is_public=data.get("is_public", False),
+        images_revision=data.get("images_revision"),
     )
 
 
@@ -193,11 +204,16 @@ def _fetch_group_and_public_trails(
 def save_trail(trail: TrailResponse, *, update_sync: bool = True) -> None:
     """Save or update a trail in Firestore.
 
+    Trail IDs are stable (re-uploading a GPX reuses its ID), so a save can overwrite a trail that
+    other groups can see with one they cannot, such as a public trail re-uploaded as private. The
+    previous document is read in the same transaction and, if its audience shrinks, a tombstone is
+    written for it so those groups drop their copy.
+
     Args:
         trail: The trail to save.
-        update_sync: Whether to update sync metadata. Set to False during
-            bulk imports (e.g. GPX upload) and call _update_sync_metadata()
-            once after the loop.
+        update_sync: Whether to refresh the legacy `/trails/sync` document (count, last_modified).
+            Set to False during bulk imports (e.g. GPX upload) and call update_sync_metadata() once
+            after the loop. The version clients poll is written with every trail regardless.
     """
     validate_document_id(trail.trail_id, field_name="trail_id")
     logger.info("Saving trail: %s (ID: %s, Source: %s)", trail.name, trail.trail_id, trail.source)
@@ -206,9 +222,38 @@ def save_trail(trail: TrailResponse, *, update_sync: bool = True) -> None:
     trail.modified_at = now
     if not trail.created_at:
         trail.created_at = now
-    get_collection("trails").document(trail.trail_id).set(trail.to_dict())
+    trail_ref = get_collection("trails").document(trail.trail_id)
+    data = trail.to_dict()
+    stored: dict = {}
+    run_in_transaction(lambda transaction: _overwrite_trail(transaction, trail_ref, data, now, stored))
+    trail.images_revision = stored.get("images_revision")
     if update_sync:
         _update_sync_metadata()
+
+
+def _overwrite_trail(transaction: Any, trail_ref: Any, data: dict, now: str, stored: dict) -> None:
+    """One attempt of the overwrite; `stored` ends up holding what the last attempt wrote."""
+    snapshot = trail_ref.get(transaction=transaction)
+    previous = snapshot.to_dict() if snapshot.exists else None
+    # A retried attempt must start from the original payload, not from what an earlier one added.
+    doc = dict(data)
+    # The photos live in their own document and survive an overwrite, so the trail's revision is the
+    # stored one, never one the caller carried over from an earlier read.
+    doc.pop("images_revision", None)
+    if previous and previous.get("images_revision"):
+        doc["images_revision"] = previous["images_revision"]
+    transaction.set(trail_ref, doc)
+    touch("trails", batch=transaction)
+    stored.clear()
+    stored.update(doc)
+    if previous and _audience_shrinks(previous, doc):
+        add_tombstone(transaction, data["trail_id"], previous, now)
+
+
+def _audience_shrinks(previous: dict, current: dict) -> bool:
+    """Whether someone who could see the previous trail may no longer see the current one."""
+    lost_public = bool(previous.get("is_public")) and not current.get("is_public")
+    return lost_public or previous.get("group_id") != current.get("group_id")
 
 
 def save_trail_details(details: TrailDetailsResponse) -> None:
@@ -255,24 +300,60 @@ def update_trail_name(trail_id: str, name: str) -> None:
 
 
 def update_trail(trail_id: str, updates: dict) -> None:
-    """Update multiple fields of a trail."""
+    """Update multiple fields of a trail.
+
+    Making a shared trail private also leaves a tombstone, written in the same transaction that
+    read the trail's sharing, so the groups that saw it drop their copy even if the sharing is
+    changed concurrently. Its owner keeps the trail because it is still in their delta.
+    """
     validate_document_id(trail_id, field_name="trail_id")
     logger.info("Updating trail %s with fields: %s", trail_id, list(updates.keys()))
     now = _utc_now_z()
     updates["last_updated"] = now
     updates["modified_at"] = now
-    get_collection("trails").document(trail_id).update(updates)
+    trail_ref = get_collection("trails").document(trail_id)
+    if updates.get("is_public") is False:
+        run_in_transaction(lambda transaction: _make_private(transaction, trail_ref, trail_id, updates, now))
+    else:
+        batch = create_batch()
+        batch.update(trail_ref, updates)
+        touch("trails", batch=batch)
+        batch.commit()
     _update_sync_metadata()
 
 
+def _make_private(transaction: Any, trail_ref: Any, trail_id: str, updates: dict, now: str) -> None:
+    """Apply an update that stops sharing a trail, with a tombstone if it was shared."""
+    snapshot = trail_ref.get(transaction=transaction)
+    previous = snapshot.to_dict() if snapshot.exists else None
+    transaction.update(trail_ref, updates)
+    touch("trails", batch=transaction)
+    if previous and previous.get("is_public"):
+        add_tombstone(transaction, trail_id, previous, now)
+
+
 def delete_trail(trail_id: str, *, update_sync: bool = True) -> None:
-    """Delete a trail and its details from Firestore."""
+    """Delete a trail and its details, with a tombstone for client delta sync, in one transaction.
+
+    The transaction reads who could see the trail and writes the tombstone for that audience, so a
+    concurrent change of sharing cannot leave the recorded audience stale.
+    """
     validate_document_id(trail_id, field_name="trail_id")
     logger.info("Deleting trail %s", trail_id)
-    get_collection("trails").document(trail_id).delete()
-    get_collection("trail_details").document(trail_id).delete()
+    trail_ref = get_collection("trails").document(trail_id)
+    run_in_transaction(lambda transaction: _delete_with_tombstone(transaction, trail_ref, trail_id))
     if update_sync:
         _update_sync_metadata()
+
+
+def _delete_with_tombstone(transaction: Any, trail_ref: Any, trail_id: str) -> None:
+    snapshot = trail_ref.get(transaction=transaction)
+    trail_data = snapshot.to_dict() if snapshot.exists else None
+    transaction.delete(trail_ref)
+    touch("trails", batch=transaction)
+    transaction.delete(get_collection("trail_details").document(trail_id))
+    if trail_data is not None:
+        add_tombstone(transaction, trail_id, trail_data, _utc_now_z())
 
 
 def get_sync_metadata() -> SyncMetadata:
@@ -289,13 +370,40 @@ def get_sync_metadata() -> SyncMetadata:
     return SyncMetadata(count=data.get("count", 0), last_modified=data.get("last_modified"))
 
 
-def _utc_now_z() -> str:
-    """Return current UTC time as ISO string with Z suffix (not +00:00)."""
-    return datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
+def get_trail_changes(since: str | None, group_id: str | None) -> TrailChangesResponse:
+    """Get trails changed and trail IDs deleted since a timestamp, for client delta sync.
+
+    Args:
+        since: ISO timestamp from a previous response's server_time. None returns every trail.
+        group_id: Caller's group (their trails plus public ones), or None for a superuser.
+
+    Returns:
+        Changed trails (with coordinates), deleted IDs, and the time to use as the next `since`.
+        A trail that is in the changed list is never also reported deleted (it was recreated, or
+        is still visible to this caller after being made private to others), so the client can
+        apply deletions and changes in any order. The returned time is taken before the data is
+        read and trails the clock by CURSOR_OVERLAP, so writes that commit shortly after their own
+        timestamp are picked up by the next sync; the overlap re-delivers a few recent changes.
+    """
+    server_time = _utc_now_z(CURSOR_OVERLAP)
+    trails = get_all_trails(since=since, group_id=group_id)
+    changed_ids = {trail.trail_id for trail in trails}
+    deleted_ids = [trail_id for trail_id in get_deleted_trail_ids(since, group_id) if trail_id not in changed_ids]
+    return TrailChangesResponse(
+        trails=trails,
+        deleted_ids=deleted_ids,
+        server_time=server_time,
+        scope="all" if group_id is None else f"group:{group_id}",
+    )
+
+
+def _utc_now_z(earlier_by: timedelta = timedelta(0)) -> str:
+    """Return the current UTC time, optionally moved back, as an ISO string with Z suffix."""
+    return (datetime.now(UTC) - earlier_by).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
 def update_sync_metadata() -> None:
-    """Public wrapper for sync metadata update.
+    """Public wrapper to refresh the legacy `/trails/sync` document.
 
     Use after bulk operations (e.g. GPX upload) where
     individual save_trail calls use update_sync=False.
@@ -308,8 +416,18 @@ def _update_sync_metadata() -> None:
 
     Uses a Firestore aggregation query to count documents server-side,
     avoiding O(N) client reads from streaming the entire collection.
-    Called after trail create, update, or delete.
+    Called after a trail is created, updated or deleted. The version clients poll is not written
+    here: it commits with the trail itself. This document only serves `GET /trails/sync`, so a
+    failure to write it is logged and must not fail a change that already committed.
     """
+    try:
+        _write_legacy_trails_sync()
+    except Exception:
+        logger.warning("Could not update the legacy trails_sync document", exc_info=True)
+
+
+def _write_legacy_trails_sync() -> None:
+    """Write the count and last_modified that `GET /trails/sync` serves."""
     now = _utc_now_z()
     collection = get_collection("trails")
     count_result = collection.count().get()
@@ -337,19 +455,30 @@ def get_trail_images(trail_id: str) -> TrailImagesResponse:
         )
         for img in data.get("images", [])
     ]
-    return TrailImagesResponse(trail_id=trail_id, images=images)
+    return TrailImagesResponse(trail_id=trail_id, images=images, revision=data.get("revision"))
 
 
-def save_trail_images(trail_id: str, images: list[TrailImage]) -> None:
-    """Save trail images to Firestore.
+def save_trail_images(trail_id: str, images: list[TrailImage]) -> str:
+    """Save trail images to Firestore and give them a new revision.
+
+    The images and the trail's `images_revision` are written in one batch, so a client that sees
+    a trail's revision in its delta and then loads the photos can never get an older set. The
+    trail's `modified_at` moves too, which delivers the new revision through `/trails/changes`.
+    Afterwards the `trails` and `images` sync markers change.
 
     Note: With 800px/60% JPEG compression, images are typically 50-100KB each.
     Max 3 images stays well under Firestore's 1 MiB document limit.
+
+    Returns:
+        The new revision.
     """
     validate_document_id(trail_id, field_name="trail_id")
     logger.info("Saving %d image(s) for trail %s", len(images), trail_id)
+    revision = uuid4().hex
+    now = _utc_now_z()
     data = {
         "trail_id": trail_id,
+        "revision": revision,
         "images": [
             {
                 "image_data": img.image_data,
@@ -362,13 +491,24 @@ def save_trail_images(trail_id: str, images: list[TrailImage]) -> None:
             for img in images
         ],
     }
-    get_collection("trail_images").document(trail_id).set(data)
+    batch = create_batch()
+    batch.set(get_collection("trail_images").document(trail_id), data)
+    batch.update(
+        get_collection("trails").document(trail_id),
+        {"images_revision": revision, "modified_at": now, "last_updated": now},
+    )
+    # The markers commit with the data, so a failure cannot leave changed photos that clients are never told about.
+    touch("trails", "images", batch=batch)
+    batch.commit()
+    _update_sync_metadata()
+    return revision
 
 
 def delete_trail_images(trail_id: str) -> None:
-    """Delete trail images document."""
+    """Delete trail images document (used when the trail itself is deleted)."""
     validate_document_id(trail_id, field_name="trail_id")
     get_collection("trail_images").document(trail_id).delete()
+    touch("images")
 
 
 def get_image_pins(trail_ids: list[str]) -> list[ImagePin]:

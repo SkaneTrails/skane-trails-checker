@@ -1,17 +1,29 @@
+import type { TrackingPoint } from '@/lib/track-to-trail';
+import { toRecordingPayload } from '@/lib/track-to-trail';
 import type {
   ImagePinsResponse,
-  SyncMetadata,
   Trail,
+  TrailChanges,
   TrailDetails,
   TrailImagesResponse,
   TrailUpdate,
 } from '@/lib/types';
-import type { TrackingPoint } from '@/lib/track-to-trail';
-import { toRecordingPayload } from '@/lib/track-to-trail';
 import { apiRequest } from './client';
+import { prepareFormFile, type UploadFile } from './form-file';
 
 /** File descriptor compatible with both web (File) and native (uri object). */
-export type ImageFile = File | { uri: string; type: string; name: string };
+export type ImageFile = UploadFile;
+
+async function postFile<T>(path: string, file: UploadFile): Promise<T> {
+  const { part, dispose } = await prepareFormFile(file);
+  try {
+    const formData = new FormData();
+    formData.append('file', part as any);
+    return await apiRequest<T>(path, { method: 'POST', body: formData });
+  } finally {
+    dispose();
+  }
+}
 
 export interface TrailFilters {
   source?: string;
@@ -45,11 +57,6 @@ export const trailsApi = {
     return apiRequest<Trail[]>(`/api/v1/trails${buildQuery(filters)}`);
   },
 
-  /** Fetch trail summaries (no coordinates_map) — much smaller payload for list/sync. */
-  getTrailSummaries(filters: TrailFilters = {}): Promise<Trail[]> {
-    return apiRequest<Trail[]>(`/api/v1/trails${buildQuery({ ...filters, fields: 'summary' })}`);
-  },
-
   getTrail(id: string): Promise<Trail> {
     return apiRequest<Trail>(`/api/v1/trails/${id}`);
   },
@@ -58,8 +65,9 @@ export const trailsApi = {
     return apiRequest<TrailDetails>(`/api/v1/trails/${id}/details`);
   },
 
-  getSyncMetadata(): Promise<SyncMetadata> {
-    return apiRequest<SyncMetadata>('/api/v1/trails/sync');
+  /** Trails changed and trail IDs deleted since `since` (full fetch without it), with coordinates. */
+  getTrailChanges(since?: string): Promise<TrailChanges> {
+    return apiRequest<TrailChanges>(`/api/v1/trails/changes${buildQuery({ since })}`);
   },
 
   updateTrail(id: string, data: TrailUpdate): Promise<Trail> {
@@ -75,20 +83,14 @@ export const trailsApi = {
     });
   },
 
-  uploadGpx(file: File, options: UploadGpxOptions = {}): Promise<Trail[]> {
-    const formData = new FormData();
-    formData.append('file', file);
-
+  uploadGpx(file: UploadFile, options: UploadGpxOptions = {}): Promise<Trail[]> {
     const params = new URLSearchParams();
     if (options.status) params.set('status', options.status);
     if (options.line_color) params.set('line_color', options.line_color);
     if (options.is_public !== undefined) params.set('is_public', String(options.is_public));
     const qs = params.toString();
 
-    return apiRequest<Trail[]>(`/api/v1/trails/upload${qs ? `?${qs}` : ''}`, {
-      method: 'POST',
-      body: formData,
-    });
+    return postFile<Trail[]>(`/api/v1/trails/upload${qs ? `?${qs}` : ''}`, file);
   },
 
   saveRecording(name: string, points: TrackingPoint[]): Promise<Trail> {
@@ -112,20 +114,15 @@ export const trailsApi = {
     role: 'primary' | 'secondary' = 'secondary',
     caption?: string,
   ): Promise<TrailImagesResponse> {
-    const formData = new FormData();
-    formData.append('file', file as any);
-
     const params = new URLSearchParams({ role });
     if (caption) params.set('caption', caption);
 
-    return apiRequest<TrailImagesResponse>(
-      `/api/v1/trails/${id}/images?${params.toString()}`,
-      { method: 'POST', body: formData },
-    );
+    return postFile<TrailImagesResponse>(`/api/v1/trails/${id}/images?${params.toString()}`, file);
   },
 
-  deleteTrailImage(trailId: string, imageIndex: number): Promise<void> {
-    return apiRequest<void>(`/api/v1/trails/${trailId}/images/${imageIndex}`, {
+  /** Deletes one photo and answers with the photos that are left and their new revision. */
+  deleteTrailImage(trailId: string, imageIndex: number): Promise<TrailImagesResponse> {
+    return apiRequest<TrailImagesResponse>(`/api/v1/trails/${trailId}/images/${imageIndex}`, {
       method: 'DELETE',
     });
   },

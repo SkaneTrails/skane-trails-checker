@@ -1,22 +1,22 @@
 """Tests verifying auth enforcement on API endpoints.
 
 All data endpoints (GET, POST, PATCH, DELETE) require auth.
-Only public infrastructure endpoints (health, sync metadata) are unauthenticated.
-Places remain publicly readable.
+Only public infrastructure endpoints (health, sync metadata, place categories) are unauthenticated.
 """
 
 import io
-from unittest.mock import patch
 
 
 class TestPublicEndpoints:
     """Endpoints that should work without authentication."""
 
-    @patch("api.routers.places.places_storage.get_all_places")
-    def test_list_places_no_auth(self, mock_get, unauthenticated_client):
-        mock_get.return_value = []
-        response = unauthenticated_client.get("/api/v1/places")
+    def test_list_place_categories_no_auth(self, unauthenticated_client):
+        response = unauthenticated_client.get("/api/v1/places/categories")
         assert response.status_code == 200
+
+    def test_list_places_requires_auth(self, unauthenticated_client):
+        response = unauthenticated_client.get("/api/v1/places")
+        assert response.status_code == 401
 
 
 class TestReadEndpointsRequireAuth:

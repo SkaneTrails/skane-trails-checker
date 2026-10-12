@@ -16,6 +16,14 @@ hosting_site_id = "your-unique-site-id"  # becomes <site-id>.web.app
 # Firebase OAuth (set to true after running create-oauth-client script)
 # oauth_secrets_exist = false  # default
 
+# Android app (Google Sign-In on Google Play builds). Fingerprints are lowercase hex
+# without colons: read them from the installed Play build with
+#   apksigner verify --print-certs base.apk
+# or from Play Console > Test and release > App integrity > Play app signing.
+# android_package_name = "com.skanetrails.hikes"  # default
+android_sha1_hashes   = ["your-play-app-signing-sha1"]
+android_sha256_hashes = ["your-play-app-signing-sha256"]
+
 # GitHub (for Workload Identity Federation)
 # github_repository_owner = "SkaneTrails"  # default
 # github_repository = "SkaneTrails/skane-trails-checker"  # default
