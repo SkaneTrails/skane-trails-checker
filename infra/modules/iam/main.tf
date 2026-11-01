@@ -55,6 +55,16 @@ resource "google_project_iam_member" "github_actions_firebase_hosting" {
   depends_on = [google_service_account.github_actions_firebase]
 }
 
+# The Firebase CLI checks that the Hosting API is enabled before it deploys
+# (serviceusage.services.get); without this the deploy fails with a 403.
+resource "google_project_iam_member" "github_actions_firebase_service_usage" {
+  project = var.project
+  role    = "roles/serviceusage.serviceUsageConsumer"
+  member  = "serviceAccount:${google_service_account.github_actions_firebase.email}"
+
+  depends_on = [google_service_account.github_actions_firebase]
+}
+
 # Grant Secret Manager access to Firebase service account (for fetching secrets in workflow)
 resource "google_project_iam_member" "github_actions_firebase_secretmanager" {
   project = var.project
