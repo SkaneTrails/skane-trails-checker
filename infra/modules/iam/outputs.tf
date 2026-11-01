@@ -21,7 +21,7 @@ output "app_user_role_name" {
 output "iam_bindings_complete" {
   description = "Marker output to ensure all IAM bindings (users + Terraform SA) are complete before dependent resources"
   value = {
-    user_access        = google_project_iam_binding.user_access
+    user_access        = google_project_iam_member.user_roles
     terraform_ci       = google_project_iam_member.github_actions_terraform_ci
     terraform_cd       = google_project_iam_member.github_actions_terraform_cd
     terraform_sa       = google_project_iam_member.github_actions_terraform_sa_admin
