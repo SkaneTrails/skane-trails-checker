@@ -81,7 +81,7 @@ resource "google_project_iam_custom_role" "infrastructure_manager" {
   project = var.project
 
   # Must wait for prerequisite roles to be granted
-  depends_on = [google_project_iam_binding.prerequisite_roles]
+  depends_on = [google_project_iam_member.github_actions_terraform_prerequisites]
 }
 
 # App User Role
@@ -126,7 +126,7 @@ resource "google_project_iam_custom_role" "app_user" {
   project = var.project
 
   # Must wait for prerequisite roles to be granted
-  depends_on = [google_project_iam_binding.prerequisite_roles]
+  depends_on = [google_project_iam_member.github_actions_terraform_prerequisites]
 }
 
 # -----------------------------------------------------------------------------
@@ -229,7 +229,7 @@ resource "google_project_iam_custom_role" "terraform_ci" {
 
   project = var.project
 
-  depends_on = [google_project_iam_binding.prerequisite_roles]
+  depends_on = [google_project_iam_member.github_actions_terraform_prerequisites]
 }
 
 # -----------------------------------------------------------------------------
@@ -244,7 +244,7 @@ resource "google_project_iam_custom_role" "terraform_ci" {
 #   roles/secretmanager.admin      — secret + version lifecycle
 #   roles/firebase.admin           — Firebase, Hosting, Identity Platform
 #   roles/iam.workloadIdentityPoolAdmin — WIF pool/provider lifecycle
-#   prerequisite_roles binding     — custom role + IAM policy management
+#   prerequisite roles (github_actions_terraform_prerequisites) — custom role + IAM policy management
 
 resource "google_project_iam_custom_role" "terraform_cd" {
   role_id     = "skaneTrailsTerraformCD"
@@ -302,5 +302,5 @@ resource "google_project_iam_custom_role" "terraform_cd" {
 
   project = var.project
 
-  depends_on = [google_project_iam_binding.prerequisite_roles]
+  depends_on = [google_project_iam_member.github_actions_terraform_prerequisites]
 }
