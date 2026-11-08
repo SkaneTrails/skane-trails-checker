@@ -39,10 +39,10 @@ importers:
         version: 9.8.2(c30213d801e6e0da0243bd88346fd153)
       '@tanstack/react-query':
         specifier: ^5.90.21
-        version: 5.105.3(@types/react@19.2.18)(react@19.2.3)
+        version: 5.106.0(@types/react@19.2.18)(react@19.2.3)
       '@tanstack/react-query-persist-client':
         specifier: ^5.90.24
-        version: 5.105.3(@tanstack/react-query@5.105.3(@types/react@19.2.18)(react@19.2.3))(@types/react@19.2.18)(react@19.2.3)
+        version: 5.106.0(@tanstack/react-query@5.106.0(@types/react@19.2.18)(react@19.2.3))(@types/react@19.2.18)(react@19.2.3)
       expo:
         specifier: ~57.0.27
         version: 57.0.31(@babel/core@7.29.13)(@expo/dom-webview@57.0.1)(@expo/metro-runtime@57.0.17)(expo-router@57.0.29)(react-dom@19.2.3(react@19.2.3))(react-native-web@0.21.4(react-dom@19.2.3(react@19.2.3))(react@19.2.3))(react-native-worklets@0.9.1(@babel/core@7.29.13)(@react-native/metro-config@0.87.0(@babel/core@7.29.13))(react-native@0.86.3(@babel/core@7.29.13)(@react-native/metro-config@0.87.0(@babel/core@7.29.13))(@types/react@19.2.18)(react@19.2.3))(react@19.2.3))(react-native@0.86.3(@babel/core@7.29.13)(@react-native/metro-config@0.87.0(@babel/core@7.29.13))(@types/react@19.2.18)(react@19.2.3))(react@19.2.3)(typescript@6.0.3)
@@ -2134,24 +2134,24 @@ packages:
   '@sinclair/typebox@0.27.12':
     resolution: {integrity: sha512-hhyNJ+nbR6ZR7pToHvllEFun9TL0sbL+tk/ON75lo+Xas054uez98qRbsuNt7MBCyZKK4+8Yli/OAGZhmfBZ/g==}
 
-  '@tanstack/query-core@5.105.3':
-    resolution: {integrity: sha512-v1rbNy7MB/4Akth7CQH+CerV13K7Ok9hAusEsfz4sCjDdu3/kOSJPoWfoB+YjdEX1eBFBWKNAGE5nqZCgdlHDw==}
+  '@tanstack/query-core@5.106.0':
+    resolution: {integrity: sha512-3GuqVrhCG0bBfmLt4AU0SIm8UuZ1rzeRjDiQBnYuzW3lkri1RdawWN73jZYvB4kC8WyDUoDgBx3kyO3TbNH/6Q==}
 
-  '@tanstack/query-persist-client-core@5.105.3':
-    resolution: {integrity: sha512-VcK3dfkvYkEb1AsX/VK/LJAa9nGN0OE5x2SnFHKY5Rwzixg9zqXdcr7fCpyolEWj/cygOd8Nt1ZRTPzfB0lEaw==}
+  '@tanstack/query-persist-client-core@5.106.0':
+    resolution: {integrity: sha512-6ffZybiyjHK8RDBgXXSi1Krjw1xpvNQ4uQAtxb6FVXC8Ls3ycnQHu/64RusUMkvmGQrJS8XVr8KmRZl1FM7Erw==}
 
-  '@tanstack/react-query-persist-client@5.105.3':
-    resolution: {integrity: sha512-WOs2QBYHZAFAYFsCdJEVhmqxYpnTp5wHTRwGImEfo9Ykn6rYX4LsNlH7aIF239ObuRXF/lQ0VrwWHxvT4sikHQ==}
+  '@tanstack/react-query-persist-client@5.106.0':
+    resolution: {integrity: sha512-YCRMsFqUuE4eQRZkG5iaVdGBj98iBpd08YKzct2mKSCOEO6jKTzVszDchCLtTWCGYhNL5iWTvan+fyKMRK1XZQ==}
     peerDependencies:
-      '@tanstack/react-query': ^5.105.3
+      '@tanstack/react-query': ^5.106.0
       '@types/react': ^18 || ^19
       react: ^18 || ^19
     peerDependenciesMeta:
       '@types/react':
         optional: true
 
-  '@tanstack/react-query@5.105.3':
-    resolution: {integrity: sha512-dj5hGWZmwoc9NG4enoXuYbiYwb5FxgJYPVv06eUgicMTfEMTRXn08Xv9D/r1V8TfjAv+BpxdvZFzJ1h3hSWZcQ==}
+  '@tanstack/react-query@5.106.0':
+    resolution: {integrity: sha512-OuP/ST9dEMBwHhisE5A/bBSWMhMmB/xKPfeZ2U0Wy8W/txb9QiGd7iXhxJPQ7jGbfcKlV13sJUHip9Nki54yyg==}
     peerDependencies:
       '@types/react': ^18 || ^19
       react: ^18 || ^19
@@ -7014,23 +7014,23 @@ snapshots:
 
   '@sinclair/typebox@0.27.12': {}
 
-  '@tanstack/query-core@5.105.3': {}
+  '@tanstack/query-core@5.106.0': {}
 
-  '@tanstack/query-persist-client-core@5.105.3':
+  '@tanstack/query-persist-client-core@5.106.0':
     dependencies:
-      '@tanstack/query-core': 5.105.3
+      '@tanstack/query-core': 5.106.0
 
-  '@tanstack/react-query-persist-client@5.105.3(@tanstack/react-query@5.105.3(@types/react@19.2.18)(react@19.2.3))(@types/react@19.2.18)(react@19.2.3)':
+  '@tanstack/react-query-persist-client@5.106.0(@tanstack/react-query@5.106.0(@types/react@19.2.18)(react@19.2.3))(@types/react@19.2.18)(react@19.2.3)':
     dependencies:
-      '@tanstack/query-persist-client-core': 5.105.3
-      '@tanstack/react-query': 5.105.3(@types/react@19.2.18)(react@19.2.3)
+      '@tanstack/query-persist-client-core': 5.106.0
+      '@tanstack/react-query': 5.106.0(@types/react@19.2.18)(react@19.2.3)
       react: 19.2.3
     optionalDependencies:
       '@types/react': 19.2.18
 
-  '@tanstack/react-query@5.105.3(@types/react@19.2.18)(react@19.2.3)':
+  '@tanstack/react-query@5.106.0(@types/react@19.2.18)(react@19.2.3)':
     dependencies:
-      '@tanstack/query-core': 5.105.3
+      '@tanstack/query-core': 5.106.0
       react: 19.2.3
     optionalDependencies:
       '@types/react': 19.2.18
