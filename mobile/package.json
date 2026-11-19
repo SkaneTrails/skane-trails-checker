@@ -42,7 +42,7 @@
     "firebase": "^13.0.0",
     "idb": "^8.0.3",
     "leaflet": "^1.9.4",
-    "leaflet.locatecontrol": "^0.90.0",
+    "leaflet.locatecontrol": "^0.91.0",
     "react": "19.2.3",
     "react-dom": "19.2.3",
     "react-leaflet": "^5.0.0",

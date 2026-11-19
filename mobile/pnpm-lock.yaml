@@ -95,8 +95,8 @@ importers:
         specifier: ^1.9.4
         version: 1.9.4
       leaflet.locatecontrol:
-        specifier: ^0.90.0
-        version: 0.90.1(leaflet@1.9.4)
+        specifier: ^0.91.0
+        version: 0.91.0(leaflet@1.9.4)
       react:
         specifier: 19.2.3
         version: 19.2.3
@@ -3281,10 +3281,10 @@ packages:
     resolution: {integrity: sha512-ONPnazC96VKDntab9j9JKwIWhZ4ZUceB4A9Epu4Ssg0hYFmtHZSeQ+n15nIwTFmcBUKtExOer8WTJ4GF9MO64A==}
     hasBin: true
 
-  leaflet.locatecontrol@0.90.1:
-    resolution: {integrity: sha512-i8HsspXuYsjOTyDKQKyAgXKxIRjYeW/9FynXgYiVnVKH5mWojlJ1bF/S1S9Z++Qkl5cEKtba+kQdRLBP+HhPnQ==}
+  leaflet.locatecontrol@0.91.0:
+    resolution: {integrity: sha512-WBd0XNCZQdmn/2BEqCLk7Lqpn2MQEFboyYMSM/VA9kzAVe6t8pttt0k2A28Go6C7oHaGa3IcFtkBw8PYMhyGTg==}
     peerDependencies:
-      leaflet: ^1.9.0 || >=2.0.0-alpha.1
+      leaflet: ^1.9.0 || ^2.0.0-beta.1
 
   leaflet@1.9.4:
     resolution: {integrity: sha512-nxS1ynzJOmOlHp+iL3FyWqK89GtNL8U8rvlMOsQdTTssxZwCXh8N2NB3GDQOL+YR3XnWyZAxwQixURb+FA74PA==}
@@ -8198,7 +8198,7 @@ snapshots:
 
   lan-network@0.2.1: {}
 
-  leaflet.locatecontrol@0.90.1(leaflet@1.9.4):
+  leaflet.locatecontrol@0.91.0(leaflet@1.9.4):
     dependencies:
       leaflet: 1.9.4
 
